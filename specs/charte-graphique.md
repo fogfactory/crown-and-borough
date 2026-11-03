@@ -27,13 +27,14 @@ peuvent être amendés en revue sans remettre en cause le choix qu'ils servent.
 ## Principes
 
 1. **La couleur vive appartient aux joueurs.** Les teintures héraldiques ne
-   disent qu'une chose : « à qui ». Elles colorent les bannières, les écus, les
-   pions, les bâtiments et les intentions. L'interface n'en emprunte aucune.
+   disent qu'une chose : « à qui ». Elles colorent les blasons, les figurines
+   et leurs fanions, les pions, les bâtiments et les intentions. L'interface n'en emprunte aucune.
 2. **L'encre décrit le monde, le laiton désigne l'action.** Le terrain, les
    frontières et le texte sont à l'encre sépia. Le bouton principal, l'onglet
    actif, le focus et la sélection sont en laiton.
-3. **Une information, un canal visuel.** Contrôle : bannière. Fief : couronne
-   sur la bannière. Occupation : écu de l'armée présente. Évêché : cadre et
+3. **Une information, un canal visuel.** Contrôle : blason. Fief : couronne
+   sur le blason et trigramme de la capitale dessous. Occupation : armée
+   présente, que le blason grisé du contrôleur rappelle. Évêché : cadre et
    liseré. Terrain : symboles d'encre. Saison : voile de la carte.
    Deux informations ne partagent jamais un canal.
 4. **Jamais la couleur seule.** Toute information portée par une couleur a un
@@ -57,11 +58,11 @@ peuvent être amendés en revue sans remettre en cause le choix qu'ils servent.
 | 2 | Matière | Parchemin clair rationalisé | Table de bois, salle du conseil sombre, double thème |
 | 3 | Typographie | Cinzel, Alegreya, IBM Plex Mono | Garamond et humaniste, gothique, imprimé ancien |
 | 4 | Couleur d'action | Laiton ; vermillon réservé aux erreurs ; aucun joueur en or | Encre seule, vert-de-gris, rouge sceau |
-| 5 | Contrôle | Bannière sur chaque territoire contrôlé ; l'occupation se lit à l'armée présente | Lavis, liseré intérieur, vues à bascule |
+| 5 | Contrôle | Blason sur chaque territoire contrôlé, grisé quand une armée d'un autre joueur ou rebelle l'occupe ; l'occupation se lit à l'armée présente | Lavis, liseré intérieur, vues à bascule, bannière |
 | 6 | Terrain | Carte gravée : symboles d'encre sur un papier commun | Aquarelle, aplats pastel, tuiles de plateau |
 | 7 | Frontières infranchissables | Série d'icônes choisie selon les terrains adjacents : montagnes, escarpement, marais dense, rivière | Lignes stylisées (crête hachurée, rempart, fleuve dessiné en trait) |
 | 8 | Évêchés | Cadre, liseré et calque | Tiret-point et blason |
-| 9 | Armées | Écu chiffré | Bloc de régiment, meeple, pile de jetons |
+| 9 | Armées | Paquet de figurines casquées (six au plus, des ombres au-delà) et fanion chiffré | Écu chiffré, bloc de régiment, meeple, pile de jetons |
 | 10 | Nobles | Pion simple, enrichi d'attributs cumulatifs selon les titres | Sceau de cire, blason personnel, pastille |
 | 11 | Identité des joueurs | Teinture et blason générés, puis blason choisi par le joueur (deuxième étape) | Hachures héraldiques, couleur seule |
 | 12 | Bâtiments | Silhouettes game-icons.net recolorées | Tampons à l'encre, maquettes, jetons |
@@ -73,7 +74,7 @@ peuvent être amendés en revue sans remettre en cause le choix qu'ils servent.
 | 18 | Emblème | Sceau de cire | Cartouche, blason écartelé, emblème actuel |
 | 19 | Mouvement | Aucune animation | Micro-animations, sons, résolution animée |
 | 20 | Phasage | Fondations d'abord | Carte, ergonomie ou écran complet d'abord |
-| 21 | Fiefs sur la carte | Bannière couronnée sur la capitale ; trigramme de la capitale sur les bannières des autres territoires du fief | Cartouche gravé, contour du fief, capitale seule |
+| 21 | Fiefs sur la carte | Blason couronné sur la capitale ; trigramme de la capitale sous le blason de chaque territoire du fief | Cartouche gravé, contour du fief, capitale seule |
 | 22 | Couronne et Église | Marque-page « Royaume » du tiroir | Médaillons sur la carte, boutons de la barre du haut, section de la lignée |
 | 23 | Titres d'un noble dans les fiches | Pion et attributs, puis titres en texte | Étiquettes unifiées, texte seul, pictogrammes seuls |
 | 24 | Scores et victoire | Popover des scores | Piste de score, tableau compact, scores dans la barre |
@@ -176,8 +177,8 @@ carte ; la pièce le distingue encore en niveaux de gris et pour un daltonien.
   reprend la teinture de `P(n − 8)`, inverse le métal et décale la pièce de
   quatre rangs : P9 porte de gueules au sautoir d'argent, P10 d'azur au pal
   d'or, et ainsi de suite.
-- Les rebelles (`NEUTRAL`) sont cendrés (`#7d766a`), sur un écu plein sans
-  pièce.
+- Les rebelles (`NEUTRAL`) sont cendrés (`#7d766a`), sur un blason, un surcot
+  et un fanion pleins, sans pièce.
 - L'ordre d'attribution suit l'ordre des sièges, dans la palette
   d'`internal/engine/game.go`.
 - Le moteur attribue la teinture du siège dans `players[].color` et publie
@@ -305,7 +306,7 @@ De bas en haut :
 6. Frontières franchissables, frontières infranchissables, contour extérieur.
 7. Sélection, au-dessus des frontières pour ne jamais être masquée.
 8. Ligne de ravitaillement, calamités et cartes jouées.
-9. Pièces : bâtiments, bannières, armées, nobles.
+9. Pièces : bâtiments, blasons, armées, nobles.
 10. Étiquettes : noms, codes, chefs-lieux.
 11. Intentions, ordres d'hiver et événement du rapport sélectionné.
 
@@ -373,47 +374,72 @@ L'évêché se lit par trois éléments :
 - **Calque :** activable depuis la légende
   (`cb.regionsOverlay`), affiché par défaut.
 
-### Contrôle : bannières
+### Contrôle : blasons
 
 - Tout territoire contrôlé (champ `owner` de `state.json`, qu'il appartienne
-  ou non à un fief) porte une bannière à queue d'aronde aux armes de son
-  joueur : champ de la teinture, pièce du métal.
-- Aucun marqueur d'occupation : l'écu de l'armée présente suffit, puisqu'une
-  case ne porte qu'une armée.
-- Un territoire neutre n'a pas de bannière.
-- Le bouton de légende « Contrôle joueur » affiche ou masque les bannières.
+  ou non à un fief) porte un blason aux armes de son joueur : champ de la
+  teinture, pièce du métal.
+- Un territoire occupé par une armée d'un autre joueur (allié ou ennemi) ou
+  par des rebelles garde le blason de son contrôleur, **grisé** : le champ et
+  le métal sont désaturés à luminance égale, le trait d'encre et la pièce
+  restent, si bien que les armes se reconnaissent sans la couleur. L'armée du
+  contrôleur lui-même ne grise rien.
+- Un territoire occupé qu'aucun joueur ne contrôle n'a pas de marqueur :
+  l'armée présente suffit, puisqu'une case ne porte qu'une armée.
+- Un territoire neutre n'a pas de blason.
+- Le bouton de légende « Contrôle joueur » affiche ou masque les blasons.
 
-**Précision.** La bannière se plante à gauche du nom, le pied du mât sur sa
-ligne de base ; mât `ink-900` de 14 unités, drapeau de 12 × 8 unités. Chaque
-joueur a un drapeau et un écu définis une fois (`<symbol>`), instanciés par
-`<use>` sur chaque pièce.
+**Précision.** Le blason mesure 12 × 18 unités ; il se plante à gauche du
+nom, sa pointe sur la ligne de base. Chaque joueur a un blason défini une
+fois (`<symbol>`), instancié par `<use>` sur chaque pièce ; le blason grisé
+est un second symbole, dérivé du premier.
 
-### Fiefs : bannière couronnée
+### Fiefs : blason couronné
 
-- La capitale d'un fief porte la bannière de son joueur surmontée de la
+- La capitale d'un fief porte le blason de son joueur surmonté de la
   couronne du rang du fief (baronnie, comté, marquisat, duché ; mêmes dessins
   que les couronnes des nobles), en `brass-400` cernée d'encre.
-- Les autres territoires du fief gardent leur bannière ordinaire, marquée du
-  trigramme de la capitale en petites capitales Cinzel sous le drapeau : on
-  lit d'un coup d'œil à quel fief appartient une case.
+- Chaque territoire du fief, capitale comprise, porte sous son blason le
+  trigramme de la capitale en petites capitales Cinzel : on lit d'un coup
+  d'œil à quel fief appartient une case.
 - Un fief de la couronne ([politique.md](politique.md)) porte la couronne
   fermée du roi sur sa capitale.
 - Le nom du fief (« Baronnie de Rochevent ») ne s'écrit pas sur la carte :
-  il figure dans l'infobulle de la bannière et dans la fiche du territoire.
+  il figure dans l'infobulle du blason et dans la fiche du territoire.
   `MapFiefLayer.tsx` ne dessine ni étiquette ovale ni mini-écu.
 
 **Précision.** La couronne de fief mesure 10 × 6 unités, posée sur le haut
-du mât ; le trigramme de rattachement fait 6 unités. Un fief vacant garde sa
-couronne au-dessus d'une bannière `neutral`.
+du blason ; le trigramme de rattachement fait 6 unités. Un fief vacant garde
+sa couronne au-dessus d'un blason `neutral`.
 
-### Armées : écu chiffré
+### Armées : figurines et fanion chiffré
 
-- L'armée est un écu de 15 × 19 unités aux armes de son joueur, avec son
-  effectif au centre en Alegreya 700 blanc cerné d'encre
-  (`paint-order: stroke`), lisible sur la teinture comme sur le métal.
-- Une armée rebelle porte l'écu cendré plein.
-- L'écu d'armée est dessiné par `LiveLayer`
-  (`web/src/components/MapTerritoryLayers.tsx`).
+- L'armée est un paquet de figurines de face, une par troupe, **six au plus**.
+  Chaque figurine, de 5 × 11 unités, porte un casque gris, un visage, un
+  surcot aux armes de son joueur (champ de la teinture, pièce du métal) et
+  une lance dans la main droite, donc du côté gauche de l'image.
+- Les figurines sont toutes droites et de même taille, mais posées sans
+  alignement : décalages irréguliers, chevauchements, rangée du fond cachée
+  en partie par celle du devant. Le désordre est déterministe (graine
+  dérivée de l'identifiant du territoire) : le paquet ne bouge pas d'un rendu
+  à l'autre.
+- Au-delà de six troupes, des silhouettes grises à 40 % d'opacité, sans
+  détail, font masse derrière les six figurines : deux de 7 à 9 troupes,
+  trois de 10 à 19, quatre à partir de 20.
+- Le fanion est porté par la figurine la plus à gauche du paquet : son mât
+  est le prolongement de sa lance. Le fanion se place au-dessus de la tête la
+  plus haute du paquet, ombres comprises, avec dix unités de marge, sans
+  jamais recouvrir une figurine. Il porte le champ de la teinture, deux
+  filets de métal et l'effectif exact en Alegreya 700 blanc cerné d'encre
+  (`paint-order: stroke`) ; il mesure 11 × 7 unités, 14 × 7 à partir de deux
+  chiffres.
+- Une armée rebelle porte des figurines, un surcot et un fanion cendrés, sans
+  pièce.
+- En vue d'ensemble, le paquet se réduit à la seule figurine porte-fanion ;
+  le paquet complet apparaît dès le premier cran de zoom.
+- L'armée est dessinée par `LiveLayer`
+  (`web/src/components/MapTerritoryLayers.tsx`) au centre du territoire, sans
+  chevaucher le blason, qui reste à gauche du nom.
 
 ### Nobles : pion et attributs de titre
 
@@ -497,17 +523,17 @@ du bâtiment, et la légende rappelle que R désigne les ressources ; aucun
   territoire particulier (capitale d'un joueur, capitale de fief, chef-lieu
   d'évêché, fief de la couronne) montre toujours son nom complet au-dessus de
   son code, à tous les niveaux de zoom.
-- Les autres pièces de la carte (bannières, écus, pions, bâtiments) ne
+- Les autres pièces de la carte (blasons, armées, pions, bâtiments) ne
   s'étiquettent pas d'un code : leur infobulle donne le libellé complet et le
   code entre parenthèses (« Baron Rainaud de Rochevent (RAI) »). Seul le
-  trigramme de rattachement d'un fief reste écrit sous la bannière, en vue
+  trigramme de rattachement d'un fief reste écrit sous le blason, en vue
   synthétique.
 
 **Précision.** Quand le nom d'un territoire ordinaire rendu fait moins de
 10 px à l'écran, seul le code s'affiche ; le seuil suit le zoom. Sur la carte
 à 4 joueurs (52 territoires), la vue d'ensemble montre les seuls territoires
 particuliers et le premier cran de zoom tous les noms. Un nom coupé l'est au
-trait d'union le plus proche de son milieu. La bannière se plante à gauche
+trait d'union le plus proche de son milieu. Le blason se plante à gauche
 de la ligne la plus large de l'étiquette (nom ou code), sur la dernière ligne
 de base du nom, ou sur celle du code quand le nom est masqué.
 
@@ -515,7 +541,8 @@ de base du nom, ou sur celle du code quand le nom est masqué.
 
 La légende montre des échantillons de symboles, non des pastilles de couleur :
 les cinq terrains, les icônes de frontière infranchissable et le pointillé
-franchissable, la bannière, la bannière couronnée d'un fief, l'écu, le pion
+franchissable, le blason, le blason grisé, le blason couronné d'un fief,
+l'armée (figurines et fanion), le pion
 de noble (libre, otage, au cachot, excommunié, et ses attributs de titre) et
 les bâtiments. Les boutons des calques (intentions, contrôle, évêchés,
 calamités, cartes) accompagnent la légende.
@@ -824,10 +851,10 @@ Sélectionner un territoire ouvre un **cartouche** posé sur la carte, relié au
 territoire par un trait d'encre ; le tiroir reste consacré aux ordres.
 
 - **En-tête :** nom en Alegreya italique suivi du code entre parenthèses,
-  bannière, terrain.
+  blason, terrain.
 - **Une ligne par sujet,** absente quand elle est vide : fief et rang (avec la
   couronne), titulaire, capitale ou cité et sa défense, ressources et revenu
-  du territoire, armée (écu, effectif, ordre), nobles présents (une rangée de
+  du territoire, armée (figurines, effectif, ordre), nobles présents (une rangée de
   pions à attributs, leurs noms au survol ou au toucher), bâtiments.
 - Le revenu s'écrit une seule fois, sous la forme « 40 R · +3 R / tour ».
 - Le cartouche se ferme par Échap, par la croix ou en sélectionnant ailleurs.
@@ -867,9 +894,9 @@ ombre portée n'y figure.
 - **Noble.** Un cartouche en parchemin déroulé entre deux rouleaux aux bords
   enroulés (SVG) : feuille `paper-50`, rouleaux `paper-300` à la face ombrée
   `paper-200`, contour d'encre `ink-900`, et un filet de la teinture du joueur
-  (le canal « à qui ») le long du bord haut et du bord bas. L'écu de la
-maison (`ShieldIcon`, le même écu que celui des armées sur la carte, aux armes
-du joueur) se tient à gauche du nom : c'est lui qui dit à quelle maison
+  (le canal « à qui ») le long du bord haut et du bord bas. Le blason de la
+maison (`ShieldIcon`, le même blason que celui du contrôle sur la carte, aux
+armes du joueur) se tient à gauche du nom : c'est lui qui dit à quelle maison
 appartient un noble, l'arbre ne regroupant pas les maisons. Le nom (avec ♂ ou
 ♀ en `ink-700`), puis les titres, la captivité et les décès s'écrivent en
 texte sous l'écu, rangés dans l'ordre de succession, jamais coupés ; le rang
@@ -1124,8 +1151,8 @@ leur découpage.
 3. **Nouvelle identité** ([#445](https://github.com/fogfactory/crown-and-borough/issues/445)) **:** basculer les tokens sur cette charte, charger
    Cinzel, Alegreya et IBM Plex Mono, recolorer les composants shadcn, retirer
    Geist et le bloc `.dark`. Sortie : contrastes AA vérifiés.
-4. **Carte gravée** ([#446](https://github.com/fogfactory/crown-and-borough/issues/446)) **:** terrain, icônes de frontière, évêchés, bannières, écus,
-   pions de nobles et attributs de titre, bannières couronnées des fiefs,
+4. **Carte gravée** ([#446](https://github.com/fogfactory/crown-and-borough/issues/446)) **:** terrain, icônes de frontière, évêchés, blasons de contrôle,
+   armées, pions de nobles et attributs de titre, blasons couronnés des fiefs,
    bâtiments, sélection, saisons, légende, teintures et
    armoiries générées des joueurs.
 5. **Ergonomie** ([#447](https://github.com/fogfactory/crown-and-borough/issues/447)) **:** libellés complets et liens vers la carte, barre du haut
