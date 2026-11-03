@@ -648,7 +648,7 @@ describe('MapViewer territorial overlays', () => {
     )
   })
 
-  it('marks no occupation: the occupant army shows, the banner tooltip names it', () => {
+  it('greys the shield of an occupied territory; the occupant army shows and the tooltip names it', () => {
     const occupiedState: StateData = {
       ...state,
       players: [
@@ -679,10 +679,17 @@ describe('MapViewer territorial overlays', () => {
     const { svg } = renderMap(map, occupiedState)
 
     expect(svg.querySelector('g[aria-label="Occupied territories"]')).toBeNull()
-    expect(svg.querySelector('[data-army-owner="P2"]')).toHaveAttribute(
-      'href',
-      '#arms-shield-P2',
-    )
+    expect(
+      svg.querySelector('[data-army-owner="P2"] use[data-army-soldier]'),
+    ).toHaveAttribute('href', '#arms-soldier-P2')
+    const shields = svg.querySelectorAll('[data-ownership-badge="P1"] use')
+    expect(Array.from(shields).map((shield) => shield.getAttribute('href'))).toEqual([
+      '#arms-shield-P1',
+      '#arms-shield-grey-P1',
+    ])
+    expect(
+      svg.querySelectorAll('[data-ownership-badge="P1"] [data-control-grey]'),
+    ).toHaveLength(1)
     const badgeTitles = svg.querySelectorAll('[data-ownership-badge="P1"] title')
     const occupiedBadgeTitle = Array.from(badgeTitles).find((title) =>
       title.textContent?.includes('occupied by'),
@@ -733,7 +740,7 @@ describe('MapViewer territorial overlays', () => {
     const resourceLabel = Array.from(livingLayer?.querySelectorAll('text') ?? []).find(
       (element) => element.textContent === '3 R',
     )
-    const armyMarker = livingLayer?.querySelector('use[data-army-owner]')
+    const armyMarker = livingLayer?.querySelector('[data-army-owner]')?.parentElement
     const infrastructureMarker = livingLayer?.querySelector('g[transform*="scale("]')
     const codeLabel = svg.querySelector('[data-territory-code="ROS"]')
     const nameLabel = svg.querySelector('[data-territory-name="ROS"]')
@@ -1595,7 +1602,13 @@ describe('MapViewer picks', () => {
     const onSelect = vi.fn()
     const onPick = vi.fn(() => true)
     render(
-      <MapViewer map={map} state={state} selectedId="ROS" onSelect={onSelect} onPick={onPick} />,
+      <MapViewer
+        map={map}
+        state={state}
+        selectedId="ROS"
+        onSelect={onSelect}
+        onPick={onPick}
+      />,
     )
     const territory = document.querySelector('[data-territory-id="ROS"]') as Element
 
@@ -1608,7 +1621,9 @@ describe('MapViewer picks', () => {
 describe('MapViewer selection overlay', () => {
   it('draws the overlay next to the selected territory, from its box on screen', () => {
     const overlay = vi.fn(() => <p>cartouche</p>)
-    render(<MapViewer map={map} state={state} selectedId="BRU" selectionOverlay={overlay} />)
+    render(
+      <MapViewer map={map} state={state} selectedId="BRU" selectionOverlay={overlay} />,
+    )
 
     expect(screen.getByText('cartouche')).toBeInTheDocument()
     const [anchor, size] = overlay.mock.calls.at(-1) as unknown as [

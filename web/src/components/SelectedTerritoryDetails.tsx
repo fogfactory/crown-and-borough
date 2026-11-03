@@ -1,7 +1,7 @@
 import { Popover } from 'radix-ui'
 import { IconCrown, IconX } from '@tabler/icons-react'
 
-import { BannerIcon, ShieldIcon } from '@/components/ArmsIcons'
+import { ArmyIcon, ControlShieldIcon } from '@/components/ArmsIcons'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
@@ -193,7 +193,7 @@ export function SelectedTerritoryDetails({
     <div className="space-y-3 text-sm" data-territory-cartouche={selectedTerritory.id}>
       <div className="flex items-start gap-2">
         {controller && controllerArms && (
-          <BannerIcon
+          <ControlShieldIcon
             id={`cartouche-${selectedTerritory.id}`}
             arms={controllerArms}
             crown={isFiefCapital ? selectedFief?.title : undefined}
@@ -292,7 +292,7 @@ export function SelectedTerritoryDetails({
             <dt className="text-xs text-ink-500">{t('app.army')}</dt>
             <dd className="flex flex-wrap items-center gap-x-1.5 font-medium">
               {armyArms && (
-                <ShieldIcon
+                <ArmyIcon
                   id={`cartouche-army-${selectedTerritory.id}`}
                   arms={armyArms}
                   size={army.size}

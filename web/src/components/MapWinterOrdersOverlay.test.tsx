@@ -55,7 +55,7 @@ describe('WinterOrdersOverlay found_fief group', () => {
     label: 'T F HUG AAA BBB CCC',
   }
 
-  it('plants a faded banner, marked with the capital, on each non-capital member', () => {
+  it('plants a faded shield, marked with the capital, on each non-capital member', () => {
     const { container } = renderOverlay([{ ...foundFief, player: 'P1' }])
 
     const members = container.querySelectorAll('[data-fief-group-member]')
@@ -63,9 +63,9 @@ describe('WinterOrdersOverlay found_fief group', () => {
       Array.from(members).map((member) => member.getAttribute('data-fief-group-member')),
     ).toEqual(['BBB', 'CCC'])
     for (const member of members) {
-      expect(member.querySelector('use')).toHaveAttribute('href', '#arms-banner-P1')
+      expect(member.querySelector('use')).toHaveAttribute('href', '#arms-shield-P1')
       expect(member.querySelector('[data-fief-attachment]')?.textContent).toBe('AAA')
-      // Lighter than a settled banner since this is only a draft.
+      // Lighter than a settled shield since this is only a draft.
       expect(member.getAttribute('opacity')).toBe('0.6')
     }
   })

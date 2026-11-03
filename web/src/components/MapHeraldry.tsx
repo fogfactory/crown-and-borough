@@ -2,6 +2,13 @@ import {
   BANNER_HEIGHT,
   BANNER_PATH,
   BANNER_WIDTH,
+  CONTROL_SHIELD_SCALE,
+  FIGURE_HEAD_TOP,
+  SPEAR_TOP,
+  SPEAR_X,
+  armyFigures,
+  greyArms,
+  hashSeed,
   SHIELD_HEIGHT,
   SHIELD_PATH,
   SHIELD_WIDTH,
@@ -18,6 +25,10 @@ import {
   MARKER_BRASS,
   NEUTRAL_ARMY_COLOR,
   POPE_ROBE,
+  SHIELD_NUMBER,
+  SOLDIER_FACE,
+  SOLDIER_SHADOW,
+  SOLDIER_STEEL,
 } from '@/lib/map-palette'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import type { NobleStatus } from '@/types'
@@ -36,17 +47,37 @@ export function bannerSymbolId(owner: string): string {
   return `arms-banner-${owner}`
 }
 
+/** The shield of a territory occupied against its controller: greyed. */
+export function greyShieldSymbolId(owner: string): string {
+  return `arms-shield-grey-${owner}`
+}
+
+export function soldierSymbolId(owner: string): string {
+  return `arms-soldier-${owner}`
+}
+
+const SHADOW_SYMBOL_ID = 'arms-soldier-shadow'
+
+// Soldier figurine, 5 x 11 units, feet on the origin: surcoat in the arms of
+// its owner, steel helmet, face, and a spear held in the right hand (left of
+// the image, the figurine facing the viewer).
+const SURCOAT = 'M-2.4 0 L-2.65 -6.1 H2.65 L2.4 0 Z'
+const HELMET = 'M-2.05 -7.75 Q-2.05 -10.95 0 -10.95 Q2.05 -10.95 2.05 -7.75 Z'
+
 /** A field with its charge, clipped to `outline`, cased in ink. */
 export function ArmsField({
   arms,
   outline,
   clipId,
   box,
+  casing = CASING,
 }: {
   arms: ResolvedArms
   outline: string
   clipId: string
   box: [number, number, number, number]
+  /** Stroke of the ink casing, in units. */
+  casing?: number
 }) {
   const charge = arms.charge
   const shape = charge ? chargeShape(charge.kind, ...box) : null
@@ -55,7 +86,7 @@ export function ArmsField({
       <clipPath id={clipId}>
         <path d={outline} />
       </clipPath>
-      <path d={outline} fill={MAP_HALO} stroke={MAP_HALO} strokeWidth={CASING * 3} />
+      <path d={outline} fill={MAP_HALO} stroke={MAP_HALO} strokeWidth={casing * 3} />
       <path d={outline} fill={arms.field} />
       {charge && shape && (
         <g clipPath={`url(#${clipId})`} data-charge={charge.kind}>
@@ -82,7 +113,7 @@ export function ArmsField({
         d={outline}
         fill="none"
         stroke={MAP_INK}
-        strokeWidth={CASING}
+        strokeWidth={casing}
         strokeLinejoin="round"
       />
     </>
@@ -100,6 +131,13 @@ export function HeraldryDefs({
 }) {
   return (
     <>
+      <symbol id={SHADOW_SYMBOL_ID} overflow="visible">
+        <g fill={SOLDIER_SHADOW}>
+          <path d={SURCOAT} />
+          <circle cy={-7.5} r={1.6} />
+          <path d={HELMET} />
+        </g>
+      </symbol>
       {[...armsByOwner].map(([owner, arms]) => (
         <g key={owner}>
           <symbol id={shieldSymbolId(owner)} overflow="visible">
@@ -109,6 +147,17 @@ export function HeraldryDefs({
               clipId={`${shieldSymbolId(owner)}-clip`}
               box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
             />
+          </symbol>
+          <symbol id={greyShieldSymbolId(owner)} overflow="visible">
+            <ArmsField
+              arms={greyArms(arms)}
+              outline={SHIELD_PATH}
+              clipId={`${greyShieldSymbolId(owner)}-clip`}
+              box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+            />
+          </symbol>
+          <symbol id={soldierSymbolId(owner)} overflow="visible">
+            <Soldier arms={arms} clipId={`${soldierSymbolId(owner)}-clip`} />
           </symbol>
           <symbol id={bannerSymbolId(owner)} overflow="visible">
             <ArmsField
@@ -161,57 +210,190 @@ export function CrownGlyph({
   )
 }
 
-/** Height of the banner's mast above its foot, in units. */
-export const MAST_HEIGHT = 14
+/** One figurine of a pack, feet on the origin. */
+export function Soldier({ arms, clipId }: { arms: ResolvedArms; clipId: string }) {
+  return (
+    <g>
+      <line
+        x1={SPEAR_X}
+        y1={0.8}
+        x2={SPEAR_X}
+        y2={SPEAR_TOP}
+        stroke={MAP_INK}
+        strokeWidth={0.55}
+        strokeLinecap="round"
+      />
+      <ArmsField
+        arms={arms}
+        outline={SURCOAT}
+        clipId={clipId}
+        box={[-2.65, -6.1, 5.3, 6.1]}
+        casing={0.4}
+      />
+      <path
+        d={`M-2.6 -5.4 L${SPEAR_X + 0.15} -3.8`}
+        stroke={MAP_INK}
+        strokeWidth={0.6}
+        strokeLinecap="round"
+      />
+      <circle
+        cx={SPEAR_X}
+        cy={-3.8}
+        r={0.75}
+        fill={SOLDIER_FACE}
+        stroke={MAP_INK}
+        strokeWidth={0.3}
+      />
+      <circle cy={-7.5} r={1.6} fill={SOLDIER_FACE} stroke={MAP_INK} strokeWidth={0.35} />
+      <path d={HELMET} fill={SOLDIER_STEEL} stroke={MAP_INK} strokeWidth={0.4} />
+      <path d="M0 -7.75 V-6.6" stroke={MAP_INK} strokeWidth={0.4} />
+    </g>
+  )
+}
+
+/** Foot-to-top room kept between the highest head and the banner, in units. */
+const BANNER_CLEARANCE = 10
 
 /**
- * A swallowtail banner on an ink mast, its foot at the origin: the flag is
- * hoisted at the mast top, a crown may rest on it (fief capital), and a fief
- * member writes its capital's trigram under the flag.
+ * An army: a pack of up to six upright figurines in the owner's arms, shifted
+ * irregularly (a function of `seed`), grey shadows behind a big army, and a
+ * numbered banner whose pole is the spear of the leftmost soldier, above
+ * every head. `compact` keeps the standard-bearer alone (overview zoom). Feet
+ * on the origin, centred on x = 0.
  */
-export function BannerGlyph({
+export function ArmyGlyph({
   owner,
-  crown,
-  attachedTo,
-  flagHref = `#${bannerSymbolId(owner)}`,
+  size,
+  seed,
+  compact = false,
+  hrefs,
 }: {
   owner: string
+  size: number
+  /** Names the pack's disorder: the territory id. */
+  seed: string
+  compact?: boolean
+  /** Symbols to draw, by default the owner's from `HeraldryDefs`. */
+  hrefs?: { soldier: string; banner: string }
+}) {
+  const figures = armyFigures(size, hashSeed(seed))
+  const soldiers = compact ? [{ x: 0, y: 0 }] : figures.soldiers
+  const shadows = compact ? [] : figures.shadows
+  const bearer = compact ? soldiers[0] : soldiers[figures.bearer]
+  const headTop =
+    Math.min(
+      ...soldiers.map((soldier) => soldier.y),
+      ...shadows.map((shadow) => shadow.y),
+    ) + FIGURE_HEAD_TOP
+  const poleX = bearer.x + SPEAR_X
+  const flagTop = headTop - BANNER_CLEARANCE - BANNER_HEIGHT
+  const ordered = [...soldiers].sort((first, second) => first.y - second.y)
+  return (
+    <g data-army-owner={owner} data-army-size={size}>
+      {shadows.map((shadow) => (
+        <use
+          key={`${shadow.x}-${shadow.y}`}
+          href={`#${SHADOW_SYMBOL_ID}`}
+          x={shadow.x}
+          y={shadow.y}
+          opacity={0.4}
+          data-army-shadow
+        />
+      ))}
+      {ordered.map((soldier) => (
+        <use
+          key={`${soldier.x}-${soldier.y}`}
+          href={hrefs?.soldier ?? `#${soldierSymbolId(owner)}`}
+          x={soldier.x}
+          y={soldier.y}
+          data-army-soldier
+        />
+      ))}
+      <line
+        x1={poleX}
+        y1={bearer.y + SPEAR_TOP}
+        x2={poleX}
+        y2={flagTop - 0.4}
+        stroke={MAP_HALO}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+      <line
+        x1={poleX}
+        y1={bearer.y + SPEAR_TOP}
+        x2={poleX}
+        y2={flagTop - 0.4}
+        stroke={MAP_INK}
+        strokeWidth={0.9}
+        strokeLinecap="round"
+      />
+      <use
+        href={hrefs?.banner ?? `#${bannerSymbolId(owner)}`}
+        x={poleX + 0.4}
+        y={flagTop}
+      />
+      <text
+        x={poleX + 0.4 + BANNER_WIDTH * 0.4}
+        y={flagTop + BANNER_HEIGHT / 2}
+        fill={SHIELD_NUMBER}
+        fontSize={6.5}
+        fontWeight="700"
+        textAnchor="middle"
+        dominantBaseline="central"
+        stroke={MAP_INK}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+        paintOrder="stroke"
+      >
+        {size}
+      </text>
+    </g>
+  )
+}
+
+/** Half the control shield's width and its height, in units. */
+const CONTROL_HALF_WIDTH = (SHIELD_WIDTH * CONTROL_SHIELD_SCALE) / 2
+const CONTROL_HEIGHT = SHIELD_HEIGHT * CONTROL_SHIELD_SCALE
+
+/** From a label's left edge to the control shield's centre: half a shield and a gap. */
+export const CONTROL_REACH = CONTROL_HALF_WIDTH + 3
+
+/**
+ * The shield of the controller, its point on the origin: greyed while an
+ * army of another player occupies the territory, crowned on a fief capital,
+ * and writing its fief's capital trigram under its point.
+ */
+export function ControlShield({
+  owner,
+  grey = false,
+  crown,
+  attachedTo,
+  shieldHref,
+}: {
+  owner: string
+  grey?: boolean
   crown?: CrownKind
   attachedTo?: string
-  /** Flag symbol to draw, by default the owner's from `HeraldryDefs`. */
-  flagHref?: string
+  /** Shield symbol to draw, by default the owner's from `HeraldryDefs`. */
+  shieldHref?: string
 }) {
-  const hoist = -MAST_HEIGHT
+  const href =
+    shieldHref ?? `#${grey ? greyShieldSymbolId(owner) : shieldSymbolId(owner)}`
   return (
-    <g data-banner-owner={owner}>
-      <line
-        x1={0}
-        y1={0.5}
-        x2={0}
-        y2={hoist - 0.6}
-        stroke={MAP_HALO}
-        strokeWidth={2.6}
-        strokeLinecap="round"
+    <g data-banner-owner={owner} data-control-grey={grey ? '' : undefined}>
+      <use
+        href={href}
+        transform={`translate(0 ${-CONTROL_HEIGHT / 2}) scale(${CONTROL_SHIELD_SCALE})`}
       />
-      <line
-        x1={0}
-        y1={0.5}
-        x2={0}
-        y2={hoist - 0.6}
-        stroke={MAP_INK}
-        strokeWidth={1.1}
-        strokeLinecap="round"
-      />
-      <use href={flagHref} x={0.5} y={hoist} />
       {crown && (
-        <g transform={`translate(${BANNER_WIDTH / 2} ${hoist - 0.8})`}>
+        <g transform={`translate(0 ${-CONTROL_HEIGHT - 0.4})`}>
           <CrownGlyph kind={crown} />
         </g>
       )}
       {attachedTo && (
         <text
-          x={0.5 + BANNER_WIDTH / 2}
-          y={hoist + BANNER_HEIGHT + 6}
+          x={0}
+          y={7}
           fill={MAP_INK}
           fontFamily="var(--font-display)"
           fontSize={6}

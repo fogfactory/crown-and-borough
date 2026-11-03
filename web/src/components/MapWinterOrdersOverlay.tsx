@@ -6,7 +6,7 @@ import {
   winterMarkerTitle,
   winterReasonText,
 } from '@/components/MapMarkers'
-import { BannerGlyph } from '@/components/MapHeraldry'
+import { ControlShield } from '@/components/MapHeraldry'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { centroid } from '@/lib/map-svg-geometry'
 import type { WinterIntention } from '@/lib/winter-overlay'
@@ -253,7 +253,7 @@ export function WinterOrdersOverlay({
                 pointerEvents="none"
               >
                 <title>{t('map.fiefGroupMember', { capital: capital.name })}</title>
-                <BannerGlyph
+                <ControlShield
                   owner={intention.player ?? NEUTRAL_PLAYER_ID}
                   attachedTo={capital.id}
                 />

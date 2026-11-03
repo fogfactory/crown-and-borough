@@ -1,14 +1,11 @@
 import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
-import { BannerIcon, ShieldIcon } from '@/components/ArmsIcons'
+import { ArmyIcon, ControlShieldIcon } from '@/components/ArmsIcons'
 import { NoblePawn } from '@/components/MapHeraldry'
 import { GameIconGlyph } from '@/components/MapMarkers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
-import {
-  type CrownKind,
-  type ResolvedArms,
-} from '@/lib/heraldry'
+import { type CrownKind, type ResolvedArms } from '@/lib/heraldry'
 import type { ImpassableBorderKind } from '@/lib/map-borders'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import { HERALDIC_COLORS } from '@/lib/region-color'
@@ -142,25 +139,35 @@ const LEGEND_ARMS: ResolvedArms = {
   charge: { kind: 'bend', metal: METAL_COLORS.or },
 }
 
-/** Banner sample in the sample arms, crowned or marked with a fief trigram. */
-function LegendBanner({ crown, attachedTo }: { crown?: CrownKind; attachedTo?: string }) {
+/** Shield sample in the sample arms: plain, greyed, crowned or marked with a fief trigram. */
+function LegendControl({
+  crown,
+  attachedTo,
+  grey,
+}: {
+  crown?: CrownKind
+  attachedTo?: string
+  grey?: boolean
+}) {
+  const key = grey ? 'occupied' : (crown ?? attachedTo ?? 'plain')
   return (
-    <span data-legend-banner={crown ?? attachedTo ?? 'plain'} className="contents">
-      <BannerIcon
-        id={`legend-banner-${crown ?? attachedTo ?? 'plain'}`}
+    <span data-legend-control={key} className="contents">
+      <ControlShieldIcon
+        id={`legend-control-${key}`}
         arms={LEGEND_ARMS}
         crown={crown}
         attachedTo={attachedTo}
+        grey={grey}
       />
     </span>
   )
 }
 
-/** Army sample: the shield of the sample arms, with its strength. */
-function LegendShield() {
+/** Army sample: a standard-bearer of the sample arms, with its strength. */
+function LegendArmy() {
   return (
-    <span data-legend-shield className="contents">
-      <ShieldIcon id="legend-shield" arms={LEGEND_ARMS} size={3} />
+    <span data-legend-army className="contents">
+      <ArmyIcon id="legend-army" arms={LEGEND_ARMS} size={3} />
     </span>
   )
 }
@@ -354,19 +361,23 @@ export function MapLegend({
             <span>{t('legend.castle')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <LegendBanner />
+            <LegendControl />
             <span>{t('legend.control')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <LegendBanner crown="barony" />
+            <LegendControl grey />
+            <span>{t('legend.controlOccupied')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LegendControl crown="barony" />
             <span>{t('legend.fiefCapital')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <LegendBanner attachedTo="ROS" />
+            <LegendControl attachedTo="ROS" />
             <span>{t('legend.fief')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <LegendShield />
+            <LegendArmy />
             <span>{t('legend.army')}</span>
           </div>
           <div className="flex items-center gap-2">

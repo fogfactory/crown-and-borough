@@ -236,7 +236,7 @@ describe('MapViewer infrastructure ownership', () => {
     expect(fills).toEqual(['url(#winter-snow-1)', 'url(#winter-snow-2)'])
   })
 
-  it('plants a banner in the controller arms on each controlled territory', () => {
+  it('plants a shield in the controller arms on each controlled territory', () => {
     const armedState: StateData = {
       ...ownedState,
       players: [
@@ -252,10 +252,10 @@ describe('MapViewer infrastructure ownership', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: armedState })
     const badge = svg.querySelector('[data-ownership-badge="P1"]')
 
-    expect(badge?.querySelector('use')).toHaveAttribute('href', '#arms-banner-P1')
+    expect(badge?.querySelector('use')).toHaveAttribute('href', '#arms-shield-P1')
     expect(badge?.querySelector('title')?.textContent).toBe('One controls this territory')
-    // The banner symbol: gules field, a bend or, an ink casing.
-    const flag = svg.querySelector('symbol#arms-banner-P1')
+    // The shield symbol: gules field, a bend or, an ink casing.
+    const flag = svg.querySelector('symbol#arms-shield-P1')
     expect(flag?.querySelector('path[fill="#b3322b"]')).toBeInTheDocument()
     expect(flag?.querySelector('[data-charge="bend"] path')).toHaveAttribute(
       'stroke',
@@ -263,8 +263,8 @@ describe('MapViewer infrastructure ownership', () => {
     )
     expect(flag?.querySelector('path[stroke="#30291f"]')).toBeInTheDocument()
     // A player without arms (older game) flies a plain field.
-    expect(svg.querySelector('symbol#arms-banner-P2 [data-charge]')).toBeNull()
-    // Neutral territories fly no banner.
+    expect(svg.querySelector('symbol#arms-shield-P2 [data-charge]')).toBeNull()
+    // Neutral territories carry no shield.
     expect(svg.querySelector('[data-ownership-badge="NEUTRAL"]')).toBeNull()
   })
 })
