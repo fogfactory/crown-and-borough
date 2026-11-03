@@ -165,6 +165,18 @@ function jsonResponse(body: unknown): Response {
   })
 }
 
+function renderGame(language: 'en' | 'fr' = 'en') {
+  return render(
+    <LanguageProvider initialLanguage={language}>
+      <MemoryRouter initialEntries={['/games/GAME1']}>
+        <Routes>
+          <Route path="/games/:gameId" element={<GamePage />} />
+        </Routes>
+      </MemoryRouter>
+    </LanguageProvider>,
+  )
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
   authMocks.getIdToken.mockClear()
@@ -215,15 +227,7 @@ describe('GamePage transfer preview', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(
-      <LanguageProvider initialLanguage="en">
-        <MemoryRouter initialEntries={['/games/GAME1']}>
-          <Routes>
-            <Route path="/games/:gameId" element={<GamePage />} />
-          </Routes>
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
+    const { container } = renderGame()
 
     await screen.findByText('Online game')
     const territory = await waitFor(() => {
@@ -275,15 +279,7 @@ describe('GamePage submission rehydration and divergence', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(
-      <LanguageProvider initialLanguage="en">
-        <MemoryRouter initialEntries={['/games/GAME1']}>
-          <Routes>
-            <Route path="/games/:gameId" element={<GamePage />} />
-          </Routes>
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
+    renderGame()
 
     await screen.findByText('Online game')
     const textarea = await screen.findByLabelText('Chain for JEA')
@@ -332,15 +328,7 @@ describe('GamePage submission rehydration and divergence', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(
-      <LanguageProvider initialLanguage="fr">
-        <MemoryRouter initialEntries={['/games/GAME1']}>
-          <Routes>
-            <Route path="/games/:gameId" element={<GamePage />} />
-          </Routes>
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
+    renderGame('fr')
 
     await screen.findByText('Online game')
     const textarea = await screen.findByLabelText("Ordres d'hiver de P1")
@@ -405,15 +393,7 @@ describe('GamePage submission rehydration and divergence', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(
-      <LanguageProvider initialLanguage="en">
-        <MemoryRouter initialEntries={['/games/GAME1']}>
-          <Routes>
-            <Route path="/games/:gameId" element={<GamePage />} />
-          </Routes>
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
+    const { container } = renderGame()
 
     await screen.findByText('Online game')
     await waitFor(() => {
@@ -469,15 +449,7 @@ describe('GamePage submission rehydration and divergence', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(
-      <LanguageProvider initialLanguage="en">
-        <MemoryRouter initialEntries={['/games/GAME1']}>
-          <Routes>
-            <Route path="/games/:gameId" element={<GamePage />} />
-          </Routes>
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
+    const { container } = renderGame()
 
     await screen.findByText('Online game')
     await waitFor(() => {
@@ -557,15 +529,7 @@ describe('GamePage submission rehydration and divergence', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { container } = render(
-      <LanguageProvider initialLanguage="en">
-        <MemoryRouter initialEntries={['/games/GAME1']}>
-          <Routes>
-            <Route path="/games/:gameId" element={<GamePage />} />
-          </Routes>
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
+    const { container } = renderGame()
 
     await screen.findByText('Online game')
     await waitFor(() => {
@@ -578,5 +542,37 @@ describe('GamePage submission rehydration and divergence', () => {
         winterOverlay?.querySelector('g[data-winter-ghost="true"]'),
       ).toBeInTheDocument()
     })
+  })
+})
+
+describe('GamePage notices', () => {
+  it('announces a load failure as an alert', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('boom', { status: 500 })),
+    )
+    renderGame()
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('shows the observer banner as a plain notice, not an alert', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.endsWith('/api/games/GAME1')) {
+          return Promise.resolve(jsonResponse({ spectator: true }))
+        }
+        if (url.endsWith('/api/games/GAME1/map'))
+          return Promise.resolve(jsonResponse(map))
+        if (url.endsWith('/api/games/GAME1/state')) {
+          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+        }
+        return Promise.resolve(jsonResponse({}))
+      }),
+    )
+    renderGame()
+    expect(await screen.findByText('You are observing this game.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
