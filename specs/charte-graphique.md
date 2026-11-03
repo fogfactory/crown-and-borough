@@ -13,9 +13,8 @@ couronne, la lignée et les prétentions.
 Les décisions 1 à 20 ont été actées lors de l'audit graphique du
 27 septembre 2026, les décisions 21 à 32 lors de l'audit du 12 octobre 2026
 qui a suivi le milestone Royauté (fiefs, couronne, ordres royaux, cartes de
-fief). Elles ne sont pas encore implémentées : l'interface actuelle
-reste la référence tant que la phase correspondante n'est pas livrée. Les
-paragraphes marqués **Précision** traduisent une décision en règle applicable ;
+fief). Les sept phases du [Phasage](#phasage) sont livrées : cette charte
+décrit l'interface en production. Les paragraphes marqués **Précision** traduisent une décision en règle applicable ;
 ils peuvent être amendés en revue sans remettre en cause le choix qu'ils
 servent.
 
