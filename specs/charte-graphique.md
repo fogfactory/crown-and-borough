@@ -13,11 +13,12 @@ couronne, la lignée et les prétentions.
 Les décisions 1 à 20 ont été actées lors de l'audit graphique du
 27 septembre 2026, les décisions 21 à 32 lors de l'audit du 12 octobre 2026
 qui a suivi le milestone Royauté (fiefs, couronne, ordres royaux, cartes de
-fief). Elles ne sont pas encore implémentées : l'interface actuelle
-reste la référence tant que la phase correspondante n'est pas livrée. Les
-paragraphes marqués **Précision** traduisent une décision en règle applicable ;
-ils peuvent être amendés en revue sans remettre en cause le choix qu'ils
-servent.
+fief). Les sept phases du [Phasage](#phasage) sont livrées. Les passages qui
+comparent à l'interface d'avant (« actuel », « remplace », « passe en »)
+datent de la rédaction : ils racontent le choix, et la règle qu'ils servent
+est celle de la phrase qui les suit ou les précède. Les paragraphes marqués
+**Précision** traduisent une décision en règle applicable ; ils peuvent être
+amendés en revue sans remettre en cause le choix qu'ils servent.
 
 ## Objectifs
 
@@ -1116,6 +1117,9 @@ hors partie. Elles partagent un seul gabarit, posé sur le papier de la page.
 
 ## Phasage
 
+Les sept phases sont livrées (issues fermées) ; la liste garde la trace de
+leur découpage.
+
 1. **Charte graphique** ([#443](https://github.com/fogfactory/crown-and-borough/issues/443)) **:** ce document.
 2. **Tokens sans changement visible** ([#444](https://github.com/fogfactory/crown-and-borough/issues/444)) **:** créer les tokens avec les valeurs
    actuelles, remplacer les quelque 700 couleurs écrites en dur, puis refuser
@@ -1144,13 +1148,17 @@ hors partie. Elles partagent un seul gabarit, posé sur le papier de la page.
 6. **Saisie assistée des ordres** ([#448](https://github.com/fogfactory/crown-and-borough/issues/448)) **:** coloration, autocomplétion, lien avec la
    carte, validation en direct.
 7. **Emblème, lignée et pages annexes** ([#449](https://github.com/fogfactory/crown-and-borough/issues/449)) **:** sceau, favicon, arbre
-   généalogique de la lignée, accueil, connexion, règles et FAQ.
+   généalogique de la lignée, accueil, connexion, invitation, profil, règles
+   et FAQ.
 
 Viennent ensuite : le choix du blason par le joueur, puis, éventuellement,
 les cartes d'ordres.
 
 ## Questions ouvertes
 
+- **Pages annexes :** accueil, invitation, profil, règles et FAQ ne sont
+  couverts que par les tests ; à contrôler à l'œil avec une session connectée
+  (l'accueil et les règles sont hors de la démo hotseat).
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
 - **Niveau de détail des étiquettes :** le seuil de 10 px convient à la carte

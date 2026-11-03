@@ -16,7 +16,7 @@ front React/Vite/TypeScript. Toute la conception vit dans `specs/` :
 - `specs/architecture.md` — stack, structure du repo, contrats map.json/state.json
 - `specs/roadmap.md` — état de la v1 et évolutions suivies par issues GitHub
 - `specs/charte-graphique.md` — identité visuelle, rendu de la carte et
-  ergonomie du front (refonte actée, pas encore implémentée)
+  ergonomie du front (refonte livrée en sept phases)
 - `specs/prompts/` — prompts online `p3.x` conservés temporairement comme
   matériau de travail ; les prompts livrés ou abandonnés ont été supprimés
 
