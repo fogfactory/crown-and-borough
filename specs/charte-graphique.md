@@ -1054,14 +1054,15 @@ Un tour sans rien de tout cela écrit « Rien à signaler ce tour. ».
 ### Emblème
 
 - Un sceau de cire : cire rouge (dégradé `#c8433a` vers `#6d1210`), anneau
-  intérieur, monogramme « C&B » en Cinzel 700 et légende circulaire
-  « SIGILLVM · CROWN · ET · BOROUGH ».
+  intérieur, monogramme « C&B » en Cinzel 700 et légende circulaire : « Crown and
+  Borough » sur l'arc du haut, centré sur « and », et la version déployée
+  (`v1.2.3`, ou `dev` hors déploiement ; sans numéro de build ni suffixe) sur l'arc du bas, centrée.
 - Déclinaisons : favicon (sceau et monogramme sans légende, lisible à 16 px),
-  en-tête (36 à 44 px), accueil et connexion (96 px et plus, avec la légende).
+  en-tête (36 à 44 px), accueil et connexion (128 px et plus, avec la légende).
 - Le rouge du sceau n'est pas une couleur d'interface.
-- Le sceau remplace `web/src/components/BrandMark.tsx` et
-  `web/public/favicon.svg` ; `theme-color` (`web/index.html`) passe à
-  `paper-200`.
+- Le sceau est le composant `web/src/components/Seal.tsx` (variantes `full` et
+  `compact`) et `web/public/favicon.svg` ; le monogramme est dessiné en
+  chemins, sans `<text>`. `theme-color` (`web/index.html`) vaut `paper-200`.
 
 ### Mouvement
 

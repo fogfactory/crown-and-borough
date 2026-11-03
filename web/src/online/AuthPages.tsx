@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { MISSING_EMAIL_ERROR, useAuth } from '@/auth/AuthProvider'
+import { Seal } from '@/components/Seal'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -57,6 +58,7 @@ export function SignInPage() {
   return (
     <Card className="mx-auto max-w-md border-line bg-paper-50 shadow-panel">
       <CardHeader>
+        <Seal variant="full" className="mx-auto mb-2 size-32" />
         <Link
           to="/"
           className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-brass-700"
