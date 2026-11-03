@@ -123,6 +123,13 @@ export const ICON_GREEN = '#4e7d3b'
 
 /** Head marriage (`brass-700`). */
 export const LINEAGE_HEAD = '#7d5a1c'
+/** Brown outline of the head marriage bond, filled with brass gold (`ink-700` warmed). */
+export const LINEAGE_HEAD_BROWN = '#4a3417'
+/**
+ * Ivy of the head marriage: a dark olive, yellower and darker than the green
+ * player tincture (`#3f7d3c`), so that it never reads as a player colour.
+ */
+export const LINEAGE_IVY = '#4a5526'
 /** Secondary marriage and claim stems (`ink-700`). */
 export const LINEAGE_SECONDARY = '#594b3c'
 export const LINEAGE_CLAIM = LINEAGE_SECONDARY
@@ -138,9 +145,11 @@ export const LINEAGE_WEAVE = '#d9cfba'
 export const LINEAGE_BAND = '#e6d8bb'
 /** Outer rule of the border and outline of the cartouches (`ink-900`). */
 export const LINEAGE_INK = MAP_INK
-/** Inner rule, corner ornaments and rank seals (`brass-700` / `brass-400`). */
+/** Inner rule and corner ornaments (`brass-700` / `brass-400`). */
 export const LINEAGE_BRASS = '#7d5a1c'
 export const LINEAGE_BRASS_LIGHT = '#c9a24a'
+/** Digit of a rank seal, outlined in ink on the house colour (near-white). */
+export const LINEAGE_RANK_DIGIT = MAP_PAPER
 /** Rolled ends of a noble's scroll (`paper-300`). */
 export const LINEAGE_SCROLL_ROLL = LINEAGE_BAND
 /** Shaded face and inner curl of a roll (`paper-200`). */

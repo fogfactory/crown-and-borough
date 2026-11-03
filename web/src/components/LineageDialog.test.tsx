@@ -24,11 +24,12 @@ const noble = (
 function renderDialog(
   simulationRequest?: (actions: SimulationAction[]) => Promise<VictorySimulation>,
   link = false,
+  focus: string | null = null,
 ) {
   render(
     <LanguageProvider initialLanguage="en">
       <LineageDialog
-        defaultFocus="P1"
+        defaultFocus={focus}
         simulationRequest={simulationRequest}
         players={[
           { id: 'P1', name: 'Alice', color: '#a84632', succession: ['JEA'] },
@@ -162,6 +163,11 @@ describe('LineageDialog', () => {
     expect(
       document.querySelector('[data-marriage="OLD-EVE"] [data-knot]'),
     ).toHaveAttribute('data-knot', 'ended')
+    // Only the head marriage grows ivy: leaves along its bond.
+    expect(
+      document.querySelectorAll('[data-marriage="JEA-ANN"] [data-ivy] path').length,
+    ).toBeGreaterThanOrEqual(2)
+    expect(document.querySelector('[data-marriage="OLD-EVE"] [data-ivy]')).toBeNull()
     expect(screen.getByTestId('lineage-tapestry')).toBeInTheDocument()
     // No badge repeats what the lines say, and cards cannot be dragged.
     expect(screen.queryByText(/Claimed ×/)).not.toBeInTheDocument()
@@ -186,15 +192,67 @@ describe('LineageDialog', () => {
     expect(screen.queryByTestId('assassination-victim')).not.toBeInTheDocument()
   })
 
-  it('filters families and ended marriages', () => {
+  it('has no family pills nor ended or claim checkboxes, and always draws them', () => {
     renderDialog()
-    fireEvent.click(
-      within(screen.getByRole('group', { name: 'Families' })).getByRole('button', {
-        name: 'Bob',
-      }),
-    )
-    expect(screen.queryByRole('region', { name: 'Bob' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Families' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-marriage="OLD-EVE"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-claim="EVE>JEA"]')).toBeInTheDocument()
+  })
+
+  it('shows every house without a focus', () => {
+    renderDialog()
+    expect(screen.getByLabelText('Focus')).toHaveValue('')
+    expect(screen.getByRole('option', { name: 'All houses' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Alice' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Bob' })).toBeInTheDocument()
+    expect(document.querySelector('[data-noble="VIC"]')).toBeInTheDocument()
+  })
+
+  it('keeps the focused house, its spouses and its heirs, and hides the others', () => {
+    renderDialog(undefined, false, 'P1')
+    const nobles = [...document.querySelectorAll('[data-noble]')].map((el) =>
+      el.getAttribute('data-noble'),
+    )
+    // JEA and OLD (P1), ANN and EVE (spouses, the ended marriage included).
+    expect(nobles.sort()).toEqual(['ANN', 'EVE', 'JEA', 'OLD'])
+    expect(document.querySelector('[data-noble="VIC"]')).toBeNull()
+    // Linked nobles keep the blazon of their own house, and their succession rank.
+    expect(screen.getByRole('region', { name: 'Bob' })).toHaveTextContent('Duchesse Anne')
+    expect(
+      document.querySelector('[data-noble="EVE"] svg text'),
+    ).toHaveTextContent('2')
+    expect(document.querySelector('[data-marriage="OLD-EVE"]')).toBeInTheDocument()
+    expect(document.querySelector('[data-claim="EVE>JEA"]')).toBeInTheDocument()
+    // The footer and the inset keep every house.
+    fireEvent.click(screen.getByRole('button', { name: 'Alliances' }))
+    expect(screen.getByText('Duc Jean × Dame Eve')).toBeInTheDocument()
+  })
+
+  it('shows the heirs of a focused house and the couple a focused heir claims through', () => {
+    renderDialog(undefined, false, 'P2')
+    // P2 owns ANN and EVE, so JEA (spouse, target) and OLD (spouse of EVE) are tied; VIC is P2's own.
+    const nobles = [...document.querySelectorAll('[data-noble]')].map((el) =>
+      el.getAttribute('data-noble'),
+    )
+    expect(nobles.sort()).toEqual(['ANN', 'EVE', 'JEA', 'OLD', 'VIC'])
+  })
+
+  it('changes the visible nobles with the focus select', () => {
+    renderDialog()
+    fireEvent.change(screen.getByLabelText('Focus'), { target: { value: 'P1' } })
+    expect(document.querySelector('[data-noble="VIC"]')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Focus'), { target: { value: '' } })
+    expect(document.querySelector('[data-noble="VIC"]')).toBeInTheDocument()
+  })
+
+  it('colours the rank seal with the house colour and outlines its digit', () => {
+    renderDialog()
+    const seal = document.querySelector('[data-noble="JEA"] svg g circle')!
+    expect(seal).toHaveAttribute('fill', '#a84632')
+    const digit = document.querySelector('[data-noble="JEA"] svg g text')!
+    expect(digit).toHaveAttribute('paint-order', 'stroke')
+    expect(digit).toHaveTextContent('1')
   })
 
   it('unfolds the alliance inset and lists the marriage to cancel and the one taking over', () => {
@@ -250,6 +308,17 @@ describe('LineageDialog', () => {
         scores: { P1: { titles: 3, total: 3 }, P2: { titles: 1, total: 1 } },
         victory: { soloThreshold: 3, allianceThreshold: 4, players: {} },
       } as unknown as VictorySimulation['state'],
+    })
+
+    it('applies the focus to the simulated state', async () => {
+      renderDialog(async () => projection(true), false, 'P1')
+      expect(document.querySelector('[data-noble="ANN"]')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      // The simulated state has no marriage left: only Alice's own nobles remain.
+      await waitFor(() =>
+        expect(document.querySelector('[data-noble="ANN"]')).toBeNull(),
+      )
+      expect(document.querySelector('[data-noble="JEA"]')).toBeInTheDocument()
     })
 
     it('watermarks the tree as a hypothesis while simulating only', async () => {

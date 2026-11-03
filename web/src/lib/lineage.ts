@@ -378,7 +378,7 @@ export const MEDALLION_ANCHOR_Y = 28
 export const TREE_PAD_Y = 30
 export const TREE_LANE = 8
 /** Gap between two spouses: it holds the knot of their marriage. */
-export const COUPLE_GAP = 56
+export const COUPLE_GAP = 88
 /** Width the tree aims for: the room a full-screen dialog leaves at 1440 px. */
 export const TREE_BUDGET = 1280
 const SIBLING_GAP = 20

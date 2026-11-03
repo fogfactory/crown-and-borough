@@ -75,3 +75,67 @@ export function endAngle(points: Point[]): number {
   if (!last || !before) return 0
   return Math.atan2(last.y - before.y, last.x - before.x)
 }
+
+/** A leaf of the ivy: where it is rooted, the way the stem runs, the side it hangs on. */
+export interface IvyLeaf extends Point {
+  /** Direction (radians) of the bond at the leaf. */
+  angle: number
+  /** `1` on one side of the bond, `-1` on the other. */
+  side: 1 | -1
+  /** Deterministic tilt (degrees) added to the leaf's usual slant. */
+  tilt: number
+}
+
+/**
+ * Leaves of the ivy along a polyline, on both sides of the stem. They are spread
+ * evenly over the length (about `spacing` apart, at least two stations), each
+ * station bearing one leaf per side, so the count follows the bond and the
+ * placement is deterministic. A small tilt varies from station to station
+ * (a fixed cycle, no randomness). A leaf never sits within `clearAround` of the
+ * middle (the knot) or of a corner (rounded in the drawing).
+ */
+export function ivyLeaves(points: Point[], spacing = 8, clearAround = 11): IvyLeaf[] {
+  if (points.length < 2) return []
+  const lengths: number[] = []
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    const length = Math.hypot(
+      points[i].x - points[i - 1].x,
+      points[i].y - points[i - 1].y,
+    )
+    lengths.push(length)
+    total += length
+  }
+  if (total < 2 * clearAround) return []
+  const count = Math.max(2, Math.floor(total / spacing))
+  const corners: number[] = []
+  let walked = 0
+  for (let i = 0; i < lengths.length - 1; i++) {
+    walked += lengths[i]
+    corners.push(walked)
+  }
+  const tilts = [0, 9, -6, 12, -10, 4]
+  const leaves: IvyLeaf[] = []
+  for (let n = 0; n < count; n++) {
+    const at = ((n + 0.5) / count) * total
+    if (Math.abs(at - total / 2) < clearAround) continue
+    if (corners.some((c) => Math.abs(at - c) < clearAround * 0.8)) continue
+    let segment = 0
+    let start = 0
+    while (segment < lengths.length - 1 && start + lengths[segment] < at) {
+      start += lengths[segment]
+      segment++
+    }
+    const from = points[segment]
+    const to = points[segment + 1]
+    const ratio = lengths[segment] === 0 ? 0 : (at - start) / lengths[segment]
+    const base = {
+      x: from.x + (to.x - from.x) * ratio,
+      y: from.y + (to.y - from.y) * ratio,
+      angle: Math.atan2(to.y - from.y, to.x - from.x),
+    }
+    leaves.push({ ...base, side: 1, tilt: tilts[n % tilts.length] })
+    leaves.push({ ...base, side: -1, tilt: tilts[(n + 3) % tilts.length] })
+  }
+  return leaves
+}

@@ -51,6 +51,7 @@ import type {
 } from '@/types'
 import {
   endAngle,
+  ivyLeaves,
   pathPoints,
   roundedPath,
   type Point,
@@ -59,11 +60,14 @@ import {
   LINEAGE_BAND,
   LINEAGE_BRASS,
   LINEAGE_BRASS_LIGHT,
+  LINEAGE_RANK_DIGIT,
   LINEAGE_CLAIM,
   LINEAGE_CLOTH,
   LINEAGE_ENDED,
   LINEAGE_HEAD,
+  LINEAGE_HEAD_BROWN,
   LINEAGE_INK,
+  LINEAGE_IVY,
   LINEAGE_PAPER,
   LINEAGE_SCROLL_ROLL,
   LINEAGE_SCROLL_SHADE,
@@ -77,13 +81,25 @@ import {
 } from '@/lib/map-palette'
 
 /**
- * Stroke of a marriage by kind. Head and secondary marriages are double lines
- * (a wide stroke with a thin paper line over it); an ended one is hatched.
+ * Stroke of a marriage by kind. The head marriage is a brown outlined bar
+ * filled with gold, grown over with ivy; the secondary one is a double line (a
+ * wide ink stroke with a thin paper line over it); an ended one is hatched.
  */
-const EDGE_STYLE: Record<EdgeKind, { stroke: string; double: boolean }> = {
-  head: { stroke: LINEAGE_HEAD, double: true },
-  secondary: { stroke: LINEAGE_SECONDARY, double: true },
-  ended: { stroke: 'url(#lineage-hatch)', double: false },
+const EDGE_STYLE: Record<
+  EdgeKind,
+  { stroke: string; width: number; inner: { color: string; width: number } | null }
+> = {
+  head: {
+    stroke: LINEAGE_HEAD_BROWN,
+    width: 8,
+    inner: { color: LINEAGE_BRASS_LIGHT, width: 4.5 },
+  },
+  secondary: {
+    stroke: LINEAGE_SECONDARY,
+    width: 5,
+    inner: { color: LINEAGE_PAPER, width: 1.5 },
+  },
+  ended: { stroke: 'url(#lineage-hatch)', width: 5, inner: null },
 }
 const LINE_WIDTH = 5
 
@@ -226,9 +242,37 @@ function TapestryFrame({ width, height }: { width: number; height: number }) {
   )
 }
 
+/** Small pointed ivy leaf, rooted at the origin and pointing along +x. */
+const IVY_LEAF = 'M0,0 C1,-2.4 3.6,-3 6,0 C3.6,3 1,2.4 0,0Z'
+
 /**
- * The knot tying two cartouches: a ring in the colour of the bond (brass for the
- * head marriage, ink for a secondary one); an ended marriage has a broken ring
+ * Ivy growing on the gold bar of a head marriage: many small leaves on both
+ * sides of the stem, rooted at its edge and tilted forward. The shape (not the
+ * colour alone) tells the head marriage from the others.
+ */
+function IvyLeaves({ points }: { points: Point[] }) {
+  const edge = EDGE_STYLE.head.width / 2 - 0.5
+  return (
+    <g data-ivy="">
+      {ivyLeaves(points).map((leaf, i) => {
+        const nx = -Math.sin(leaf.angle) * leaf.side * edge
+        const ny = Math.cos(leaf.angle) * leaf.side * edge
+        return (
+          <path
+            key={i}
+            d={IVY_LEAF}
+            transform={`translate(${leaf.x + nx} ${leaf.y + ny}) rotate(${(leaf.angle * 180) / Math.PI + leaf.side * (50 + leaf.tilt)})`}
+            fill={LINEAGE_IVY}
+          />
+        )
+      })}
+    </g>
+  )
+}
+
+/**
+ * The knot tying two cartouches: a ring in the colour of the bond (brown and gold
+ * for the head marriage, ink for a secondary one); an ended marriage has a broken ring
  * crossed by a slash.
  */
 function MarriageKnot({
@@ -256,7 +300,7 @@ function MarriageKnot({
       {ended ? (
         <line x1="-4.5" y1="4.5" x2="4.5" y2="-4.5" stroke={color} strokeWidth="1.5" />
       ) : (
-        <circle r="2.3" fill={color} />
+        <circle r="2.3" fill={kind === 'head' ? LINEAGE_BRASS_LIGHT : color} />
       )}
     </g>
   )
@@ -272,6 +316,41 @@ function knotPosition(points: Point[], aligned: boolean) {
 }
 
 /**
+ * Codes of the nobles shown when a house is focused: its own, their spouses
+ * (ended marriages included) and the nobles tied to them by a claim, in either
+ * direction. `null` without a focus: everyone is shown.
+ */
+function visibleNobles(
+  houses: House[],
+  links: LineageLink[],
+  claims: Claim[],
+  focus: PlayerId | null,
+): Set<string> | null {
+  if (!focus) return null
+  const own = new Set(
+    houses
+      .filter((h) => h.player.id === focus)
+      .flatMap((h) => h.members.map((m) => m.code)),
+  )
+  const shown = new Set(own)
+  for (const link of links) {
+    if (own.has(link.a)) shown.add(link.b)
+    if (own.has(link.b)) shown.add(link.a)
+  }
+  for (const claim of claims) {
+    if (own.has(claim.heir)) {
+      shown.add(claim.target)
+      shown.add(claim.spouse)
+    } else if (own.has(claim.target) || own.has(claim.spouse)) {
+      shown.add(claim.heir)
+      shown.add(claim.target)
+      shown.add(claim.spouse)
+    }
+  }
+  return shown
+}
+
+/**
  * Header button opening a full-screen dialog on the houses' lineage: a
  * genealogical tree (couples side by side, the heirs of a claim hung under
  * their couple) to understand the whole board, with the alliance graph as an
@@ -280,9 +359,6 @@ function knotPosition(points: Point[], aligned: boolean) {
 export function LineageDialog(props: LineageDialogProps) {
   const { t } = useLanguage()
   const [focus, setFocus] = useState<PlayerId | null>(props.defaultFocus ?? null)
-  const [hidden, setHidden] = useState<Set<PlayerId>>(new Set())
-  const [showEnded, setShowEnded] = useState(true)
-  const [showClaims, setShowClaims] = useState(true)
   const [ownOpen, setOwnOpen] = useState(false)
   const open = props.open ?? ownOpen
   const handleOpenChange = (next: boolean) => {
@@ -360,22 +436,15 @@ export function LineageDialog(props: LineageDialogProps) {
 
   const allHouses = useMemo(
     () =>
-      buildHouses(
-        props.players,
-        nobles,
-        deceased ?? [],
-        fiefs ?? [],
-        (claimList ?? []).filter((claim) => showEnded || !claim.ended),
-        {
-          bishoprics: data.bishoprics,
-          cardinals: data.cardinals,
-          pope: data.pope,
-          king: data.king,
-          queen: data.queen,
-          queenDowager: data.queenDowager,
-          excommunicated: data.excommunicated,
-        },
-      ),
+      buildHouses(props.players, nobles, deceased ?? [], fiefs ?? [], claimList ?? [], {
+        bishoprics: data.bishoprics,
+        cardinals: data.cardinals,
+        pope: data.pope,
+        king: data.king,
+        queen: data.queen,
+        queenDowager: data.queenDowager,
+        excommunicated: data.excommunicated,
+      }),
     [
       props.players,
       nobles,
@@ -389,44 +458,52 @@ export function LineageDialog(props: LineageDialogProps) {
       data.queen,
       data.queenDowager,
       data.excommunicated,
-      showEnded,
     ],
   )
-  const houses = useMemo(
-    () => allHouses.filter((house) => !hidden.has(house.player.id)),
-    [allHouses, hidden],
+  const allLinks = useMemo(
+    () => buildLinks(allHouses, marriages ?? []),
+    [allHouses, marriages],
   )
-  const links = useMemo(() => {
-    const visible = new Set(
-      houses.flatMap((house) => house.members.map((member) => member.code)),
-    )
-    return buildLinks(allHouses, marriages ?? []).filter(
-      (link) => visible.has(link.a) && visible.has(link.b) && (showEnded || link.active),
-    )
-  }, [allHouses, houses, marriages, showEnded])
-  const claims = useMemo(() => {
-    if (!showClaims) return []
-    const visible = new Set(
-      houses.flatMap((house) => house.members.map((member) => member.code)),
-    )
-    return (claimList ?? []).filter(
-      (claim) =>
-        visible.has(claim.heir) &&
-        visible.has(claim.target) &&
-        (showEnded || !claim.ended),
-    )
-  }, [houses, claimList, showClaims, showEnded])
   const focusId =
-    focus && houses.some((house) => house.player.id === focus) ? focus : null
+    focus && allHouses.some((house) => house.player.id === focus) ? focus : null
+  // With a focus, the tree keeps that house and the nobles directly tied to it.
+  const visible = useMemo(
+    () => visibleNobles(allHouses, allLinks, claimList ?? [], focusId),
+    [allHouses, allLinks, claimList, focusId],
+  )
+  const houses = useMemo(
+    () =>
+      visible
+        ? allHouses
+            .map((house) => ({
+              ...house,
+              members: house.members.filter((member) => visible.has(member.code)),
+            }))
+            .filter((house) => house.members.length > 0)
+        : allHouses,
+    [allHouses, visible],
+  )
+  const ranks = useMemo(() => {
+    const byCode = new Map<string, number>()
+    for (const house of allHouses)
+      house.members.forEach((member, index) => byCode.set(member.code, index + 1))
+    return byCode
+  }, [allHouses])
+  const links = useMemo(
+    () =>
+      visible
+        ? allLinks.filter((link) => visible.has(link.a) && visible.has(link.b))
+        : allLinks,
+    [allLinks, visible],
+  )
+  const claims = useMemo(
+    () =>
+      (claimList ?? []).filter(
+        (claim) => !visible || (visible.has(claim.heir) && visible.has(claim.target)),
+      ),
+    [claimList, visible],
+  )
   const playerName = (house: House) => house.player.name || house.player.id
-
-  const toggleHouse = (id: PlayerId) =>
-    setHidden((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -468,58 +545,12 @@ export function LineageDialog(props: LineageDialogProps) {
                   className="rounded-md border border-line bg-paper-50 px-1.5 py-1"
                 >
                   <option value="">{t('lineage.focusNone')}</option>
-                  {houses.map((house) => (
+                  {allHouses.map((house) => (
                     <option key={house.player.id} value={house.player.id}>
                       {playerName(house)}
                     </option>
                   ))}
                 </select>
-              </label>
-              <div
-                role="group"
-                aria-label={t('lineage.families')}
-                className="flex flex-wrap items-center gap-1.5"
-              >
-                {allHouses.map((house) => {
-                  const on = !hidden.has(house.player.id)
-                  return (
-                    <button
-                      key={house.player.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => toggleHouse(house.player.id)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-semibold',
-                        on
-                          ? 'border-ink-900/40 bg-paper-100'
-                          : 'border-line/60 opacity-50',
-                      )}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="size-2.5 rounded-full"
-                        style={{ backgroundColor: house.player.color }}
-                      />
-                      {playerName(house)}
-                    </button>
-                  )
-                })}
-              </div>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={showEnded}
-                  onChange={(e) => setShowEnded(e.target.checked)}
-                />
-                {t('lineage.showEnded')}
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={showClaims}
-                  onChange={(e) => setShowClaims(e.target.checked)}
-                />
-                {t('lineage.showClaims')}
               </label>
             </div>
             {props.simulationRequest && (
@@ -565,6 +596,7 @@ export function LineageDialog(props: LineageDialogProps) {
               houses={houses}
               links={links}
               claims={claims}
+              ranks={ranks}
               focus={focusId}
               edit={
                 simulating ? { selected: selection, pending, onNoble, onLink } : undefined
@@ -582,8 +614,8 @@ export function LineageDialog(props: LineageDialogProps) {
               </div>
             )}
             <AllianceInset
-              houses={houses}
-              links={links}
+              houses={allHouses}
+              links={allLinks}
               focus={focusId}
               onFocus={setFocus}
               scores={scores}
@@ -837,7 +869,13 @@ function Swatch({ kind }: { kind: EdgeKind | 'claim' | 'noble' }) {
       </svg>
     )
   return (
-    <svg aria-hidden="true" width="36" height="14" className="shrink-0">
+    <svg
+      aria-hidden="true"
+      width="48"
+      height="22"
+      viewBox="-6 -4 48 22"
+      className="shrink-0 overflow-visible"
+    >
       <HatchDefs />
       {kind === 'claim' ? (
         <>
@@ -859,10 +897,25 @@ function Swatch({ kind }: { kind: EdgeKind | 'claim' | 'noble' }) {
             x2="36"
             y2="7"
             stroke={EDGE_STYLE[kind].stroke}
-            strokeWidth={LINE_WIDTH}
+            strokeWidth={EDGE_STYLE[kind].width}
           />
-          {EDGE_STYLE[kind].double && (
-            <line x1="0" y1="7" x2="36" y2="7" stroke={LINEAGE_PAPER} strokeWidth="1.5" />
+          {EDGE_STYLE[kind].inner && (
+            <line
+              x1="0"
+              y1="7"
+              x2="36"
+              y2="7"
+              stroke={EDGE_STYLE[kind].inner.color}
+              strokeWidth={EDGE_STYLE[kind].inner.width}
+            />
+          )}
+          {kind === 'head' && (
+            <IvyLeaves
+              points={[
+                { x: 0, y: 7 },
+                { x: 36, y: 7 },
+              ]}
+            />
           )}
           <MarriageKnot x={18} y={7} kind={kind} fill={LINEAGE_PAPER} />
         </>
@@ -975,12 +1028,15 @@ function LineageTree({
   houses,
   links,
   claims,
+  ranks,
   focus,
   edit,
 }: {
   houses: House[]
   links: LineageLink[]
   claims: Claim[]
+  /** Succession rank of each living noble in its whole house, whoever is shown. */
+  ranks: Map<string, number>
   focus: PlayerId | null
   edit?: TreeEdit
 }) {
@@ -1041,7 +1097,9 @@ function LineageTree({
       FRAME_PAD + first - 24,
     )
     // The house's first row at the top, unless it already shows without scrolling.
-    const tops = (house?.members ?? []).map((member) => boxes.get(member.code)?.y ?? Infinity)
+    const tops = (house?.members ?? []).map(
+      (member) => boxes.get(member.code)?.y ?? Infinity,
+    )
     const top = FRAME_PAD + Math.min(...tops) - 24
     element.scrollTop = Number.isFinite(top) && top > element.clientHeight - 160 ? top : 0
   }, [focus, houses, layout, boxes])
@@ -1128,11 +1186,21 @@ function LineageTree({
                     d={d}
                     fill="none"
                     stroke={style.stroke}
-                    strokeWidth={LINE_WIDTH}
+                    strokeWidth={style.width}
                   />
-                  {style.double && (
-                    <path d={d} fill="none" stroke={LINEAGE_CLOTH} strokeWidth={1.5} />
+                  {style.inner && (
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={
+                        style.inner.color === LINEAGE_PAPER
+                          ? LINEAGE_CLOTH
+                          : style.inner.color
+                      }
+                      strokeWidth={style.inner.width}
+                    />
                   )}
+                  {link.kind === 'head' && <IvyLeaves points={points} />}
                   {knot && <MarriageKnot x={knot.x} y={knot.y} kind={link.kind} />}
                   {edit && link.active && (
                     <path
@@ -1163,7 +1231,7 @@ function LineageTree({
                   <Cartouche
                     key={member.code}
                     member={member}
-                    rank={index + 1}
+                    rank={ranks.get(member.code) ?? index + 1}
                     arms={playerArms(house.player)}
                     color={house.player.color || NEUTRAL_ARMY_COLOR}
                     box={boxes.get(member.code)!}
@@ -1259,7 +1327,7 @@ function ScrollShape({
 /**
  * A noble: a parchment scroll carrying the house blazon in the colours of the
  * player, the name, the titles written beneath, and the succession rank on a
- * brass seal.
+ * seal in the colour of the house.
  */
 function Cartouche({
   member,
@@ -1338,12 +1406,16 @@ function Cartouche({
         <ScrollShape w={box.w} h={box.h} color={color} dead={member.dead} />
         {!member.dead && (
           <g transform={`translate(${box.w - CARTOUCHE_PAD_X - 4} 6)`}>
-            <circle r="8" fill={LINEAGE_BRASS_LIGHT} stroke={LINEAGE_INK} strokeWidth="1" />
+            <circle r="8.5" fill={color} stroke={LINEAGE_INK} strokeWidth="1.25" />
             <text
               textAnchor="middle"
               dy="3.5"
               className="font-display text-2xs font-bold"
-              fill={LINEAGE_INK}
+              fill={LINEAGE_RANK_DIGIT}
+              stroke={LINEAGE_INK}
+              strokeWidth="2.2"
+              strokeLinejoin="round"
+              paintOrder="stroke"
             >
               {rank}
             </text>
@@ -1516,16 +1588,24 @@ function AllianceGraph({
                 x2={b.x}
                 y2={b.y}
                 stroke={style.stroke}
-                strokeWidth={LINE_WIDTH}
+                strokeWidth={style.width}
               />
-              {style.double && (
+              {style.inner && (
                 <line
                   x1={a.x}
                   y1={a.y}
                   x2={b.x}
                   y2={b.y}
-                  stroke={LINEAGE_PAPER}
-                  strokeWidth={1.5}
+                  stroke={style.inner.color}
+                  strokeWidth={style.inner.width}
+                />
+              )}
+              {pair.kind === 'head' && (
+                <IvyLeaves
+                  points={[
+                    { x: a.x, y: a.y },
+                    { x: b.x, y: b.y },
+                  ]}
                 />
               )}
               <text

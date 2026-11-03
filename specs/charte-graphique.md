@@ -865,8 +865,8 @@ est en `brass-700`.
 ### Lignée et alliances
 
 La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) est un **arbre
-généalogique** tissé en tapisserie : de l'encre sur parchemin, du laiton pour
-les liens, la couleur vive réservée aux joueurs. Aucune boîte à bordure ni
+généalogique** tissé en tapisserie : de l'encre sur parchemin, une barre d'or feuillue pour
+le mariage de tête, la couleur vive réservée aux joueurs. Aucune boîte à bordure ni
 ombre portée n'y figure.
 
 - **Toile.** L'arbre est tendu sur une toile `paper-100` au tissage discret
@@ -883,24 +883,53 @@ du joueur) se tient à gauche du nom : c'est lui qui dit à quelle maison
 appartient un noble, l'arbre ne regroupant pas les maisons. Le nom (avec ♂ ou
 ♀ en `ink-700`), puis les titres, la captivité et les décès s'écrivent en
 texte sous l'écu, rangés dans l'ordre de succession, jamais coupés ; le rang
-de succession est un sceau
-  `brass-400` serti d'un chiffre d'encre sur le bord haut. Un noble mort a un
+  de succession est un sceau de la couleur du joueur (celle du filet), sur le
+  bord haut, portant un chiffre Cinzel blanc cerné d'encre `ink-900`, lisible
+  sur toute couleur de joueur. Un noble mort a un
   contour d'encre en pointillés, un nom barré et pas de rang. En simulation,
   la sélection double le cartouche d'un halo `brass-400` et d'un filet
   `brass-700`, et un noble en attente de second clic est cerclé de tirets
   `ink-700`.
-- **Mariage.** Un double trait horizontal relie deux cartouches voisins, noué
-  en son milieu par un anneau : mariage de tête en `brass-700`, mariage
-  secondaire en `ink-700`, mariage terminé en hachures `ink-500` avec un
-  anneau brisé barré d'un trait.
+- **Mariage.** Un trait horizontal relie deux cartouches voisins, noué en son
+  milieu par un anneau ; l'écart entre deux conjoints (88 px) laisse la place
+  au lierre. Le mariage de tête est un **lierre** posé sur une barre d'or : un
+  trait brun large (`LINEAGE_HEAD_BROWN`, `#4a3417`) fait le contour d'un trait
+  `brass-400` plus fin (`LINEAGE_BRASS_LIGHT`), comme un lingot cerné ; l'anneau
+  est brun, au cœur d'or. De petites feuilles olive pointues (`LINEAGE_IVY`,
+  `#4a5526`, 6 px de long) poussent sur les deux bords de la barre, en dessus et
+  en dessous, une paire tous les 8 px environ (au moins deux paires), penchées
+  vers l'avant avec une légère variation d'angle fixe (aucun tirage aléatoire) ;
+  il n'y en a ni près de l'anneau ni dans les angles, et elles suivent aussi bien
+  un lien droit qu'un lien arqué. Le mariage secondaire est un double trait
+  `ink-700` nu, le mariage terminé des hachures `ink-500` avec un anneau brisé
+  barré d'un trait. La tête se distingue donc par la forme (barre d'or et
+  feuilles), pas par la seule couleur (principe 4). L'olive est plus jaune et
+  plus sombre que le vert des joueurs (`#3f7d3c`) et que `success-700` ;
+  réservé à ce lierre, il ne sert à aucune teinture. La même barre feuillue orne
+  la pastille « Mariage de tête (actif) » de la légende et le lien de tête du
+  graphe d'alliances.
 - **Prétention.** Une prétention est une vigne : un trait pointillé `ink-700`
   aux angles arrondis, qui part de l'anneau du couple, descend dans l'espace
   entre les rangées et s'achève sur une feuille au bord haut du cartouche de
   l'héritier. Une prétention éteinte est plus pâle et sa feuille est vide.
 - Les titres s'écrivent en texte sous le nom (décision 23) ; aucune
   étiquette n'est coupée.
+- **Focus.** Le seul réglage de la fenêtre est le sélecteur « Focus », qui
+  propose « Toutes les maisons » ou une maison. Les mariages terminés et les
+  prétentions éteintes sont toujours dessinés. Sans focus, tous les nobles
+  figurent dans l'arbre. Avec un focus, l'arbre ne montre que les nobles de la
+  maison choisie et ceux qui leur sont directement liés : leurs conjoints
+  (mariage terminé ou non) et les nobles liés par une prétention, dans les deux
+  sens (les héritiers d'un couple dont l'un des époux est de la maison, et le
+  couple visé par la prétention d'un noble de la maison). Les autres nobles
+  sont absents et la disposition ne porte que sur les nobles visibles. Un noble
+  lié d'une autre maison garde l'écu de sa maison et son rang de succession
+  dans celle-ci. La maison choisie est centrée, et sert de repère de
+  départage dans l'ordre des maisons. En simulation, le focus s'applique à
+  l'état simulé.
 - Le score et le statut de victoire de chaque maison restent en pied de
-  fenêtre, sur une ligne par joueur.
+  fenêtre, sur une ligne par joueur, quel que soit le focus ; l'encart des
+  alliances garde aussi toutes les maisons.
 - Le graphe d'alliances est un encart de l'arbre (les maisons et leurs
   alliances en vue d'ensemble).
 - **Simulation :** le mode « Simuler » garde son bandeau

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { endAngle, pathPoints, roundedPath } from './lineage-art'
+import { endAngle, ivyLeaves, pathPoints, roundedPath } from './lineage-art'
 
 describe('lineage art', () => {
   it('reads the points of a stem path', () => {
@@ -22,5 +22,18 @@ describe('lineage art', () => {
   it('gives the direction of the last segment', () => {
     expect(endAngle(pathPoints('M0,0 V10 H20'))).toBe(0)
     expect(endAngle(pathPoints('M20,0 V10 H0'))).toBeCloseTo(Math.PI)
+  })
+
+  it('grows deterministic ivy on both sides of a bond, away from the knot', () => {
+    const bond = [
+      { x: 0, y: 0 },
+      { x: 88, y: 0 },
+    ]
+    const leaves = ivyLeaves(bond)
+    const above = leaves.filter((l) => l.side === -1)
+    expect(above.length).toBeGreaterThanOrEqual(2)
+    expect(leaves.filter((l) => l.side === 1)).toHaveLength(above.length)
+    for (const leaf of leaves) expect(Math.abs(leaf.x - 44)).toBeGreaterThanOrEqual(11)
+    expect(ivyLeaves(bond)).toEqual(leaves)
   })
 })
