@@ -7,6 +7,8 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci
 
 COPY web/ ./
+# Embedded by the release notes dialog (web/src/lib/release-notes.ts).
+COPY CHANGELOG.md /CHANGELOG.md
 
 ARG VITE_FIREBASE_API_KEY
 ARG VITE_FIREBASE_AUTH_DOMAIN

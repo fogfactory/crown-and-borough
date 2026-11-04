@@ -50,8 +50,15 @@ afterEach(() => {
 })
 
 function Probe() {
-  const { status, profile, profileLoading, sendSignInLink, completeSignIn, getIdToken } =
-    useAuth()
+  const {
+    status,
+    profile,
+    profileLoading,
+    sendSignInLink,
+    completeSignIn,
+    getIdToken,
+    updateReleaseNotes,
+  } = useAuth()
   return (
     <div>
       <output data-testid="status">{status}</output>
@@ -68,6 +75,13 @@ function Probe() {
         onClick={() => void completeSignIn('https://example.test/finish?oobCode=1')}
       >
         complete
+      </button>
+      <output data-testid="last-seen">{profile?.lastSeenVersion ?? ''}</output>
+      <button
+        type="button"
+        onClick={() => void updateReleaseNotes({ lastSeenVersion: '1.2.0' })}
+      >
+        seen
       </button>
       <button type="button" onClick={() => void getIdToken()}>
         token
@@ -113,6 +127,32 @@ describe('Firebase auth provider', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'token' }))
     await waitFor(() => expect(authHarness.user.getIdToken).toHaveBeenCalledWith())
+  })
+
+  it('saves release notes preferences through the authenticated API', async () => {
+    const player = { uid: 'alice-uid', email: 'alice@example.test', displayName: 'Alice' }
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = init?.method === 'PUT' ? { ...player, lastSeenVersion: '1.2.0' } : player
+      return new Response(JSON.stringify({ player: body }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(authHarness.stateListener).not.toBeNull())
+    act(() => authHarness.stateListener?.(authHarness.user))
+    await waitFor(() => expect(screen.getByTestId('profile')).toHaveTextContent('Alice'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'seen' }))
+    await waitFor(() => expect(screen.getByTestId('last-seen')).toHaveTextContent('1.2.0'))
+    const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(String(call?.[0])).toBe('/api/auth/me/release-notes')
+    expect(call?.[1]?.body).toBe(JSON.stringify({ lastSeenVersion: '1.2.0' }))
   })
 
   it('sends and completes an email link without storing an ID token', async () => {

@@ -131,6 +131,9 @@ type profileDocument struct {
 	DisplayName   string    `firestore:"displayName"`
 	CreatedAt     time.Time `firestore:"createdAt"`
 	UpdatedAt     time.Time `firestore:"updatedAt"`
+
+	LastSeenVersion  string `firestore:"lastSeenVersion"`
+	HideReleaseNotes bool   `firestore:"hideReleaseNotes"`
 }
 
 type invitationDocument struct {

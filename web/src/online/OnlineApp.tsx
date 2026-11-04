@@ -12,6 +12,7 @@ import {
 } from 'react-router-dom'
 
 import { AuthProvider, useAuth } from '@/auth/AuthProvider'
+import { ReleaseNotesDialog } from '@/components/ReleaseNotesDialog'
 import { Seal } from '@/components/Seal'
 import { Alert } from '@/components/ui/alert'
 import { FinishPage, ProfilePage, SignInPage } from '@/online/AuthPages'
@@ -169,7 +170,12 @@ function RequireProfile() {
     const redirect = `${location.pathname}${location.search}`
     return <Navigate to={`/profile?redirect=${encodeURIComponent(redirect)}`} replace />
   }
-  return <Outlet />
+  return (
+    <>
+      <Outlet />
+      <ReleaseNotesDialog />
+    </>
+  )
 }
 
 function ProfileRoute() {

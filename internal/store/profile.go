@@ -2,12 +2,17 @@ package store
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
 )
+
+// releaseVersionPattern accepts the SemVer versions stamped by release-please
+// (optionally v-prefixed, with a pre-release or build suffix).
+var releaseVersionPattern = regexp.MustCompile(`^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]*)?$`)
 
 const (
 	MinimumDisplayNameLength = 1
@@ -100,6 +105,59 @@ func (s *MemoryProfileStore) UpdateProfile(ctx context.Context, uid, displayName
 	profile.UpdatedAt = s.now().UTC()
 	s.profiles[uid] = profile
 	return profile, nil
+}
+
+func (s *MemoryProfileStore) UpdateReleaseNotes(ctx context.Context, uid string, update ReleaseNotesUpdate) (PlayerProfile, error) {
+	if err := contextError(ctx); err != nil {
+		return PlayerProfile{}, err
+	}
+	uid = strings.TrimSpace(uid)
+	version, err := NormalizeReleaseNotesUpdate(update)
+	if err != nil {
+		return PlayerProfile{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	profile, ok := s.profiles[uid]
+	if !ok {
+		return PlayerProfile{}, ErrProfileNotFound
+	}
+	if !ApplyReleaseNotesUpdate(&profile, version, update) {
+		return profile, nil
+	}
+	profile.UpdatedAt = s.now().UTC()
+	s.profiles[uid] = profile
+	return profile, nil
+}
+
+// NormalizeReleaseNotesUpdate validates an update and returns the trimmed
+// version to store (empty when the version is untouched).
+func NormalizeReleaseNotesUpdate(update ReleaseNotesUpdate) (string, error) {
+	if update.LastSeenVersion == nil && update.HideReleaseNotes == nil {
+		return "", ErrInvalidReleaseNotes
+	}
+	if update.LastSeenVersion == nil {
+		return "", nil
+	}
+	version := strings.TrimSpace(*update.LastSeenVersion)
+	if !releaseVersionPattern.MatchString(version) {
+		return "", ErrInvalidReleaseNotes
+	}
+	return version, nil
+}
+
+// ApplyReleaseNotesUpdate mutates profile and reports whether anything changed.
+func ApplyReleaseNotesUpdate(profile *PlayerProfile, version string, update ReleaseNotesUpdate) bool {
+	changed := false
+	if update.LastSeenVersion != nil && profile.LastSeenVersion != version {
+		profile.LastSeenVersion = version
+		changed = true
+	}
+	if update.HideReleaseNotes != nil && profile.HideReleaseNotes != *update.HideReleaseNotes {
+		profile.HideReleaseNotes = *update.HideReleaseNotes
+		changed = true
+	}
+	return changed
 }
 
 func NormalizeDisplayName(value string) (string, error) {

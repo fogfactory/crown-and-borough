@@ -148,6 +148,52 @@ func (s *FirestoreStore) UpdateProfile(ctx context.Context, uid, displayName str
 	return result, nil
 }
 
+func (s *FirestoreStore) UpdateReleaseNotes(ctx context.Context, uid string, update store.ReleaseNotesUpdate) (store.PlayerProfile, error) {
+	if err := s.requireClient(); err != nil {
+		return store.PlayerProfile{}, err
+	}
+	uid = strings.TrimSpace(uid)
+	version, err := store.NormalizeReleaseNotesUpdate(update)
+	if err != nil {
+		return store.PlayerProfile{}, err
+	}
+	operationContext, cancel := s.operationContext(ctx)
+	defer cancel()
+	doc := s.client.Collection("players").Doc(uid)
+	var result store.PlayerProfile
+	s.recordTransaction()
+	err = s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+		snapshot, err := transaction.Get(doc)
+		s.recordReads(1)
+		if status.Code(err) == codes.NotFound {
+			return store.ErrProfileNotFound
+		}
+		if err != nil {
+			return err
+		}
+		document, err := decodeProfileDocument(snapshot)
+		if err != nil {
+			return err
+		}
+		profile := toPlayerProfile(document)
+		if store.ApplyReleaseNotesUpdate(&profile, version, update) {
+			document.LastSeenVersion = profile.LastSeenVersion
+			document.HideReleaseNotes = profile.HideReleaseNotes
+			document.UpdatedAt = s.now().UTC()
+			if err := transaction.Set(doc, document); err != nil {
+				return err
+			}
+			s.recordWrites(1)
+		}
+		result = toPlayerProfile(document)
+		return nil
+	})
+	if err != nil {
+		return store.PlayerProfile{}, wrapOperation("update release notes", err)
+	}
+	return result, nil
+}
+
 func (s *FirestoreStore) refreshActorName(ctx context.Context, uid, displayName string) error {
 	documents := s.client.Collection("games").Where("memberUids", "array-contains", uid).Documents(ctx)
 	for {
@@ -271,10 +317,12 @@ func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.Gam
 
 func toPlayerProfile(document profileDocument) store.PlayerProfile {
 	return store.PlayerProfile{
-		UID:         document.UID,
-		Email:       document.Email,
-		DisplayName: document.DisplayName,
-		CreatedAt:   document.CreatedAt,
-		UpdatedAt:   document.UpdatedAt,
+		UID:              document.UID,
+		Email:            document.Email,
+		DisplayName:      document.DisplayName,
+		LastSeenVersion:  document.LastSeenVersion,
+		HideReleaseNotes: document.HideReleaseNotes,
+		CreatedAt:        document.CreatedAt,
+		UpdatedAt:        document.UpdatedAt,
 	}
 }
