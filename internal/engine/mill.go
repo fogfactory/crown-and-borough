@@ -90,9 +90,8 @@ func millRawProduction(ctx *resolutionContext, millID models.TerritoryID, level 
 // millRecipient is the single infrastructure credited by one mill's
 // production (see #195): the adjacent castle under the same control as the
 // mill's own territory, else the adjacent village under the same control,
-// else the mill's own territory. An uncontrolled mill always stocks its own
-// territory (#470), never a neighbor, neutral or not. Among several same-type
-// same-control neighbors, sortedNeighbors' ascending trigram order breaks the
+// else the mill's own territory. An uncontrolled mill is its own recipient
+// (#470). Among several same-type same-control neighbors, sortedNeighbors' ascending trigram order breaks the
 // tie, exactly like #192's territory income destination.
 func millRecipient(ctx *resolutionContext, millID models.TerritoryID) models.TerritoryID {
 	return millRecipientIn(ctx, millID, ctx.controllerNow)
@@ -102,16 +101,14 @@ func millRecipient(ctx *resolutionContext, millID models.TerritoryID) models.Ter
 // upgrade payment reads the start-of-winter control, the ravitaillement the
 // current one.
 func millRecipientIn(ctx *resolutionContext, millID models.TerritoryID, view controlView) models.TerritoryID {
-	millController := controllerPointer(view, millID)
-	if millController == nil {
+	millOwner, controlled := view(millID)
+	if !controlled {
 		return millID
 	}
+	neighbors := ctx.sortedNeighbors(millID)
 	for _, infraType := range []models.InfraType{models.InfraTypeCastle, models.InfraTypeVillage} {
-		for _, neighborID := range ctx.sortedNeighbors(millID) {
-			if !ctx.hasInfrastructure(neighborID, infraType) {
-				continue
-			}
-			if sameController(millController, controllerPointer(view, neighborID)) {
+		for _, neighborID := range neighbors {
+			if ctx.hasInfrastructure(neighborID, infraType) && controlledBy(view, millOwner, neighborID) {
 				return neighborID
 			}
 		}
@@ -147,10 +144,4 @@ func controllerPointer(view controlView, territoryID models.TerritoryID) *models
 		return nil
 	}
 	return &controller
-}
-
-// sameController reports whether two territory controllers are the same
-// player; a neutral (nil) controller never matches.
-func sameController(left, right *models.PlayerID) bool {
-	return left != nil && right != nil && *left == *right
 }

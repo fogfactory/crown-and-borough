@@ -9,11 +9,10 @@ import (
 // they will receive on the next action turn, ignoring any calamity or bonus
 // card already drawn this turn (like ForecastIncome/ForecastFamineRisk): the
 // command post projection must never leak an undrawn weather card's effect.
-// Since #195, each mill credits exactly one destination (its adjacent castle
-// under the same control, else its adjacent village under the same control,
-// else itself), so this sums exactly the production the player's own
-// settlements and self-supplied mills will receive; it no longer double-
-// counts a mill adjacent to several of the player's settlements. Like every
+// Each mill credits exactly one destination (its adjacent castle under the
+// same control, else its adjacent village under the same control, else
+// itself, see #195), so this sums exactly the production the player's own
+// settlements and self-supplied mills will receive. Like every
 // ravitaillement forecast, it assumes nothing moves before resolution: mill
 // control and occupancy are evaluated on the current, pre-order state, even
 // though ravitaillement itself resolves on post-movement, post-combat

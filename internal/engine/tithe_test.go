@@ -196,10 +196,7 @@ func TestSuspendedPopeCannotTithe(t *testing.T) {
 // production to the tithing capital instead of the mill's own stock.
 func TestTitheDivertsUncontrolledMillProduction(t *testing.T) {
 	state := titheState(t)
-	state.Armies = nil
-	milState := state.TerritoryStates["MIL"]
-	milState.Army = nil
-	state.TerritoryStates["MIL"] = milState
+	removeArmy(state, "A3")
 	validateTestState(t, state)
 	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": tithe("N1", "MIL")})
 	if err != nil {

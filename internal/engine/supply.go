@@ -180,9 +180,10 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 
 // produceNeutralStocks credits the local production of every unclaimed
 // territory that carries a village or a mill into its own stock: a village's
-// base village_income (neutralVillageProductionBreakdown), a mill's level-based
-// production (millSelfProductionBreakdown, #470). The next army to control
-// the territory finds that stock there, as a supply source and for a transfer.
+// harvest-adjusted village_income, a mill's level-based production
+// (millSelfProductionBreakdown: an uncontrolled mill is its own recipient,
+// #470). The next army to control the territory finds that stock there, as a
+// supply source and for a transfer.
 func produceNeutralStocks(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		if _, controlled := ctx.controllerNow(territoryID); controlled {
@@ -191,7 +192,7 @@ func produceNeutralStocks(ctx *resolutionContext) {
 		var parts sourceProductionParts
 		switch {
 		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
-			parts = neutralVillageProductionBreakdown(ctx, territoryID)
+			parts = harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
 		case ctx.hasInfrastructure(territoryID, models.InfraTypeMill):
 			parts = millSelfProductionBreakdown(ctx, territoryID)
 		default:
@@ -357,7 +358,7 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 // replaced by territory income (see income.go), credited directly to its
 // destination outside this ledger. A neighboring mill only contributes here
 // when territoryID is its single designated recipient (see #195's
-// millRecipient): a mill credits a single adjacent castle or village.
+// millRecipient).
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := sourceProductionParts{mill: ctx.titheProductionAtCapital(territoryID)}
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
@@ -374,16 +375,6 @@ func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.Territ
 		parts.suppressed += suppressed
 	}
 	return parts
-}
-
-// neutralVillageProductionBreakdown splits the stockable production of an
-// unclaimed village into its base and regional bonus parts: unlike a
-// controlled source, a neutral village keeps producing locally into its own
-// stock (village_income as its base), subject to the same harvest and
-// weather rules as any other source. No mill feeds it: an uncontrolled mill
-// stocks its own territory (see millRecipient, #470).
-func neutralVillageProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
-	return harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
 }
 
 // supplyNetwork visits each territory once per source. That makes every depot

@@ -274,17 +274,7 @@ func forgeAnnexation(state *models.GameState) error {
 	if err := forgeWinter(state); err != nil {
 		return err
 	}
-	var capitalID models.TerritoryID
-	for _, player := range state.Players {
-		if player.ID != "P1" || player.CapitalCastleID == nil {
-			continue
-		}
-		for _, infrastructure := range state.Infrastructures {
-			if infrastructure.ID == *player.CapitalCastleID {
-				capitalID = infrastructure.TerritoryID
-			}
-		}
-	}
+	capitalID := playerCapitalTerritory(state, "P1")
 	if capitalID == "" {
 		return fmt.Errorf("P1 has no capital castle")
 	}
@@ -681,17 +671,7 @@ func forgeJustice(state *models.GameState) error {
 //	A <origin> <target>          lost on its own (tie)
 //	P SO <origin> - <target>     the same attack, tunneled
 func forgeTunnel(state *models.GameState) error {
-	var capitalID models.TerritoryID
-	for _, player := range state.Players {
-		if player.ID != "P2" || player.CapitalCastleID == nil {
-			continue
-		}
-		for _, infrastructure := range state.Infrastructures {
-			if infrastructure.ID == *player.CapitalCastleID {
-				capitalID = infrastructure.TerritoryID
-			}
-		}
-	}
+	capitalID := playerCapitalTerritory(state, "P2")
 	p1 := ownedNobles(state, "P1")
 	if capitalID == "" || len(p1) == 0 {
 		return fmt.Errorf("the base game lacks a P2 capital or a P1 noble")
@@ -1091,15 +1071,8 @@ func forgeArmies(state *models.GameState) error {
 	if member != "" {
 		place(member, "P2", 3)
 	}
-	for _, player := range state.Players {
-		if player.ID != "P1" || player.CapitalCastleID == nil {
-			continue
-		}
-		for _, infrastructure := range state.Infrastructures {
-			if infrastructure.ID == *player.CapitalCastleID && state.TerritoryStates[infrastructure.TerritoryID].Army == nil {
-				place(infrastructure.TerritoryID, "P1", 2)
-			}
-		}
+	if p1Capital := playerCapitalTerritory(state, "P1"); p1Capital != "" && state.TerritoryStates[p1Capital].Army == nil {
+		place(p1Capital, "P1", 2)
 	}
 	// Armies on territories where nobles stand, to see pawns and packs together.
 	crowded := 0

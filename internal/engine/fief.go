@@ -126,7 +126,7 @@ func nextFiefID(fiefs []models.Fief) models.FiefID {
 // or fortified village is anchored some other way (a non-capital fief member,
 // or a player's own capital) or currently held by an army, and none at all
 // otherwise: an empty castle or fortified village outside every fief and
-// capital is inert, like any other unanchored infrastructure (#215, #193).
+// capital is inert, like an unanchored supply depot (#215, #193).
 func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID) int {
 	if !ctx.hasCastle(territoryID) && !ctx.hasFortifiedVillage(territoryID) {
 		return 0
