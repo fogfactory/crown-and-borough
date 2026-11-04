@@ -566,8 +566,9 @@ func (adj *adjudicator) holdStrengthAgainst(defender models.Army, attackerID mod
 }
 
 // defenseStrength returns the defense of an army that stays on its origin
-// without defensive supports, and the strength those supports add. Only
-// armies that hold, support or pillage receive defensive supports. A partial
+// without defensive supports, and the strength those supports add. Every
+// army that stays receives its defensive supports, except an army ordered to
+// attack, whose supports never apply (calculateSupports). A partial
 // dispersion defends with the troops it leaves behind: measured against the
 // other movements as resolved when it holds its origin, and, when it is
 // dislodged, which cancels it, as if it had left.
@@ -582,10 +583,6 @@ func (adj *adjudicator) defenseStrength(defender models.Army) (int, int) {
 		base += size
 	}
 	base += nobleCommandBonus(ctx, defender)
-	record := ctx.records[defender.ID]
-	if record == nil || !holdsForDefense(record.order.Type) {
-		return base, 0
-	}
 	supported := 0
 	for _, supportID := range sortedArmyMap(ctx.supports) {
 		support := ctx.supports[supportID]

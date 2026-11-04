@@ -24,13 +24,12 @@ func calculateSupports(ctx *resolutionContext) {
 			attack := ctx.attacks[support.targetArmyID]
 			support.applies = attack != nil && attack.target == support.destinationID
 		} else {
-			targetRecord := ctx.records[support.targetArmyID]
-			support.applies = targetRecord != nil && targetRecord.outcome == "" && holdsForDefense(targetRecord.order.Type)
+			// As in Diplomacy, an army ordered to attack gives up defensive
+			// supports, even when its attack fails. Every other army starting
+			// the turn on the target receives them as long as it stays there
+			// (see supportedArmyLeft).
+			support.applies = support.targetArmyID != "" && ctx.attacks[support.targetArmyID] == nil
 		}
 		ctx.supports[armyID] = support
 	}
-}
-
-func holdsForDefense(orderType models.OrderType) bool {
-	return orderType == models.OrderTypeHold || orderType == models.OrderTypeSupport || orderType == models.OrderTypePillage
 }

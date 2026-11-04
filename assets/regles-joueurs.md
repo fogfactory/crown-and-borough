@@ -256,7 +256,7 @@ noble. Aucun ne coûte de ressource en saison d'action.
 | Symbole | Syntaxe | Effet |
 |---|---|---|
 | `A` | `XXX A YYY` | Attaque ou déplacement vers `YYY` adjacente. |
-| `S` | `XXX S YYY` | Soutien défensif de l'armée qui tient `YYY`. |
+| `S` | `XXX S YYY` | Soutien défensif de l'armée présente sur `YYY`. |
 | `S` | `XXX S YYY - ZZZ` | Soutien offensif de l'attaque de `YYY` vers `ZZZ`. Si l'armée sur `YYY` est la vôtre et que ce soutien ouvre la chaîne, elle doit avoir pour ordre en cours cette attaque, sinon l'ordre est rejeté. |
 | `H` | `H XXX` | Maintien sur `XXX`. |
 | `J` | `XXX J YYY` | Jonction pacifique vers `YYY` adjacente ; **doit être le dernier ordre**. |
@@ -300,11 +300,18 @@ repoussée si la destination est contestée.
 ### Soutien (`S`)
 
 **L'essentiel** : un soutien renforce une armée de n'importe quelle
-nationalité, à condition que l'armée soutenue accomplisse effectivement
-l'action annoncée.
+nationalité. Un soutien défensif compte tant que l'armée soutenue reste sur sa
+case et n'attaque pas ; un soutien offensif, si l'armée soutenue effectue
+l'attaque annoncée.
 
-- **défensif** (`XXX S YYY`) : renforce l'armée qui tient `YYY`, si `YYY` est
-  adjacent à `XXX` (on ne se soutient pas soi-même) ;
+- **défensif** (`XXX S YYY`) : renforce l'armée présente sur `YYY` au début du
+  tour, si `YYY` est adjacent à `XXX` (on ne se soutient pas soi-même). Une
+  armée en maintien, en soutien, en pillage, en transfert, en jonction ou en
+  dispersion, ou sans ordre, reçoit le soutien tant qu'elle reste sur `YYY`.
+  Une armée qui attaque y renonce, même si son attaque échoue : attaquer, c'est
+  accepter de défendre sa case seul. Si `YYY` est vide ou si l'armée la quitte
+  par une jonction ou une dispersion complète, le soutien est sans effet et
+  n'empêche pas une armée adverse d'entrer sur la case libérée ;
 - **offensif** (`XXX S YYY - ZZZ`) : renforce l'attaque de `YYY` vers `ZZZ` ;
   `XXX` et `YYY` doivent chacun être adjacents à `ZZZ`, et `YYY` doit être
   l'armée qui attaque effectivement `ZZZ` (c'est le cas de FOU en section 3,

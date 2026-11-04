@@ -239,7 +239,7 @@ an action season.
 | Symbol | Syntax | Effect |
 |---|---|---|
 | `A` | `XXX A YYY` | Attack or move to adjacent `YYY`. |
-| `S` | `XXX S YYY` | Defensive support for the army holding `YYY`. |
+| `S` | `XXX S YYY` | Defensive support for the army on `YYY`. |
 | `S` | `XXX S YYY - ZZZ` | Offensive support for the attack from `YYY` to `ZZZ`. If the army on `YYY` is yours and this support opens the chain, it must have that attack as its current order, otherwise the order is rejected. |
 | `H` | `H XXX` | Hold on `XXX`. |
 | `J` | `XXX J YYY` | Peaceful join toward adjacent `YYY`; **must be the last order**. |
@@ -281,11 +281,19 @@ strength-0 movement, and is repelled if the destination is contested.
 
 ### Support (`S`)
 
-**The gist**: a support strengthens an army of any nationality, provided the
-supported army actually performs the announced action.
+**The gist**: a support strengthens an army of any nationality. A defensive
+support counts as long as the supported army stays on its territory and does
+not attack; an offensive support, if the supported army makes the announced
+attack.
 
-- **defensive** (`XXX S YYY`): strengthens the army holding `YYY`, if `YYY` is
-  adjacent to `XXX` (an army cannot support itself);
+- **defensive** (`XXX S YYY`): strengthens the army standing on `YYY` at the
+  start of the turn, if `YYY` is adjacent to `XXX` (an army cannot support
+  itself). An army that holds, supports, pillages, transfers, joins or
+  disperses, or has no order, receives the support as long as it stays on
+  `YYY`. An army that attacks gives it up, even if its attack fails:
+  attacking means defending its territory alone. If `YYY` is empty or the
+  army leaves it by a join or a complete dispersion, the support has no
+  effect and does not stop an enemy army from entering the vacated territory;
 - **offensive** (`XXX S YYY - ZZZ`): strengthens the attack from `YYY` to
   `ZZZ`; both `XXX` and `YYY` must be adjacent to `ZZZ`, and `YYY` must be the
   army that actually attacks `ZZZ` (that's the case for FOU in section 3,

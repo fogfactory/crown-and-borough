@@ -649,9 +649,16 @@ Les ordres sont :
 | `D` | `XXX D XXX YYY ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et reçoivent au plus une unité chacune ; les unités arrivées sur une même case sont empilées dans une seule armée, y compris lorsqu'elles viennent de plusieurs armées alliées. |
 | `T` | `XXX T YYY N` | Transfert d'action vers un château, un village ou une armée adverse via le réseau de ravitaillement. `N` est plafonné à `2^(taille - 1)`. |
 
-Un soutien défensif renforce une armée qui tient sa case. Un soutien offensif
-renforce une attaque précise. Un soutien peut viser toute nationalité et ne
-produit aucun effet si l'armée soutenue n'accomplit pas l'action annoncée.
+Un soutien peut viser toute nationalité. Un soutien défensif renforce l'armée
+présente sur sa case au début du tour tant qu'elle y reste, quel que soit son
+ordre (maintien, soutien, pillage, transfert, jonction ou dispersion, ou Sans
+Ordre), sauf une attaque : comme dans Diplomacy, une armée qui attaque renonce
+à tout soutien défensif, même si son attaque échoue. Le soutien défensif est
+aussi sans effet si la case est vide au début du tour ou si l'armée la quitte
+par une jonction ou une dispersion complète ; il n'empêche alors pas une armée
+adverse d'entrer sur la case libérée. Un soutien offensif renforce une attaque
+précise et ne produit aucun effet si l'armée soutenue n'effectue pas cette
+attaque.
 Toutefois, un soutien offensif qui ouvre une chaîne reçue ce tour est rejeté à la
 soumission lorsque l'armée soutenue est au joueur lui-même et que son ordre en
 cours n'est pas l'attaque soutenue (`support_no_attack`).
@@ -683,7 +690,8 @@ partielle avant de progresser. Une armée affamée (section 5) ne peut pas
 ordinaires sont des sources de ravitaillement pendant les tours d'action ;
 l'armée locale les consomme en priorité.
 
-Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
+Une armée sans chaîne est Sans Ordre : elle n'exécute aucune action
+automatique et tient sa case.
 Toute erreur statique d'une chaîne est contrôlée à la soumission : syntaxe,
 forme d'un ordre, codes inconnus, non-adjacence, jonction qui n'est pas le
 dernier ordre, soutien défensif de sa propre case, transfert vers sa propre

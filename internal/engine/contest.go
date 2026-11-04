@@ -182,7 +182,7 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 			if !supportRelevantToTerritory(ctx, support, territoryID) {
 				continue
 			}
-			if support.applies {
+			if support.applies && (support.offensive || adj.stays(support.targetArmyID)) {
 				result.supporterIDs = append(result.supporterIDs, supportID)
 			}
 			if adj.staticCuts[supportID] || adj.dislodged(supportID) {

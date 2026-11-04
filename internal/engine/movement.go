@@ -1124,7 +1124,7 @@ func executeLocalOrders(ctx *resolutionContext) {
 			support := ctx.supports[armyID]
 			record.outcome = OutcomeSuccess
 			switch {
-			case support == nil || !support.applies:
+			case support == nil || !support.applies || ctx.supportedArmyLeft(support):
 				record.reason = "support_void"
 			case ctx.contest.cuts[armyID]:
 				record.reason = "support_cut"
@@ -1139,6 +1139,18 @@ func executeLocalOrders(ctx *resolutionContext) {
 			record.invalidate("unresolved_order")
 		}
 	}
+}
+
+// supportedArmyLeft reports whether the army a defensive support targets
+// left its origin by a join or a complete dispersion: the support then does
+// not prevent an enemy from entering the vacated territory. A dislodged army
+// did not leave on its own.
+func (ctx *resolutionContext) supportedArmyLeft(support *supportIntent) bool {
+	if support.offensive || support.targetArmyID == "" || ctx.dislodged[support.targetArmyID] != nil {
+		return false
+	}
+	army := ctx.armiesByID[support.targetArmyID]
+	return army == nil || army.TerritoryID != support.targetID
 }
 
 func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.Army) {
