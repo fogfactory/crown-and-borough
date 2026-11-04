@@ -4,7 +4,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { armyDrawingOwner, type ResolvedArms } from '@/lib/heraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
-import { bottomAt, centroid } from '@/lib/map-svg-geometry'
+import { centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import {
@@ -38,13 +38,12 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
 }
 
 /**
- * Feet of an army's figurines, below the territory centre, in units: far
- * enough down to leave the label alone, no further than the territory's
- * lower edge.
+ * An army stands right of the territory label (the control shield is on its
+ * left): this far from the label's right edge to the pack's centre, and with
+ * its feet this far under the name's baseline, in units.
  */
-const ARMY_FEET = 46
-const ARMY_MIN_FEET = 22
-const ARMY_EDGE_MARGIN = 3
+const ARMY_REACH = 15
+const ARMY_BELOW_BASELINE = 4
 
 /** Nobles sharing a territory stand side by side, this far apart. */
 const NOBLE_SPACING = 12
@@ -172,6 +171,7 @@ export function LiveLayer({
   annotationScale,
   selectedNoble = null,
   compactArmies = false,
+  labelLayouts,
 }: {
   territories: Territory[]
   state: StateData
@@ -183,6 +183,8 @@ export function LiveLayer({
   selectedNoble?: string | null
   /** Overview zoom: an army shrinks to its standard-bearer. */
   compactArmies?: boolean
+  /** Each territory's label, which its army stands beside. */
+  labelLayouts: Map<string, TerritoryLabelLayout>
 }) {
   const { t } = useLanguage()
   // Full label: the owner's name and code, or the rebels.
@@ -209,15 +211,11 @@ export function LiveLayer({
         }
 
         const [centerX, centerY] = centroid(territory.points)
-        const armyX = centerX - 9 * annotationScale
-        const armyFeet = Math.max(
-          centerY + ARMY_MIN_FEET * annotationScale,
-          Math.min(
-            centerY + ARMY_FEET * annotationScale,
-            (bottomAt(territory.points, armyX) ?? Infinity) -
-              ARMY_EDGE_MARGIN * annotationScale,
-          ),
-        )
+        // The label's left edge is where the shield stands: its right edge
+        // mirrors it, so the pack stands beyond it, feet on the baseline.
+        const labelLeft = labelLayouts.get(territory.id)?.shieldAnchor ?? { x: 0, y: 0 }
+        const armyX = centerX + (-labelLeft.x + ARMY_REACH) * annotationScale
+        const armyFeet = centerY + (labelLeft.y + ARMY_BELOW_BASELINE) * annotationScale
         const territoryNobles = state.nobles.filter(
           (noble) => noble.location === territory.id,
         )
@@ -272,8 +270,8 @@ export function LiveLayer({
                 </g>
                 {territoryState.army.starving && (
                   <FamineMarker
-                    x={armyX + 16 * annotationScale}
-                    y={armyFeet - 10 * annotationScale}
+                    x={armyX + 14 * annotationScale}
+                    y={armyFeet - 8 * annotationScale}
                     scale={annotationScale}
                   />
                 )}

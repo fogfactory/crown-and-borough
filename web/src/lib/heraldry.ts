@@ -202,6 +202,8 @@ export const MAX_FIGURES = 6
 /** Spear of a figurine, left of its body (it is held in the right hand). */
 export const SPEAR_X = -3.65
 export const SPEAR_TOP = -12.2
+/** Stroke of a spear, and of the banner pole that continues it. */
+export const SPEAR_WIDTH = 0.55
 export const FIGURE_HEAD_TOP = -10.95
 export const FIGURE_COLUMN = 4
 export const FIGURE_BACK_ROW = -2.4

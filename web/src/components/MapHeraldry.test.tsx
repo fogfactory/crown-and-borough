@@ -2,7 +2,7 @@ import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { ArmyGlyph, ControlShield } from '@/components/MapHeraldry'
-import { BANNER_HEIGHT, FIGURE_HEAD_TOP, SPEAR_X } from '@/lib/heraldry'
+import { BANNER_HEIGHT, FIGURE_HEAD_TOP, SPEAR_WIDTH, SPEAR_X } from '@/lib/heraldry'
 
 function renderArmy(size: number, compact = false) {
   const { container } = render(
@@ -38,16 +38,31 @@ describe('ArmyGlyph', () => {
     expect(numberAttr(pole, 'x2')).toBe(numberAttr(pole, 'x1'))
   })
 
-  it('hoists the banner clear of every head, shadows included', () => {
-    for (const size of [1, 6, 12, 40]) {
-      const army = renderArmy(size)
-      const ys = [
-        ...army.querySelectorAll('[data-army-soldier], [data-army-shadow]'),
-      ].map((figure) => numberAttr(figure, 'y'))
-      const highestHead = Math.min(...ys) + FIGURE_HEAD_TOP
-      const flag = army.querySelector('use[href^="#arms-banner"]')
-      expect(numberAttr(flag, 'y') + BANNER_HEIGHT).toBeLessThan(highestHead)
-    }
+  it('continues the spear with a pole of the same thickness, to the banner', () => {
+    const army = renderArmy(6)
+    const pole = army.querySelector('[data-army-pole]')
+    const flag = army.querySelector('use[href^="#arms-banner"]')
+    expect(numberAttr(pole, 'stroke-width')).toBe(SPEAR_WIDTH)
+    // The banner hangs from the top of the pole, against it.
+    expect(numberAttr(flag, 'x')).toBe(numberAttr(pole, 'x1'))
+    expect(numberAttr(flag, 'y')).toBe(numberAttr(pole, 'y2'))
+  })
+
+  it('floats the banner just above its bearer, in front of the pack', () => {
+    const army = renderArmy(12)
+    const soldiers = [...army.querySelectorAll('[data-army-soldier]')]
+    const pole = army.querySelector('[data-army-pole]')
+    const flag = army.querySelector('use[href^="#arms-banner"]')
+    const bearer = soldiers.find(
+      (soldier) => numberAttr(soldier, 'x') + SPEAR_X === numberAttr(pole, 'x1'),
+    )
+    const headTop = numberAttr(bearer ?? null, 'y') + FIGURE_HEAD_TOP
+    const gap = headTop - (numberAttr(flag, 'y') + BANNER_HEIGHT)
+    expect(gap).toBeGreaterThan(0)
+    expect(gap).toBeLessThan(4)
+    // Drawn after every soldier and shadow: it stays visible in a big army.
+    const drawn = [...army.querySelectorAll('use')]
+    expect(drawn.indexOf(flag as SVGUseElement)).toBe(drawn.length - 1)
   })
 
   it('keeps the standard-bearer alone when compact', () => {

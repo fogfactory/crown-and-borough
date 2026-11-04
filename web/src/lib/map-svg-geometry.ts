@@ -130,18 +130,3 @@ export function getTerritoryIdFromTarget(target: EventTarget | null): string | n
     target.closest<SVGPathElement>('[data-territory-id]')?.dataset.territoryId ?? null
   )
 }
-
-/**
- * The lowest point of a polygon on the vertical line at `x` (the largest y
- * where an edge crosses it), or null when the line misses the polygon.
- */
-export function bottomAt(points: Point[], x: number): number | null {
-  let bottom: number | null = null
-  for (const [[x1, y1], [x2, y2]] of polygonEdges(points)) {
-    if ((x1 <= x && x <= x2) || (x2 <= x && x <= x1)) {
-      const y = x1 === x2 ? Math.max(y1, y2) : y1 + ((x - x1) / (x2 - x1)) * (y2 - y1)
-      if (bottom === null || y > bottom) bottom = y
-    }
-  }
-  return bottom
-}

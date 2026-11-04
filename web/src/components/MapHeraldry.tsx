@@ -5,6 +5,7 @@ import {
   CONTROL_SHIELD_SCALE,
   FIGURE_HEAD_TOP,
   SPEAR_TOP,
+  SPEAR_WIDTH,
   SPEAR_X,
   armyFigures,
   greyArms,
@@ -234,7 +235,7 @@ export function Soldier({ arms, clipId }: { arms: ResolvedArms; clipId: string }
         x2={SPEAR_X}
         y2={SPEAR_TOP}
         stroke={MAP_INK}
-        strokeWidth={0.55}
+        strokeWidth={SPEAR_WIDTH}
         strokeLinecap="round"
       />
       <ArmsField
@@ -265,15 +266,16 @@ export function Soldier({ arms, clipId }: { arms: ResolvedArms; clipId: string }
   )
 }
 
-/** Foot-to-top room kept between the highest head and the banner, in units. */
-const BANNER_CLEARANCE = 10
+/** Room between the standard-bearer's head and the banner above it, in units. */
+const BANNER_LIFT = 2
 
 /**
  * An army: a pack of up to six upright figurines in the owner's arms, shifted
  * irregularly (a function of `seed`), grey shadows behind a big army, and a
- * numbered banner whose pole is the spear of the leftmost soldier, above
- * every head. `compact` keeps the standard-bearer alone (overview zoom). Feet
- * on the origin, centred on x = 0.
+ * numbered banner on the leftmost soldier's spear, which its pole continues:
+ * the banner floats just above its bearer's head, in front of the pack.
+ * `compact` keeps the standard-bearer alone (overview zoom). Feet on the
+ * origin, centred on x = 0.
  */
 export function ArmyGlyph({
   owner,
@@ -294,13 +296,8 @@ export function ArmyGlyph({
   const soldiers = compact ? [{ x: 0, y: 0 }] : figures.soldiers
   const shadows = compact ? [] : figures.shadows
   const bearer = compact ? soldiers[0] : soldiers[figures.bearer]
-  const headTop =
-    Math.min(
-      ...soldiers.map((soldier) => soldier.y),
-      ...shadows.map((shadow) => shadow.y),
-    ) + FIGURE_HEAD_TOP
   const poleX = bearer.x + SPEAR_X
-  const flagTop = headTop - BANNER_CLEARANCE - BANNER_HEIGHT
+  const flagTop = bearer.y + FIGURE_HEAD_TOP - BANNER_LIFT - BANNER_HEIGHT
   const ordered = [...soldiers].sort((first, second) => first.y - second.y)
   return (
     <g data-army-owner={owner} data-army-size={size}>
@@ -327,27 +324,15 @@ export function ArmyGlyph({
         x1={poleX}
         y1={bearer.y + SPEAR_TOP}
         x2={poleX}
-        y2={flagTop - 0.4}
-        stroke={MAP_HALO}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-      />
-      <line
-        x1={poleX}
-        y1={bearer.y + SPEAR_TOP}
-        x2={poleX}
-        y2={flagTop - 0.4}
+        y2={flagTop}
         stroke={MAP_INK}
-        strokeWidth={0.9}
+        strokeWidth={SPEAR_WIDTH}
         strokeLinecap="round"
+        data-army-pole
       />
-      <use
-        href={hrefs?.banner ?? `#${bannerSymbolId(owner)}`}
-        x={poleX + 0.4}
-        y={flagTop}
-      />
+      <use href={hrefs?.banner ?? `#${bannerSymbolId(owner)}`} x={poleX} y={flagTop} />
       <text
-        x={poleX + 0.4 + BANNER_WIDTH * 0.4}
+        x={poleX + BANNER_WIDTH * 0.4}
         y={flagTop + BANNER_HEIGHT / 2}
         fill={SHIELD_NUMBER}
         fontSize={6.5}

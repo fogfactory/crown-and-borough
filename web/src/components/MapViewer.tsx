@@ -688,6 +688,7 @@ export function MapViewer({
               annotationScale={annotationScale}
               selectedNoble={selectedNoble}
               compactArmies={!showOrdinaryNames}
+              labelLayouts={labelLayouts}
             />
 
             <TerritoryLabels
