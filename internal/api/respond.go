@@ -42,3 +42,12 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
+
+// decodeJSONBody decodes a JSON request body of at most limit bytes into
+// target, rejecting unknown fields.
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, limit int64, target any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(target)
+}

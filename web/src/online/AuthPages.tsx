@@ -211,12 +211,13 @@ export function FinishPage() {
 }
 
 export function ProfilePage() {
-  const { profile, profileLoading, updateProfile } = useAuth()
+  const { profile, profileLoading, updateProfile, updateReleaseNotes } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [saving, setSaving] = useState(false)
+  const [togglingReleaseNotes, setTogglingReleaseNotes] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const redirect = safeRedirect(searchParams.get('redirect'))
 
@@ -243,6 +244,18 @@ export function ProfilePage() {
       setError(errorText(submitError, t('error.profileRequired')))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleReleaseNotesToggle = async (hide: boolean) => {
+    setTogglingReleaseNotes(true)
+    setError(null)
+    try {
+      await updateReleaseNotes({ hideReleaseNotes: hide })
+    } catch (toggleError) {
+      setError(errorText(toggleError, t('profile.hideReleaseNotesFailed')))
+    } finally {
+      setTogglingReleaseNotes(false)
     }
   }
 
@@ -282,6 +295,23 @@ export function ProfilePage() {
             {saving ? t('profile.saving') : t('profile.save')}
           </Button>
         </form>
+        <label className="mt-6 flex items-start gap-3 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm">
+          <input
+            type="checkbox"
+            checked={profile?.hideReleaseNotes ?? false}
+            disabled={!profile || togglingReleaseNotes}
+            onChange={(event) => void handleReleaseNotesToggle(event.target.checked)}
+            className="mt-0.5 size-4 accent-brass-700"
+          />
+          <span>
+            <span className="block font-semibold text-ink-700">
+              {t('profile.hideReleaseNotes')}
+            </span>
+            <span className="mt-1 block text-xs text-ink-500">
+              {t('profile.hideReleaseNotesDescription')}
+            </span>
+          </span>
+        </label>
       </CardContent>
     </Card>
   )

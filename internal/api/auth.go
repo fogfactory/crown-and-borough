@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -18,9 +17,26 @@ func NewAuthHandler(profiles store.ProfileStore, resolve ActorResolver) http.Han
 	return &AuthHandler{profiles: profiles, actor: resolve}
 }
 
+type authMethod func(*AuthHandler, http.ResponseWriter, *http.Request, store.Actor)
+
+type authRoute struct {
+	allow   string
+	methods map[string]authMethod
+}
+
+var authRoutes = map[string]authRoute{
+	"/api/auth/me": {allow: "GET, PUT", methods: map[string]authMethod{
+		http.MethodGet: (*AuthHandler).getProfile,
+		http.MethodPut: (*AuthHandler).updateProfile,
+	}},
+	"/api/auth/me/release-notes": {allow: "PUT", methods: map[string]authMethod{
+		http.MethodPut: (*AuthHandler).updateReleaseNotes,
+	}},
+}
+
 func (h *AuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimSuffix(r.URL.Path, "/")
-	if path != "/api/auth/me" {
+	route, ok := authRoutes[strings.TrimSuffix(r.URL.Path, "/")]
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
@@ -33,15 +49,13 @@ func (h *AuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeActorError(w, err)
 		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		h.getProfile(w, r, actor)
-	case http.MethodPut:
-		h.updateProfile(w, r, actor)
-	default:
-		w.Header().Set("Allow", "GET, PUT")
+	handle, ok := route.methods[r.Method]
+	if !ok {
+		w.Header().Set("Allow", route.allow)
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
+	handle(h, w, r, actor)
 }
 
 func (h *AuthHandler) getProfile(w http.ResponseWriter, r *http.Request, actor store.Actor) {
@@ -50,15 +64,12 @@ func (h *AuthHandler) getProfile(w http.ResponseWriter, r *http.Request, actor s
 		h.writeProfileError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, profileResponse{Player: profileView{UID: profile.UID, Email: profile.Email, DisplayName: profile.DisplayName}})
+	writeJSON(w, http.StatusOK, profileResponse{Player: newProfileView(profile)})
 }
 
 func (h *AuthHandler) updateProfile(w http.ResponseWriter, r *http.Request, actor store.Actor) {
 	var body profileUpdateRequest
-	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&body); err != nil {
+	if err := decodeJSONBody(w, r, 4<<10, &body); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_profile_request", err.Error())
 		return
 	}
@@ -71,13 +82,36 @@ func (h *AuthHandler) updateProfile(w http.ResponseWriter, r *http.Request, acto
 		h.writeProfileError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, profileResponse{Player: profileView{UID: profile.UID, Email: profile.Email, DisplayName: profile.DisplayName}})
+	writeJSON(w, http.StatusOK, profileResponse{Player: newProfileView(profile)})
+}
+
+func (h *AuthHandler) updateReleaseNotes(w http.ResponseWriter, r *http.Request, actor store.Actor) {
+	var body releaseNotesUpdateRequest
+	if err := decodeJSONBody(w, r, 4<<10, &body); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_release_notes_request", err.Error())
+		return
+	}
+	if _, err := h.profiles.EnsureProfile(r.Context(), actor); err != nil {
+		h.writeProfileError(w, err)
+		return
+	}
+	profile, err := h.profiles.UpdateReleaseNotes(r.Context(), actor.ID, store.ReleaseNotesUpdate{
+		LastSeenVersion:  body.LastSeenVersion,
+		HideReleaseNotes: body.HideReleaseNotes,
+	})
+	if err != nil {
+		h.writeProfileError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, profileResponse{Player: newProfileView(profile)})
 }
 
 func (h *AuthHandler) writeProfileError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrInvalidDisplayName):
 		writeAPIError(w, http.StatusBadRequest, "invalid_display_name", "display name must contain between one and thirty-two characters")
+	case errors.Is(err, store.ErrInvalidReleaseNotes):
+		writeAPIError(w, http.StatusBadRequest, "invalid_release_notes", "release notes update needs a lastSeenVersion (SemVer) and/or hideReleaseNotes")
 	case errors.Is(err, store.ErrProfileNotFound):
 		writeAPIError(w, http.StatusNotFound, "profile_not_found", err.Error())
 	default:
@@ -89,12 +123,29 @@ type profileUpdateRequest struct {
 	DisplayName string `json:"displayName"`
 }
 
+type releaseNotesUpdateRequest struct {
+	LastSeenVersion  *string `json:"lastSeenVersion"`
+	HideReleaseNotes *bool   `json:"hideReleaseNotes"`
+}
+
 type profileResponse struct {
 	Player profileView `json:"player"`
 }
 
 type profileView struct {
-	UID         string `json:"uid"`
-	Email       string `json:"email"`
-	DisplayName string `json:"displayName"`
+	UID              string `json:"uid"`
+	Email            string `json:"email"`
+	DisplayName      string `json:"displayName"`
+	LastSeenVersion  string `json:"lastSeenVersion"`
+	HideReleaseNotes bool   `json:"hideReleaseNotes"`
+}
+
+func newProfileView(profile store.PlayerProfile) profileView {
+	return profileView{
+		UID:              profile.UID,
+		Email:            profile.Email,
+		DisplayName:      profile.DisplayName,
+		LastSeenVersion:  profile.LastSeenVersion,
+		HideReleaseNotes: profile.HideReleaseNotes,
+	}
 }

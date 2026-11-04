@@ -889,6 +889,25 @@ l'objectif, le mode (seul ou allié) et, en fin de partie, la victoire. Le mode
 s'écrit en texte (« seul »), jamais en étiquette « SOLO » ; le score du joueur actif
 est en `brass-700`.
 
+### Notes de version
+
+À la première connexion suivant un déploiement, une fenêtre modale centrée
+(`ReleaseNotesDialog.tsx`, Radix `Dialog`, `paper-50`, bordure `line`) liste les
+notes de toutes les versions publiées depuis la dernière vue du joueur, de la
+plus récente à la plus ancienne : une section par version (titre Alegreya,
+date en `text-ink-500`), puis les rubriques du CHANGELOG en `label-caps` et leurs
+entrées en liste à puces. Le pied de la fenêtre porte le lien vers les
+versions GitHub, la case « ne plus afficher les notes des versions futures »
+et le bouton « Fermer ». Fermer, par le bouton, la croix ou Échap, enregistre
+la version courante sur le compte ; la case enregistre aussi le refus.
+L'ouverture se décide localement (version déployée SemVer plus récente que la
+dernière vue) ; les notes sont ensuite lues depuis l'API publique des releases
+GitHub (`api.github.com/repos/fogfactory/crown-and-borough/releases`, sans
+jeton), avec un message d'attente pendant le chargement et, en cas d'échec,
+un renvoi vers le lien GitHub. Un joueur qui n'a jamais rien vu ne reçoit que
+la version courante, et la version `dev` n'ouvre jamais la fenêtre. La
+préférence se modifie aussi dans la page profil.
+
 ### Lignée et alliances
 
 La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) est un **arbre

@@ -103,6 +103,16 @@ export interface ProfileData {
   uid: string
   email: string
   displayName: string
+  /** Last deployed version whose release notes the player acknowledged. */
+  lastSeenVersion: string
+  /** Opt-out from the release notes dialog. */
+  hideReleaseNotes: boolean
+}
+
+/** Release notes preferences to change; omitted fields are left untouched. */
+export interface ReleaseNotesUpdate {
+  lastSeenVersion?: string
+  hideReleaseNotes?: boolean
 }
 
 export interface GameSlot {

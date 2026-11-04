@@ -31,17 +31,30 @@ type Actor struct {
 // PlayerProfile is the application-owned part of a Firebase identity. UID and
 // Email come from the verified token; DisplayName is the only mutable field.
 type PlayerProfile struct {
-	UID         string    `json:"uid"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"displayName"`
-	CreatedAt   time.Time `json:"-"`
-	UpdatedAt   time.Time `json:"-"`
+	UID         string `json:"uid"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	// LastSeenVersion is the last deployed version whose release notes the
+	// player has acknowledged; empty until the first acknowledgement.
+	LastSeenVersion string `json:"lastSeenVersion"`
+	// HideReleaseNotes opts the player out of the release notes dialog.
+	HideReleaseNotes bool      `json:"hideReleaseNotes"`
+	CreatedAt        time.Time `json:"-"`
+	UpdatedAt        time.Time `json:"-"`
+}
+
+// ReleaseNotesUpdate carries the release notes preferences to change; nil
+// fields are left untouched.
+type ReleaseNotesUpdate struct {
+	LastSeenVersion  *string
+	HideReleaseNotes *bool
 }
 
 type ProfileStore interface {
 	GetProfile(context.Context, string) (PlayerProfile, error)
 	EnsureProfile(context.Context, Actor) (PlayerProfile, error)
 	UpdateProfile(context.Context, string, string) (PlayerProfile, error)
+	UpdateReleaseNotes(context.Context, string, ReleaseNotesUpdate) (PlayerProfile, error)
 }
 
 type Invitation struct {
@@ -258,22 +271,23 @@ type RevisionedGameStore interface {
 }
 
 var (
-	ErrUnknownGame        = errors.New("store: unknown game")
-	ErrNotMember          = errors.New("store: actor is not a member of this game")
-	ErrNotCreator         = errors.New("store: actor is not the game creator")
-	ErrInvalidPlayers     = errors.New("store: player count must be between two and eight")
-	ErrGameFull           = errors.New("store: game has no free slots")
-	ErrGameFinished       = errors.New("store: game is finished")
-	ErrEliminated         = errors.New("store: eliminated player cannot submit")
-	ErrRevisionConflict   = errors.New("store: revision conflict")
-	ErrInvalidReport      = errors.New("store: invalid report index")
-	ErrProfileNotFound    = errors.New("store: profile not found")
-	ErrProfileRequired    = errors.New("store: a completed player profile is required")
-	ErrInvalidDisplayName = errors.New("store: invalid display name")
-	ErrInvalidInvitation  = errors.New("store: invalid invitation")
-	ErrInvitationInactive = errors.New("store: invitation is inactive")
-	ErrSpectator          = errors.New("store: spectator host cannot join a player slot")
-	ErrInvalidYears       = errors.New("store: year count must be between one and fifty")
+	ErrUnknownGame         = errors.New("store: unknown game")
+	ErrNotMember           = errors.New("store: actor is not a member of this game")
+	ErrNotCreator          = errors.New("store: actor is not the game creator")
+	ErrInvalidPlayers      = errors.New("store: player count must be between two and eight")
+	ErrGameFull            = errors.New("store: game has no free slots")
+	ErrGameFinished        = errors.New("store: game is finished")
+	ErrEliminated          = errors.New("store: eliminated player cannot submit")
+	ErrRevisionConflict    = errors.New("store: revision conflict")
+	ErrInvalidReport       = errors.New("store: invalid report index")
+	ErrProfileNotFound     = errors.New("store: profile not found")
+	ErrProfileRequired     = errors.New("store: a completed player profile is required")
+	ErrInvalidDisplayName  = errors.New("store: invalid display name")
+	ErrInvalidReleaseNotes = errors.New("store: invalid release notes update")
+	ErrInvalidInvitation   = errors.New("store: invalid invitation")
+	ErrInvitationInactive  = errors.New("store: invitation is inactive")
+	ErrSpectator           = errors.New("store: spectator host cannot join a player slot")
+	ErrInvalidYears        = errors.New("store: year count must be between one and fifty")
 )
 
 func normalizeYearCount(value int) (int, error) {

@@ -453,8 +453,9 @@ global lorsqu'une autre partie est déjà active.
 
 | Méthode | Route | Contrat |
 |---|---|---|
-| `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur. |
+| `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur : `uid`, `email`, `displayName`, `lastSeenVersion` (vide avant la première fermeture de la fenêtre) et `hideReleaseNotes`. |
 | `PUT` | `/api/auth/me` | Crée ou met à jour le nom affiché validé du profil courant. |
+| `PUT` | `/api/auth/me/release-notes` | Met à jour les préférences de notes de version du profil courant. Corps : `lastSeenVersion` (SemVer, dernière version dont le joueur a vu les notes) et/ou `hideReleaseNotes` (ne plus afficher la fenêtre) ; au moins un champ, les champs absents sont conservés ; `400` sinon. Renvoie le profil. Le texte des notes ne passe pas par ce serveur : le navigateur le lit dans l'API publique des releases GitHub. |
 | `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. |
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
