@@ -1142,6 +1142,9 @@ const englishMessages = {
   'releaseNotes.title': 'What is new',
   'releaseNotes.close': 'Close',
   'releaseNotes.allReleases': 'All releases on GitHub',
+  'releaseNotes.loading': 'Loading the release notes...',
+  'releaseNotes.unavailable':
+    'The release notes could not be loaded. They are listed on GitHub.',
   'releaseNotes.hideFuture': 'Do not show release notes for future versions',
   'home.title': 'Your games',
   'home.empty': 'No games yet. Create one or join a friend.',
@@ -2410,6 +2413,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'releaseNotes.title': 'Nouveautés',
   'releaseNotes.close': 'Fermer',
   'releaseNotes.allReleases': 'Toutes les versions sur GitHub',
+  'releaseNotes.loading': 'Chargement des notes de version...',
+  'releaseNotes.unavailable':
+    'Les notes de version n’ont pas pu être chargées. Elles sont consultables sur GitHub.',
   'releaseNotes.hideFuture': 'Ne plus afficher les notes des versions futures',
   'home.title': 'Vos parties',
   'home.empty': 'Aucune partie. Créez-en une ou rejoignez un ami.',

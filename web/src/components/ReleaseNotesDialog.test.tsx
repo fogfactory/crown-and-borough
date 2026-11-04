@@ -10,20 +10,24 @@ const authState = vi.hoisted(() => ({
   updateReleaseNotes: vi.fn(),
 }))
 vi.mock('@/auth/useAuth', () => ({ useAuth: () => authState }))
+const fetchReleaseNotes = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/release-notes', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/release-notes')>()
-  return {
-    ...original,
-    pendingReleaseNotes: (lastSeen: string, current: string) =>
-      original.releaseNotesBetween(
-        original.parseChangelog(
-          '## [2.0.0](u) (2026-10-01)\n\n### Features\n\n* **web:** big thing ([abcdef1](u))\n\n## [1.1.0](u) (2026-09-01)\n\n### Bug Fixes\n\n* small fix ([abcdef2](u))\n',
-        ),
-        lastSeen,
-        current,
-      ),
-  }
+  return { ...original, fetchReleaseNotes }
 })
+
+const ENTRIES = [
+  {
+    version: '2.0.0',
+    date: '2026-10-01',
+    sections: [{ title: 'Features', items: ['web: big thing'] }],
+  },
+  {
+    version: '1.1.0',
+    date: '2026-09-01',
+    sections: [{ title: 'Bug Fixes', items: ['small fix'] }],
+  },
+]
 
 function profile(extra: Partial<ProfileData> = {}): ProfileData {
   return {
@@ -47,18 +51,33 @@ function renderDialog() {
 describe('ReleaseNotesDialog', () => {
   beforeEach(() => {
     authState.updateReleaseNotes = vi.fn().mockResolvedValue(profile())
+    fetchReleaseNotes.mockReset().mockResolvedValue(ENTRIES)
     vi.stubEnv('VITE_APP_VERSION', '2.0.0')
   })
 
-  it('lists every version since the last seen one with a releases link', () => {
+  it('fetches and lists every version since the last seen one', async () => {
     authState.profile = profile()
     renderDialog()
-    expect(screen.getByText(/web: big thing/)).toBeTruthy()
+    expect(screen.getByText('Loading the release notes...')).toBeTruthy()
+    expect(await screen.findByText('web: big thing')).toBeTruthy()
     expect(screen.getByText('small fix')).toBeTruthy()
+    expect(fetchReleaseNotes).toHaveBeenCalledWith(
+      '1.0.0',
+      '2.0.0',
+      expect.any(AbortSignal),
+    )
     const link = screen.getByRole('link', { name: /GitHub/ })
     expect(link.getAttribute('href')).toBe(
       'https://github.com/fogfactory/crown-and-borough/releases',
     )
+  })
+
+  it('points to GitHub when the notes cannot be fetched', async () => {
+    fetchReleaseNotes.mockRejectedValue(new Error('offline'))
+    authState.profile = profile()
+    renderDialog()
+    expect(await screen.findByText(/could not be loaded/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /GitHub/ })).toBeTruthy()
   })
 
   it('records the current version on close', async () => {
@@ -102,5 +121,6 @@ describe('ReleaseNotesDialog', () => {
     vi.stubEnv('VITE_APP_VERSION', '')
     renderDialog()
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(fetchReleaseNotes).not.toHaveBeenCalled()
   })
 })

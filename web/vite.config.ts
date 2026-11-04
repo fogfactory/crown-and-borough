@@ -15,8 +15,6 @@ export default defineConfig({
     },
   },
   server: {
-    // CHANGELOG.md at the repository root is embedded for the release notes.
-    fs: { allow: ['..'] },
     proxy: {
       '/api': process.env.VITE_API_TARGET ?? 'http://localhost:8080',
     },

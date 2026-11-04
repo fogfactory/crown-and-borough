@@ -899,10 +899,14 @@ date en `text-ink-500`), puis les rubriques du CHANGELOG en `label-caps` et leur
 entrées en liste à puces. Le pied de la fenêtre porte le lien vers les
 versions GitHub, la case « ne plus afficher les notes des versions futures »
 et le bouton « Fermer ». Fermer, par le bouton, la croix ou Échap, enregistre
-la version courante sur le compte ; la case enregistre aussi le refus. Les
-notes viennent du `CHANGELOG.md` embarqué au build ; un joueur qui n'a jamais
-rien vu ne reçoit que la version courante, et la version `dev` n'ouvre jamais
-la fenêtre. La préférence se modifie aussi dans la page profil.
+la version courante sur le compte ; la case enregistre aussi le refus.
+L'ouverture se décide localement (version déployée SemVer plus récente que la
+dernière vue) ; les notes sont ensuite lues depuis l'API publique des releases
+GitHub (`api.github.com/repos/fogfactory/crown-and-borough/releases`, sans
+jeton), avec un message d'attente pendant le chargement et, en cas d'échec,
+un renvoi vers le lien GitHub. Un joueur qui n'a jamais rien vu ne reçoit que
+la version courante, et la version `dev` n'ouvre jamais la fenêtre. La
+préférence se modifie aussi dans la page profil.
 
 ### Lignée et alliances
 

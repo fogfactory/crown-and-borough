@@ -1,16 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   compareVersions,
+  fetchReleaseNotes,
+  type GitHubRelease,
+  hasPendingReleaseNotes,
   isReleaseVersion,
-  parseChangelog,
-  pendingReleaseNotes,
+  parseReleaseBody,
+  RELEASES_API_URL,
+  releaseFromGitHub,
   releaseNotesBetween,
+  type ReleaseNotesEntry,
 } from '@/lib/release-notes'
 
-const SOURCE = `# Changelog
-
-## [0.10.0](https://github.com/o/r/compare/v0.9.1...v0.10.0) (2026-09-23)
+const BODY = `## [0.10.0](https://github.com/o/r/compare/v0.9.1...v0.10.0) (2026-09-23)
 
 
 ### Features
@@ -22,35 +25,52 @@ const SOURCE = `# Changelog
 ### Bug Fixes
 
 * **map:** snowflakes ([d46f839](https://github.com/o/r/commit/d46f8391fc82e315d3b9d8c6469d5307943fe76e))
-
-## [0.9.1](https://github.com/o/r/compare/v0.9.0...v0.9.1) (2026-09-18)
-
-### Bug Fixes
-
-* old fix ([0f9b1d0](https://github.com/o/r/commit/0f9b1d0f9e75189063656b859b44dca77ba2028d))
-
-## 0.9.0 (2026-09-17)
-
-### Features
-
-* first
 `
 
-describe('release notes', () => {
-  const entries = parseChangelog(SOURCE)
+function release(tag: string, extra: Partial<GitHubRelease> = {}): GitHubRelease {
+  return {
+    tag_name: tag,
+    published_at: '2026-09-23T14:13:39Z',
+    body: '### Features\n\n* something\n',
+    draft: false,
+    ...extra,
+  }
+}
 
-  it('parses entries, sections and cleans commit links', () => {
-    expect(entries.map((entry) => entry.version)).toEqual(['0.10.0', '0.9.1', '0.9.0'])
-    expect(entries[0].date).toBe('2026-09-23')
-    expect(entries[0].sections.map((section) => section.title)).toEqual([
-      'Features',
-      'Bug Fixes',
-    ])
-    expect(entries[0].sections[0].items).toEqual([
+function entry(version: string): ReleaseNotesEntry {
+  return { version, date: '', sections: [] }
+}
+
+describe('release notes', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('parses sections and cleans commit links', () => {
+    const sections = parseReleaseBody(BODY)
+    expect(sections.map((section) => section.title)).toEqual(['Features', 'Bug Fixes'])
+    expect(sections[0].items).toEqual([
       'web: winter overlay',
       'plain item with link (#12)',
     ])
-    expect(entries[2].sections[0].items).toEqual(['first'])
+    expect(sections[1].items).toEqual(['map: snowflakes'])
+  })
+
+  it('converts GitHub releases and skips drafts and non-SemVer tags', () => {
+    expect(releaseFromGitHub(release('v0.10.0'))).toEqual({
+      version: '0.10.0',
+      date: '2026-09-23',
+      sections: [{ title: 'Features', items: ['something'] }],
+    })
+    expect(releaseFromGitHub(release('v1.0.0', { draft: true }))).toBeNull()
+    expect(releaseFromGitHub(release('nightly'))).toBeNull()
+    expect(
+      releaseFromGitHub(release('v1.0.0', { body: null, published_at: null })),
+    ).toEqual({
+      version: '1.0.0',
+      date: '',
+      sections: [],
+    })
   })
 
   it('compares versions numerically', () => {
@@ -62,28 +82,44 @@ describe('release notes', () => {
     expect(isReleaseVersion('1.2.3')).toBe(true)
   })
 
+  it('opens only for an unseen release build', () => {
+    expect(hasPendingReleaseNotes('0.9.0', '0.10.0')).toBe(true)
+    expect(hasPendingReleaseNotes('', '0.10.0')).toBe(true)
+    expect(hasPendingReleaseNotes('0.10.0', '0.10.0')).toBe(false)
+    expect(hasPendingReleaseNotes('0.11.0', '0.10.0')).toBe(false)
+    expect(hasPendingReleaseNotes('0.9.0', 'dev')).toBe(false)
+  })
+
   it('returns every version between the last seen and the current one', () => {
-    expect(releaseNotesBetween(entries, '0.9.0', '0.10.0').map((e) => e.version)).toEqual([
-      '0.10.0',
-      '0.9.1',
-    ])
+    const entries = [entry('0.9.0'), entry('0.10.0'), entry('0.9.1'), entry('0.11.0')]
+    expect(releaseNotesBetween(entries, '0.9.0', '0.10.0').map((e) => e.version)).toEqual(
+      ['0.10.0', '0.9.1'],
+    )
     expect(releaseNotesBetween(entries, '0.9.1', '0.9.1')).toEqual([])
-    expect(releaseNotesBetween(entries, '0.9.0', '0.9.1').map((e) => e.version)).toEqual([
-      '0.9.1',
+    expect(releaseNotesBetween(entries, '', '0.10.0').map((e) => e.version)).toEqual([
+      '0.10.0',
     ])
-  })
-
-  it('shows only the current version to a player who has seen none', () => {
-    expect(releaseNotesBetween(entries, '', '0.10.0').map((e) => e.version)).toEqual(['0.10.0'])
-  })
-
-  it('never shows notes for dev or non-release builds', () => {
     expect(releaseNotesBetween(entries, '0.9.0', 'dev')).toEqual([])
-    expect(pendingReleaseNotes('0.0.1', 'dev')).toEqual([])
-    expect(pendingReleaseNotes('0.0.1', 'ci')).toEqual([])
   })
 
-  it('bundles the repository changelog', () => {
-    expect(pendingReleaseNotes('0.0.1', '0.10.0').length).toBeGreaterThan(0)
+  it('fetches the releases from the GitHub API', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify([release('v0.11.0'), release('v0.10.0'), release('v0.9.0')]),
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const entries = await fetchReleaseNotes('0.9.0', '0.10.0')
+    expect(entries.map((e) => e.version)).toEqual(['0.10.0'])
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(
+      new RegExp(`^${RELEASES_API_URL}\\?`),
+    )
+  })
+
+  it('rejects when GitHub answers with an error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 403 })))
+    await expect(fetchReleaseNotes('0.9.0', '0.10.0')).rejects.toThrow(/403/)
   })
 })
