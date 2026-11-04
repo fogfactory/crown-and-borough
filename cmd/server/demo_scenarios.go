@@ -19,7 +19,7 @@ var demoScenarios = map[string]struct {
 	apply       func(*models.GameState) error
 }{
 	"armies": {
-		description: "winter, annexation scenario (a barony of P1 with its crown and trigram, three one-troop P1 armies on free territories) plus armies of 2, 4, 6, 9, 12 and 25 troops on free territories for P1 to P4, a P2 army occupying a barony member (greyed shield) and a P1 army on P1's own capital (shield kept)",
+		description: "winter, annexation scenario (a barony of P1 with its crown and trigram, three one-troop P1 armies on free territories) plus armies of 2, 4, 6, 9, 12 and 25 troops on free territories for P1 to P4, a P2 army occupying a barony member (greyed shield) and a P1 army on P1's own capital (shield kept), and four armies on territories where nobles stand",
 		apply:       forgeArmies,
 	},
 	"winter": {
@@ -1000,6 +1000,15 @@ func forgeArmies(state *models.GameState) error {
 				place(infrastructure.TerritoryID, "P1", 2)
 			}
 		}
+	}
+	// Armies on territories where nobles stand, to see pawns and packs together.
+	crowded := 0
+	for _, noble := range state.Nobles {
+		if crowded == 4 || noble.LocationID == "" || state.TerritoryStates[noble.LocationID].Army != nil {
+			continue
+		}
+		place(noble.LocationID, noble.OwnerID, []int{3, 6, 9, 12}[crowded])
+		crowded++
 	}
 	fmt.Printf("demo armies: %d armies placed, member %s occupied by P2, barony capital %s\n", next, member, capitalID)
 	return nil
