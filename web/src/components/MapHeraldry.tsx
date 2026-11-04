@@ -121,23 +121,30 @@ export function ArmsField({
 }
 
 /**
- * One shield and one banner per owner, drawn once and reused by every army
- * and every controlled territory through `<use>`.
+ * One shield per owner, drawn once and reused by every controlled territory
+ * through `<use>`; the soldier and banner of an owner with an army, and the
+ * greyed shield of an owner whose territory is occupied, only when needed.
  */
 export function HeraldryDefs({
   armsByOwner,
+  armyOwners,
+  occupiedOwners,
 }: {
   armsByOwner: Map<string, ResolvedArms>
+  armyOwners: Set<string>
+  occupiedOwners: Set<string>
 }) {
   return (
     <>
-      <symbol id={SHADOW_SYMBOL_ID} overflow="visible">
-        <g fill={SOLDIER_SHADOW}>
-          <path d={SURCOAT} />
-          <circle cy={-7.5} r={1.6} />
-          <path d={HELMET} />
-        </g>
-      </symbol>
+      {armyOwners.size > 0 && (
+        <symbol id={SHADOW_SYMBOL_ID} overflow="visible">
+          <g fill={SOLDIER_SHADOW}>
+            <path d={SURCOAT} />
+            <circle cy={-7.5} r={1.6} />
+            <path d={HELMET} />
+          </g>
+        </symbol>
+      )}
       {[...armsByOwner].map(([owner, arms]) => (
         <g key={owner}>
           <symbol id={shieldSymbolId(owner)} overflow="visible">
@@ -148,25 +155,31 @@ export function HeraldryDefs({
               box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
             />
           </symbol>
-          <symbol id={greyShieldSymbolId(owner)} overflow="visible">
-            <ArmsField
-              arms={greyArms(arms)}
-              outline={SHIELD_PATH}
-              clipId={`${greyShieldSymbolId(owner)}-clip`}
-              box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
-            />
-          </symbol>
-          <symbol id={soldierSymbolId(owner)} overflow="visible">
-            <Soldier arms={arms} clipId={`${soldierSymbolId(owner)}-clip`} />
-          </symbol>
-          <symbol id={bannerSymbolId(owner)} overflow="visible">
-            <ArmsField
-              arms={arms}
-              outline={BANNER_PATH}
-              clipId={`${bannerSymbolId(owner)}-clip`}
-              box={[0, 0, BANNER_WIDTH, BANNER_HEIGHT]}
-            />
-          </symbol>
+          {occupiedOwners.has(owner) && (
+            <symbol id={greyShieldSymbolId(owner)} overflow="visible">
+              <ArmsField
+                arms={greyArms(arms)}
+                outline={SHIELD_PATH}
+                clipId={`${greyShieldSymbolId(owner)}-clip`}
+                box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+              />
+            </symbol>
+          )}
+          {armyOwners.has(owner) && (
+            <>
+              <symbol id={soldierSymbolId(owner)} overflow="visible">
+                <Soldier arms={arms} clipId={`${soldierSymbolId(owner)}-clip`} />
+              </symbol>
+              <symbol id={bannerSymbolId(owner)} overflow="visible">
+                <ArmsField
+                  arms={arms}
+                  outline={BANNER_PATH}
+                  clipId={`${bannerSymbolId(owner)}-clip`}
+                  box={[0, 0, BANNER_WIDTH, BANNER_HEIGHT]}
+                />
+              </symbol>
+            </>
+          )}
         </g>
       ))}
     </>
@@ -380,7 +393,7 @@ export function ControlShield({
   const href =
     shieldHref ?? `#${grey ? greyShieldSymbolId(owner) : shieldSymbolId(owner)}`
   return (
-    <g data-banner-owner={owner} data-control-grey={grey ? '' : undefined}>
+    <g data-control-owner={owner} data-control-grey={grey ? '' : undefined}>
       <use
         href={href}
         transform={`translate(0 ${-CONTROL_HEIGHT / 2}) scale(${CONTROL_SHIELD_SCALE})`}

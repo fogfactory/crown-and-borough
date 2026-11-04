@@ -240,15 +240,13 @@ export function WinterOrdersOverlay({
                 strokeDasharray={`${annotationScale * 4} ${annotationScale * 3}`}
                 strokeOpacity={intention.valid ? 0.9 : 0.4}
               />,
-              // A faded banner on each non-capital member, marked with the
+              // A faded shield on each non-capital member, marked with the
               // capital's trigram like a founded fief, so the drafted group
               // reads at a glance before it changes control (#196).
               <g
                 key={`fief-group-badge-${intention.line}-${memberId}`}
                 data-fief-group-member={memberId}
-                transform={`translate(${x2 - 6 * annotationScale} ${
-                  y2 - 10 * annotationScale
-                }) scale(${annotationScale})`}
+                transform={`translate(${x2} ${y2 + 2 * annotationScale}) scale(${annotationScale})`}
                 opacity={0.6}
                 pointerEvents="none"
               >

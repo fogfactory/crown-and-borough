@@ -32,7 +32,7 @@ export function resolveArmsByOwner(
         : playerArms({ color, arms: armsByPlayer.get(owner) }),
     )
   }
-  // A vacant fief flies a neutral banner even when no rebel is on the map.
+  // A vacant fief carries a neutral shield even when no rebel is on the map.
   if (!resolved.has(NEUTRAL_PLAYER_ID)) {
     resolved.set(NEUTRAL_PLAYER_ID, { field: NEUTRAL_ARMY_COLOR, charge: null })
   }
@@ -169,7 +169,12 @@ export const CONTROL_SHIELD_SCALE = 0.8
 
 /** A color's grey of equal luminance (Rec. 709 weights). */
 export function desaturate(hex: string): string {
-  const value = hex.replace('#', '')
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!match) return NEUTRAL_ARMY_COLOR
+  const value =
+    match[1].length === 3
+      ? [...match[1]].map((digit) => digit + digit).join('')
+      : match[1]
   const channel = (index: number) => parseInt(value.slice(index * 2, index * 2 + 2), 16)
   const grey = Math.round(0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2))
   const digits = grey.toString(16).padStart(2, '0')
@@ -242,6 +247,19 @@ export function shadowCount(size: number): number {
  * function of `seed`, so a pack does not move between renders.
  */
 export function armyFigures(size: number, seed: number): ArmyFigures {
+  const key = `${seed}:${Math.min(size, MAX_FIGURES)}:${shadowCount(size)}`
+  const cached = packCache.get(key)
+  if (cached) return cached
+  const pack = layoutArmy(size, seed)
+  if (packCache.size >= PACK_CACHE_LIMIT) packCache.clear()
+  packCache.set(key, pack)
+  return pack
+}
+
+const PACK_CACHE_LIMIT = 512
+const packCache = new Map<string, ArmyFigures>()
+
+function layoutArmy(size: number, seed: number): ArmyFigures {
   const next = random(seed)
   const count = Math.max(1, Math.min(size, MAX_FIGURES))
   const columns = count <= 3 ? count : 3

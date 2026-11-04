@@ -27,21 +27,21 @@ describe('nameLines', () => {
 })
 
 describe('territoryLabelLayout', () => {
-  it('writes the code alone, the banner left of it, when the name is hidden', () => {
+  it('writes the code alone, the shield left of it, when the name is hidden', () => {
     const layout = territoryLabelLayout(territory('ROS', 'Rochevent'), false)
     expect(layout.nameLines).toEqual([])
-    expect(layout.bannerAnchor.y).toBe(layout.codeBaseline)
+    expect(layout.shieldAnchor.y).toBe(layout.codeBaseline)
   })
 
-  it('writes the name above the code, the banner on the name baseline', () => {
+  it('writes the name above the code, the shield on the name baseline', () => {
     const layout = territoryLabelLayout(territory('FOU', 'Fougères-du-Marais'), true)
     expect(layout.nameLines).toHaveLength(2)
     expect(layout.nameBaselines[0]).toBeLessThan(layout.nameBaselines[1])
     expect(layout.codeBaseline).toBeGreaterThan(layout.nameBaselines[1])
-    expect(layout.bannerAnchor.y).toBe(layout.nameBaselines[1])
-    // The banner stands clear of the wider name, not of the code.
-    expect(layout.bannerAnchor.x).toBeLessThan(
-      territoryLabelLayout(territory('FOU', 'Fougères-du-Marais'), false).bannerAnchor.x,
+    expect(layout.shieldAnchor.y).toBe(layout.nameBaselines[1])
+    // The shield stands clear of the wider name, not of the code.
+    expect(layout.shieldAnchor.x).toBeLessThan(
+      territoryLabelLayout(territory('FOU', 'Fougères-du-Marais'), false).shieldAnchor.x,
     )
   })
 })

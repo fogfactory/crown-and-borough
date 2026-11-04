@@ -575,7 +575,7 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
-  it('crowns the fief capital banner and marks members with its trigram', () => {
+  it('crowns the fief capital shield and marks members with its trigram', () => {
     const fiefState: StateData = {
       ...state,
       players: [{ id: 'P1', name: 'One', color: '#123456' }],
@@ -595,12 +595,12 @@ describe('MapViewer territorial overlays', () => {
     }
     const { svg } = renderMap(map, fiefState)
 
-    // The fief name moves from a map tag to the banner tooltip.
+    // The fief name moves from a map tag to the shield tooltip.
     expect(svg.querySelector('g[aria-label="Fiefs"]')).toBeNull()
     const capital = svg.querySelector('[data-fief-capital="ROS"]')
     expect(capital?.querySelector('[data-crown="county"]')).toBeInTheDocument()
-    expect(capital?.querySelector('[data-banner-owner]')).toHaveAttribute(
-      'data-banner-owner',
+    expect(capital?.querySelector('[data-control-owner]')).toHaveAttribute(
+      'data-control-owner',
       'P1',
     )
     expect(capital?.querySelector('title')?.textContent).toBe(
@@ -613,7 +613,7 @@ describe('MapViewer territorial overlays', () => {
     expect(member?.querySelector('[data-crown]')).toBeNull()
   })
 
-  it('crowns a crown fief with the closed crown and a vacant fief over a neutral banner', () => {
+  it('crowns a crown fief with the closed crown and a vacant fief over a neutral shield', () => {
     const fiefState = (fief: Partial<Fief>): StateData => ({
       ...state,
       players: [{ id: 'P1', name: 'One', color: '#123456' }],
@@ -629,8 +629,8 @@ describe('MapViewer territorial overlays', () => {
     const crownFief = renderMap(map, fiefState({ crown: true })).svg
     const crowned = crownFief.querySelector('[data-fief-capital="ROS"]')
     expect(crowned?.querySelector('[data-crown="king"]')).toBeInTheDocument()
-    expect(crowned?.querySelector('[data-banner-owner]')).toHaveAttribute(
-      'data-banner-owner',
+    expect(crowned?.querySelector('[data-control-owner]')).toHaveAttribute(
+      'data-control-owner',
       'P1',
     )
     cleanup()
@@ -639,8 +639,8 @@ describe('MapViewer territorial overlays', () => {
       '[data-fief-capital="ROS"]',
     )
     expect(vacant?.querySelector('[data-crown="barony"]')).toBeInTheDocument()
-    expect(vacant?.querySelector('[data-banner-owner]')).toHaveAttribute(
-      'data-banner-owner',
+    expect(vacant?.querySelector('[data-control-owner]')).toHaveAttribute(
+      'data-control-owner',
       'NEUTRAL',
     )
     expect(vacant?.querySelector('title')?.textContent).toBe(
@@ -697,6 +697,66 @@ describe('MapViewer territorial overlays', () => {
     expect(occupiedBadgeTitle).toHaveTextContent(
       'One controls this territory, part of the fief of ROS, occupied by Two',
     )
+  })
+
+  it('marks a territory held only by its owner army with the army, not a shield', () => {
+    const held = (extra: Partial<StateData>): StateData => ({
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#123456' }],
+      territories: [
+        {
+          id: 'ROS',
+          owner: 'P1',
+          resources: 0,
+          army: { owner: 'P1', size: 3, chain: null },
+          infrastructures: [],
+        },
+      ],
+      fiefs: [],
+      ...extra,
+    })
+
+    const loose = renderMap(map, held({}))
+    expect(loose.svg.querySelector('[data-ownership-badge]')).toBeNull()
+    expect(loose.svg.querySelector('[data-army-owner="P1"]')).toBeInTheDocument()
+    // Defs follow the pieces: a soldier and a banner, but no greyed shield.
+    expect(loose.svg.querySelector('symbol#arms-soldier-P1')).toBeInTheDocument()
+    expect(loose.svg.querySelector('symbol#arms-shield-grey-P1')).toBeNull()
+  })
+
+  it('keeps the shield of an anchored territory that its owner army stands on', () => {
+    const capital: StateData = {
+      ...state,
+      players: [{ id: 'P1', name: 'One', color: '#123456', capitalTerritory: 'ROS' }],
+      territories: [
+        {
+          id: 'ROS',
+          owner: 'P1',
+          resources: 0,
+          army: { owner: 'P1', size: 3, chain: null },
+          infrastructures: [],
+        },
+      ],
+      fiefs: [],
+    }
+    const { svg } = renderMap(map, capital)
+    expect(svg.querySelectorAll('[data-ownership-badge="P1"]')).toHaveLength(1)
+    const fief: StateData = {
+      ...capital,
+      players: [{ id: 'P1', name: 'One', color: '#123456' }],
+      fiefs: [
+        {
+          capital: 'ROS',
+          title: 'barony',
+          territories: ['ROS'],
+          owner: 'P1',
+          holder: 'HUG',
+        },
+      ],
+    }
+    expect(
+      renderMap(map, fief).svg.querySelectorAll('[data-ownership-badge="P1"]'),
+    ).toHaveLength(1)
   })
 
   it('scales map annotations with the mean territory area', () => {
@@ -1134,7 +1194,7 @@ describe('MapViewer territorial overlays', () => {
     expect(borderGroup?.compareDocumentPosition(halo)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
-    // Banners are pieces: they stand above the borders.
+    // Shields are pieces: they stand above the borders.
     expect(borderGroup?.compareDocumentPosition(ownershipBadge)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )

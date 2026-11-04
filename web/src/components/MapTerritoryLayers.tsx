@@ -50,7 +50,8 @@ const NOBLE_SPACING = 12
  * fief, over a neutral shield while the fief is vacant); every member of a
  * fief, capital included, writes the capital's trigram under its shield, so a
  * glance tells which fief a territory belongs to. A territory nobody
- * controls needs no mark: the army present shows the occupation.
+ * controls, or held only by the army standing on it (no fief, no player
+ * capital), needs no shield: the army shows the occupation.
  */
 export function OwnershipLayer({
   territories,
@@ -63,7 +64,7 @@ export function OwnershipLayer({
   state: StateData
   annotationScale: number
   fiefs?: Fief[]
-  /** Each territory's label, which its banner stands beside. */
+  /** Each territory's label, which its shield stands beside. */
   labelLayouts: Map<string, TerritoryLabelLayout>
 }) {
   const { t } = useLanguage()
@@ -89,11 +90,19 @@ export function OwnershipLayer({
         if (!owner) {
           return null
         }
+        // Control that only holds while the owner's army stands there (no
+        // fief, no capital) is marked by that army, not by a shield.
+        const anchored =
+          Boolean(fief) ||
+          state.players.some((player) => player.capitalTerritory === territory.id)
+        if (!anchored && territoryState?.army?.owner === owner) {
+          return null
+        }
 
         const vacant = isCapital && fief && !fief.holder && !fief.crown
-        const bannerOwner = vacant ? NEUTRAL_PLAYER_ID : owner
+        const shieldOwner = vacant ? NEUTRAL_PLAYER_ID : owner
         const [centerX, centerY] = centroid(territory.points)
-        const anchor = labelLayouts.get(territory.id)?.bannerAnchor ?? { x: 0, y: 0 }
+        const anchor = labelLayouts.get(territory.id)?.shieldAnchor ?? { x: 0, y: 0 }
         const footX = anchor.x - CONTROL_REACH
         const footY = anchor.y
         const ownerName = playerName(owner)
@@ -135,7 +144,7 @@ export function OwnershipLayer({
           >
             <title>{label}</title>
             <ControlShield
-              owner={bannerOwner}
+              owner={shieldOwner}
               grey={Boolean(occupantName)}
               crown={isCapital && fief ? (fief.crown ? 'king' : fief.title) : undefined}
               attachedTo={fief?.capital}
