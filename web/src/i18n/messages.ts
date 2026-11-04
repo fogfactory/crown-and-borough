@@ -179,6 +179,8 @@ const englishMessages = {
   'app.armyAtRisk': '{territory} ({size} troops): −{deficit} R short, fed up to {supplied}',
   'app.armyAtRiskLoss': ' · −{count} troops',
   'app.armyAtRiskVanishes': ' · disappears',
+  'app.armyAtRiskPillage': ' · pillages its position ({infrastructure})',
+  'app.armyAtRiskSavedByPillage': ' · pillages its position ({infrastructure}), which feeds it',
   'app.noArmyAtRisk': 'No army looks at risk',
   'app.noblesPresent': 'Nobles present',
   'app.owner': 'Owner',
@@ -282,7 +284,7 @@ const englishMessages = {
   'map.armyMarker': 'Army of {owner}, size {size}',
   'map.rebelArmyMarker': 'Rebel army, size {size}',
   'map.armyMarkerStarving':
-    'Army of {owner}, size {size} — starving: fights at strength 0 this turn',
+    'Army of {owner}, size {size} — starving: defends at reduced strength, cannot attack or support this turn',
   'map.armyStarvingBadge': 'Starving: defends at reduced strength, cannot attack or support this turn',
   'orders.winterTitle': 'Winter orders',
   'orders.winterDescription':
@@ -850,7 +852,7 @@ const englishMessages = {
   'reports.tunnelAttack': ' (tunnel)',
   'reports.tunnelDefense': ' ({force} against a tunnel)',
   'reports.savedByPillage': ' · saved by pillage',
-  'reports.lostTroop': ' · loses {count} troop',
+  'reports.lostTroop': ' · −{count} troop',
   'reports.lostTroops': ' · −{count} troops',
   'reports.famineWarning':
     'short on rations — it defends at reduced strength and cannot attack or support; act before next turn or it will pillage its own position or lose every troop it cannot feed',
@@ -1559,6 +1561,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.armyAtRisk': '{territory} ({size} troupes) : −{deficit} R manquantes, nourrie jusqu’à {supplied}',
   'app.armyAtRiskLoss': ' · −{count} troupes',
   'app.armyAtRiskVanishes': ' · disparaît',
+  'app.armyAtRiskPillage': ' · pille sa case ({infrastructure})',
+  'app.armyAtRiskSavedByPillage': ' · pille sa case ({infrastructure}), ce qui la nourrit',
   'app.noArmyAtRisk': 'Aucune armée ne semble à risque',
   'app.noblesPresent': 'Nobles présents',
   'app.owner': 'Propriétaire',
@@ -1661,7 +1665,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'map.armyMarker': 'Armée de {owner}, taille {size}',
   'map.rebelArmyMarker': 'Armée rebelle, taille {size}',
   'map.armyMarkerStarving':
-    'Armée de {owner}, taille {size} — affamée : combat à force 0 ce tour-ci',
+    'Armée de {owner}, taille {size} — affamée : défend à force réduite, ne peut ni attaquer ni soutenir ce tour-ci',
   'map.armyStarvingBadge': 'Affamée : défend à force réduite, ne peut ni attaquer ni soutenir ce tour-ci',
   'orders.winterTitle': "Ordres d'hiver",
   'orders.winterDescription':
@@ -2238,7 +2242,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.tunnelAttack': ' (souterrain)',
   'reports.tunnelDefense': ' ({force} face à un souterrain)',
   'reports.savedByPillage': ' · sauvée par pillage',
-  'reports.lostTroop': ' · perd {count} troupe',
+  'reports.lostTroop': ' · −{count} troupe',
   'reports.lostTroops': ' · −{count} troupes',
   'reports.famineWarning':
     'manque de vivres — elle se défend à force réduite et ne peut ni attaquer ni soutenir ; agis avant le tour suivant ou elle pillera sa case ou perdra toutes les troupes qu’elle ne peut nourrir',

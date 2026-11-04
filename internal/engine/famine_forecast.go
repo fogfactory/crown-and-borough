@@ -23,6 +23,11 @@ type ArmyFamineRisk struct {
 	// starving (all of them when SuppliedStrength is zero); a first deficit
 	// only caps its strength at SuppliedStrength − 1.
 	ExpectedLoss int `json:"expectedLoss"`
+	// PillageInfrastructure is the infrastructure an already starving army
+	// pillages on its territory; SavedByPillage is set when that pillage
+	// covers its demand, which spares every troop.
+	PillageInfrastructure models.InfraType `json:"pillageInfrastructure,omitempty"`
+	SavedByPillage        bool             `json:"savedByPillage,omitempty"`
 }
 
 // FamineRiskForecast is one player's projected ravitaillement for the next
@@ -52,10 +57,10 @@ type FamineRiskForecast struct {
 // nil.
 //
 // Unlike a simplified per-army estimate, this replays the same allocation
-// resolveSupply performs — assignSupply, resolveSupplyStocks, and
-// selectAssignedFamine — on a disposable clone, so the armies it flags are
-// exactly the ones that would starve, including when two armies share a
-// single supply source that cannot feed both of them.
+// resolveSupply performs — assignSupply and allocateSupply — on a disposable
+// clone, so the armies it flags are exactly the ones that would starve,
+// including when two armies share a single supply source that cannot feed
+// both of them.
 func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]FamineRiskForecast {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil
@@ -69,17 +74,19 @@ func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[m
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		sources := controlledSupplySources(ctx, ownerID)
 		assignments, direct := assignSupply(ctx, ownerID, sources, receivedRations)
-		delta := resolveSupplyStocks(ctx, sources)
-		assignedFamine := selectAssignedFamine(ctx, assignments, delta)
+		assignedFamine := allocateSupply(ctx, sources, assignments)
 
+		received := make(map[models.ArmyID]int, len(assignedFamine))
 		famined := make(map[models.ArmyID]bool, len(assignedFamine))
 		for _, candidate := range assignedFamine {
 			famined[candidate.army.ID] = true
+			received[candidate.army.ID] = candidate.received
 		}
 
 		forecast := FamineRiskForecast{}
 		for _, assignment := range assignments {
 			if famined[assignment.army.ID] {
+				forecast.NetConsumption += received[assignment.army.ID]
 				continue
 			}
 			forecast.NetConsumption += assignment.demand
@@ -101,15 +108,24 @@ func sortArmyFamineRisks(risks []ArmyFamineRisk) {
 }
 
 func (ctx *resolutionContext) armyFamineRisk(candidate famineCandidate) ArmyFamineRisk {
-	supplied := suppliedStrength(candidate.army.Size, candidate.demand, ctx.balance.CostBase)
+	supplied := suppliedStrength(candidate.army.Size, candidate.missing, ctx.balance.CostBase)
 	risk := ArmyFamineRisk{
 		ArmyID:           candidate.army.ID,
 		TerritoryID:      candidate.army.TerritoryID,
 		Size:             candidate.army.Size,
-		Deficit:          candidate.demand,
+		Deficit:          candidate.missing,
 		SuppliedStrength: supplied,
 	}
-	if ctx.famished[candidate.army.ID] {
+	if !ctx.famished[candidate.army.ID] {
+		return risk
+	}
+	// A second deficit pillages the territory's infrastructure first, and a
+	// pillage that covers the demand saves the army (resolveFamine).
+	if infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID); infrastructure != nil {
+		risk.PillageInfrastructure = infrastructure.Type
+		risk.SavedByPillage = ctx.balance.PillageBonus >= candidate.demand
+	}
+	if !risk.SavedByPillage {
 		risk.ExpectedLoss = max(0, candidate.army.Size-supplied)
 	}
 	return risk

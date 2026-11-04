@@ -123,8 +123,10 @@ type ArmyRiskView struct {
 	Size        int                `json:"size"`
 	Deficit     int                `json:"deficit"`
 	// SuppliedStrength and ExpectedLoss mirror engine.ArmyFamineRisk.
-	SuppliedStrength int `json:"suppliedStrength"`
-	ExpectedLoss     int `json:"expectedLoss"`
+	SuppliedStrength      int              `json:"suppliedStrength"`
+	ExpectedLoss          int              `json:"expectedLoss"`
+	PillageInfrastructure models.InfraType `json:"pillageInfrastructure,omitempty"`
+	SavedByPillage        bool             `json:"savedByPillage,omitempty"`
 }
 
 // TerritoryView is the live state displayed on one map territory.
@@ -512,8 +514,10 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 					Size:        risk.Size,
 					Deficit:     risk.Deficit,
 
-					SuppliedStrength: risk.SuppliedStrength,
-					ExpectedLoss:     risk.ExpectedLoss,
+					SuppliedStrength:      risk.SuppliedStrength,
+					ExpectedLoss:          risk.ExpectedLoss,
+					PillageInfrastructure: risk.PillageInfrastructure,
+					SavedByPillage:        risk.SavedByPillage,
 				})
 			}
 		}

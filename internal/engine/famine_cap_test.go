@@ -133,6 +133,24 @@ func TestResolveFamineWithoutRationsDestroysArmyAndKillsItsNobles(t *testing.T) 
 	}
 }
 
+func TestResolveFamineDestroyedArmyDropsItsChain(t *testing.T) {
+	balance := testBalance()
+	balance.RationTerrain[models.TerrainMountain] = 0
+	state := famineCapState(t, models.TerrainMountain, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true})
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	hold := models.Order{Type: models.OrderTypeHold, PositionID: "AAA"}
+	addChainOrders(t, state, "A1", "N1", hold, hold)
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if len(resolution.State.Chains) != 0 {
+		t.Errorf("chains = %+v, want the destroyed army's chain dropped", resolution.State.Chains)
+	}
+}
+
 func TestResolveFedStarvingArmyLeavesFamine(t *testing.T) {
 	state := famineCapState(t, models.TerrainPlain, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true, StarvingStrength: 1})
 	resolution, err := Resolve(state, testBalance())
@@ -194,5 +212,70 @@ func TestForecastFamineRiskReportsSuppliedStrengthAndExpectedLoss(t *testing.T) 
 				t.Fatalf("risks = %#v, want supplied strength 2 and loss %d", risks, test.wantLoss)
 			}
 		})
+	}
+}
+
+func TestForecastFamineRiskExpectsNoLossWhenPillageSavesTheArmy(t *testing.T) {
+	balance := testBalance()
+	balance.PillageBonus = 10
+	state := famineCapState(t, models.TerrainPlain, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 4, Starving: true})
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
+	validateTestState(t, state)
+
+	risks := ForecastFamineRisk(state, balance)["P1"].ArmiesAtRisk
+	if len(risks) != 1 || risks[0].ExpectedLoss != 0 || !risks[0].SavedByPillage || risks[0].PillageInfrastructure != models.InfraTypeMill {
+		t.Fatalf("risks = %#v, want the mill pillaged with no expected loss", risks)
+	}
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if event := famineEventForArmy(t, resolution.Events, "A1"); !event.SavedByPillage || event.TroopsLost != 0 {
+		t.Errorf("famine event = %#v, want the army saved by pillage", event)
+	}
+}
+
+func TestResolveShortPoolFeedsTheClosestStarvingArmyAtItsSuppliedStrength(t *testing.T) {
+	// The pool holds 7 rations for B (4 troops, 8 rations, on the source)
+	// and A (2 troops, 2 rations, one step away). B is served first, starves
+	// and takes the 4 rations its supplied strength of 3 needs; A takes 2 and
+	// the last ration stays in stock.
+	balance := testBalance()
+	balance.RationTerrain[models.TerrainMountain] = 0
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("SSS", "SSS", models.TerrainMountain, "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainMountain, "SSS"),
+		},
+		[]models.Army{
+			{ID: "B", OwnerID: "P1", TerritoryID: "SSS", Size: 4},
+			{ID: "A", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
+		},
+	)
+	setTerritoryResources(state, "SSS", 7)
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if b := armyByID(t, resolution.State, "B"); !b.Starving || b.Size != 4 || b.StarvingStrength != 2 {
+		t.Errorf("B = %+v, want starving at size 4 with strength capped at 2", b)
+	}
+	if a := armyByID(t, resolution.State, "A"); a.Starving {
+		t.Errorf("A = %+v, want it fed by the rations B left", a)
+	}
+	if stock := resolution.State.TerritoryStates["SSS"].Resources; stock != 1 {
+		t.Errorf("SSS stock = %d, want the 1 ration nobody took", stock)
+	}
+	if event := famineEventForArmy(t, resolution.Events, "B"); event.SuppliedStrength != 3 {
+		t.Errorf("B famine event = %#v, want a supplied strength of 3", event)
+	}
+
+	risks := ForecastFamineRisk(state, balance)["P1"]
+	if len(risks.ArmiesAtRisk) != 1 || risks.ArmiesAtRisk[0].SuppliedStrength != 3 || risks.ArmiesAtRisk[0].Deficit != 1 || risks.NetConsumption != 6 {
+		t.Errorf("forecast = %#v, want B alone at risk, supplied at 3, 1 R short, 6 R consumed", risks)
 	}
 }

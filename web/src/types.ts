@@ -478,6 +478,10 @@ export interface ArmyRisk {
   deficit: number
   suppliedStrength: number
   expectedLoss: number
+  /** Infrastructure an already starving army pillages on its territory. */
+  pillageInfrastructure?: InfraType
+  /** The pillage covers the demand and spares every troop. */
+  savedByPillage?: boolean
 }
 
 export interface ScoreBreakdown {

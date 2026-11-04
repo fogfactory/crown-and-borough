@@ -646,26 +646,37 @@ son propre stock, récupéré à sa capture.
 
 ### Stocks et famine
 
-En cas de déficit :
-
-1. les stocks des châteaux, villages et caches contrôlés sont épuisés en
-   premier (du plus petit au plus grand, trigramme territorial en
-   départage) ;
-2. les armées restantes passent en **famine**, en commençant par les plus
-   éloignées de leur source, puis les plus grosses, puis le trigramme
-   décroissant.
-
 La **valeur ravitaillée** `s` d'une armée est la plus grande taille dont le
 coût `2^(s - 1)` tient dans les rations qu'elle atteint (`s = 0` si aucune ne
 l'atteint).
+
+En cas de déficit, la production et les stocks de tes sources forment une
+réserve commune. Les armées passent en **famine** en commençant par les plus
+éloignées de leur source, puis les plus grosses, puis le trigramme
+décroissant : la réserve les sert donc dans l'ordre inverse, en commençant par
+les plus proches, puis les plus petites.
+
+1. une armée dont la demande tient dans ce qui reste de la réserve la prend en
+   entier ;
+2. sinon, elle passe en famine et ne prend que les rations qui nourrissent sa
+   valeur `s` ; le reliquat passe aux armées servies après elle ;
+3. ce qu'aucune armée ne prend reste en stock (les stocks des châteaux,
+   villages et caches contrôlés sont entamés du plus petit au plus grand,
+   trigramme territorial en départage).
+
+Exemple : ta réserve compte 7 rations pour une armée de 4 troupes posée sur la
+source (8 rations) et une armée de 2 troupes plus éloignée (2 rations). La
+première passe en famine avec `s = 3` et prend 4 rations ; la seconde prend
+ses 2 rations ; la dernière ration reste en stock.
 
 Une armée qui manque de rations à cette résolution de fin de tour est marquée
 **affamée**, un statut qui persiste pendant tout le tour suivant : elle
 **se défend à la force `s − 1`** (sans dépasser sa taille), même si elle
 porte un noble libre — le bonus de noble ne s'applique pas. Elle **ne peut ni
 attaquer** (son ordre d'attaque est invalide), **ni soutenir**, ni émettre de
-transfert de ressources (elle peut toujours en recevoir un, voir section 5). Ce premier tour de déficit ne lui coûte rien d'autre :
-ni pillage de l'infrastructure de sa case, ni perte de troupe. Tu disposes
+transfert de ressources (elle peut toujours en recevoir un, voir section 5).
+Ce premier tour de déficit ne lui coûte rien d'autre : ni pillage de
+l'infrastructure de sa case, ni perte de troupe. Tu disposes
 donc de tout le tour suivant pour la sortir du déficit en la déplaçant hors de
 la zone touchée ou en lui envoyant des ressources par transfert.
 
@@ -677,12 +688,13 @@ l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
 diminué de sa demande résiduelle, peut la sortir du déficit. Si le pillage est
 insuffisant ou impossible, elle **perd autant de troupes qu'il en faut pour
 revenir à `s`** et n'est alors plus affamée. Si `s = 0`, elle **disparaît** :
-ses nobles **meurent avec elle** (personne ne peut les capturer) et sa case garde son contrôleur.
+ses nobles **meurent avec elle** (personne ne peut les capturer) et sa case
+garde son contrôleur.
 
 Exemple : une armée de 4 troupes demande 8 rations mais n'en atteint que 3.
 Sa valeur ravitaillée est `s = 2` (2 rations suffisent pour 2 troupes, 4 pour
-3). Elle est marquée affamée et se défend à la force 1 tout le tour (elle ne peut ni attaquer ni soutenir)
-suivant, sans rien perdre pour l'instant. Si, à la résolution du tour suivant,
+3). Elle est marquée affamée et se défend à la force 1 tout le tour suivant
+(elle ne peut ni attaquer ni soutenir), sans rien perdre pour l'instant. Si, à la résolution du tour suivant,
 ses stocks et son pillage ne couvrent toujours pas son déficit, elle perd 2
 troupes et revient à 2 troupes, nourries. Avec 0 ration atteinte, la même
 armée disparaîtrait à cette résolution. La valeur `s` dépend de ce que

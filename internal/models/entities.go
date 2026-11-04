@@ -90,9 +90,10 @@ type Territory struct {
 // resolution when this army's demand went unmet without an auto-pillage
 // rescue (engine.resolveFamine, #208): it defends at most at
 // StarvingStrength (its supplied size minus one), grants no noble bonus, and
-// cannot attack, support or send a transfer for the turn it carries, then is recomputed
-// (including cleared) at that same turn's own ravitaillement. A dispersed army copies it to every resulting splinter
-// (plain struct-copy semantics, like every other field but ChainID and Size);
+// cannot attack, support or send a transfer for the turn it carries, then is
+// recomputed (including cleared) at that same turn's own ravitaillement. A
+// dispersed army copies it to every resulting splinter (plain struct-copy
+// semantics, like every other field but ChainID and Size);
 // a fusion keeps only the surviving host's own value and discards the
 // absorbed army's, again with no special-casing needed.
 type Army struct {

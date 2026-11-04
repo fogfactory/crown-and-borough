@@ -592,16 +592,31 @@ elle-même une source ni un dépôt utilisable, ni pour le contrôleur ni pour
 l'occupant. La portée de base est de 3 cases ; chaque dépôt de vivres
 contrôlé, non occupé, rencontré sur le trajet ajoute 2 cases.
 
-En cas de déficit :
-
-1. les stocks des châteaux, villages et caches contrôlés sont épuisés du plus
-   petit au plus grand, avec le trigramme territorial comme départage ;
-2. les armées restantes passent en famine, en commençant par les plus éloignées
-   de leur source, puis les plus grosses, puis le trigramme décroissant.
-
 La **valeur ravitaillée** `s` d'une armée est la plus grande taille dont le coût
 `2^(s - 1)` tient dans les rations qu'elle atteint (`s = 0` si elle n'en
-atteint aucune). Une armée dont la demande n'est pas couverte à la fin du tour
+atteint aucune).
+
+En cas de déficit, la production et les stocks des sources d'un joueur forment
+une réserve commune, servie armée par armée dans l'ordre inverse de la famine :
+les armées passent en famine en commençant par les plus éloignées de leur
+source, puis les plus grosses, puis le trigramme décroissant, et sont donc
+servies en commençant par les plus proches, puis les plus petites.
+
+1. une armée dont la demande tient dans ce qui reste de la réserve la prend en
+   entier ;
+2. sinon, elle passe en famine et ne prend que les rations qui nourrissent sa
+   valeur ravitaillée `s`, calculée sur ce qui reste ; le reliquat passe aux
+   armées servies après elle ;
+3. ce qu'aucune armée ne prend reste en stock ; les stocks des châteaux,
+   villages et caches contrôlés sont entamés du plus petit au plus grand, avec
+   le trigramme territorial comme départage.
+
+Exemple : une réserve de 7 rations sert une armée de 4 troupes sur la source
+(8 rations) puis une armée de 2 troupes plus éloignée (2 rations). La première
+passe en famine avec `s = 3` et prend 4 rations ; la seconde prend ses 2
+rations ; la dernière ration reste en stock.
+
+Une armée dont la demande n'est pas couverte à la fin du tour
 est marquée **affamée**, un statut qui persiste jusqu'à la résolution de
 ravitaillement suivante. Pendant tout le tour suivant, une armée affamée
 se défend à la force `s - 1` (au plus sa taille), même si elle est commandée

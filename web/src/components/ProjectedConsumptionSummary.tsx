@@ -1,4 +1,5 @@
 import { TerritoryRef } from '@/components/MapLinks'
+import { INFRASTRUCTURE_LABEL_KEYS } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { richTranslate } from '@/lib/rich-text'
 import type { PlayerId, StateData } from '@/types'
@@ -49,6 +50,11 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
                 deficit: risk.deficit,
                 supplied: risk.suppliedStrength,
               })}
+              {risk.pillageInfrastructure
+                ? t(risk.savedByPillage ? 'app.armyAtRiskSavedByPillage' : 'app.armyAtRiskPillage', {
+                    infrastructure: t(INFRASTRUCTURE_LABEL_KEYS[risk.pillageInfrastructure]),
+                  })
+                : ''}
               {risk.suppliedStrength === 0 && risk.expectedLoss > 0
                 ? t('app.armyAtRiskVanishes')
                 : risk.expectedLoss > 0

@@ -40,6 +40,29 @@ describe('ProjectedConsumptionSummary', () => {
     expect(screen.getByText(withText('MOR (2 troops): −1 R short, fed up to 1 · −1 troops'))).toBeInTheDocument()
   })
 
+  it('tells which infrastructure a starving army pillages', () => {
+    const pillaging: StateData = {
+      ...state,
+      players: [
+        {
+          ...state.players[0],
+          armiesAtRisk: [
+            { territoryId: 'MOR', size: 4, deficit: 5, suppliedStrength: 2, expectedLoss: 2, pillageInfrastructure: 'mill' },
+            { territoryId: 'VIL', size: 2, deficit: 1, suppliedStrength: 1, expectedLoss: 0, pillageInfrastructure: 'castle', savedByPillage: true },
+          ],
+        },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ProjectedConsumptionSummary state={pillaging} playerId="P1" />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText(withText('MOR (4 troops): −5 R short, fed up to 2 · pillages its position (Mill) · −2 troops'))).toBeInTheDocument()
+    expect(screen.getByText(withText('VIL (2 troops): −1 R short, fed up to 1 · pillages its position (Castle), which feeds it'))).toBeInTheDocument()
+  })
+
   it('shows no army at risk when none is flagged', () => {
     render(
       <LanguageProvider initialLanguage="en">

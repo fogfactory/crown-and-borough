@@ -302,8 +302,7 @@ pas pour son coût total), avec les mêmes garanties que `projectedIncome`
 hiver, saison sans ravitaillement. `armiesAtRisk` liste les armées qui
 seraient effectivement affamées si rien ne change avant la résolution : le
 calcul rejoue la même allocation que la résolution réelle
-(`assignSupply`/`resolveSupplyStocks`/`selectAssignedFamine`) sur un état
-jetable, y compris le partage contesté d'une même source entre plusieurs
+(`assignSupply`/`allocateSupply`) sur un état jetable, y compris le partage contesté d'une même source entre plusieurs
 armées du joueur — ce n'est pas une heuristique par armée isolée. `deficit`
 est le manque de rations qui reste sans réponse, pas un nombre de troupes qui
 mourraient (une famine réelle coûte toujours exactement 1 troupe). Cette

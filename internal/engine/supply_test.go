@@ -738,7 +738,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		}
 	})
 
-	t.Run("the farthest assigned army is evaluated first and can recover at zero gain", func(t *testing.T) {
+	t.Run("the closest assigned army is served first and the pool feeds the farther one", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
@@ -778,20 +778,19 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		// A2's own presence now captures DDD before ravitaillement runs
-		// (control resolves first, #208), turning its mill into a legitimate
-		// self-supplied source (CCC carries no settlement of its own):
-		// DDD -- not AAA -- becomes the closest source for both armies (0
-		// for A2 standing right on it, 1 for A1 at neighboring CCC). A1 is
-		// therefore now the farther-assigned army evaluated first
-		// (sortAssignedFamine): it exhausts DDD's single level of mill
-		// production and, with no infrastructure of its own at CCC to
-		// pillage, loses a troop outright. A2, evaluated second, recovers
-		// through its own mill at exactly zero gain (PillageBonus 3 against
-		// its own demand 3).
-		a1Event := famineEventForArmy(t, resolution.Events, "A1")
-		if a1Event.SavedByPillage || a1Event.SourceID != "DDD" || a1Event.TroopsLost != 1 {
-			t.Errorf("A1 famine event = %#v, want an unsaved deficit through DDD", a1Event)
+		// A2's own presence captures DDD before ravitaillement runs (control
+		// resolves first, #208), turning its mill into a self-supplied
+		// source: DDD becomes the closest source for both armies (0 for A2
+		// standing on it, 1 for A1 at neighboring CCC). The player's pool
+		// holds 2 rations (AAA's and DDD's mills). A2, the closest, is served
+		// first: it needs 3, so it starves and takes the 1 ration its
+		// supplied strength of 2 still needs. The ration left feeds A1's
+		// demand of 1. A2 then recovers through its own mill at exactly zero
+		// gain (PillageBonus 3 against its own demand 3).
+		for _, event := range resolution.Events {
+			if event.Type == EventTypeFamine && event.ArmyID == "A1" {
+				t.Errorf("A1 famine event = %#v, want A1 fed by the pool A2 left", event)
+			}
 		}
 		a2Event := famineEventForArmy(t, resolution.Events, "A2")
 		if !a2Event.SavedByPillage || a2Event.ResourceCredit != 0 || a2Event.InfrastructureID != "I3" || a2Event.SourceID != "DDD" {
@@ -802,7 +801,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		}
 	})
 
-	t.Run("negative pillage gain starves a size-three army down to its supplied strength", func(t *testing.T) {
+	t.Run("negative pillage gain starves a size-three army down to its supplied strength of two", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
 			// Starving: true simulates a deficit already carried over from a
@@ -819,11 +818,11 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := famineEventForArmy(t, resolution.Events, "A1")
-		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 2 {
-			t.Errorf("famine event = %#v, want an unsaved three-troop army with two troops lost", event)
+		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 1 || event.SuppliedStrength != 2 {
+			t.Errorf("famine event = %#v, want an unsaved three-troop army with one troop lost", event)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.Size != 1 || army.Starving {
-			t.Errorf("A1 size = %d, want 1 (its supplied strength) and famine over", army.Size)
+		if army := armyByID(t, resolution.State, "A1"); army.Size != 2 || army.Starving {
+			t.Errorf("A1 size = %d, want 2 (its supplied strength) and famine over", army.Size)
 		}
 		report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 		var consumption *ConsumptionReport
@@ -833,8 +832,8 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				break
 			}
 		}
-		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 2 || consumption.SuppliedStrength != 1 {
-			t.Errorf("consumption report = %#v, want a famine line for A1 with initial size 3 and two lost troops", report.Consumption)
+		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 1 || consumption.SuppliedStrength != 2 {
+			t.Errorf("consumption report = %#v, want a famine line for A1 with initial size 3 and one lost troop", report.Consumption)
 		}
 		if len(resolution.State.Infrastructures) != 0 {
 			t.Errorf("infrastructures = %#v, want auto-pillage to remove I1", resolution.State.Infrastructures)

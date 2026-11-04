@@ -611,15 +611,25 @@ per turn into its own stock, recovered on capture.
 
 ### Stocks and Famine
 
-When there is a deficit:
-
-1. stocks in controlled castles, villages, and caches are emptied first
-   (smallest first, with the territorial trigram as tie-breaker);
-2. remaining armies enter **famine**, starting with those furthest from their
-   source, then the largest, then descending trigram.
-
 An army's **supplied value** `s` is the largest size whose cost `2^(s - 1)`
 fits in the rations it reaches (`s = 0` if none reaches it).
+
+When there is a deficit, the production and stocks of your sources form a
+common pool. Armies enter **famine** starting with those furthest from their
+source, then the largest, then descending trigram: the pool therefore serves
+them in the reverse order, starting with the closest, then the smallest.
+
+1. an army whose demand fits in what is left of the pool takes all of it;
+2. otherwise, it enters famine and takes only the rations that feed its
+   supplied value `s`; the rest goes to the armies served after it;
+3. whatever no army takes stays in stock (stocks in controlled castles,
+   villages, and caches are drawn smallest first, with the territorial trigram
+   as tie-breaker).
+
+Example: your pool holds 7 rations for a 4-troop army standing on the source
+(8 rations) and a 2-troop army further away (2 rations). The first enters
+famine with `s = 3` and takes 4 rations; the second takes its 2 rations; the
+last ration stays in stock.
 
 An army that lacks rations at this end-of-turn resolution is marked
 **famished**, a status that persists through the entire following turn: it
@@ -644,8 +654,8 @@ it** (nobody can capture them) and the territory keeps its controller.
 
 Example: a 4-troop army demands 8 rations but reaches only 3. Its supplied
 value is `s = 2` (2 rations feed 2 troops, 4 are needed for 3). It is marked
-famished and defends at strength 1 for the entire following turn (it cannot attack or support),
-losing nothing for now. If, at the following turn's resolution, its stocks and
+famished and defends at strength 1 for the entire following turn (it cannot
+attack or support), losing nothing for now. If, at the following turn's resolution, its stocks and
 pillage still cannot cover its deficit, it loses 2 troops and is back to 2
 fed troops. Reaching 0 rations, the same army would disappear at that
 resolution. The value `s` depends on what the army reaches as a supply source
