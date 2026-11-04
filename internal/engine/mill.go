@@ -31,11 +31,10 @@ func (mill millProduction) selfSupplied() bool {
 
 // computeMillProduction lists every mill's production and single destination
 // this turn, sorted by the mill's own trigram. It is a pure read of ctx
-// (weather regions, infrastructure, control) and never mutates state. A mill
-// outside every fief and capital, with no army currently on it, is inert like
-// any other unanchored infrastructure: it neither produces for a destination
-// nor stocks itself (#215), unlike a village's own base production, which
-// keeps its status quo neutral behavior (see produceNeutralStocks).
+// (weather regions, infrastructure, control) and never mutates state. Every
+// mill produces: an uncontrolled one (outside every fief and capital, with no
+// player army on it) stocks its production on its own territory, like a
+// neutral village (#470, see produceNeutralStocks).
 func computeMillProduction(ctx *resolutionContext) []millProduction {
 	var mills []millProduction
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
@@ -43,10 +42,7 @@ func computeMillProduction(ctx *resolutionContext) []millProduction {
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 			continue
 		}
-		production, bonus, suppressed := 0, 0, 0
-		if ctx.millActive(territoryID) {
-			production, bonus, suppressed = millWeatherProduction(ctx, territoryID, infrastructure.Level)
-		}
+		production, bonus, suppressed := millWeatherProduction(ctx, territoryID, infrastructure.Level)
 		mills = append(mills, millProduction{
 			millID:           territoryID,
 			ownerID:          controllerPointer(ctx.controllerNow, territoryID),
@@ -59,13 +55,6 @@ func computeMillProduction(ctx *resolutionContext) []millProduction {
 		})
 	}
 	return mills
-}
-
-// millActive reports whether a mill currently produces: anchored (fief
-// member or a player's capital) or currently held by an army, exactly like a
-// castle's fortificationBonus (#215).
-func (ctx *resolutionContext) millActive(territoryID models.TerritoryID) bool {
-	return ctx.territoryAnchored(territoryID) || ctx.currentArmyAt(territoryID) != nil
 }
 
 // millWeatherProduction applies the weather calamity and bonus cards to one
@@ -101,11 +90,9 @@ func millRawProduction(ctx *resolutionContext, millID models.TerritoryID, level 
 // millRecipient is the single infrastructure credited by one mill's
 // production (see #195): the adjacent castle under the same control as the
 // mill's own territory, else the adjacent village under the same control,
-// else the mill's own territory. Neutral (nil) control matches only neutral
-// control, so a neutral mill never feeds a player's settlement. Among
-// several same-type same-control neighbors, sortedNeighbors' ascending
-// trigram order breaks the tie, exactly like #192's territory income
-// destination.
+// else the mill's own territory. An uncontrolled mill is its own recipient
+// (#470). Among several same-type same-control neighbors, sortedNeighbors' ascending trigram order breaks the
+// tie, exactly like #192's territory income destination.
 func millRecipient(ctx *resolutionContext, millID models.TerritoryID) models.TerritoryID {
 	return millRecipientIn(ctx, millID, ctx.controllerNow)
 }
@@ -114,13 +101,14 @@ func millRecipient(ctx *resolutionContext, millID models.TerritoryID) models.Ter
 // upgrade payment reads the start-of-winter control, the ravitaillement the
 // current one.
 func millRecipientIn(ctx *resolutionContext, millID models.TerritoryID, view controlView) models.TerritoryID {
-	millController := controllerPointer(view, millID)
+	millOwner, controlled := view(millID)
+	if !controlled {
+		return millID
+	}
+	neighbors := ctx.sortedNeighbors(millID)
 	for _, infraType := range []models.InfraType{models.InfraTypeCastle, models.InfraTypeVillage} {
-		for _, neighborID := range ctx.sortedNeighbors(millID) {
-			if !ctx.hasInfrastructure(neighborID, infraType) {
-				continue
-			}
-			if sameController(millController, controllerPointer(view, neighborID)) {
+		for _, neighborID := range neighbors {
+			if ctx.hasInfrastructure(neighborID, infraType) && controlledBy(view, millOwner, neighborID) {
 				return neighborID
 			}
 		}
@@ -137,8 +125,8 @@ func (ctx *resolutionContext) isSelfSuppliedMill(territoryID models.TerritoryID)
 }
 
 // millSelfProductionBreakdown is the harvest-and-weather-adjusted production
-// of a self-supplied mill, in the same shape sourceProductionBreakdown uses
-// for a settlement's mill income.
+// of a self-supplied mill, controlled or not, in the same shape
+// sourceProductionBreakdown uses for a settlement's mill income.
 func millSelfProductionBreakdown(ctx *resolutionContext, millID models.TerritoryID) sourceProductionParts {
 	infrastructure := ctx.infrastructureAt(millID)
 	if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
@@ -156,14 +144,4 @@ func controllerPointer(view controlView, territoryID models.TerritoryID) *models
 		return nil
 	}
 	return &controller
-}
-
-// sameController reports whether two territory controllers are the same
-// player, treating nil (neutral) as its own distinct controller: a neutral
-// territory only matches another neutral territory.
-func sameController(left, right *models.PlayerID) bool {
-	if left == nil || right == nil {
-		return left == right
-	}
-	return *left == *right
 }

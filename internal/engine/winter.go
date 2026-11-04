@@ -103,6 +103,9 @@ func ResolveWinterWithDeckOrders(
 	stockBeforeConservation := winterStocks(ctx)
 	ctx.conserveWinterStocks()
 	ctx.resolveProsperity(stockBeforeConservation)
+	// Mills pour into their castle or village first, so that settlement's
+	// repatriation carries the mill stock on to the capital.
+	ctx.pourMillStocks()
 	ctx.repatriateWinterStocks()
 	// Reported after repatriation: a capital replaced this same winter by E C
 	// still rapatriates its surplus above as the old capital before losing its
@@ -452,8 +455,8 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 			continue
 		}
 		// A mill conserves its stock exactly like a castle or village (see
-		// #195), but repatriateWinterStocks below never moves it: only a
-		// castle or village's surplus is repatriated to the capital.
+		// #195); pourMillStocks then pours it into the settlement its
+		// production feeds, if any (#470).
 		if !ctx.hasSettlement(territoryID) && !ctx.hasInfrastructure(territoryID, models.InfraTypeMill) {
 			state.Resources = 0
 			ctx.state.TerritoryStates[territoryID] = state
@@ -464,36 +467,75 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 	}
 }
 
+// repatriationCapital is the capital a territory's winter stock is brought
+// back to: none when the territory has no start-of-winter controller, when
+// it is occupied against that controller (its stock stays there and follows
+// the normal conservation rule, titres.md), or when the controller has no
+// capital. Shared by pourMillStocks and repatriateWinterStocks so a mill and
+// a settlement follow the same exceptions.
+func (ctx *resolutionContext) repatriationCapital(territoryID models.TerritoryID) (models.TerritoryID, bool) {
+	controllerID, controlled := ctx.controllerAtStart(territoryID)
+	if !controlled || ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
+		return "", false
+	}
+	capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(controllerID)
+	return capitalTerritoryID, hasCapital
+}
+
+// moveStock moves amount resources from one territory's stock to another's.
+func (ctx *resolutionContext) moveStock(fromID, toID models.TerritoryID, amount int) {
+	from := ctx.state.TerritoryStates[fromID]
+	from.Resources -= amount
+	ctx.state.TerritoryStates[fromID] = from
+	to := ctx.state.TerritoryStates[toID]
+	to.Resources += amount
+	ctx.state.TerritoryStates[toID] = to
+}
+
+// pourMillStocks moves the whole stock of every mill into its recipient
+// (millRecipientIn on the start-of-winter control: the adjacent castle, else
+// village, of the same controller), so repatriateWinterStocks then carries it
+// on to the capital (#470). The stock stays on an uncontrolled or isolated
+// mill (its own recipient), and wherever repatriationCapital finds no
+// capital for the mill or its recipient.
+func (ctx *resolutionContext) pourMillStocks() {
+	for _, millID := range sortedStateTerritoryIDs(ctx) {
+		stock := ctx.state.TerritoryStates[millID].Resources
+		if stock == 0 || !ctx.hasInfrastructure(millID, models.InfraTypeMill) {
+			continue
+		}
+		recipientID := millRecipientIn(ctx, millID, ctx.controllerAtStart)
+		if recipientID == millID {
+			continue
+		}
+		if _, ok := ctx.repatriationCapital(millID); !ok {
+			continue
+		}
+		if _, ok := ctx.repatriationCapital(recipientID); !ok {
+			continue
+		}
+		ctx.moveStock(millID, recipientID, stock)
+	}
+}
+
+// repatriateWinterStocks sends each castle and village's conserved surplus
+// above its cap to its controller's capital.
 func (ctx *resolutionContext) repatriateWinterStocks() {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		state := ctx.state.TerritoryStates[territoryID]
-		controllerID, controlled := ctx.controllerAtStart(territoryID)
-		if !controlled || !ctx.hasSettlement(territoryID) {
+		if !ctx.hasSettlement(territoryID) {
 			continue
 		}
-		if ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
-			// Occupied against its controller: its stock stays there and
-			// follows the normal conservation rule instead of being
-			// repatriated (titres.md).
-			continue
-		}
-		capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(controllerID)
-		if !hasCapital || capitalTerritoryID == territoryID {
+		capitalTerritoryID, ok := ctx.repatriationCapital(territoryID)
+		if !ok || capitalTerritoryID == territoryID {
 			continue
 		}
 		maximum := ctx.balance.VillageStockCap
 		if ctx.hasCastle(territoryID) {
 			maximum = ctx.balance.CastleStockCap
 		}
-		if state.Resources <= maximum {
-			continue
+		if surplus := ctx.state.TerritoryStates[territoryID].Resources - maximum; surplus > 0 {
+			ctx.moveStock(territoryID, capitalTerritoryID, surplus)
 		}
-		surplus := state.Resources - maximum
-		state.Resources = maximum
-		ctx.state.TerritoryStates[territoryID] = state
-		capitalState := ctx.state.TerritoryStates[capitalTerritoryID]
-		capitalState.Resources += surplus
-		ctx.state.TerritoryStates[capitalTerritoryID] = capitalState
 	}
 }
 

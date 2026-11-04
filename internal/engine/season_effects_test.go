@@ -100,8 +100,8 @@ func TestCardEffectsOnRationsAndProduction(t *testing.T) {
 			// cardEffectState leaves AAA neutral for the famine/bad-weather
 			// loss summary tests, which don't want AAA counted as a second
 			// territory-income loss line.
-			// An army holds the mill: outside every fief and capital, a mill
-			// only produces while occupied (#215).
+			// An army holds the mill: outside every fief and capital, only an
+			// army gives the mill a controller to feed (#470).
 			state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
 			aaaState := state.TerritoryStates["AAA"]
 			aaaState.Army = armyPointer("A1")

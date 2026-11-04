@@ -142,9 +142,8 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 - Un village **neutre** continue de produire `village_income` R par tour dans
   son propre stock, récupéré à sa capture, qu'il n'ait jamais été tenu ou qu'il
   vienne d'être abandonné faute d'ancrage
-  ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) : c'est
-  la seule infrastructure qui garde une production neutre après abandon,
-  contrairement à un moulin (voir « Moulins » ci-dessous).
+  ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)), comme
+  un moulin sans contrôleur (voir « Moulins » ci-dessous).
 
 ## Flux de la ressource R
 
@@ -155,6 +154,7 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 | Territoire contrôlé hors fief, sans village | 1 R → capitale du joueur | — (pas de taxe hors fief) |
 | Territoire contrôlé hors fief, avec village | 2 R → capitale du joueur | — |
 | Village neutre | 1 R → son propre stock | — |
+| Moulin sans contrôleur (niveau `N`) | `N` R → son propre stock | Dîme : `N` R → capitale du joueur qui a joué la dîme |
 | Rente royale | 1 R par fief constitué, créé (non prélevé), → capitale du joueur du roi ; la reine reçoit la moitié arrondie au supérieur → capitale de son joueur | — ([politique.md](politique.md#rente)) |
 | Moulin (niveau `N`) | `N` R → château adjacent du même contrôleur, sinon village adjacent du même contrôleur, sinon reste sur le moulin | Dîme (carte Impôts jouée par un évêque ou un cardinal sur l'évêché, par le pape sur tous les évêchés) : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
 
@@ -182,14 +182,7 @@ et de destination d'un moulin lui-même n'en est pas modifié. Un moulin détrui
 par un ordre de pillage (`T P`) pendant la résolution des mouvements ne
 produit rien ce tour-là : la destruction précède le calcul de fin de tour.
 
-Un moulin outre-fief et hors capitale, sans armée dessus, est **inerte**
-([#215](https://github.com/fogfactory/crown-and-borough/issues/215)) : il ne
-produit rien du tout, ni pour lui-même ni pour un voisin, tant qu'il reste
-dans cet état — qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné.
-Un moulin membre d'un fief, sur la capitale d'un joueur, ou actuellement tenu
-par une armée, reste actif et produit normalement, décrit ci-dessous.
-
-Un moulin actif de niveau `N` produit `N` R (`2N` sous le Beau temps, 0 sous le
+Un moulin de niveau `N` produit `N` R (`2N` sous le Beau temps, 0 sous le
 mauvais temps) et verse sa production à **une seule** infrastructure, dans cet
 ordre de préférence :
 
@@ -198,23 +191,40 @@ ordre de préférence :
 3. sinon la case du moulin elle-même.
 
 Un château ou un village adjacent contrôlé par un autre joueur est ignoré : on
-passe au candidat suivant plutôt que de lui verser la production. Le
-contrôleur « neutre » (case sans propriétaire) est un contrôleur comme un
-autre : un moulin neutre ne verse donc jamais à un château ou un village d'un
-joueur, seulement à un village neutre adjacent (il n'existe pas de « château
-neutre »), sinon sur sa propre case. Entre plusieurs candidats du même type et
-du même contrôleur, le départage se fait par trigramme, comme pour le revenu
-territorial (#192). Un moulin ne compte donc plus pour chaque château ou
-village adjacent : c'est la correction du double comptage qui existait avant
-#195.
+passe au candidat suivant plutôt que de lui verser la production. Entre
+plusieurs candidats du même type et du même contrôleur, le départage se fait
+par trigramme, comme pour le revenu territorial (#192). Un moulin ne compte
+donc que pour une seule infrastructure.
 
-Une production restée sur un moulin isolé (sur sa propre case) n'est pas
-automatiquement acheminée : elle nécessite un ordre de transfert (`T`, voir
-ci-dessous) porté par une armée. Elle rend cependant la case du moulin
-elle-même éligible comme source de ravitaillement pour son contrôleur (au même
-titre qu'un château ou un village). En hiver, le stock d'un moulin est
-conservé à `ceil(stock / 2)`, comme celui d'un château ou d'un village, et
-n'est **pas** rapatrié vers la capitale.
+Un moulin **sans contrôleur** — hors fief et hors capitale, sans armée d'un
+joueur dessus, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné
+([#470](https://github.com/fogfactory/crown-and-borough/issues/470)) —
+produit toujours sur sa propre case, jamais pour un voisin (pas même un
+village neutre adjacent), par analogie avec le village neutre qui accumule
+son propre stock. Sa production suit les mêmes cartes météo (mauvais temps,
+Beau temps) et la même dîme que celle de tout moulin de l'évêché : une dîme
+la détourne vers la capitale du joueur qui l'a jouée. Le stock accumulé reste
+inaccessible tant que le moulin n'a pas de contrôleur.
+
+Une production restée sur un moulin isolé ou accumulée par un moulin sans
+contrôleur n'est pas automatiquement acheminée pendant les tours d'action.
+Elle rend la case du moulin éligible comme source de ravitaillement pour son
+contrôleur (au même titre qu'un château ou un village) : l'armée qui prend
+le contrôle d'un moulin neutre s'y ravitaille donc dès la fin de ce tour. Son
+contrôleur peut aussi l'expédier par un ordre de transfert (`T`, voir
+ci-dessous) porté par une armée stationnée sur le moulin.
+
+En hiver, le stock d'un moulin est conservé à `ceil(stock / 2)`, comme celui
+d'un château ou d'un village. Le stock conservé d'un moulin contrôlé est
+ensuite versé en entier à l'infrastructure qui reçoit sa production (château
+adjacent du même contrôleur, sinon village, sur le contrôle du début de
+l'hiver), qui le rapatrie vers la capitale avec son propre stock, sous ses
+plafonds habituels. Le stock reste sur le moulin lorsque celui-ci est isolé,
+lorsque le moulin ou cette infrastructure est occupé contre son contrôleur,
+lorsque le joueur n'a pas de capitale, ou lorsque le moulin n'a pas de
+contrôleur. Une destruction du moulin par pillage (`T P`) fait disparaître
+son infrastructure : le stock reste sur la case comme une cache ordinaire,
+perdue en fin d'hiver comme tout stock hors château, village, moulin ou dépôt.
 
 ### Construction contre amélioration
 
@@ -386,6 +396,8 @@ n'est pas interceptable et n'utilise pas le plafond de transport.
 - Le rapatriement de fin d'hiver ne concerne pas une colonie occupée contre
   son contrôleur : son stock y reste et suit la conservation normale
   (`ceil(stock / 2)`) plutôt que d'être remonté vers la capitale.
+- Le stock d'un moulin contrôlé rejoint, avant ce rapatriement, le château ou
+  le village qui reçoit sa production (voir « Moulins » ci-dessus).
 
 ## Prospérité
 

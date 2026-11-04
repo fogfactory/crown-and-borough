@@ -209,7 +209,7 @@ func (ctx *resolutionContext) titheProductionAtCapital(territoryID models.Territ
 		}
 		for _, millID := range regionTerritoriesBySeed(ctx, seed) {
 			infrastructure := ctx.infrastructureAt(millID)
-			if infrastructure == nil || infrastructure.Type != models.InfraTypeMill || !ctx.millActive(millID) {
+			if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 				continue
 			}
 			production, bonus, _ := millRawProduction(ctx, millID, infrastructure.Level)

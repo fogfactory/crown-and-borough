@@ -90,6 +90,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P1 holds an Ambush card and an army (with its noble) stronger than the defense of P2's capital; the winning attack captures the first noble of P2's line of succession with P EM <origin> <target>",
 		apply:       forgeAmbush,
 	},
+	"mills": {
+		description: "autumn, an uncontrolled level-2 mill with 6 R of accumulated stock stands next to P1's capital, and a P1 army (with its noble) waits one step away: A <army> <mill> takes it, the army eats the stock, the mill feeds the capital, and the next winter pours the mill's conserved stock into the capital",
+		apply:       forgeMills,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -270,17 +274,7 @@ func forgeAnnexation(state *models.GameState) error {
 	if err := forgeWinter(state); err != nil {
 		return err
 	}
-	var capitalID models.TerritoryID
-	for _, player := range state.Players {
-		if player.ID != "P1" || player.CapitalCastleID == nil {
-			continue
-		}
-		for _, infrastructure := range state.Infrastructures {
-			if infrastructure.ID == *player.CapitalCastleID {
-				capitalID = infrastructure.TerritoryID
-			}
-		}
-	}
+	capitalID := playerCapitalTerritory(state, "P1")
 	if capitalID == "" {
 		return fmt.Errorf("P1 has no capital castle")
 	}
@@ -677,17 +671,7 @@ func forgeJustice(state *models.GameState) error {
 //	A <origin> <target>          lost on its own (tie)
 //	P SO <origin> - <target>     the same attack, tunneled
 func forgeTunnel(state *models.GameState) error {
-	var capitalID models.TerritoryID
-	for _, player := range state.Players {
-		if player.ID != "P2" || player.CapitalCastleID == nil {
-			continue
-		}
-		for _, infrastructure := range state.Infrastructures {
-			if infrastructure.ID == *player.CapitalCastleID {
-				capitalID = infrastructure.TerritoryID
-			}
-		}
-	}
+	capitalID := playerCapitalTerritory(state, "P2")
 	p1 := ownedNobles(state, "P1")
 	if capitalID == "" || len(p1) == 0 {
 		return fmt.Errorf("the base game lacks a P2 capital or a P1 noble")
@@ -756,6 +740,102 @@ func forgeAmbush(state *models.GameState) error {
 	}
 	giveSpecialCards(state, "P1", models.CardKindAmbush)
 	return nil
+}
+
+// forgeMills sets up an uncontrolled mill (specs/economie.md "Moulins"): one
+// of P1's starting outposts next to its capital is vacated and carries a
+// level-2 mill with an accumulated stock, and the outpost army (with P1's
+// first noble) waits on a free territory next to it, in autumn so the
+// following winter shows the stock reaching the capital. The order to try:
+// A <army territory> <mill territory>.
+func forgeMills(state *models.GameState) error {
+	state.Season = models.SeasonAutumn
+	state.Turn = 3
+	p1 := ownedNobles(state, "P1")
+	capitalID := playerCapitalTerritory(state, "P1")
+	if len(p1) == 0 || capitalID == "" {
+		return fmt.Errorf("the base game lacks a P1 noble or capital")
+	}
+	armyIndex, armyTerritoryID := -1, models.TerritoryID("")
+	for index, army := range state.Armies {
+		if army.OwnerID != "P1" || army.TerritoryID == capitalID || !isNeighbor(state, capitalID, army.TerritoryID) {
+			continue
+		}
+		if candidate := freeNeighbor(state, army.TerritoryID, capitalID); candidate != "" {
+			armyIndex, armyTerritoryID = index, candidate
+			break
+		}
+	}
+	if armyIndex < 0 {
+		return fmt.Errorf("no P1 outpost next to %s with a free neighbor", capitalID)
+	}
+	army := &state.Armies[armyIndex]
+	millID := army.TerritoryID
+	infrastructureID := models.InfraID("ZMM")
+	state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: infrastructureID, Type: models.InfraTypeMill, Level: 2, TerritoryID: millID})
+	millState := state.TerritoryStates[millID]
+	millState.Army = nil
+	millState.Infrastructures = &infrastructureID
+	millState.Resources = 6
+	state.TerritoryStates[millID] = millState
+	army.TerritoryID = armyTerritoryID
+	army.Size = 2
+	armyState := state.TerritoryStates[armyTerritoryID]
+	armyState.Army = &army.ID
+	state.TerritoryStates[armyTerritoryID] = armyState
+	state.Nobles[p1[0]].LocationID = armyTerritoryID
+	fmt.Printf("demo mills: uncontrolled mill on %s (6 R) next to P1's capital %s; P1 army on %s\n", millID, capitalID, armyTerritoryID)
+	return nil
+}
+
+// playerCapitalTerritory is the territory of playerID's capital castle, empty
+// when the player has none.
+func playerCapitalTerritory(state *models.GameState, playerID models.PlayerID) models.TerritoryID {
+	for _, player := range state.Players {
+		if player.ID != playerID || player.CapitalCastleID == nil {
+			continue
+		}
+		for _, infrastructure := range state.Infrastructures {
+			if infrastructure.ID == *player.CapitalCastleID {
+				return infrastructure.TerritoryID
+			}
+		}
+	}
+	return ""
+}
+
+// isNeighbor reports whether otherID is adjacent to territoryID.
+func isNeighbor(state *models.GameState, territoryID, otherID models.TerritoryID) bool {
+	for _, territory := range state.Territories {
+		if territory.ID == territoryID {
+			return containsTerritory(territory.Adjacencies, otherID)
+		}
+	}
+	return false
+}
+
+// isFreeTerritory reports whether territoryID has no controller, no army and
+// no infrastructure.
+func isFreeTerritory(state *models.GameState, territoryID models.TerritoryID) bool {
+	territoryState := state.TerritoryStates[territoryID]
+	_, controlled := state.TerritoryController(territoryID)
+	return !controlled && territoryState.Army == nil && territoryState.Infrastructures == nil
+}
+
+// freeNeighbor is the first territory next to territoryID, other than
+// excluded, with no controller, no army and no infrastructure.
+func freeNeighbor(state *models.GameState, territoryID models.TerritoryID, excluded ...models.TerritoryID) models.TerritoryID {
+	for _, territory := range state.Territories {
+		if territory.ID != territoryID {
+			continue
+		}
+		for _, id := range territory.Adjacencies {
+			if !containsTerritory(excluded, id) && isFreeTerritory(state, id) {
+				return id
+			}
+		}
+	}
+	return ""
 }
 
 func forgeAction(state *models.GameState) error {
@@ -991,15 +1071,8 @@ func forgeArmies(state *models.GameState) error {
 	if member != "" {
 		place(member, "P2", 3)
 	}
-	for _, player := range state.Players {
-		if player.ID != "P1" || player.CapitalCastleID == nil {
-			continue
-		}
-		for _, infrastructure := range state.Infrastructures {
-			if infrastructure.ID == *player.CapitalCastleID && state.TerritoryStates[infrastructure.TerritoryID].Army == nil {
-				place(infrastructure.TerritoryID, "P1", 2)
-			}
-		}
+	if p1Capital := playerCapitalTerritory(state, "P1"); p1Capital != "" && state.TerritoryStates[p1Capital].Army == nil {
+		place(p1Capital, "P1", 2)
 	}
 	// Armies on territories where nobles stand, to see pawns and packs together.
 	crowded := 0

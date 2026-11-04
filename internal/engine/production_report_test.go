@@ -36,8 +36,8 @@ func TestProductionReportBreaksDownSourceAndBonus(t *testing.T) {
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
-			// P1's army holds BBB's mill: outside every fief and capital, a
-			// mill only produces while occupied (#215). Its local rations (3,
+			// P1's army holds BBB's mill: outside every fief and capital, only
+			// an army gives the mill a controller to feed (#470). Its local rations (3,
 			// plain terrain) cover its demand (1), so it never starves.
 			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
 		},
@@ -162,8 +162,8 @@ func TestProductionReportShowsFamineSuppression(t *testing.T) {
 	state := effectTestState()
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
-	// A2 holds BBB's mill: outside every fief and capital, a mill only
-	// produces while occupied (#215).
+	// A2 holds BBB's mill: outside every fief and capital, only an
+	// army gives the mill a controller to feed (#470).
 	state.Armies = []models.Army{
 		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 		{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},

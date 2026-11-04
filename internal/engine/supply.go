@@ -179,22 +179,26 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 }
 
 // produceNeutralStocks credits the local production of every unclaimed
-// territory that carries a village: its base village_income, plus any mill
-// routed to it, per neutralVillageProductionBreakdown. A neutral mill never
-// produces on its own any more: unlike a village, a mill outside every fief
-// and capital is inert while no army stands on it (#215, see millActive), so
-// an unclaimed, self-supplied mill (no eligible adjacent village to route to
-// instead, see #195) simply produces nothing until an army reclaims it.
+// territory that carries a village or a mill into its own stock: a village's
+// harvest-adjusted village_income, a mill's level-based production
+// (millSelfProductionBreakdown: an uncontrolled mill is its own recipient,
+// #470). The next army to control the territory finds that stock there, as a
+// supply source and for a transfer.
 func produceNeutralStocks(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		if _, controlled := ctx.controllerNow(territoryID); controlled {
 			continue
 		}
-		if !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
+		var parts sourceProductionParts
+		switch {
+		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
+			parts = harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
+		case ctx.hasInfrastructure(territoryID, models.InfraTypeMill):
+			parts = millSelfProductionBreakdown(ctx, territoryID)
+		default:
 			continue
 		}
 		state := ctx.state.TerritoryStates[territoryID]
-		parts := neutralVillageProductionBreakdown(ctx, territoryID)
 		ctx.supplySources[territoryID] = parts
 		production := parts.total()
 		state.Resources += production
@@ -354,45 +358,12 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 // replaced by territory income (see income.go), credited directly to its
 // destination outside this ledger. A neighboring mill only contributes here
 // when territoryID is its single designated recipient (see #195's
-// millRecipient): a mill no longer credits every adjacent castle or village.
-// An inert neighboring mill (see millActive, #215) contributes nothing.
+// millRecipient).
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
 	parts := sourceProductionParts{mill: ctx.titheProductionAtCapital(territoryID)}
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
 		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
-			continue
-		}
-		if !ctx.millActive(neighborID) {
-			continue
-		}
-		if millRecipient(ctx, neighborID) != territoryID {
-			continue
-		}
-		production, bonus, suppressed := millWeatherProduction(ctx, neighborID, infrastructure.Level)
-		parts.mill += production
-		parts.bonus += bonus
-		parts.suppressed += suppressed
-	}
-	return parts
-}
-
-// neutralVillageProductionBreakdown splits the stockable production of an
-// unclaimed village into its base, mill, and regional bonus parts: unlike a
-// controlled source, a neutral village keeps producing locally into its own
-// stock (village_income as its base), subject to the same harvest and
-// weather rules as any other source. A neighboring mill only contributes
-// here when this village is its single designated recipient (see #195), and
-// only a neutral mill can route to a neutral village (see sameController); an
-// inert one (see millActive, #215) contributes nothing regardless.
-func neutralVillageProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
-	parts := harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
-	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
-		infrastructure := ctx.infrastructureAt(neighborID)
-		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
-			continue
-		}
-		if !ctx.millActive(neighborID) {
 			continue
 		}
 		if millRecipient(ctx, neighborID) != territoryID {
