@@ -1017,7 +1017,7 @@ export function GamePage() {
               }
             />
           ) : (
-            <GithubLink />
+            <GithubLink className="border-line-strong bg-paper-50 text-ink-700 hover:bg-paper-100 hover:text-ink-900" />
           )}
         </div>
       </div>

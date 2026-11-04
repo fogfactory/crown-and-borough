@@ -22,7 +22,7 @@ afterEach(() => {
 })
 
 describe('online information routes', () => {
-  it('exposes the rules and FAQ links in the authenticated header', () => {
+  it('exposes the rules, FAQ and GitHub links in the authenticated header', () => {
     render(
       <LanguageProvider initialLanguage="en">
         <MemoryRouter initialEntries={['/faq']}>
@@ -34,17 +34,6 @@ describe('online information routes', () => {
     expect(screen.getByRole('heading', { name: 'Tactical FAQ' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Rules' })).toHaveAttribute('href', '/rules')
     expect(screen.getByRole('link', { name: 'FAQ' })).toHaveAttribute('href', '/faq')
-  })
-
-  it('links to the GitHub repository from the authenticated header', () => {
-    render(
-      <LanguageProvider initialLanguage="en">
-        <MemoryRouter initialEntries={['/faq']}>
-          <OnlineRoutes />
-        </MemoryRouter>
-      </LanguageProvider>,
-    )
-
     expect(screen.getByRole('link', { name: 'Source code on GitHub' })).toHaveAttribute(
       'href',
       'https://github.com/fogfactory/crown-and-borough',

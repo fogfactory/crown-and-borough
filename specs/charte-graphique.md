@@ -660,7 +660,7 @@ frappe.
 **Précision.** Le téléphone s'ouvre sur l'onglet Carte. Le cadrage sur les
 territoires du joueur garde la carte pleine : il ne montre jamais de papier
 vide au-delà de son bord. La barre du haut écrit la saison et le tour en
-abrégé (« Automne 1002 · 7/40 ») ; le joueur actif du hotseat, la navigation
+abrégé (« Automne 1002 · 7/40 ») ; le joueur actif du hotseat, la navigation,
 la langue et l'icône du dépôt GitHub passent dans le menu « Partie » (cible
 de 44 px sous 1024 px, 32 px au-delà), la lignée s'ouvre depuis le
 marque-page Royaume. En ligne, la partie ne garde que sa propre barre :
