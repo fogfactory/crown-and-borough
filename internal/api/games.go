@@ -47,7 +47,7 @@ func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve Ac
 	return NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: resolve})
 }
 
-func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) http.Handler {
+func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) *GamesHandler {
 	profiles := options.Profiles
 	if profiles == nil {
 		profiles, _ = gameStore.(store.ProfileStore)
@@ -243,6 +243,23 @@ func (h *GamesHandler) getState(w http.ResponseWriter, r *http.Request, actor st
 		return
 	}
 	writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID, h.balance))
+}
+
+// PlayerState returns the projection of the game the actor sees (the body of
+// GET /api/games/{id}/state), for callers that must attach it elsewhere.
+func (h *GamesHandler) PlayerState(ctx context.Context, actor store.Actor, id store.GameID) (any, error) {
+	snapshot, err := h.store.State(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+	viewerID, ok := snapshot.ViewerFor(actor)
+	if !ok {
+		return nil, errors.New("actor is not a member of this game")
+	}
+	return struct {
+		StateView
+		Revision store.Revision `json:"revision"`
+	}{StateView: projectStateForPlayer(snapshot.State, viewerID, h.balance), Revision: snapshot.Revision}, nil
 }
 
 func (h *GamesHandler) getBalance(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {

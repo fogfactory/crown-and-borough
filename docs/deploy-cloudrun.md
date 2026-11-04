@@ -518,6 +518,7 @@ workflow has no service-account key secret and must not be given one.
 | `VITE_FIREBASE_APP_ID`         | Firebase Web `appId`                                      |
 | `PUBLIC_APP_URL`               | Optional complete HTTPS origin, usually the Cloud Run URL |
 | `PUBLIC_HOSTING_URL`           | `https://crown-and-borough.web.app`                       |
+| `GCP_BUG_TOKEN_SECRET`         | Optional Secret Manager secret name for `GITHUB_BUG_TOKEN` |
 
 With GitHub CLI, the variables can be set without writing any credential file:
 
@@ -541,6 +542,26 @@ gh variable set VITE_FIREBASE_APP_ID --repo "$GITHUB_REPOSITORY" --body "replace
 gh variable set PUBLIC_APP_URL --repo "$GITHUB_REPOSITORY" --body "$PUBLIC_APP_URL"
 gh variable set PUBLIC_HOSTING_URL --repo "$GITHUB_REPOSITORY" --body "https://crown-and-borough.web.app"
 ```
+
+### Bug report token
+
+The in-game bug report dialog files public issues through `POST /api/bugs`,
+which needs a GitHub token able to create issues on the repository
+(fine-grained, `Issues: read and write` on this repository only). The server
+reads it from the `GITHUB_BUG_TOKEN` environment variable. It is a secret: keep
+it in Secret Manager, never in a repository variable or file.
+
+```bash
+# Create the secret (paste the token on stdin, it is never echoed in the repo).
+gcloud secrets create github-bug-token --project "$PROJECT_ID" --data-file=-
+gcloud secrets add-iam-policy-binding github-bug-token --project "$PROJECT_ID" \
+  --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor
+gh variable set GCP_BUG_TOKEN_SECRET --repo "$GITHUB_REPOSITORY" --body github-bug-token
+```
+
+When `GCP_BUG_TOKEN_SECRET` is empty the deployment sets no token, `GET
+/api/bugs` reports `{"enabled": false}` and the dialog greys out "Send" (the
+"Fill in on GitHub" path keeps working). Locally the variable defaults to empty.
 
 Replace every `replace-me` value before starting a deployment. Check the final
 names, without printing their values, with:

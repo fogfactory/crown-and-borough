@@ -82,6 +82,8 @@ func main() {
 		CreatorGate: creatorGateForEnvironment(onlineDevMode),
 		Readiness:   readinessChecks,
 		SeedAssets:  &assets,
+		// Without GITHUB_BUG_TOKEN the client is nil and the route is disabled.
+		BugIssues: api.NewGitHubIssueClient(os.Getenv("GITHUB_BUG_TOKEN"), "fogfactory/crown-and-borough"),
 	}
 	if !onlineDevMode {
 		projectID := os.Getenv("FIREBASE_PROJECT_ID")
@@ -173,6 +175,8 @@ type serverOptions struct {
 	CreatorGate api.CreatorGate
 	Readiness   []api.ReadinessCheck
 	SeedAssets  *assetgen.Assets
+	// BugIssues files the issues of POST /api/bugs; nil disables the route.
+	BugIssues api.IssueCreator
 }
 
 func newApplicationServer(options serverOptions) *http.ServeMux {
@@ -206,6 +210,7 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
 	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
+	mux.Handle("/api/bugs", api.NewBugsHandler(api.BugHandlerOptions{Actor: resolveActor, Issues: options.BugIssues, State: games.PlayerState}))
 	if options.SeedAssets != nil {
 		mux.Handle("GET /api/seed", api.SeedHandler(*options.SeedAssets))
 	}

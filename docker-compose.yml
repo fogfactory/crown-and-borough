@@ -76,6 +76,8 @@ services:
       ONLINE_DEV_MODE: ${ONLINE_DEV_MODE:-false}
       PORT: "8080"
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+      # Empty disables the bug report "Send" button (see README).
+      GITHUB_BUG_TOKEN: ${GITHUB_BUG_TOKEN:-}
     depends_on:
       firestore:
         condition: service_healthy
