@@ -132,7 +132,7 @@ token or clear invitation code is stored by the backend.
 per player) creates a public GitHub issue from the in-game bug report dialog.
 The player's game view never goes to GitHub: it is stored in the private
 Firestore collection `bugReports` (in memory without Firestore), under a
-readable ID such as `partie-du-mardi-t12-heloise-3f9a2c`
+readable ID such as `partie-du-mardi-t12-heloise-3f9a2c41b07e`
 (`<game>-t<turn>-<player>-<ref>`). The public issue only cites the random
 `ref`, since the full ID names the game and the player; find the report in
 the console by filtering on `ref` or `issueUrl`.

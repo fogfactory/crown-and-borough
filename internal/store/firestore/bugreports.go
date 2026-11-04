@@ -5,8 +5,6 @@ import (
 	"time"
 
 	cloudfirestore "cloud.google.com/go/firestore"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -14,8 +12,9 @@ import (
 
 var _ store.BugReportStore = (*FirestoreStore)(nil)
 
+// bugReportDocument is stored under its readable ID; Ref repeats the random
+// suffix as a field because the console filters on fields, not ID suffixes.
 type bugReportDocument struct {
-	ID       string          `firestore:"id"`
 	Ref      string          `firestore:"ref"`
 	GameID   store.GameID    `firestore:"gameId"`
 	Turn     int             `firestore:"turn"`
@@ -41,8 +40,8 @@ func (s *FirestoreStore) CreateBugReport(ctx context.Context, report store.BugRe
 	}
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
+	// Create, not Set: an ID collision must never overwrite another report.
 	_, err := s.bugReportRef(report.ID).Create(operationContext, bugReportDocument{
-		ID:           report.ID,
 		Ref:          report.Ref,
 		GameID:       report.GameID,
 		Turn:         report.Turn,
@@ -54,10 +53,7 @@ func (s *FirestoreStore) CreateBugReport(ctx context.Context, report store.BugRe
 		CreatedAt:    report.CreatedAt.UTC(),
 	})
 	s.recordWrites(1)
-	if status.Code(err) == codes.AlreadyExists {
-		return store.ErrBugReportExists
-	}
-	return err
+	return wrapOperation("create bug report", err)
 }
 
 func (s *FirestoreStore) SetBugReportIssue(ctx context.Context, id, issueURL string) error {
@@ -68,7 +64,7 @@ func (s *FirestoreStore) SetBugReportIssue(ctx context.Context, id, issueURL str
 	defer cancel()
 	_, err := s.bugReportRef(id).Update(operationContext, []cloudfirestore.Update{{Path: "issueUrl", Value: issueURL}})
 	s.recordWrites(1)
-	return err
+	return wrapOperation("set bug report issue", err)
 }
 
 func (s *FirestoreStore) DeleteBugReport(ctx context.Context, id string) error {
@@ -79,5 +75,5 @@ func (s *FirestoreStore) DeleteBugReport(ctx context.Context, id string) error {
 	defer cancel()
 	_, err := s.bugReportRef(id).Delete(operationContext)
 	s.recordWrites(1)
-	return err
+	return wrapOperation("delete bug report", err)
 }

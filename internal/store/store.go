@@ -95,9 +95,6 @@ type MembershipStore interface {
 // from the games.
 const BugReportCollection = "bugReports"
 
-// ErrBugReportExists reports an ID collision when creating a bug report.
-var ErrBugReportExists = errors.New("store: bug report already exists")
-
 // BugReport is the private part of a player's bug report: their own game view,
 // kept out of the public GitHub issue, which only cites Ref.
 type BugReport struct {
@@ -120,7 +117,7 @@ type BugReport struct {
 // BugReportStore keeps bug reports in a collection of their own, apart from
 // the games, so maintainers can read and delete them freely.
 type BugReportStore interface {
-	// CreateBugReport fails with ErrBugReportExists if the ID is taken.
+	// CreateBugReport fails if the ID is taken; it never overwrites a report.
 	CreateBugReport(context.Context, BugReport) error
 	SetBugReportIssue(ctx context.Context, id, issueURL string) error
 	DeleteBugReport(ctx context.Context, id string) error

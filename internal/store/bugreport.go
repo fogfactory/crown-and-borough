@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
@@ -21,7 +22,7 @@ func (s *MemoryBugReportStore) CreateBugReport(_ context.Context, report BugRepo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, taken := s.reports[report.ID]; taken {
-		return ErrBugReportExists
+		return errors.New("store: bug report already exists")
 	}
 	s.reports[report.ID] = report
 	return nil
@@ -42,19 +43,4 @@ func (s *MemoryBugReportStore) DeleteBugReport(_ context.Context, id string) err
 	defer s.mu.Unlock()
 	delete(s.reports, id)
 	return nil
-}
-
-// BugReport returns a saved report, for tests and local inspection.
-func (s *MemoryBugReportStore) BugReport(id string) (BugReport, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	report, ok := s.reports[id]
-	return report, ok
-}
-
-// Len returns the number of saved reports, for tests.
-func (s *MemoryBugReportStore) Len() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.reports)
 }

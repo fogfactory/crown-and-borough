@@ -123,7 +123,7 @@ type BugHandlerOptions struct {
 	Issues IssueCreator    // nil disables the route
 	State  PlayerStateFunc // nil attaches no game projection
 	// Reports keeps the game view privately; the public issue only cites the
-	// report ID. Nil leaves the game view out entirely.
+	// report ref. Nil keeps reports in process memory.
 	Reports store.BugReportStore
 	Now     func() time.Time
 }
@@ -153,7 +153,11 @@ func NewBugsHandler(options BugHandlerOptions) *BugsHandler {
 	if client, ok := issues.(*GitHubIssueClient); ok && client == nil {
 		issues = nil
 	}
-	return &BugsHandler{actor: options.Actor, issues: issues, state: options.State, reports: options.Reports, now: now, byUser: map[string][]time.Time{}}
+	reports := options.Reports
+	if reports == nil {
+		reports = store.NewMemoryBugReportStore()
+	}
+	return &BugsHandler{actor: options.Actor, issues: issues, state: options.State, reports: reports, now: now, byUser: map[string][]time.Time{}}
 }
 
 type bugRequest struct {
@@ -216,8 +220,9 @@ func (h *BugsHandler) create(w http.ResponseWriter, r *http.Request, actor store
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "too many bug reports, try again later")
 		return
 	}
+	title = redactSecrets(title)
 	report, gameNote := h.saveGameView(r.Context(), actor, store.GameID(strings.TrimSpace(body.GameID)), title)
-	issueURL, err := h.issues.CreateIssue(r.Context(), redactSecrets(title), buildBugBody(description, body.Context, gameNote), []string{"bug"})
+	issueURL, err := h.issues.CreateIssue(r.Context(), title, buildBugBody(description, body.Context, gameNote), []string{"bug"})
 	if err != nil {
 		// Nothing was filed: drop the private report and give the slot back, so
 		// an outage neither locks players out nor piles up orphan reports.
@@ -243,12 +248,10 @@ func (h *BugsHandler) create(w http.ResponseWriter, r *http.Request, actor store
 
 // saveGameView stores the player's own projection of the game in the private
 // bug report store and returns the line the public issue shows in its place.
+// The title is already redacted.
 func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameID store.GameID, title string) (*store.BugReport, string) {
 	if gameID == "" || h.state == nil {
 		return nil, ""
-	}
-	if h.reports == nil {
-		return nil, "_Game view: not stored (no private report store on this server)._"
 	}
 	game, err := h.state(ctx, actor, gameID)
 	if err != nil {
@@ -257,7 +260,12 @@ func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameI
 		}
 		return nil, "_Game view: unavailable._"
 	}
-	view, err := maskedJSON(game.View)
+	raw, err := json.Marshal(game.View)
+	if err != nil {
+		log.Printf("bug report: could not encode the view of game %s: %v", gameID, err)
+		return nil, "_Game view: unavailable._"
+	}
+	view, err := maskJSON(raw, false)
 	if err != nil {
 		log.Printf("bug report: could not encode the view of game %s: %v", gameID, err)
 		return nil, "_Game view: unavailable._"
@@ -266,26 +274,21 @@ func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameI
 		log.Printf("bug report: view of game %s is %d bytes, over the stored limit", gameID, len(view))
 		return nil, "_Game view: too large to store._"
 	}
+	ref := bugReportRef()
 	report := &store.BugReport{
+		ID:        bugReportID(game, ref),
+		Ref:       ref,
 		GameID:    gameID,
 		Turn:      game.Turn,
 		PlayerID:  game.PlayerID,
 		UID:       actor.ID,
-		Title:     redactSecrets(title),
+		Title:     title,
 		GameView:  view,
 		CreatedAt: h.now(),
 	}
-	// A suffix collision is rare; retry with a fresh one rather than
-	// overwriting another report.
-	for attempt := 0; ; attempt++ {
-		report.Ref = bugReportRef()
-		report.ID = bugReportID(game, report.Ref)
-		err = h.reports.CreateBugReport(ctx, *report)
-		if !errors.Is(err, store.ErrBugReportExists) || attempt == 2 {
-			break
-		}
-	}
-	if err != nil {
+	// The 48-bit ref makes a collision negligible; CreateBugReport refuses one
+	// rather than overwriting another report.
+	if err := h.reports.CreateBugReport(ctx, *report); err != nil {
 		log.Printf("bug report %s: could not store the game view: %v", report.ID, err)
 		return nil, "_Game view: could not be stored._"
 	}
@@ -294,8 +297,8 @@ func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameI
 }
 
 func bugReportRef() string {
-	suffix := make([]byte, 3)
-	_, _ = cryptorand.Read(suffix)
+	suffix := make([]byte, 6)
+	cryptorand.Read(suffix) // never fails since Go 1.24
 	return fmt.Sprintf("%x", suffix)
 }
 
@@ -383,7 +386,8 @@ func prune(times []time.Time, cutoff time.Time) []time.Time {
 	return kept
 }
 
-// Keep in sync with SECRET_IN_TEXT and SENSITIVE_KEY in web/src/lib/bug-report.ts.
+// Keep in sync with SECRET_IN_TEXT, SENSITIVE_KEY and SENSITIVE_QUERY in
+// web/src/lib/bug-report.ts.
 var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)bearer\s+[A-Za-z0-9._~+/=-]+`),
 	regexp.MustCompile(`eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*`),
@@ -391,35 +395,28 @@ var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{20,}`),
 }
 
+// sensitiveQueryParam matches a sensitive query parameter inside a URL or
+// path, keeping its name so the masked URL stays readable.
+var sensitiveQueryParam = regexp.MustCompile(`(?i)([?&][^=&\s"]*(?:token|key|auth|secret|password|code|sig)[^=&\s"]*=)[^&\s#"]+`)
+
 var sensitiveKey = regexp.MustCompile(`(?i)token|authorization|password|secret|api[-_]?key|cookie|invite|credential`)
 
-// maskContext decodes the client-supplied context, masks sensitive keys and
-// token-like strings at any depth, and returns it indented. The server cannot
-// trust the client to have masked anything.
-func maskContext(raw json.RawMessage) (string, bool) {
+// maskJSON decodes raw JSON, masks sensitive keys and token-like strings at
+// any depth, and re-encodes it (indented when indent is set). The server
+// cannot trust the client to have masked anything, and the private store is
+// not a reason to keep credentials either.
+func maskJSON(raw []byte, indent bool) (string, error) {
 	var value any
 	if err := json.Unmarshal(raw, &value); err != nil {
-		return "", false
-	}
-	masked, err := json.MarshalIndent(maskValue(value), "", "  ")
-	if err != nil {
-		return "", false
-	}
-	return string(masked), true
-}
-
-// maskedJSON returns value as compact JSON with the same masking as the
-// public context: the private store is not a reason to keep credentials.
-func maskedJSON(value any) (string, error) {
-	raw, err := json.Marshal(value)
-	if err != nil {
 		return "", err
 	}
-	var decoded any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return "", err
+	var masked []byte
+	var err error
+	if indent {
+		masked, err = json.MarshalIndent(maskValue(value), "", "  ")
+	} else {
+		masked, err = json.Marshal(maskValue(value))
 	}
-	masked, err := json.Marshal(maskValue(decoded))
 	return string(masked), err
 }
 
@@ -449,7 +446,7 @@ func redactSecrets(text string) string {
 	for _, pattern := range secretPatterns {
 		text = pattern.ReplaceAllString(text, "[redacted]")
 	}
-	return text
+	return sensitiveQueryParam.ReplaceAllString(text, "${1}[redacted]")
 }
 
 var mention = regexp.MustCompile(`@([A-Za-z0-9])`)
@@ -472,8 +469,8 @@ func buildBugBody(description string, rawContext json.RawMessage, gameNote strin
 	if len(rawContext) == 0 || string(rawContext) == "null" {
 		return out.String()
 	}
-	contextText, ok := maskContext(rawContext)
-	if !ok {
+	contextText, err := maskJSON(rawContext, true)
+	if err != nil {
 		return out.String()
 	}
 	// Never let a stray fence close the code block early.

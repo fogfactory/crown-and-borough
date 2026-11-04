@@ -258,19 +258,10 @@ func (h *GamesHandler) viewerState(ctx context.Context, actor store.Actor, id st
 	}
 	viewerID, ok := snapshot.ViewerFor(actor)
 	if !ok {
-		return store.GameSnapshot{}, "", errNotViewer
+		return store.GameSnapshot{}, "", store.ErrNotMember
 	}
 	return snapshot, viewerID, nil
 }
-
-// errNotViewer is store.ErrNotMember with the API's own message, so the store
-// prefix does not leak into the not_member response.
-var errNotViewer error = notViewerError{}
-
-type notViewerError struct{}
-
-func (notViewerError) Error() string { return "actor is not a member of this game" }
-func (notViewerError) Unwrap() error { return store.ErrNotMember }
 
 // PlayerState returns the projection of the game the actor sees (the body of
 // GET /api/games/{id}/state) with the labels naming a bug report.
@@ -656,7 +647,7 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 	case errors.Is(err, store.ErrUnknownGame), errors.Is(err, store.ErrInvalidReport):
 		writeAPIError(w, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, store.ErrNotMember):
-		writeAPIError(w, http.StatusForbidden, "not_member", err.Error())
+		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 	case errors.Is(err, store.ErrNotCreator):
 		writeAPIError(w, http.StatusForbidden, "not_creator", err.Error())
 	case errors.Is(err, store.ErrInvalidPlayers):

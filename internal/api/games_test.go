@@ -502,8 +502,8 @@ func TestGamesHandlerPlayerStateLabelsTheView(t *testing.T) {
 	if _, err := handler.PlayerState(context.Background(), store.Actor{ID: "intruder", Development: true}, game.ID); !errors.Is(err, store.ErrNotMember) {
 		t.Fatalf("outsider = %v, want ErrNotMember", err)
 	}
-	// A snapshot without the actor answers not_member with the API message.
-	if !errors.Is(errNotViewer, store.ErrNotMember) || errNotViewer.Error() != "actor is not a member of this game" {
-		t.Fatalf("errNotViewer = %v", errNotViewer)
+	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/state?player=intruder", "")
+	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), `"actor is not a member of this game"`) {
+		t.Fatalf("outsider state = %d %s", response.Code, response.Body.String())
 	}
 }

@@ -119,8 +119,8 @@ function BugReportContent({ onClose }: { onClose: () => void }) {
   const fillOnGithub = async () => {
     // navigator.clipboard is missing outside secure contexts.
     const copied = await Promise.resolve()
-      // The issue is public: the game view stays out of the copied context.
-      .then(() => navigator.clipboard.writeText(contextJson(context)))
+      // The issue is public: copy the capture alone, never the game view.
+      .then(() => navigator.clipboard.writeText(JSON.stringify(context, null, 2)))
       .then(() => true)
       .catch(() => false)
     const url = githubIssueUrl(

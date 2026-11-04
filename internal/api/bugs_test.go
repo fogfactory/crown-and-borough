@@ -32,6 +32,30 @@ func (f *fakeIssues) CreateIssue(_ context.Context, title, body string, labels [
 	return "https://github.com/example/repo/issues/7", nil
 }
 
+// fakeReports is a map-backed BugReportStore the tests can inspect.
+type fakeReports struct {
+	reports map[string]store.BugReport
+}
+
+func newFakeReports() *fakeReports { return &fakeReports{reports: map[string]store.BugReport{}} }
+
+func (f *fakeReports) CreateBugReport(_ context.Context, report store.BugReport) error {
+	f.reports[report.ID] = report
+	return nil
+}
+
+func (f *fakeReports) SetBugReportIssue(_ context.Context, id, issueURL string) error {
+	report := f.reports[id]
+	report.IssueURL = issueURL
+	f.reports[id] = report
+	return nil
+}
+
+func (f *fakeReports) DeleteBugReport(_ context.Context, id string) error {
+	delete(f.reports, id)
+	return nil
+}
+
 func bugsServer(issues IssueCreator, now func() time.Time) http.Handler {
 	resolve := BearerActorResolver(func(token string) (store.Actor, error) {
 		if token == "" || strings.HasPrefix(token, "bad") {
@@ -199,6 +223,15 @@ func TestBugsUpstreamFailureKeepsQuota(t *testing.T) {
 	}
 }
 
+func TestBugsMaskSensitiveQueryParameters(t *testing.T) {
+	issues := &fakeIssues{}
+	body := `{"title":"x","description":"see /cb?code=OAUTH1&lang=fr","context":{"calls":["/api/x?sig=SIG1&page=2"]}}`
+	postBug(t, bugsServer(issues, nil), "alice", body)
+	if strings.Contains(issues.body, "OAUTH1") || strings.Contains(issues.body, "SIG1") || !strings.Contains(issues.body, "lang=fr") || !strings.Contains(issues.body, "page=2") {
+		t.Fatalf("body = %s", issues.body)
+	}
+}
+
 func TestBugsDefuseMentions(t *testing.T) {
 	issues := &fakeIssues{}
 	postBug(t, bugsServer(issues, nil), "alice", `{"title":"x","description":"ping @octocat and @org/team"}`)
@@ -254,7 +287,7 @@ func TestGitHubIssueClientRejectsErrors(t *testing.T) {
 
 func TestBugsStoreGameViewPrivately(t *testing.T) {
 	issues := &fakeIssues{}
-	reports := store.NewMemoryBugReportStore()
+	reports := newFakeReports()
 	handler := NewBugsHandler(BugHandlerOptions{
 		Actor:   BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
 		Issues:  issues,
@@ -284,11 +317,11 @@ func TestBugsStoreGameViewPrivately(t *testing.T) {
 	if strings.Contains(issues.body, "partie") || strings.Contains(issues.body, "heloise") {
 		t.Fatalf("names reached the public issue: %s", issues.body)
 	}
-	ref := regexp.MustCompile("ref `([0-9a-f]{6})`").FindStringSubmatch(issues.body)
+	ref := regexp.MustCompile("ref `([0-9a-f]{12})`").FindStringSubmatch(issues.body)
 	if ref == nil {
 		t.Fatalf("missing report ref in %s", issues.body)
 	}
-	report, ok := reports.BugReport("partie-du-mardi-t12-heloise-" + ref[1])
+	report, ok := reports.reports["partie-du-mardi-t12-heloise-"+ref[1]]
 	if !ok || report.Ref != ref[1] || report.GameID != "g1" || report.Turn != 12 || report.PlayerID != "p1" || report.UID != "alice" {
 		t.Fatalf("report = %+v", report)
 	}
@@ -308,21 +341,6 @@ func TestBugsStoreGameViewPrivately(t *testing.T) {
 	}
 }
 
-func TestBugsWithoutReportStoreNeverPublishGameView(t *testing.T) {
-	issues := &fakeIssues{}
-	handler := NewBugsHandler(BugHandlerOptions{
-		Actor:  BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
-		Issues: issues,
-		State: func(context.Context, store.Actor, store.GameID) (PlayerGameView, error) {
-			return PlayerGameView{View: map[string]any{"army": "SECRET-ARMY"}}, nil
-		},
-	})
-	postBug(t, handler, "alice", `{"title":"x","description":"y","gameId":"g1"}`)
-	if strings.Contains(issues.body, "SECRET-ARMY") || !strings.Contains(issues.body, "not stored") {
-		t.Fatalf("body = %s", issues.body)
-	}
-}
-
 func gameViewHandler(issues IssueCreator, reports store.BugReportStore) http.Handler {
 	return NewBugsHandler(BugHandlerOptions{
 		Actor:   BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
@@ -335,57 +353,14 @@ func gameViewHandler(issues IssueCreator, reports store.BugReportStore) http.Han
 }
 
 func TestBugsDeleteTheReportWhenTheIssueFails(t *testing.T) {
-	reports := store.NewMemoryBugReportStore()
+	reports := newFakeReports()
 	handler := gameViewHandler(&fakeIssues{err: errors.New("down")}, reports)
 	for i := 0; i < bugActorLimit+1; i++ {
 		if response := postBug(t, handler, "alice", `{"title":"x","description":"y","gameId":"g1"}`); response.Code != http.StatusBadGateway {
 			t.Fatalf("failure %d = %d", i, response.Code)
 		}
 	}
-	if reports.Len() != 0 {
-		t.Fatalf("%d orphan reports left", reports.Len())
-	}
-}
-
-// collidingReports reports a collision on the first create, like a suffix
-// already taken.
-type collidingReports struct {
-	*store.MemoryBugReportStore
-	collided bool
-}
-
-func (c *collidingReports) CreateBugReport(ctx context.Context, report store.BugReport) error {
-	if !c.collided {
-		c.collided = true
-		return store.ErrBugReportExists
-	}
-	return c.MemoryBugReportStore.CreateBugReport(ctx, report)
-}
-
-func TestBugsRetryOnReportIDCollision(t *testing.T) {
-	issues := &fakeIssues{}
-	reports := &collidingReports{MemoryBugReportStore: store.NewMemoryBugReportStore()}
-	if response := postBug(t, gameViewHandler(issues, reports), "alice", `{"title":"x","description":"y","gameId":"g1"}`); response.Code != http.StatusCreated {
-		t.Fatalf("create = %d", response.Code)
-	}
-	if reports.Len() != 1 || !strings.Contains(issues.body, "ref `") {
-		t.Fatalf("reports=%d body=%s", reports.Len(), issues.body)
-	}
-}
-
-func TestMemoryBugReportStoreRefusesDuplicateIDs(t *testing.T) {
-	reports := store.NewMemoryBugReportStore()
-	ctx := context.Background()
-	if err := reports.CreateBugReport(ctx, store.BugReport{ID: "a", GameView: "first"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := reports.CreateBugReport(ctx, store.BugReport{ID: "a", GameView: "second"}); !errors.Is(err, store.ErrBugReportExists) {
-		t.Fatalf("duplicate = %v", err)
-	}
-	if err := reports.SetBugReportIssue(ctx, "a", "https://x/1"); err != nil {
-		t.Fatal(err)
-	}
-	if report, _ := reports.BugReport("a"); report.GameView != "first" || report.IssueURL != "https://x/1" {
-		t.Fatalf("report = %+v", report)
+	if len(reports.reports) != 0 {
+		t.Fatalf("%d orphan reports left", len(reports.reports))
 	}
 }

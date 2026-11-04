@@ -26,7 +26,8 @@ export interface ApiCallRecord {
 
 const apiCalls: RawApiCall[] = []
 
-// Keep in sync with sensitiveKey and secretPatterns in internal/api/bugs.go.
+// Keep in sync with sensitiveKey, sensitiveQueryParam and secretPatterns in
+// internal/api/bugs.go, which masks again on the server.
 const SENSITIVE_KEY =
   /token|authorization|password|secret|api[-_]?key|cookie|invite|credential/i
 const SENSITIVE_QUERY = /token|key|auth|secret|password|code|sig/i
@@ -124,13 +125,8 @@ export function currentGameId(pathname: string): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
-/**
- * The capture as JSON. The preview passes the player's game view (stored
- * privately on "Send"); the public GitHub path omits the argument, so the
- * game view is never copied there.
- */
-export function contextJson(context: BugContext, game?: unknown): string {
-  if (game === undefined) return JSON.stringify(context, null, 2)
+/** The preview: the capture plus the player's game view (stored privately on "Send"). */
+export function contextJson(context: BugContext, game: unknown): string {
   return JSON.stringify({ ...context, game: game ? maskSecrets(game) : null }, null, 2)
 }
 
