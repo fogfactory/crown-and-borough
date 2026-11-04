@@ -152,11 +152,7 @@ func (ctx *resolutionContext) freezeLoopSupport(armyID models.ArmyID) bool {
 		record := ctx.records[attack.armyID]
 		return record == nil || record.outcome != OutcomeSuccess
 	}
-	if support.targetArmyID == "" {
-		return false
-	}
-	army := ctx.armiesByID[support.targetArmyID]
-	return army != nil && army.TerritoryID == support.targetID
+	return ctx.supportedArmyOnTarget(support)
 }
 
 // updateTerritorialControl runs the two deterministic passes titres.md
