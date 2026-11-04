@@ -942,9 +942,14 @@ the entire fief, every member at once.
 If the titulaire dies (plague) or the capital changes hands, the fief becomes
 **vacant**: it keeps producing and scoring its point, but has no titulaire.
 `T A` then assigns it to a noble of the player who holds it, provided
-every noble ahead of them in your line of succession (the order in which you
-recruited them, bastards always counting last) already holds a fief of an equal or higher title; founding a
-fief follows the same rule. At the end of winter, a fief still vacant at that
+every noble **of the same sex** ahead of them in your line of succession (the
+order in which you recruited them, bastards always counting last) already
+holds a fief of an equal or higher title. Bastards aside, men and women
+therefore do not hold each other back: with Jeanne first and Hugo second, or the other way round,
+you may title either one. A bishop, a cardinal or the pope counts as already
+holding a higher title and holds no one back, but may receive a fief on the
+same terms as the other men. Founding a fief, raising its rank and the royal
+grant follow the same rule. At the end of winter, a fief still vacant at that
 point is **automatically assigned** to the first noble in your line of
 succession, even a hostage or prisoner, with a warning in the report telling
 you to take back manual assignment next turn; with no living noble at all, it

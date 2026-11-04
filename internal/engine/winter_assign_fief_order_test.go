@@ -132,3 +132,51 @@ func TestAssignFiefOrderRejections(t *testing.T) {
 		})
 	}
 }
+
+// The line of succession is checked for each sex on its own, and the clergy
+// never holds anyone back (succession.md § Lignée). The head of the line,
+// N1 (HUG), holds no fief unless a case says otherwise.
+func TestAssignFiefOrderRelaxedSuccessionLine(t *testing.T) {
+	const blocked = "succession_rank_blocked"
+	cases := map[string]struct {
+		mutate func(state *models.GameState)
+		reason string
+	}{
+		"woman behind an untitled man": {mutate: func(state *models.GameState) {
+			state.Nobles[1].Sex = models.SexFemale
+		}},
+		"man behind an untitled woman": {mutate: func(state *models.GameState) {
+			state.Nobles[0].Sex = models.SexFemale
+		}},
+		"man behind an untitled bishop": {mutate: func(state *models.GameState) {
+			state.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}}
+		}},
+		"woman behind an untitled woman": {mutate: func(state *models.GameState) {
+			state.Nobles[0].Sex = models.SexFemale
+			state.Nobles[1].Sex = models.SexFemale
+		}, reason: blocked},
+		"bishop behind an untitled man": {mutate: func(state *models.GameState) {
+			state.Bishops = []models.Bishop{{Region: "R1", Noble: "N2"}}
+		}, reason: blocked},
+		"bastard while a titled woman lives": {mutate: func(state *models.GameState) {
+			state.Fiefs[1].HolderNobleID = nobleIDPtr("N1")
+			state.Nobles[0].Sex = models.SexFemale
+			state.Nobles[1].Dignities = []models.Dignity{models.DignityBastard}
+		}, reason: blocked},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			state := assignFiefTestState(t)
+			state.Fiefs[1].HolderNobleID = nil
+			tc.mutate(state)
+			_, event := applyAssignFief(state, models.WinterOrder{NobleCode: "ANN", TerritoryID: "AAA"})
+			want := EventTypeFiefAssigned
+			if tc.reason != "" {
+				want = EventTypeRejected
+			}
+			if event.Type != want || event.Reason != tc.reason {
+				t.Fatalf("event = %#v, want %s %s", event, want, tc.reason)
+			}
+		})
+	}
+}

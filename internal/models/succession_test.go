@@ -219,3 +219,100 @@ func TestValidateClaims(t *testing.T) {
 		}
 	}
 }
+
+func TestCanReceiveTitleChecksEachSexAndSkipsClergy(t *testing.T) {
+	male, female := models.SexMale, models.SexFemale
+	bastard := []models.Dignity{models.DignityBastard}
+	type noble struct {
+		id        models.NobleID
+		sex       models.Sex
+		dignities []models.Dignity
+	}
+	cases := []struct {
+		name    string
+		line    []noble
+		setup   func(g *models.GameState)
+		noble   models.NobleID
+		title   models.FiefTitle
+		allowed bool
+	}{
+		{name: "woman ahead does not block a man", line: []noble{{"N1", female, nil}, {"N2", male, nil}}, noble: "N2", title: models.FiefTitleBarony, allowed: true},
+		{name: "man ahead does not block a woman", line: []noble{{"N1", male, nil}, {"N2", female, nil}}, noble: "N2", title: models.FiefTitleBarony, allowed: true},
+		{name: "woman ahead blocks a woman", line: []noble{{"N1", female, nil}, {"N2", female, nil}}, noble: "N2", title: models.FiefTitleBarony, allowed: false},
+		{
+			name: "titled woman ahead lets a woman through",
+			line: []noble{{"N1", female, nil}, {"N2", female, nil}},
+			setup: func(g *models.GameState) {
+				g.Fiefs = []models.Fief{{ID: "F1", Title: models.FiefTitleBarony, HolderNobleID: ptrNobleID("N1")}}
+			},
+			noble: "N2", title: models.FiefTitleBarony, allowed: true,
+		},
+		{
+			name:  "bishop ahead does not block",
+			line:  []noble{{"N1", male, nil}, {"N2", male, nil}},
+			setup: func(g *models.GameState) { g.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}} },
+			noble: "N2", title: models.FiefTitleDuchy, allowed: true,
+		},
+		{
+			name:  "cardinal ahead does not block",
+			line:  []noble{{"N1", male, nil}, {"N2", male, nil}},
+			setup: func(g *models.GameState) { g.Cardinals = []models.NobleID{"N1"} },
+			noble: "N2", title: models.FiefTitleBarony, allowed: true,
+		},
+		{
+			name:  "pope ahead does not block",
+			line:  []noble{{"N1", male, nil}, {"N2", male, nil}},
+			setup: func(g *models.GameState) { pope := models.NobleID("N1"); g.Pope = &pope },
+			noble: "N2", title: models.FiefTitleBarony, allowed: true,
+		},
+		{
+			name:  "bishop is blocked by an untitled secular man ahead",
+			line:  []noble{{"N1", male, nil}, {"N2", male, nil}},
+			setup: func(g *models.GameState) { g.Bishops = []models.Bishop{{Region: "R1", Noble: "N2"}} },
+			noble: "N2", title: models.FiefTitleBarony, allowed: false,
+		},
+		{
+			name:  "bishop at the head may receive a title",
+			line:  []noble{{"N1", male, nil}, {"N2", male, nil}},
+			setup: func(g *models.GameState) { g.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}} },
+			noble: "N1", title: models.FiefTitleBarony, allowed: true,
+		},
+		{name: "bastard is blocked by a living woman", line: []noble{{"N1", male, bastard}, {"N2", female, nil}}, noble: "N1", title: models.FiefTitleBarony, allowed: false},
+		{name: "bastard last of its lineage", line: []noble{{"N1", male, bastard}}, noble: "N1", title: models.FiefTitleBarony, allowed: true},
+		{
+			name:  "mixed line: untitled man still blocks the next man past a woman and a bishop",
+			line:  []noble{{"N1", male, nil}, {"N2", female, nil}, {"N3", male, nil}, {"N4", male, nil}},
+			setup: func(g *models.GameState) { g.Bishops = []models.Bishop{{Region: "R1", Noble: "N3"}} },
+			noble: "N4", title: models.FiefTitleBarony, allowed: false,
+		},
+		{
+			name:  "mixed line: the woman passes the untitled man",
+			line:  []noble{{"N1", male, nil}, {"N2", female, nil}, {"N3", male, nil}, {"N4", male, nil}},
+			setup: func(g *models.GameState) { g.Bishops = []models.Bishop{{Region: "R1", Noble: "N3"}} },
+			noble: "N2", title: models.FiefTitleBarony, allowed: true,
+		},
+		{
+			name: "secular man with a lower title still blocks",
+			line: []noble{{"N1", male, nil}, {"N2", male, nil}},
+			setup: func(g *models.GameState) {
+				g.Fiefs = []models.Fief{{ID: "F1", Title: models.FiefTitleBarony, HolderNobleID: ptrNobleID("N1")}}
+			},
+			noble: "N2", title: models.FiefTitleCounty, allowed: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := models.NewGameState()
+			g.Players = []models.Player{{ID: "P1"}}
+			for _, n := range tc.line {
+				g.Nobles = append(g.Nobles, models.Noble{ID: n.id, OwnerID: "P1", Sex: n.sex, Dignities: n.dignities})
+			}
+			if tc.setup != nil {
+				tc.setup(g)
+			}
+			if got := g.CanReceiveTitle(tc.noble, tc.title); got != tc.allowed {
+				t.Errorf("CanReceiveTitle(%s, %s) = %v, want %v", tc.noble, tc.title, got, tc.allowed)
+			}
+		})
+	}
+}

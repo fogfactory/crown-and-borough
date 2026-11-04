@@ -73,18 +73,22 @@ func (t FiefTitle) Next() (FiefTitle, bool) {
 }
 
 // CanReceiveTitle reports whether nobleID may be granted a fief of the given
-// title (specs/succession.md § Lignée): every noble placed above it in its
-// owner's line of succession must already hold a fief of an equal or higher
-// title. Hostages and prisoners stay in the line and are not skipped. A
-// noble whose dignity places it last in the line (the bastard,
-// specs/succession.md § Bâtard) may only receive a title when it is the last
-// of its lineage: no other noble of its owner is free of that dignity.
+// title (specs/succession.md § Lignée). The line of succession is checked
+// separately for each sex: every noble of the same sex placed above it in its
+// owner's line must already hold a fief of an equal or higher title. A
+// bishop, cardinal or pope counts as already holding a higher title, so it
+// never holds anyone back, while it is itself held back like any other noble.
+// Hostages and prisoners stay in the line and are not skipped. A noble whose
+// dignity places it last in the line (the bastard, specs/succession.md §
+// Bâtard) may only receive a title when it is the last of its lineage: no
+// other noble of its owner is free of that dignity.
 func (g *GameState) CanReceiveTitle(nobleID NobleID, title FiefTitle) bool {
 	var owner PlayerID
+	var sex Sex
 	found := false
 	for _, noble := range g.Nobles {
 		if noble.ID == nobleID {
-			owner, found = noble.OwnerID, true
+			owner, sex, found = noble.OwnerID, noble.Sex, true
 			break
 		}
 	}
@@ -104,6 +108,9 @@ func (g *GameState) CanReceiveTitle(nobleID NobleID, title FiefTitle) bool {
 	for _, above := range line {
 		if above.ID == nobleID {
 			return true
+		}
+		if above.Sex != sex || g.ReligiousTitleOf(above.ID) != ReligiousTitleNone {
+			continue
 		}
 		held := g.HighestHeldFief(above.ID)
 		if held == nil || held.Title.Rank() < title.Rank() {
