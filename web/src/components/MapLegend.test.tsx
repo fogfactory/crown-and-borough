@@ -120,29 +120,40 @@ describe('MapLegend', () => {
     expect(onToggle).toHaveBeenCalledWith(true)
   })
 
-  it('samples the banners, the crowned fief capital and the army shield', () => {
+  it('samples the shields, the crowned fief capital and the army', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="en">
         <MapLegend />
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Banner = controlled territory')).toBeInTheDocument()
+    expect(screen.getByText('Shield = controlled territory')).toBeInTheDocument()
+    expect(
+      screen.getByText('Greyed shield = occupied by another army'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Fief capital (crown of its rank)')).toBeInTheDocument()
     expect(screen.getByText('R = resources in stock')).toBeInTheDocument()
     expect(
-      container.querySelector('[data-legend-banner="barony"] [data-crown="barony"]'),
+      container.querySelector('[data-legend-control="barony"] [data-crown="barony"]'),
     ).toBeInTheDocument()
     expect(
-      container.querySelector('[data-legend-banner="ROS"] [data-fief-attachment="ROS"]'),
+      container.querySelector('[data-legend-control="ROS"] [data-fief-attachment="ROS"]'),
     ).toBeInTheDocument()
-    // Gules with a bend or: the field and its charge, in the shield too.
-    const shield = container.querySelector('[data-legend-shield]')
+    // Gules with a bend or: the field and its charge, on the control shield.
+    const shield = container.querySelector('[data-legend-control="plain"]')
     expect(shield?.querySelector('path[fill="#b3322b"]')).toBeInTheDocument()
     expect(shield?.querySelector('[data-charge="bend"] path')).toHaveAttribute(
       'stroke',
       '#d8ab35',
     )
+    // The occupied sample is the same arms in grey.
+    const greyed = container.querySelector('[data-legend-control="occupied"]')
+    expect(greyed?.querySelector('path[fill="#b3322b"]')).toBeNull()
+    expect(greyed?.querySelector('[data-control-grey]')).toBeInTheDocument()
+    // The army sample: a standard-bearer with its strength on the banner.
+    const army = container.querySelector('[data-legend-army]')
+    expect(army?.querySelectorAll('[data-army-soldier]')).toHaveLength(1)
+    expect(army?.querySelector('text')).toHaveTextContent('3')
     expect(container.querySelector('#legend-occupied-hatch')).not.toBeInTheDocument()
   })
 })

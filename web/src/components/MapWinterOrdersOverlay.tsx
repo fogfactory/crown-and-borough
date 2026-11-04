@@ -6,7 +6,7 @@ import {
   winterMarkerTitle,
   winterReasonText,
 } from '@/components/MapMarkers'
-import { BannerGlyph } from '@/components/MapHeraldry'
+import { ControlShield } from '@/components/MapHeraldry'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { centroid } from '@/lib/map-svg-geometry'
 import type { WinterIntention } from '@/lib/winter-overlay'
@@ -240,20 +240,18 @@ export function WinterOrdersOverlay({
                 strokeDasharray={`${annotationScale * 4} ${annotationScale * 3}`}
                 strokeOpacity={intention.valid ? 0.9 : 0.4}
               />,
-              // A faded banner on each non-capital member, marked with the
+              // A faded shield on each non-capital member, marked with the
               // capital's trigram like a founded fief, so the drafted group
               // reads at a glance before it changes control (#196).
               <g
                 key={`fief-group-badge-${intention.line}-${memberId}`}
                 data-fief-group-member={memberId}
-                transform={`translate(${x2 - 6 * annotationScale} ${
-                  y2 - 10 * annotationScale
-                }) scale(${annotationScale})`}
+                transform={`translate(${x2} ${y2 + 2 * annotationScale}) scale(${annotationScale})`}
                 opacity={0.6}
                 pointerEvents="none"
               >
                 <title>{t('map.fiefGroupMember', { capital: capital.name })}</title>
-                <BannerGlyph
+                <ControlShield
                   owner={intention.player ?? NEUTRAL_PLAYER_ID}
                   attachedTo={capital.id}
                 />

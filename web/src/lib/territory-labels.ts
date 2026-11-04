@@ -9,7 +9,7 @@ const NAME_BREAK_LENGTH = 14
 /** An ordinary territory shows only its code below this on-screen name size. */
 export const NAME_MIN_SCREEN_PX = 10
 
-// Average advances, as a share of the font size, to place the banner.
+// Average advances, as a share of the font size, to place the control shield.
 const NAME_ADVANCE = 0.47
 const CODE_ADVANCE = 0.78 + CODE_LETTER_SPACING
 const NAME_LINE_HEIGHT = 1.05
@@ -20,8 +20,8 @@ export interface TerritoryLabelLayout {
   /** Baselines relative to the centroid, in map units before annotation scale. */
   nameBaselines: number[]
   codeBaseline: number
-  /** Where a banner plants its foot: left of the line it stands by. */
-  bannerAnchor: { x: number; y: number }
+  /** Where the control shield plants its point: left of the line it stands by. */
+  shieldAnchor: { x: number; y: number }
 }
 
 /**
@@ -58,7 +58,7 @@ export function nameLines(name: string): string[] {
 
 /**
  * Lays out one territory's label around its centroid: the name above the
- * code when shown, the code alone otherwise. The banner stands left of the
+ * code when shown, the code alone otherwise. The control shield stands left of the
  * name (on its last baseline), or of the code when the name is hidden.
  */
 export function territoryLabelLayout(
@@ -73,7 +73,7 @@ export function territoryLabelLayout(
       nameLines: [],
       nameBaselines: [],
       codeBaseline,
-      bannerAnchor: { x: -codeWidth / 2, y: codeBaseline },
+      shieldAnchor: { x: -codeWidth / 2, y: codeBaseline },
     }
   }
   const lineStep = NAME_FONT_SIZE * NAME_LINE_HEIGHT
@@ -87,7 +87,7 @@ export function territoryLabelLayout(
     nameLines: lines,
     nameBaselines,
     codeBaseline: lastBaseline + CODE_FONT_SIZE * 1.15,
-    bannerAnchor: { x: -Math.max(nameWidth, codeWidth) / 2, y: lastBaseline },
+    shieldAnchor: { x: -Math.max(nameWidth, codeWidth) / 2, y: lastBaseline },
   }
 }
 

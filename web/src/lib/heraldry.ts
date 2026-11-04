@@ -32,7 +32,7 @@ export function resolveArmsByOwner(
         : playerArms({ color, arms: armsByPlayer.get(owner) }),
     )
   }
-  // A vacant fief flies a neutral banner even when no rebel is on the map.
+  // A vacant fief carries a neutral shield even when no rebel is on the map.
   if (!resolved.has(NEUTRAL_PLAYER_ID)) {
     resolved.set(NEUTRAL_PLAYER_ID, { field: NEUTRAL_ARMY_COLOR, charge: null })
   }
@@ -55,6 +55,12 @@ export type CrownKind = FiefTitle | 'king'
 // Heater shield, 15 × 19 units centred on the origin.
 export const SHIELD_WIDTH = 15
 export const SHIELD_HEIGHT = 19
+export const SHIELD_BOX: [number, number, number, number] = [
+  -SHIELD_WIDTH / 2,
+  -SHIELD_HEIGHT / 2,
+  SHIELD_WIDTH,
+  SHIELD_HEIGHT,
+]
 export const SHIELD_PATH =
   'M-7.5 -9.5 H7.5 V-0.5 C7.5 5 3.8 8.3 0 9.5 C-3.8 8.3 -7.5 5 -7.5 -0.5 Z'
 
@@ -162,4 +168,137 @@ export function crownShape(kind: CrownKind): {
         pearls: [[0, -5.7, 0.7]],
       }
   }
+}
+
+// Control shield: the heater shield, reduced to sit beside a territory name.
+export const CONTROL_SHIELD_SCALE = 0.8
+
+/** A color's grey of equal luminance (Rec. 709 weights). */
+export function desaturate(hex: string): string {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!match) return NEUTRAL_ARMY_COLOR
+  const value =
+    match[1].length === 3
+      ? [...match[1]].map((digit) => digit + digit).join('')
+      : match[1]
+  const channel = (index: number) => parseInt(value.slice(index * 2, index * 2 + 2), 16)
+  const grey = Math.round(0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2))
+  const digits = grey.toString(16).padStart(2, '0')
+  return `#${digits}${digits}${digits}`
+}
+
+/** The arms of a territory held under occupation: same charge, no color. */
+export function greyArms(arms: ResolvedArms): ResolvedArms {
+  return {
+    field: desaturate(arms.field),
+    charge: arms.charge
+      ? { kind: arms.charge.kind, metal: desaturate(arms.charge.metal) }
+      : null,
+  }
+}
+
+// Soldier figurines, in units: a pack of at most six, drawn from the front.
+export const MAX_FIGURES = 6
+/** Spear of a figurine, left of its body (it is held in the right hand). */
+export const SPEAR_X = -3.65
+export const SPEAR_TOP = -12.2
+/** Stroke of a spear, and of the banner pole that continues it. */
+export const SPEAR_WIDTH = 0.55
+export const FIGURE_HEAD_TOP = -10.95
+export const FIGURE_COLUMN = 4
+export const FIGURE_BACK_ROW = -2.4
+export const FIGURE_FRONT_ROW = 1.5
+
+export interface FigurePosition {
+  x: number
+  y: number
+}
+
+export interface ArmyFigures {
+  /** Up to six soldiers, in no particular order. */
+  soldiers: FigurePosition[]
+  /** Grey shadows behind a big army. */
+  shadows: FigurePosition[]
+  /** Index in `soldiers` of the leftmost one, who carries the banner. */
+  bearer: number
+}
+
+/** A stable 32-bit hash of a string, to seed a pack's disorder. */
+export function hashSeed(text: string): number {
+  let hash = 2166136261
+  for (let index = 0; index < text.length; index++) {
+    hash = Math.imul(hash ^ text.charCodeAt(index), 16777619)
+  }
+  return hash >>> 0
+}
+
+function random(seed: number): () => number {
+  let state = seed
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+    return state / 4294967296
+  }
+}
+
+/** Number of grey shadows behind the six figurines of an army of `size`. */
+export function shadowCount(size: number): number {
+  if (size <= MAX_FIGURES) return 0
+  if (size < 10) return 2
+  if (size < 20) return 3
+  return 4
+}
+
+/**
+ * Lays an army out as a pack: one upright figurine per troop up to six,
+ * shifted irregularly and overlapping, centred on x = 0 with its feet on
+ * y = 0; shadows stand behind when the army is bigger. The disorder is a
+ * function of `seed`, so a pack does not move between renders.
+ */
+export function armyFigures(size: number, seed: number): ArmyFigures {
+  const key = `${seed}:${Math.min(size, MAX_FIGURES)}:${shadowCount(size)}`
+  const cached = packCache.get(key)
+  if (cached) return cached
+  const pack = layoutArmy(size, seed)
+  if (packCache.size >= PACK_CACHE_LIMIT) packCache.clear()
+  packCache.set(key, pack)
+  return pack
+}
+
+const PACK_CACHE_LIMIT = 512
+const packCache = new Map<string, ArmyFigures>()
+
+function layoutArmy(size: number, seed: number): ArmyFigures {
+  const next = random(seed)
+  const count = Math.max(1, Math.min(size, MAX_FIGURES))
+  const columns = count <= 3 ? count : 3
+  const twoRows = count > 3
+  const soldiers: FigurePosition[] = []
+  for (let index = 0; index < count; index++) {
+    const column = index % columns
+    const row = Math.floor(index / columns)
+    const x = (column - (columns - 1) / 2) * FIGURE_COLUMN + (row ? 1.4 : 0)
+    const y = twoRows ? (row ? FIGURE_FRONT_ROW : FIGURE_BACK_ROW) : 0
+    soldiers.push({ x: x + (next() - 0.5) * 3.3, y: y + (next() - 0.5) * 2.4 })
+  }
+  const shadows: FigurePosition[] = []
+  const extra = shadowCount(size)
+  for (let index = 0; index < extra; index++) {
+    shadows.push({
+      x: (index - (extra - 1) / 2) * 5.3 + (next() - 0.5) * 2.3,
+      y: -5.3 - next() * 2.3,
+    })
+  }
+  let bearer = 0
+  soldiers.forEach((soldier, index) => {
+    if (soldier.x < soldiers[bearer].x) bearer = index
+  })
+  return { soldiers, shadows, bearer }
+}
+
+/** Owner whose soldiers draw an army: rebels when its owner has no arms. */
+export function armyDrawingOwner(
+  armsByOwner: Map<string, ResolvedArms>,
+  armyOwner: string,
+): string {
+  return armsByOwner.has(armyOwner) ? armyOwner : NEUTRAL_PLAYER_ID
 }

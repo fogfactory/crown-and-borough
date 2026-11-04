@@ -1,52 +1,56 @@
-import { ArmsField, BannerGlyph } from '@/components/MapHeraldry'
+import { ArmsField, ArmyGlyph, ControlShield, Soldier } from '@/components/MapHeraldry'
 import {
   BANNER_HEIGHT,
   BANNER_PATH,
   BANNER_WIDTH,
-  SHIELD_HEIGHT,
+  SHIELD_BOX,
   SHIELD_PATH,
-  SHIELD_WIDTH,
+  greyArms,
   type CrownKind,
   type ResolvedArms,
 } from '@/lib/heraldry'
-import { MAP_INK, SHIELD_NUMBER } from '@/lib/map-palette'
 
 /**
- * A banner in the given arms, sized for a line of text (legend, territory
- * cartouche); crowned for a fief capital, or marked with its fief's trigram.
+ * The shield of a controller in the given arms, sized for a line of text
+ * (legend, territory cartouche); crowned for a fief capital, or marked with
+ * its fief's trigram.
  */
-export function BannerIcon({
+export function ControlShieldIcon({
   id,
   arms,
   crown,
   attachedTo,
+  grey = false,
 }: {
   /** Unique id of the drawing, for its symbol and clip. */
   id: string
   arms: ResolvedArms
   crown?: CrownKind
   attachedTo?: string
+  /** The shield of a territory occupied against its controller. */
+  grey?: boolean
 }) {
   return (
     <svg
-      className="h-5 w-6 shrink-0"
-      viewBox="-3 -24 20 26"
+      className="h-6 w-6 shrink-0"
+      viewBox="-8 -23 16 32"
       aria-hidden="true"
-      data-banner-icon={crown ?? attachedTo ?? 'plain'}
+      data-control-icon={grey ? 'occupied' : (crown ?? attachedTo ?? 'plain')}
     >
       <defs>
-        <symbol id={`${id}-flag`} overflow="visible">
+        <symbol id={`${id}-shield`} overflow="visible">
           <ArmsField
-            arms={arms}
-            outline={BANNER_PATH}
+            arms={grey ? greyArms(arms) : arms}
+            outline={SHIELD_PATH}
             clipId={`${id}-clip`}
-            box={[0, 0, BANNER_WIDTH, BANNER_HEIGHT]}
+            box={SHIELD_BOX}
           />
         </symbol>
       </defs>
-      <BannerGlyph
+      <ControlShield
         owner={id}
-        flagHref={`#${id}-flag`}
+        shieldHref={`#${id}-shield`}
+        grey={grey}
         crown={crown}
         attachedTo={attachedTo}
       />
@@ -54,16 +58,8 @@ export function BannerIcon({
   )
 }
 
-/** A shield in the given arms, with an army's strength when given. */
-export function ShieldIcon({
-  id,
-  arms,
-  size,
-}: {
-  id: string
-  arms: ResolvedArms
-  size?: number
-}) {
+/** A shield in the given arms: the house of a noble or a player. */
+export function ShieldIcon({ id, arms }: { id: string; arms: ResolvedArms }) {
   return (
     <svg
       className="h-5 w-6 shrink-0"
@@ -75,23 +71,49 @@ export function ShieldIcon({
         arms={arms}
         outline={SHIELD_PATH}
         clipId={`${id}-clip`}
-        box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+        box={SHIELD_BOX}
       />
-      {size !== undefined && (
-        <text
-          fill={SHIELD_NUMBER}
-          fontSize={10}
-          fontWeight="700"
-          textAnchor="middle"
-          dominantBaseline="central"
-          stroke={MAP_INK}
-          strokeWidth={2.4}
-          strokeLinejoin="round"
-          paintOrder="stroke"
-        >
-          {size}
-        </text>
-      )}
+    </svg>
+  )
+}
+
+/** An army in the given arms: its standard-bearer and a banner with its strength. */
+export function ArmyIcon({
+  id,
+  arms,
+  size,
+}: {
+  id: string
+  arms: ResolvedArms
+  size: number
+}) {
+  return (
+    <svg
+      className="h-6 w-6 shrink-0"
+      viewBox="-8 -26 18 28"
+      aria-hidden="true"
+      data-army-icon
+    >
+      <defs>
+        <symbol id={`${id}-soldier`} overflow="visible">
+          <Soldier arms={arms} clipId={`${id}-soldier-clip`} />
+        </symbol>
+        <symbol id={`${id}-banner`} overflow="visible">
+          <ArmsField
+            arms={arms}
+            outline={BANNER_PATH}
+            clipId={`${id}-banner-clip`}
+            box={[0, 0, BANNER_WIDTH, BANNER_HEIGHT]}
+          />
+        </symbol>
+      </defs>
+      <ArmyGlyph
+        owner={id}
+        size={size}
+        seed={id}
+        compact
+        hrefs={{ soldier: `#${id}-soldier`, banner: `#${id}-banner` }}
+      />
     </svg>
   )
 }

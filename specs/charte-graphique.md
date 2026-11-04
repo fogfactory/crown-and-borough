@@ -432,18 +432,20 @@ sa couronne au-dessus d'un blason `neutral`.
   détail, font masse derrière les six figurines : deux de 7 à 9 troupes,
   trois de 10 à 19, quatre à partir de 20.
 - Le fanion est porté par la figurine la plus à gauche du paquet : son mât
-  est le prolongement de sa lance. Le fanion se place au-dessus de la tête la
-  plus haute du paquet, ombres comprises, avec dix unités de marge, sans
-  jamais recouvrir une figurine. Il est la bannière à queue d'aronde de
-  12 × 8 unités aux armes du joueur et porte l'effectif exact en Alegreya 700
-  blanc cerné d'encre (`paint-order: stroke`).
+  prolonge sa lance, avec la même épaisseur, et s'arrête sur le bord gauche
+  du fanion. Le fanion flotte à deux unités au-dessus de la tête de son
+  porteur, devant le reste du paquet et des ombres, si bien qu'il reste
+  visible quand l'armée est grosse. C'est la bannière à queue d'aronde de
+  12 × 8 unités aux armes du joueur ; elle porte l'effectif exact en Alegreya
+  700 blanc cerné d'encre (`paint-order: stroke`).
 - Une armée rebelle porte des figurines, un surcot et un fanion cendrés, sans
   pièce.
 - En vue d'ensemble, le paquet se réduit à la seule figurine porte-fanion ;
   le paquet complet apparaît dès le premier cran de zoom.
 - L'armée est dessinée par `LiveLayer`
-  (`web/src/components/MapTerritoryLayers.tsx`) au centre du territoire, sans
-  chevaucher le blason, qui reste à gauche du nom.
+  (`web/src/components/MapTerritoryLayers.tsx`) à droite de l'étiquette du
+  territoire, ses pieds sur la ligne de base du nom ; le blason, à gauche de
+  l'étiquette, ne la gêne jamais.
 
 ### Nobles : pion et attributs de titre
 

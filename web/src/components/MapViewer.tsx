@@ -32,10 +32,11 @@ import { WinterOrdersOverlay } from '@/components/MapWinterOrdersOverlay'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
+import { isOccupiedAgainstController } from '@/lib/occupation'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import type { EventMarks, MapFrame } from '@/lib/map-frame'
 import { boundsOf, centroid, pointsToPath } from '@/lib/map-svg-geometry'
-import { resolveArmsByOwner } from '@/lib/heraldry'
+import { armyDrawingOwner, resolveArmsByOwner } from '@/lib/heraldry'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { hasSupplySource } from '@/lib/supply'
 import {
@@ -291,6 +292,20 @@ export function MapViewer({
     ]),
   )
   const armsByOwner = resolveArmsByOwner(state, playerColors)
+  const armyOwners = new Set(
+    state.territories.flatMap((territoryState) =>
+      territoryState.army
+        ? [armyDrawingOwner(armsByOwner, territoryState.army.owner)]
+        : [],
+    ),
+  )
+  const occupiedOwners = new Set(
+    state.territories.flatMap((territoryState) =>
+      isOccupiedAgainstController(territoryState) && territoryState.owner
+        ? [territoryState.owner, NEUTRAL_PLAYER_ID]
+        : [],
+    ),
+  )
   const nobleAttributes = useMemo(() => nobleAttributesByCode(state), [state])
   // Where the selected territory sits on screen: map units through the pan
   // and zoom, then the "meet" fit of the viewBox in the element.
@@ -372,7 +387,11 @@ export function MapViewer({
               intentionsColor={intentionsColor}
             />
             <defs>
-              <HeraldryDefs armsByOwner={armsByOwner} />
+              <HeraldryDefs
+                armsByOwner={armsByOwner}
+                armyOwners={armyOwners}
+                occupiedOwners={occupiedOwners}
+              />
             </defs>
 
             <RegionBands
@@ -668,6 +687,8 @@ export function MapViewer({
               nobleAttributes={nobleAttributes}
               annotationScale={annotationScale}
               selectedNoble={selectedNoble}
+              compactArmies={!showOrdinaryNames}
+              labelLayouts={labelLayouts}
             />
 
             <TerritoryLabels

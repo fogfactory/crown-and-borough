@@ -59,8 +59,12 @@ export const CROWN_FILL = '#c9a24a'
 /** Robes of the cardinal and of the pope on a noble's pawn. */
 export const CARDINAL_ROBE = '#a4231c'
 export const POPE_ROBE = '#f1ede3'
-/** Number on an army shield. */
+/** Number on an army banner. */
 export const SHIELD_NUMBER = '#ffffff'
+/** Soldier figurines: steel helmet, face and the grey shadows of a big army. */
+export const SOLDIER_STEEL = '#8d8f93'
+export const SOLDIER_FACE = '#e8d4b0'
+export const SOLDIER_SHADOW = '#4a443a'
 
 // Regions (bishoprics)
 

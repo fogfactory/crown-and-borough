@@ -1,9 +1,8 @@
-import { BannerGlyph, shieldSymbolId } from '@/components/MapHeraldry'
-import { BANNER_WIDTH } from '@/lib/heraldry'
+import { ArmyGlyph, CONTROL_REACH, ControlShield } from '@/components/MapHeraldry'
 import { FamineMarker, InfrastructureMarker, NobleMarker } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import type { ResolvedArms } from '@/lib/heraldry'
+import { armyDrawingOwner, type ResolvedArms } from '@/lib/heraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import { centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
@@ -28,7 +27,6 @@ import {
   MAP_HALO,
   MAP_INK,
   MAP_PARCHMENT,
-  SHIELD_NUMBER,
   UNKNOWN_OWNER_COLOR,
 } from '@/lib/map-palette'
 
@@ -39,19 +37,26 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
   duchy: 'fief.title.duchy',
 }
 
+/**
+ * An army stands right of the territory label (the control shield is on its
+ * left): this far from the label's right edge to the pack's centre, and with
+ * its feet this far under the name's baseline, in units.
+ */
+const ARMY_REACH = 15
+const ARMY_BELOW_BASELINE = 4
+
 /** Nobles sharing a territory stand side by side, this far apart. */
 const NOBLE_SPACING = 12
 
-/** From a label's left edge to the banner's foot: the flag and a gap. */
-const BANNER_REACH = BANNER_WIDTH + 3
-
 /**
- * A banner on every controlled territory, in its controller's arms. A fief
- * capital crowns its banner with the fief's rank (the king's closed crown for
- * a crown fief, over a neutral banner while the fief is vacant); the other
- * members write the capital's trigram under the flag, so a glance tells
- * which fief a territory belongs to. Occupation needs no mark: the army
- * present carries its own shield, and the tooltip names the occupant.
+ * A shield on every controlled territory, in its controller's arms; greyed
+ * while an army of another player (or rebels) occupies it. A fief capital
+ * crowns its shield with the fief's rank (the king's closed crown for a crown
+ * fief, over a neutral shield while the fief is vacant); every member of a
+ * fief, capital included, writes the capital's trigram under its shield, so a
+ * glance tells which fief a territory belongs to. A territory nobody
+ * controls, or held only by the army standing on it (no fief, no player
+ * capital), needs no shield: the army shows the occupation.
  */
 export function OwnershipLayer({
   territories,
@@ -64,7 +69,7 @@ export function OwnershipLayer({
   state: StateData
   annotationScale: number
   fiefs?: Fief[]
-  /** Each territory's label, which its banner stands beside. */
+  /** Each territory's label, which its shield stands beside. */
   labelLayouts: Map<string, TerritoryLabelLayout>
 }) {
   const { t } = useLanguage()
@@ -90,12 +95,20 @@ export function OwnershipLayer({
         if (!owner) {
           return null
         }
+        // Control that only holds while the owner's army stands there (no
+        // fief, no capital) is marked by that army, not by a shield.
+        const anchored =
+          Boolean(fief) ||
+          state.players.some((player) => player.capitalTerritory === territory.id)
+        if (!anchored && territoryState?.army?.owner === owner) {
+          return null
+        }
 
         const vacant = isCapital && fief && !fief.holder && !fief.crown
-        const bannerOwner = vacant ? NEUTRAL_PLAYER_ID : owner
+        const shieldOwner = vacant ? NEUTRAL_PLAYER_ID : owner
         const [centerX, centerY] = centroid(territory.points)
-        const anchor = labelLayouts.get(territory.id)?.bannerAnchor ?? { x: 0, y: 0 }
-        const footX = anchor.x - BANNER_REACH
+        const anchor = labelLayouts.get(territory.id)?.shieldAnchor ?? { x: 0, y: 0 }
+        const footX = anchor.x - CONTROL_REACH
         const footY = anchor.y
         const ownerName = playerName(owner)
         const fiefCapital = fief && !isCapital ? fief.capital : undefined
@@ -135,10 +148,11 @@ export function OwnershipLayer({
             }) scale(${annotationScale})`}
           >
             <title>{label}</title>
-            <BannerGlyph
-              owner={bannerOwner}
+            <ControlShield
+              owner={shieldOwner}
+              grey={Boolean(occupantName)}
               crown={isCapital && fief ? (fief.crown ? 'king' : fief.title) : undefined}
-              attachedTo={fiefCapital}
+              attachedTo={fief?.capital}
             />
           </g>
         )
@@ -156,6 +170,8 @@ export function LiveLayer({
   nobleAttributes,
   annotationScale,
   selectedNoble = null,
+  compactArmies = false,
+  labelLayouts,
 }: {
   territories: Territory[]
   state: StateData
@@ -165,6 +181,10 @@ export function LiveLayer({
   annotationScale: number
   /** Noble whose pawn wears the selection halo. */
   selectedNoble?: string | null
+  /** Overview zoom: an army shrinks to its standard-bearer. */
+  compactArmies?: boolean
+  /** Each territory's label, which its army stands beside. */
+  labelLayouts: Map<string, TerritoryLabelLayout>
 }) {
   const { t } = useLanguage()
   // Full label: the owner's name and code, or the rebels.
@@ -191,6 +211,11 @@ export function LiveLayer({
         }
 
         const [centerX, centerY] = centroid(territory.points)
+        // The label's left edge is where the shield stands: its right edge
+        // mirrors it, so the pack stands beyond it, feet on the baseline.
+        const labelLeft = labelLayouts.get(territory.id)?.shieldAnchor ?? { x: 0, y: 0 }
+        const armyX = centerX + (-labelLeft.x + ARMY_REACH) * annotationScale
+        const armyFeet = centerY + (labelLeft.y + ARMY_BELOW_BASELINE) * annotationScale
         const territoryNobles = state.nobles.filter(
           (noble) => noble.location === territory.id,
         )
@@ -233,36 +258,20 @@ export function LiveLayer({
             {territoryState.army && (
               <g key={`${territory.id}-army`}>
                 <title>{armyLabel(territoryState.army)}</title>
-                <use
-                  href={`#${shieldSymbolId(
-                    armsByOwner.has(territoryState.army.owner)
-                      ? territoryState.army.owner
-                      : NEUTRAL_PLAYER_ID,
-                  )}`}
-                  data-army-owner={territoryState.army.owner}
-                  transform={`translate(${centerX - 9 * annotationScale} ${
-                    centerY + 26 * annotationScale
-                  }) scale(${annotationScale})`}
-                />
-                <text
-                  x={centerX - 9 * annotationScale}
-                  y={centerY + 26 * annotationScale}
-                  fill={SHIELD_NUMBER}
-                  fontSize={10 * annotationScale}
-                  fontWeight="700"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  stroke={MAP_INK}
-                  strokeWidth={2.4 * annotationScale}
-                  strokeLinejoin="round"
-                  paintOrder="stroke"
+                <g
+                  transform={`translate(${armyX} ${armyFeet}) scale(${annotationScale})`}
                 >
-                  {territoryState.army.size}
-                </text>
+                  <ArmyGlyph
+                    owner={armyDrawingOwner(armsByOwner, territoryState.army.owner)}
+                    size={territoryState.army.size}
+                    seed={territory.id}
+                    compact={compactArmies}
+                  />
+                </g>
                 {territoryState.army.starving && (
                   <FamineMarker
-                    x={centerX - 9 * annotationScale + 8 * annotationScale}
-                    y={centerY + 26 * annotationScale - 9 * annotationScale}
+                    x={armyX + 14 * annotationScale}
+                    y={armyFeet - 8 * annotationScale}
                     scale={annotationScale}
                   />
                 )}
