@@ -534,3 +534,40 @@ func TestProjectStateHeadSuccessorAndClaims(t *testing.T) {
 		t.Errorf("claims = %#v, want LUC on ANN, rank 1", view.Claims)
 	}
 }
+
+// The next title of a fief follows the line of succession checked for each
+// sex on its own, the clergy holding no one back (succession.md § Lignée).
+func TestProjectStateWinterAidsNextTitleFollowsRelaxedLine(t *testing.T) {
+	cases := []struct {
+		name   string
+		sex    models.Sex
+		bishop bool
+		want   models.FiefTitle
+	}{
+		{name: "woman behind an untitled man", sex: models.SexFemale, want: models.FiefTitleCounty},
+		{name: "man behind an untitled bishop", sex: models.SexMale, bishop: true, want: models.FiefTitleCounty},
+		{name: "man behind an untitled man", sex: models.SexMale, want: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := projectTestState()
+			state.Season = models.SeasonWinter
+			state.Nobles = append(state.Nobles, models.Noble{ID: "N2", Sex: tc.sex, Code: "JEA", Name: "Jea", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree})
+			state.Fiefs = []models.Fief{{
+				ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+				Territories: []models.TerritoryID{"ROS", "FOU", "BRU"}, OwnerID: "P1",
+				HolderNobleID: ptr(models.NobleID("N2")),
+			}}
+			if tc.bishop {
+				state.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}}
+			}
+			view := projectStateForPlayer(state, "P1", assetgen.Balance{})
+			if view.WinterAids == nil || len(view.WinterAids.OwnFiefs) != 1 {
+				t.Fatalf("winter aids = %+v, want one own fief", view.WinterAids)
+			}
+			if got := view.WinterAids.OwnFiefs[0].NextTitle; got != tc.want {
+				t.Errorf("next title = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

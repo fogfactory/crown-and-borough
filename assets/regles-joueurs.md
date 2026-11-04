@@ -986,11 +986,15 @@ perdre le fief entier, avec tous ses membres, d'un coup.
 Si le titulaire meurt (peste) ou si la capitale change de main, le fief
 devient **vacant** : il continue de produire et de compter son point de score,
 mais n'a plus de titulaire. `T A` l'attribue alors à un noble du joueur
-qui le détient, à condition que tous les nobles placés avant lui dans ta ligne
-de succession (l'ordre dans lequel tu les as recrutés, les bâtards
-comptant toujours en dernier) détiennent déjà un fief
-de titre équivalent ou supérieur ; la constitution d'un fief obéit à la même
-règle. En fin d'hiver, un fief encore vacant à ce moment-là est **attribué
+qui le détient, à condition que tous les nobles **du même sexe** placés avant
+lui dans ta ligne de succession (l'ordre dans lequel tu les as recrutés, les
+bâtards comptant toujours en dernier) détiennent déjà un fief de titre
+équivalent ou supérieur. Hommes et femmes ne se bloquent donc pas : avec
+Jeanne en tête et Hugo en second, ou l'inverse, tu peux titrer l'un comme
+l'autre. Un évêque, un cardinal ou le pape compte comme déjà titré plus haut
+et ne bloque personne, mais il peut lui-même recevoir un fief aux mêmes
+conditions que les autres hommes. La constitution d'un fief, la montée de rang
+et l'octroi royal obéissent à la même règle. En fin d'hiver, un fief encore vacant à ce moment-là est **attribué
 automatiquement** au premier noble de ta ligne de succession, même s'il est
 otage ou prisonnier, avec un avertissement dans le rapport te signalant de
 reprendre la main la fois suivante ; sans aucun noble vivant, il reste

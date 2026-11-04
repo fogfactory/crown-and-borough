@@ -130,10 +130,13 @@ Le titre appartient au **noble** titulaire, qui doit être un noble du
 joueur, quel que soit son statut (un otage ou un prisonnier peut être
 titulaire ; il ne vote pas tant qu'il est prisonnier, un otage vote). La
 constitution ne modifie pas son statut. Il doit aussi respecter
-la **ligne de succession** : tous les nobles placés au-dessus de lui (ordre
-d'achat, voir [succession.md](succession.md#lignée)) détiennent déjà un fief de
-titre équivalent ou supérieur à celui qui est constitué, faute de quoi l'ordre
-est rejeté (`succession_rank_blocked`). Un même noble peut
+la **ligne de succession**, lue séparément pour chaque sexe (voir
+[succession.md](succession.md#lignée)) : tous les nobles de son sexe placés
+au-dessus de lui (ordre d'achat) détiennent déjà un fief de titre équivalent ou
+supérieur à celui qui est constitué, faute de quoi l'ordre est rejeté
+(`succession_rank_blocked`). Un évêque, un cardinal ou le pape compte comme
+déjà titré plus haut et ne bloque personne ; un bâtard ne reçoit un titre que
+s'il est le dernier de sa lignée. Un même noble peut
 porter **plusieurs titres** simultanément, et un joueur peut détenir plusieurs
 fiefs. Lorsqu'un fief est créé, son château capitale devient une **cité** et
 apporte `+2` en défense **au total** : ce bonus remplace celui du château
