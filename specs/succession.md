@@ -15,10 +15,10 @@ dans leur ordre d'achat.
 Pour l'octroi d'un titre de seigneur, la ligne de succession se lit
 séparément pour chaque sexe : un noble ne reçoit un titre que si tous les
 nobles **de son sexe** placés au-dessus de lui dans la ligne possèdent déjà un
-titre de niveau supérieur ou équivalent. Un homme et une femme ne se bloquent
-donc jamais : avec Jeanne en tête et Hugo en second, ou l'inverse, une
-nouvelle baronnie peut aller à l'un comme à l'autre ; avec Jeanne puis Agnès,
-Agnès attend que Jeanne soit titrée.
+titre de niveau supérieur ou équivalent. Hors [bâtard](#bâtard), un homme et
+une femme ne se bloquent donc pas : avec Jeanne en tête et Hugo en second, ou
+l'inverse, une nouvelle baronnie peut aller à l'un comme à l'autre ; avec
+Jeanne puis Agnès, Agnès attend que Jeanne soit titrée.
 
 Un évêque, un cardinal ou le pape compte comme détenant déjà un titre plus
 haut que tout fief : il ne bloque personne. Il peut lui-même recevoir un fief,
@@ -30,8 +30,8 @@ titre que s'il est le dernier de sa lignée, hommes et femmes confondus.
 Le contrôle s'applique à la constitution (`T F`), à l'attribution (`T A`), au
 changement de rang (`T R`) et à l'octroi royal (`W G`) ; un ordre qui ne le
 respecte pas est rejeté (`succession_rank_blocked`). L'attribution automatique
-d'un fief vacant en fin d'hiver et l'héritage par Claim suivent l'ordre de la
-ligne sans ce contrôle.
+d'un fief vacant en fin d'hiver, au premier noble de la ligne, et l'héritage
+d'un fief par Claim, à l'héritier du Claim, se font sans ce contrôle.
 
 ## Sexe des nobles
 

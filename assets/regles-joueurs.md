@@ -989,7 +989,7 @@ mais n'a plus de titulaire. `T A` l'attribue alors à un noble du joueur
 qui le détient, à condition que tous les nobles **du même sexe** placés avant
 lui dans ta ligne de succession (l'ordre dans lequel tu les as recrutés, les
 bâtards comptant toujours en dernier) détiennent déjà un fief de titre
-équivalent ou supérieur. Hommes et femmes ne se bloquent donc pas : avec
+équivalent ou supérieur. Hors bâtards, hommes et femmes ne se bloquent donc pas : avec
 Jeanne en tête et Hugo en second, ou l'inverse, tu peux titrer l'un comme
 l'autre. Un évêque, un cardinal ou le pape compte comme déjà titré plus haut
 et ne bloque personne, mais il peut lui-même recevoir un fief aux mêmes

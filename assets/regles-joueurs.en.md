@@ -943,8 +943,8 @@ If the titulaire dies (plague) or the capital changes hands, the fief becomes
 `T A` then assigns it to a noble of the player who holds it, provided
 every noble **of the same sex** ahead of them in your line of succession (the
 order in which you recruited them, bastards always counting last) already
-holds a fief of an equal or higher title. Men and women therefore never hold
-each other back: with Jeanne first and Hugo second, or the other way round,
+holds a fief of an equal or higher title. Bastards aside, men and women
+therefore do not hold each other back: with Jeanne first and Hugo second, or the other way round,
 you may title either one. A bishop, a cardinal or the pope counts as already
 holding a higher title and holds no one back, but may receive a fief on the
 same terms as the other men. Founding a fief, raising its rank and the royal
