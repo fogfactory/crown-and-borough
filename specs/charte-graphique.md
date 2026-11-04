@@ -384,8 +384,12 @@ L'évêché se lit par trois éléments :
   le métal sont désaturés à luminance égale, le trait d'encre et la pièce
   restent, si bien que les armes se reconnaissent sans la couleur. L'armée du
   contrôleur lui-même ne grise rien.
-- Un territoire occupé qu'aucun joueur ne contrôle n'a pas de marqueur :
-  l'armée présente suffit, puisqu'une case ne porte qu'une armée.
+- Un territoire que ne tient que l'armée qui s'y trouve (hors fief, hors
+  capitale de joueur : son contrôle dure autant que l'armée) n'a pas de
+  blason : le blason marque le contrôle durable, l'armée marque l'occupation.
+  Il en va de même d'un territoire occupé qu'aucun joueur ne contrôle. Une
+  case d'un fief ou une capitale de joueur garde son blason, même quand son
+  contrôleur y a une armée.
 - Un territoire neutre n'a pas de blason.
 - Le bouton de légende « Contrôle joueur » affiche ou masque les blasons.
 
