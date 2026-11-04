@@ -180,8 +180,8 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 				supplyTerritory("CCC", "CCC", models.TerrainPlain, "DDD"),
 				supplyTerritory("DDD", "DDD", models.TerrainPlain, "CCC"),
 			},
-			// P1's army holds BBB's mill: outside every fief and capital, a
-			// mill only produces while occupied (#215). Its local rations (3,
+			// P1's army holds BBB's mill: outside every fief and capital, only
+			// an army gives the mill a controller to feed (#470). Its local rations (3,
 			// plain terrain) comfortably cover its own demand (1), so it never
 			// starves and never pillages its own mill.
 			[]models.Army{{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1}},
@@ -190,9 +190,8 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "CCC"})
-		// DDD's mill is never claimed: outside every fief and capital, with no
-		// army on it, it is inert (#215) and no longer grandfathers production
-		// into CCC's neutral village.
+		// DDD's mill is never claimed: it stocks its own production (#470),
+		// never CCC's neutral village.
 		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeMill, Level: 5, TerritoryID: "DDD"})
 		// No army garrisons AAA: anchor it as P1's capital so control
 		// resolution (now ahead of ravitaillement, #208) does not release it
@@ -214,7 +213,10 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 			t.Errorf("controlled castle stock = %d, want territory income 2 plus adjacent mill level 2", got)
 		}
 		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 8 {
-			t.Errorf("neutral village stock = %d, want persisted 7 plus its own base production only (DDD's inert mill contributes nothing)", got)
+			t.Errorf("neutral village stock = %d, want persisted 7 plus its own base production only (DDD's mill stocks itself)", got)
+		}
+		if got := resolution.State.TerritoryStates["DDD"].Resources; got != 5 {
+			t.Errorf("neutral mill stock = %d, want its own level-5 production", got)
 		}
 		event := supplyEventForSource(t, resolution.Events, "AAA")
 		if event.Production != 2 || event.Demand != 0 {
@@ -222,10 +224,10 @@ func TestResolveSupplyProductionAndStocks(t *testing.T) {
 		}
 		neutralEvent := supplyEventForSource(t, resolution.Events, "CCC")
 		if neutralEvent.OwnerID != "" || neutralEvent.Production != 1 || neutralEvent.StockAfter != 8 {
-			t.Errorf("neutral event = %#v, want base production only, DDD's inert mill excluded", neutralEvent)
+			t.Errorf("neutral event = %#v, want base production only, DDD's mill excluded", neutralEvent)
 		}
-		if len(supplyEvents(resolution.Events)) != 2 {
-			t.Errorf("supply events = %#v, want controlled and neutral village events", resolution.Events)
+		if len(supplyEvents(resolution.Events)) != 3 {
+			t.Errorf("supply events = %#v, want controlled, neutral village and neutral mill events", resolution.Events)
 		}
 	})
 
@@ -757,8 +759,8 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "BBB"})
 		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeMill, Level: 1, TerritoryID: "DDD"})
 		// AAA, BBB and CCC form a fief: BBB carries no army of its own, and
-		// outside every fief and capital an unoccupied mill is inert (#215),
-		// so its production needs this anchor to keep routing to AAA.
+		// outside every fief and capital an unoccupied mill only stocks
+		// itself (#470), so it needs this anchor to keep routing to AAA.
 		state.Fiefs = []models.Fief{{
 			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1",
@@ -892,8 +894,8 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 			// consecutive deficit triggers troop loss.
 			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
-			// A4 holds DDD's mill: outside every fief and capital, a mill
-			// only produces while occupied (#215). Its local rations (3,
+			// A4 holds DDD's mill: outside every fief and capital, only an
+			// army gives the mill a controller to feed (#470). Its local rations (3,
 			// plain terrain) cover its own demand (1), so it never competes
 			// for ZZZ's pooled deficit below.
 			{ID: "A4", OwnerID: "P1", TerritoryID: "DDD", Size: 1},

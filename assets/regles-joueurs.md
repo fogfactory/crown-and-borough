@@ -591,25 +591,26 @@ hors capitale, un château ou un dépôt sans armée dessus est de la même faç
 **inerte** : il n'a alors même plus de contrôleur du tout (section 6), et
 n'est plus ni source ni dépôt utilisable pour personne. La portée de base est
 de {{supply_range}} cases ; chaque dépôt de vivres contrôlé, non occupé,
-rencontré sur le trajet ajoute {{depot_range_bonus}} cases. Un village neutre
-conserve son stock, inaccessible avant capture.
+rencontré sur le trajet ajoute {{depot_range_bonus}} cases. Un village ou un
+moulin neutre conserve son stock, inaccessible avant capture.
 
-Un moulin hors fief et hors capitale, sans armée dessus, est lui aussi
-**inerte** : il ne produit rien du tout tant qu'il reste dans cet état, qu'il
-n'ait jamais été tenu ou qu'il vienne d'être abandonné. Un moulin actif —
-membre d'un fief, sur la capitale d'un joueur, ou tenu par une armée — de
-niveau `N` produit `N` R et les verse à **une seule** infrastructure : le
-château adjacent **contrôlé par le même joueur que la
-case du moulin**, sinon le village adjacent du même contrôleur, sinon la case
-du moulin elle-même. Un château ou un village adjacent d'un autre joueur est
-ignoré. Le contrôleur « neutre » est un contrôleur comme un autre : un moulin
-neutre ne verse jamais à un joueur, seulement à un village neutre adjacent,
-sinon sur sa propre case. Un moulin ne compte donc jamais pour deux
+Un moulin de niveau `N` produit `N` R à chaque tour d'action et les verse à
+**une seule** infrastructure : le château adjacent **contrôlé par le même
+joueur que la case du moulin**, sinon le village adjacent du même contrôleur,
+sinon la case du moulin elle-même. Un château ou un village adjacent d'un
+autre joueur est ignoré. Un moulin ne compte donc jamais pour deux
 infrastructures à la fois. Un moulin isolé (sans château ni village adjacent
 du même contrôleur) produit sur sa propre case, qui devient alors elle-même
-une source ; cette production n'est pas automatiquement acheminée ailleurs,
-il faut un ordre de transfert (`T`). La présence ou la position d'un noble ne
-conditionne jamais cette production.
+une source ; cette production n'est pas automatiquement acheminée ailleurs.
+La présence ou la position d'un noble ne conditionne jamais cette production.
+
+Un moulin **sans contrôleur** — hors fief et hors capitale, sans armée d'un
+joueur dessus, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné —
+produit lui aussi, toujours sur sa propre case, jamais pour un voisin, comme
+un village neutre accumule son propre stock. L'armée qui prend ensuite le
+contrôle du moulin trouve ce stock sur place : il la ravitaille comme une
+source, et elle peut l'expédier par un ordre de transfert (`T`) ; en hiver,
+il rejoint la capitale par le château ou le village adjacent (section 8).
 
 ### Revenu territorial
 
@@ -686,10 +687,10 @@ conditions de construction sont détaillés section 8.
 
 | Infrastructure | Effet v1 |
 |---|---|
-| Moulin | Inerte (aucune production) hors fief/capitale sans armée ; sinon `N` R stockable par niveau, versés à une seule infrastructure adjacente (château, sinon village, sinon lui-même) |
+| Moulin | `N` R stockable par niveau, versés à une seule infrastructure adjacente du même contrôleur (château, sinon village, sinon lui-même) ; sans contrôleur, sur sa propre case |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement tant qu'il est ancré ou occupé ; inerte sinon |
 | Château | +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte ; ancre de ravitaillement ; verse le revenu territorial (section 7) ; devient une cité (+{{city_defense_bonus}}, sans cumul) sur la capitale d'un fief (section 8) |
-| Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — seule infrastructure qui ne devient jamais inerte) |
+| Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — comme le moulin, il ne devient jamais inerte) |
 | Village fortifié | Identique au village (stock, production, revenu), et gagne en plus +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte (section 8) |
 
 ---
@@ -1031,11 +1032,16 @@ l'amélioration est rejetée sans prélèvement partiel.
   de 5 R devient donc 3 R ;
 - un dépôt de vivres conserve intégralement son stock ; les stocks hors
   château, village, moulin et dépôt sont perdus ;
+- le stock d'un moulin contrôlé est ensuite versé en entier à
+  l'infrastructure qui reçoit sa production (château adjacent du même
+  contrôleur, sinon village), qui le rapatrie avec le sien ; il reste sur le
+  moulin si celui-ci est isolé, si le moulin ou cette infrastructure est
+  occupé contre son contrôleur, ou si le joueur n'a pas de capitale ;
 - les stocks des châteaux et villages hors capitale sont rapatriés vers la
   capitale, en laissant au maximum {{village_stock_cap}} R par village et
-  {{castle_stock_cap}} R par château ; le stock d'un moulin n'est **jamais**
-  rapatrié, et une colonie occupée contre son contrôleur ne l'est pas non plus
-  (son stock y reste et suit la conservation normale) ;
+  {{castle_stock_cap}} R par château ; une colonie occupée contre son
+  contrôleur n'est pas rapatriée (son stock y reste et suit la conservation
+  normale) ;
 - sans capitale, ces stocks restent sur place ; les stocks de dépôt restent
   sur leur case.
 

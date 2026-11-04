@@ -47,7 +47,8 @@ type MillProductionForecast struct {
 // ForecastMillProduction computes, for every mill, the normal production and
 // single destination it will credit on the next action turn, ignoring any
 // calamity or bonus card already drawn this turn (like ForecastMillIncome).
-// Like every ravitaillement forecast, it assumes nothing moves before
+// An uncontrolled mill is forecast on itself (#470, see millRecipient). Like
+// every ravitaillement forecast, it assumes nothing moves before
 // resolution (#208). Ravitaillement never happens in winter, so a winter
 // state always forecasts nil.
 func ForecastMillProduction(state *models.GameState, balance assetgen.Balance) map[models.TerritoryID]MillProductionForecast {

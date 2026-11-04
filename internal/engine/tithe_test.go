@@ -190,3 +190,25 @@ func TestSuspendedPopeCannotTithe(t *testing.T) {
 		t.Fatalf("err = %v, want tithe_requires_cleric for a pope held in a dungeon", err)
 	}
 }
+
+// TestTitheDivertsUncontrolledMillProduction checks #470: an uncontrolled
+// mill produces like any other, so the tithe of its bishopric diverts that
+// production to the tithing capital instead of the mill's own stock.
+func TestTitheDivertsUncontrolledMillProduction(t *testing.T) {
+	state := titheState(t)
+	state.Armies = nil
+	milState := state.TerritoryStates["MIL"]
+	milState.Army = nil
+	state.TerritoryStates["MIL"] = milState
+	validateTestState(t, state)
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": tithe("N1", "MIL")})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if got := supplyProduction(resolution.Events, "PCP"); got != 3 {
+		t.Errorf("capital production = %d, want the uncontrolled mill's 3 R", got)
+	}
+	if got := resolution.State.TerritoryStates["MIL"].Resources; got != 0 {
+		t.Errorf("MIL stock = %d, want its production diverted", got)
+	}
+}

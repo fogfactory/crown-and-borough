@@ -452,8 +452,8 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 			continue
 		}
 		// A mill conserves its stock exactly like a castle or village (see
-		// #195), but repatriateWinterStocks below never moves it: only a
-		// castle or village's surplus is repatriated to the capital.
+		// #195); repatriateWinterStocks below then pours it into the
+		// settlement its production feeds, if any (#470).
 		if !ctx.hasSettlement(territoryID) && !ctx.hasInfrastructure(territoryID, models.InfraTypeMill) {
 			state.Resources = 0
 			ctx.state.TerritoryStates[territoryID] = state
@@ -464,7 +464,12 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 	}
 }
 
+// repatriateWinterStocks moves the conserved stocks toward each player's
+// capital: every mill first pours its stock into the castle or village its
+// production feeds (pourMillStocks), then each castle and village sends its
+// surplus above its cap to the capital.
 func (ctx *resolutionContext) repatriateWinterStocks() {
+	ctx.pourMillStocks()
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
 		controllerID, controlled := ctx.controllerAtStart(territoryID)
@@ -494,6 +499,42 @@ func (ctx *resolutionContext) repatriateWinterStocks() {
 		capitalState := ctx.state.TerritoryStates[capitalTerritoryID]
 		capitalState.Resources += surplus
 		ctx.state.TerritoryStates[capitalTerritoryID] = capitalState
+	}
+}
+
+// pourMillStocks moves the whole stock of every controlled mill into its
+// recipient (millRecipientIn on the start-of-winter control: the adjacent
+// castle, else village, of the same controller), so the following castle
+// and village repatriation carries it on to the capital (#470). The stock
+// stays on the mill when the mill is isolated (its own recipient), when the
+// mill or its recipient is occupied against their controller, or when the
+// controller has no capital to repatriate to.
+func (ctx *resolutionContext) pourMillStocks() {
+	for _, millID := range sortedStateTerritoryIDs(ctx) {
+		state := ctx.state.TerritoryStates[millID]
+		if state.Resources == 0 || !ctx.hasInfrastructure(millID, models.InfraTypeMill) {
+			continue
+		}
+		controllerID, controlled := ctx.controllerAtStart(millID)
+		if !controlled {
+			continue
+		}
+		if _, _, hasCapital := ctx.capitalTerritory(controllerID); !hasCapital {
+			continue
+		}
+		recipientID := millRecipientIn(ctx, millID, ctx.controllerAtStart)
+		if recipientID == millID {
+			continue
+		}
+		if ctx.occupiedAgainstStartController(millID, ctx.currentArmyAt(millID)) ||
+			ctx.occupiedAgainstStartController(recipientID, ctx.currentArmyAt(recipientID)) {
+			continue
+		}
+		recipientState := ctx.state.TerritoryStates[recipientID]
+		recipientState.Resources += state.Resources
+		ctx.state.TerritoryStates[recipientID] = recipientState
+		state.Resources = 0
+		ctx.state.TerritoryStates[millID] = state
 	}
 }
 

@@ -106,11 +106,10 @@ func TestMillRecipientBreaksTiesByTrigram(t *testing.T) {
 	}
 }
 
-// TestMillRecipientNeutralMillPrefersNeutralVillage checks decision #2: a
-// neutral mill treats "neutral" like any other controller, so it routes to a
-// neutral village (there is no "neutral castle"), ignoring a player's castle
-// even if adjacent.
-func TestMillRecipientNeutralMillPrefersNeutralVillage(t *testing.T) {
+// TestMillRecipientUncontrolledMillStocksItself checks #470: an uncontrolled
+// mill always credits its own territory, neither a player's adjacent castle
+// nor an adjacent neutral village.
+func TestMillRecipientUncontrolledMillStocksItself(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS", "VIL"),
@@ -126,8 +125,8 @@ func TestMillRecipientNeutralMillPrefersNeutralVillage(t *testing.T) {
 	validateTestState(t, state)
 
 	ctx := newResolutionContext(state, testBalance())
-	if got := millRecipient(ctx, "MIL"); got != "VIL" {
-		t.Fatalf("millRecipient = %q, want VIL (the neutral village), ignoring the player's castle", got)
+	if got := millRecipient(ctx, "MIL"); got != "MIL" {
+		t.Fatalf("millRecipient = %q, want MIL (the uncontrolled mill itself)", got)
 	}
 }
 
@@ -140,8 +139,8 @@ func TestMillWeatherProductionSuppressedByBadWeather(t *testing.T) {
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS"),
 			supplyTerritory("CAS", "CAS", models.TerrainPlain, "MIL"),
 		},
-		// An army holds the mill: outside every fief and capital, a mill only
-		// produces while occupied (#215).
+		// An army holds the mill: outside every fief and capital, only an
+		// army gives the mill a controller to feed (#470).
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")
@@ -166,8 +165,8 @@ func TestMillWeatherProductionDoubledByFairWeather(t *testing.T) {
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS"),
 			supplyTerritory("CAS", "CAS", models.TerrainPlain, "MIL"),
 		},
-		// An army holds the mill: outside every fief and capital, a mill only
-		// produces while occupied (#215).
+		// An army holds the mill: outside every fief and capital, only an
+		// army gives the mill a controller to feed (#470).
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")
@@ -214,31 +213,167 @@ func TestIsolatedMillProducesOnItsOwnTileAndFeedsSupply(t *testing.T) {
 	}
 }
 
-// TestUnanchoredMillProducesNothing checks #215: a mill outside every fief
-// and capital, with no army on it, is inert -- unlike
-// TestIsolatedMillProducesOnItsOwnTileAndFeedsSupply's occupied isolated
-// mill, it produces nothing at all, not even for itself, whether it was
-// never claimed or abandoned once its army left.
-func TestUnanchoredMillProducesNothing(t *testing.T) {
+// TestUncontrolledMillStocksItsOwnTerritory checks #470: a mill outside
+// every fief and capital, with no player army on it, produces on its own
+// territory turn after turn, like a neutral village, and the report credits
+// the production to the mill itself.
+func TestUncontrolledMillStocksItsOwnTerritory(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{supplyTerritory("MIL", "MIL", models.TerrainMountain)},
 		nil,
 	)
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"})
 	validateTestState(t, state)
 
-	ctx := newResolutionContext(state, testBalance())
-	mills := computeMillProduction(ctx)
-	if len(mills) != 1 || mills[0].total() != 0 {
-		t.Fatalf("mills = %#v, want zero production for an unanchored, unoccupied mill", mills)
+	first, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
 	}
+	if got := first.State.TerritoryStates["MIL"].Resources; got != 2 {
+		t.Errorf("MIL stock after one turn = %d, want the mill's level 2", got)
+	}
+	event := supplyEventForSource(t, first.Events, "MIL")
+	if event.OwnerID != "" || event.Production != 2 || event.StockAfter != 2 {
+		t.Errorf("supply event = %#v, want a neutral production of 2", event)
+	}
+	report := BuildTurnReport(state, first.State, first.Events, nil)
+	mill := millLineFor(t, report, "MIL")
+	if mill.Destination != "MIL" || mill.Production != 2 {
+		t.Errorf("mill report line = %#v, want production 2 credited to itself", mill)
+	}
+
+	second, err := Resolve(first.State, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got := second.State.TerritoryStates["MIL"].Resources; got != 4 {
+		t.Errorf("MIL stock after two turns = %d, want 4 accumulated", got)
+	}
+}
+
+// TestUncontrolledMillFollowsTheWeather checks that an uncontrolled mill's
+// own production follows the same weather cards as any other mill: bad
+// weather suppresses it, fair weather doubles it.
+func TestUncontrolledMillFollowsTheWeather(t *testing.T) {
+	for _, test := range []struct {
+		name                     string
+		bad, fair                bool
+		total, bonus, suppressed int
+	}{
+		{name: "bad weather", bad: true, total: 0, suppressed: 2},
+		{name: "fair weather", fair: true, total: 4, bonus: 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			state := testState(t,
+				[]models.Territory{supplyTerritory("MIL", "MIL", models.TerrainMountain)},
+				nil,
+			)
+			addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"})
+			validateTestState(t, state)
+
+			ctx := newResolutionContext(state, testBalance())
+			ctx.badWeatherRegions[""] = test.bad
+			ctx.fairWeatherRegions = map[models.TerritoryID]bool{"": test.fair}
+			produceNeutralStocks(ctx)
+			parts := ctx.supplySources["MIL"]
+			if parts.total() != test.total || parts.bonus != test.bonus || parts.suppressed != test.suppressed {
+				t.Errorf("neutral mill parts = %#v, want total %d, bonus %d, suppressed %d", parts, test.total, test.bonus, test.suppressed)
+			}
+			if got := ctx.state.TerritoryStates["MIL"].Resources; got != test.total {
+				t.Errorf("MIL stock = %d, want %d", got, test.total)
+			}
+		})
+	}
+}
+
+// TestCapturedMillStockFeedsTheCapturingArmy checks #470: the stock an
+// uncontrolled mill accumulated becomes a supply source for the army that
+// takes control of it.
+func TestCapturedMillStockFeedsTheCapturingArmy(t *testing.T) {
+	state := testState(t,
+		// Mountain: 1 local ration, so a size-3 army (cost 4) needs 3 more
+		// from the mill.
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "MIL"),
+			supplyTerritory("MIL", "MIL", models.TerrainMountain, "AAA"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3}},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
+	setTerritoryResources(state, "MIL", 5)
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"MIL"}})
+	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if got := resolution.State.TerritoryStates["MIL"].Resources; got != 0 {
-		t.Errorf("MIL stock = %d, want 0 (the inert mill never stocks itself)", got)
+	if hasFamineEvent(resolution.Events, "A1") {
+		t.Errorf("events = %#v, want A1 fed by the captured mill's stock", resolution.Events)
+	}
+	// 5 accumulated + 1 produced for P1 this turn - 3 eaten.
+	if got := resolution.State.TerritoryStates["MIL"].Resources; got != 3 {
+		t.Errorf("MIL stock = %d, want 5 + 1 - 3 = 3", got)
+	}
+	event := supplyEventForSource(t, resolution.Events, "MIL")
+	if event.OwnerID != "P1" || event.Demand != 3 || event.StockConsumed != 2 {
+		t.Errorf("supply event = %#v, want P1's source covering 3 with 2 from the accumulated stock", event)
+	}
+}
+
+// TestCapturedMillStockCanBeTransferred checks #470: an army controlling a
+// mill can ship the stock the mill accumulated while uncontrolled with a
+// transfer order (T).
+func TestCapturedMillStockCanBeTransferred(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("MIL", "MIL", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "MIL"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "MIL")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
+	setTerritoryResources(state, "MIL", 4)
+	addChain(t, state, "A1", "N1", models.Order{
+		Type:       models.OrderTypeTransfer,
+		PositionID: "MIL",
+		TargetIDs:  []models.TerritoryID{"BBB"},
+		Amount:     2,
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	event, ok := findEvent(resolution.Events, EventTypeTransfer)
+	if !ok || event.SourceID != "MIL" || event.ResourceAmount != 2 || event.Outcome != OutcomeSuccess {
+		t.Errorf("transfer event = %#v, want 2 R shipped from the mill", event)
+	}
+}
+
+// TestForecastMillProductionIncludesUncontrolledMill checks the territory
+// panel forecast shows an uncontrolled mill's production on itself.
+func TestForecastMillProductionIncludesUncontrolledMill(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("MIL", "MIL", models.TerrainPlain, "VIL"),
+			supplyTerritory("VIL", "VIL", models.TerrainPlain, "MIL"),
+		},
+		nil,
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 3, TerritoryID: "MIL"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "VIL"})
+	validateTestState(t, state)
+
+	forecast := ForecastMillProduction(state, testBalance())
+	if got := forecast["MIL"]; got.Production != 3 || got.Destination != "MIL" {
+		t.Errorf("forecast = %#v, want 3 R on the mill itself", got)
 	}
 }
 
@@ -250,8 +385,8 @@ func TestMillReportLineHasRoutedDestination(t *testing.T) {
 			supplyTerritory("MIL", "MIL", models.TerrainPlain, "CAS"),
 			supplyTerritory("CAS", "CAS", models.TerrainPlain, "MIL"),
 		},
-		// An army holds the mill: outside every fief and capital, a mill only
-		// produces while occupied (#215).
+		// An army holds the mill: outside every fief and capital, only an
+		// army gives the mill a controller to feed (#470).
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 1}},
 	)
 	setTerritoryOwner(state, "MIL", "P1")

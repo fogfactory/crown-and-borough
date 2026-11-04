@@ -556,25 +556,26 @@ castle or depot with no army on it is likewise **inert**: it then has no
 controller left at all (section 6), and is no longer a usable source or depot
 for anyone. Base range is {{supply_range}} territories; each controlled
 supply depot, not occupied, encountered along the route adds
-{{depot_range_bonus}} territories. A neutral village keeps its stock,
-inaccessible before capture.
+{{depot_range_bonus}} territories. A neutral village or mill keeps its
+stock, inaccessible before capture.
 
-A mill outside any fief and outside a capital, with no army on it, is itself
-**inert**: it produces nothing at all while it stays in that state, whether
-it was never held or was just abandoned. An active mill — a member of a fief,
-on a player's capital, or currently held by an army — of level `N` produces
-`N` R and credits exactly **one** infrastructure: the adjacent castle **under
-the same control as the mill's own territory**,
-else the adjacent village under the same control, else the mill's own
-territory. A castle or village adjacent to the mill but controlled by another
-player is ignored. "Neutral" control is a controller like any other: a
-neutral mill never feeds a player, only a neutral village adjacent to it,
-else its own territory. A mill therefore never credits two infrastructures at
-once. An isolated mill (no eligible castle or village of its own control)
-produces on its own territory, which then becomes a source in its own right;
-that production isn't automatically routed elsewhere — it still needs a
-transfer order (`T`). The presence or position of a noble never conditions
-this production.
+A mill of level `N` produces `N` R every action turn and credits exactly
+**one** infrastructure: the adjacent castle **under the same control as the
+mill's own territory**, else the adjacent village under the same control,
+else the mill's own territory. A castle or village adjacent to the mill but
+controlled by another player is ignored. A mill therefore never credits two
+infrastructures at once. An isolated mill (no eligible castle or village of
+its own control) produces on its own territory, which then becomes a source
+in its own right; that production isn't automatically routed elsewhere. The
+presence or position of a noble never conditions this production.
+
+A mill **with no controller** — outside any fief and outside a capital, with
+no player army on it, whether it was never held or was just abandoned —
+produces too, always on its own territory, never for a neighbor, just as a
+neutral village builds up its own stock. The army that later takes control
+of the mill finds that stock in place: it supplies the army like a source,
+and the army can ship it with a transfer order (`T`); in winter, it reaches
+the capital through the adjacent castle or village (section 8).
 
 ### Territory Income
 
@@ -647,10 +648,10 @@ conditions are detailed in section 8.
 
 | Infrastructure | v1 effect |
 |---|---|
-| Mill | Inert (no production) outside a fief/capital with no army; otherwise `N` stockable R per level, credited to a single adjacent infrastructure (castle, else village, else itself) |
+| Mill | `N` stockable R per level, credited to a single adjacent infrastructure under the same control (castle, else village, else itself); with no controller, on its own territory |
 | Supply depot | +{{depot_range_bonus}} territories of supply range while anchored or occupied; inert otherwise |
 | Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
-| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral, never held, or just abandoned — the only infrastructure that never goes inert) |
+| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral, never held, or just abandoned — like the mill, it never goes inert) |
 | Fortified village | Identical to a village (stock, production, income), and additionally gains +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise (section 8) |
 
 ---
@@ -981,11 +982,16 @@ payment made.
   3 R;
 - a supply depot keeps its stock in full; stock outside a castle, village,
   mill, or depot is lost;
+- a controlled mill's stock is then poured in full into the infrastructure
+  that receives its production (adjacent castle under the same control, else
+  village), which brings it back along with its own; it stays on the mill if
+  the mill is isolated, if the mill or that infrastructure is occupied
+  against its controller, or if the player has no capital;
 - castle and village stocks outside the capital are brought back to the
   capital, leaving at most {{village_stock_cap}} R per village and
-  {{castle_stock_cap}} R per castle; a mill's stock is **never** repatriated,
-  and neither is a settlement's stock while it is occupied against its
-  controller (it stays there and follows normal conservation instead);
+  {{castle_stock_cap}} R per castle; a settlement's stock is not brought back
+  while it is occupied against its controller (it stays there and follows
+  normal conservation instead);
 - without a capital, those stocks remain where they are; depot stock remains
   on its territory.
 

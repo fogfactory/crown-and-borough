@@ -177,11 +177,15 @@ jamais partie de ces sources.
   hauteur de `ceil(stock / 2)` ;
 - un stock situé dans un dépôt de vivres est conservé intégralement ;
 - tout stock situé hors château, village, moulin ou dépôt est perdu ;
-- les stocks des châteaux et villages sont rapatriés vers la capitale, en
-  laissant au maximum 1 R par village et 2 R par château hors capitale ; le
-  stock d'un moulin n'est jamais rapatrié ; une colonie occupée contre son
-  contrôleur ne rapatrie pas non plus son stock, qui y reste et suit la
-  conservation normale ; une capitale remplacée par `E C` ce même hiver
+- le stock d'un moulin contrôlé est versé en entier à l'infrastructure qui
+  reçoit sa production (château adjacent du même contrôleur, sinon village,
+  voir [economie.md](economie.md#moulins)) ; il reste sur le moulin si
+  celui-ci est isolé, si le moulin ou cette infrastructure est occupé contre
+  son contrôleur, ou si le joueur n'a pas de capitale ;
+- les stocks des châteaux et villages sont ensuite rapatriés vers la
+  capitale, en laissant au maximum 1 R par village et 2 R par château hors
+  capitale ; une colonie occupée contre son contrôleur ne rapatrie pas son
+  stock, qui y reste et suit la conservation normale ; une capitale remplacée par `E C` ce même hiver
   rapatrie encore son surplus en tant qu'ancienne capitale avant de perdre son
   ancrage (voir [titres.md](titres.md#contrôle-et-occupation)) ;
 - sans capitale, les stocks restent sur place ;
@@ -785,17 +789,21 @@ de tous ses membres au conquérant en une seule fois.
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|
-| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | Inerte tant qu'il n'est pas ancré ou occupé (voir ci-dessus) ; sinon `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même ; un moulin sans contrôleur produit toujours sur sa propre case, comme un village neutre (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement, seulement lorsqu'il est ancré ou occupé (voir ci-dessus) ; inerte sinon | 3 |
 | Château | Aucune | +1 défense tant qu'il reste ancré ou occupé (voir ci-dessus), sinon inerte ; verse le revenu territorial (§3) lorsqu'il est contrôlé ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) | 10 |
-| Village | Généré neutre, non constructible | Verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (seule infrastructure qui ne devient jamais inerte, voir ci-dessus) | — |
+| Village | Généré neutre, non constructible | Verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (comme le moulin, il ne devient jamais inerte) | — |
 
 Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
-sur sa propre case, tant qu'il reste ancré ou occupé ; cette case devient
-alors elle-même une source de ravitaillement pour son contrôleur. La
-production n'y est pas rapatriée automatiquement : un ordre de transfert (`T`)
-reste nécessaire pour l'acheminer. La contrainte de voisinage productif ne
-s'applique qu'à la construction d'un nouveau moulin : un moulin déjà bâti peut
+sur sa propre case ; cette case devient alors elle-même une source de
+ravitaillement pour son contrôleur. Un moulin sans contrôleur (hors fief et
+hors capitale, sans armée d'un joueur) produit lui aussi sur sa propre case,
+jamais pour un voisin, et y accumule son stock d'un tour à l'autre. L'armée
+qui en prend ensuite le contrôle trouve ce stock sur place : il la ravitaille
+comme toute source, elle peut l'expédier par un ordre de transfert (`T`), et
+il rejoint la capitale en fin d'hiver par le château ou le village qui reçoit
+la production du moulin (§2, « Phase d'hiver »). La contrainte de voisinage
+productif ne s'applique qu'à la construction d'un nouveau moulin : un moulin déjà bâti peut
 toujours être amélioré, même isolé, en payant sur son propre stock (voir
 [economie.md](economie.md#moulins)). Une construction remplace la structure
 existante uniquement lorsque la règle de l'ordre le prévoit : un château
