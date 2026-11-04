@@ -15,6 +15,7 @@ vi.mock('@/auth/AuthProvider', () => ({
 }))
 
 import { LanguageProvider } from '@/i18n/LanguageContext'
+import { REPOSITORY_URL } from '@/lib/repository'
 import { OnlineRoutes } from '@/online/OnlineApp'
 
 afterEach(() => {
@@ -22,7 +23,7 @@ afterEach(() => {
 })
 
 describe('online information routes', () => {
-  it('exposes the rules and FAQ links in the authenticated header', () => {
+  it('exposes the rules, FAQ and GitHub links in the authenticated header', () => {
     render(
       <LanguageProvider initialLanguage="en">
         <MemoryRouter initialEntries={['/faq']}>
@@ -34,6 +35,10 @@ describe('online information routes', () => {
     expect(screen.getByRole('heading', { name: 'Tactical FAQ' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Rules' })).toHaveAttribute('href', '/rules')
     expect(screen.getByRole('link', { name: 'FAQ' })).toHaveAttribute('href', '/faq')
+    expect(screen.getByRole('link', { name: 'Source code on GitHub' })).toHaveAttribute(
+      'href',
+      REPOSITORY_URL,
+    )
   })
 
   it('loads the full rules page without an inner scroll container', async () => {

@@ -612,7 +612,10 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
   Cinzel ; saison, année et tour en texte (« Automne 1002 · tour 7 sur 40 ») ;
   scores (voir [Scores et victoire](#scores-et-victoire)) ; lignée ; pastilles de soumission ; joueur actif en hotseat ; navigation
   Règles et FAQ ; un menu « Partie » qui regroupe la création d'une partie
-  (joueurs, graine, années), la résolution forcée et la langue.
+  (joueurs, graine, années), la résolution forcée et la langue, et porte en
+  pied la version et l'icône du dépôt GitHub (`GithubLink`, lien externe). En
+  ligne, le bandeau du site porte aussi cette icône, à côté de la langue :
+  un joueur sans menu « Partie » la trouve là.
 - **Tiroir à droite :** posé sur la carte, avec des onglets en marque-pages
   (Ordres, Rapport, Royaume, Règles) qui dépassent de son bord gauche. Il se replie
   pour rendre toute la carte ; le marque-page actif est en `brass-400`. Les
@@ -658,8 +661,9 @@ frappe.
 **Précision.** Le téléphone s'ouvre sur l'onglet Carte. Le cadrage sur les
 territoires du joueur garde la carte pleine : il ne montre jamais de papier
 vide au-delà de son bord. La barre du haut écrit la saison et le tour en
-abrégé (« Automne 1002 · 7/40 ») ; le joueur actif du hotseat, la navigation
-et la langue passent dans le menu « Partie », la lignée s'ouvre depuis le
+abrégé (« Automne 1002 · 7/40 ») ; le joueur actif du hotseat, la navigation,
+la langue et l'icône du dépôt GitHub passent dans le menu « Partie » (cible
+de 44 px sous 1024 px, 32 px au-delà), la lignée s'ouvre depuis le
 marque-page Royaume. En ligne, la partie ne garde que sa propre barre :
 retour, saison et tour, scores, salon et menu ; l'état du réseau n'y apparaît
 que hors ligne. Le pied « Sceller les ordres » n'accompagne que l'onglet

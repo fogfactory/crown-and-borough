@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { GameMenu } from '@/components/GameMenu'
 import { LanguageProvider } from '@/i18n/LanguageContext'
+import { REPOSITORY_URL } from '@/lib/repository'
 
 const renderMenu = (props: Parameters<typeof GameMenu>[0]) =>
   render(
@@ -20,6 +21,16 @@ describe('GameMenu', () => {
     expect(screen.getByRole('group', { name: 'Langue' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Résoudre' }))
     expect(onResolve).toHaveBeenCalledOnce()
+  })
+
+  it('links to the GitHub repository next to the version', () => {
+    renderMenu({})
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    expect(screen.getByRole('link', { name: 'Code source sur GitHub' })).toHaveAttribute(
+      'href',
+      REPOSITORY_URL,
+    )
   })
 
   it('asks for a confirmation before an online forced resolution', () => {
