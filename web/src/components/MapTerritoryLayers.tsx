@@ -4,7 +4,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { armyDrawingOwner, type ResolvedArms } from '@/lib/heraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
-import { centroid } from '@/lib/map-svg-geometry'
+import { bottomAt, centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import {
@@ -37,8 +37,14 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
   duchy: 'fief.title.duchy',
 }
 
-/** Feet of an army's figurines, below the territory centre, in units. */
+/**
+ * Feet of an army's figurines, below the territory centre, in units: far
+ * enough down to leave the label alone, no further than the territory's
+ * lower edge.
+ */
 const ARMY_FEET = 46
+const ARMY_MIN_FEET = 22
+const ARMY_EDGE_MARGIN = 3
 
 /** Nobles sharing a territory stand side by side, this far apart. */
 const NOBLE_SPACING = 12
@@ -203,6 +209,15 @@ export function LiveLayer({
         }
 
         const [centerX, centerY] = centroid(territory.points)
+        const armyX = centerX - 9 * annotationScale
+        const armyFeet = Math.max(
+          centerY + ARMY_MIN_FEET * annotationScale,
+          Math.min(
+            centerY + ARMY_FEET * annotationScale,
+            (bottomAt(territory.points, armyX) ?? Infinity) -
+              ARMY_EDGE_MARGIN * annotationScale,
+          ),
+        )
         const territoryNobles = state.nobles.filter(
           (noble) => noble.location === territory.id,
         )
@@ -246,9 +261,7 @@ export function LiveLayer({
               <g key={`${territory.id}-army`}>
                 <title>{armyLabel(territoryState.army)}</title>
                 <g
-                  transform={`translate(${centerX - 9 * annotationScale} ${
-                    centerY + ARMY_FEET * annotationScale
-                  }) scale(${annotationScale})`}
+                  transform={`translate(${armyX} ${armyFeet}) scale(${annotationScale})`}
                 >
                   <ArmyGlyph
                     owner={armyDrawingOwner(armsByOwner, territoryState.army.owner)}
@@ -259,8 +272,8 @@ export function LiveLayer({
                 </g>
                 {territoryState.army.starving && (
                   <FamineMarker
-                    x={centerX - 9 * annotationScale + 16 * annotationScale}
-                    y={centerY + (ARMY_FEET - 10) * annotationScale}
+                    x={armyX + 16 * annotationScale}
+                    y={armyFeet - 10 * annotationScale}
                     scale={annotationScale}
                   />
                 )}

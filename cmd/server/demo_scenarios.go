@@ -18,6 +18,10 @@ var demoScenarios = map[string]struct {
 	description string
 	apply       func(*models.GameState) error
 }{
+	"armies": {
+		description: "winter, annexation scenario (a barony of P1 with its crown and trigram, three one-troop P1 armies on free territories) plus armies of 2, 4, 6, 9, 12 and 25 troops on free territories for P1 to P4, a P2 army occupying a barony member (greyed shield) and a P1 army on P1's own capital (shield kept)",
+		apply:       forgeArmies,
+	},
 	"winter": {
 		description: "winter, P1 is pope with a bishop-astrologer, a Witch, cards in hand; P2 holds a cardinal and an excommunicated noble",
 		apply:       forgeWinter,
@@ -941,5 +945,62 @@ func forgeRoyalTax(state *models.GameState) error {
 	state.King, state.Queen = &king, &queen
 	giveSpecialCards(state, "P1", models.CardKindSeigneurialTax, models.CardKindSeigneurialTax)
 	giveSpecialCards(state, "P2", models.CardKindSeigneurialTax)
+	return nil
+}
+
+// forgeArmies shows the soldier packs and the control shields: it starts from
+// the annexation scenario, then adds armies of growing size on free
+// territories, one enemy army on a member of the barony, and an army of P1 on
+// its own capital.
+func forgeArmies(state *models.GameState) error {
+	if err := forgeAnnexation(state); err != nil {
+		return err
+	}
+	place := func(id models.TerritoryID, owner models.PlayerID, size int) {
+		armyID := models.ArmyID(fmt.Sprintf("ZY%d", state.NextArmyID))
+		state.NextArmyID++
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: owner, TerritoryID: id, Size: size})
+		territoryState := state.TerritoryStates[id]
+		territoryState.Army = &armyID
+		state.TerritoryStates[id] = territoryState
+	}
+	players := []models.PlayerID{"P1", "P2", "P3", "P4"}
+	sizes := []int{2, 4, 6, 9, 12, 25}
+	next := 0
+	for _, territory := range state.Territories {
+		if next == len(sizes) {
+			break
+		}
+		if _, controlled := state.TerritoryController(territory.ID); controlled || state.TerritoryStates[territory.ID].Army != nil {
+			continue
+		}
+		place(territory.ID, players[next%len(players)], sizes[next])
+		next++
+	}
+	var member, capitalID models.TerritoryID
+	for _, fief := range state.Fiefs {
+		if fief.ID == "F1" {
+			for _, id := range fief.Territories {
+				if id != fief.CapitalTerritoryID && state.TerritoryStates[id].Army == nil {
+					member = id
+				}
+			}
+			capitalID = fief.CapitalTerritoryID
+		}
+	}
+	if member != "" {
+		place(member, "P2", 3)
+	}
+	for _, player := range state.Players {
+		if player.ID != "P1" || player.CapitalCastleID == nil {
+			continue
+		}
+		for _, infrastructure := range state.Infrastructures {
+			if infrastructure.ID == *player.CapitalCastleID && state.TerritoryStates[infrastructure.TerritoryID].Army == nil {
+				place(infrastructure.TerritoryID, "P1", 2)
+			}
+		}
+	}
+	fmt.Printf("demo armies: %d armies placed, member %s occupied by P2, barony capital %s\n", next, member, capitalID)
 	return nil
 }
