@@ -217,6 +217,7 @@ export function ProfilePage() {
   const [searchParams] = useSearchParams()
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [saving, setSaving] = useState(false)
+  const [togglingReleaseNotes, setTogglingReleaseNotes] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const redirect = safeRedirect(searchParams.get('redirect'))
 
@@ -247,11 +248,14 @@ export function ProfilePage() {
   }
 
   const handleReleaseNotesToggle = async (hide: boolean) => {
+    setTogglingReleaseNotes(true)
     setError(null)
     try {
       await updateReleaseNotes({ hideReleaseNotes: hide })
     } catch (toggleError) {
-      setError(errorText(toggleError, t('error.profileRequired')))
+      setError(errorText(toggleError, t('profile.hideReleaseNotesFailed')))
+    } finally {
+      setTogglingReleaseNotes(false)
     }
   }
 
@@ -295,7 +299,7 @@ export function ProfilePage() {
           <input
             type="checkbox"
             checked={profile?.hideReleaseNotes ?? false}
-            disabled={!profile}
+            disabled={!profile || togglingReleaseNotes}
             onChange={(event) => void handleReleaseNotesToggle(event.target.checked)}
             className="mt-0.5 size-4 accent-brass-700"
           />
@@ -308,7 +312,6 @@ export function ProfilePage() {
             </span>
           </span>
         </label>
-
       </CardContent>
     </Card>
   )

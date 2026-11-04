@@ -1138,6 +1138,7 @@ const englishMessages = {
   'profile.hideReleaseNotes': 'Hide release notes',
   'profile.hideReleaseNotesDescription':
     'Do not show the list of changes when a new version is deployed.',
+  'profile.hideReleaseNotesFailed': 'Could not save the release notes preference.',
   'releaseNotes.title': 'What is new',
   'releaseNotes.close': 'Close',
   'releaseNotes.allReleases': 'All releases on GitHub',
@@ -2404,7 +2405,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'profile.required': 'Complétez votre profil avant de rejoindre une partie.',
   'profile.hideReleaseNotes': 'Masquer les notes de version',
   'profile.hideReleaseNotesDescription':
-    "Ne pas afficher la liste des changements quand une nouvelle version est déployée.",
+    'Ne pas afficher la liste des changements quand une nouvelle version est déployée.',
+  'profile.hideReleaseNotesFailed': 'Impossible d’enregistrer la préférence des notes de version.',
   'releaseNotes.title': 'Nouveautés',
   'releaseNotes.close': 'Fermer',
   'releaseNotes.allReleases': 'Toutes les versions sur GitHub',
