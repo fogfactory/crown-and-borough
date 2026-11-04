@@ -518,7 +518,9 @@ workflow has no service-account key secret and must not be given one.
 | `VITE_FIREBASE_APP_ID`         | Firebase Web `appId`                                      |
 | `PUBLIC_APP_URL`               | Optional complete HTTPS origin, usually the Cloud Run URL |
 | `PUBLIC_HOSTING_URL`           | `https://crown-and-borough.web.app`                       |
-| `GCP_BUG_TOKEN_SECRET`         | Optional Secret Manager secret name for `GITHUB_BUG_TOKEN` |
+| `BUG_APP_ID`                   | Optional GitHub App ID of the bug reporter                |
+| `BUG_APP_INSTALLATION_ID`      | Optional installation ID of that App on this repository   |
+| `GCP_BUG_APP_KEY_SECRET`       | Optional Secret Manager secret holding the App private key |
 
 With GitHub CLI, the variables can be set without writing any credential file:
 
@@ -552,22 +554,32 @@ collection on `ref` or `issueUrl` to find it; reports are plain documents that
 can be deleted from the console once triaged.
 
 The in-game bug report dialog files public issues through `POST /api/bugs`,
-which needs a GitHub token able to create issues on the repository
-(fine-grained, `Issues: read and write` on this repository only). The server
-reads it from the `GITHUB_BUG_TOKEN` environment variable. It is a secret: keep
-it in Secret Manager, never in a repository variable or file.
+as a GitHub App installed on this repository with the single permission
+*Issues: read and write*. The server signs a short-lived JWT with the App
+private key and exchanges it for a one-hour installation token. The private
+key is a secret: keep it in Secret Manager, never in a repository variable or
+file. The App ID and installation ID are not secret.
 
 ```bash
-# Create the secret (paste the token on stdin, it is never echoed in the repo).
-gcloud secrets create github-bug-token --project "$PROJECT_ID" --data-file=-
-gcloud secrets add-iam-policy-binding github-bug-token --project "$PROJECT_ID" \
+# Store the downloaded private key, grant the runtime access, then delete the file.
+gcloud secrets create github-bug-app-key --project "$PROJECT_ID" --data-file=PATH/TO/KEY.pem
+gcloud secrets add-iam-policy-binding github-bug-app-key --project "$PROJECT_ID" \
   --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor
-gh variable set GCP_BUG_TOKEN_SECRET --repo "$GITHUB_REPOSITORY" --body github-bug-token
+shred -u PATH/TO/KEY.pem
+
+gh variable set GCP_BUG_APP_KEY_SECRET --repo "$GITHUB_REPOSITORY" --body github-bug-app-key
+gh variable set BUG_APP_ID --repo "$GITHUB_REPOSITORY" --body "$BUG_APP_ID"
+gh variable set BUG_APP_INSTALLATION_ID --repo "$GITHUB_REPOSITORY" --body "$BUG_APP_INSTALLATION_ID"
 ```
 
-When `GCP_BUG_TOKEN_SECRET` is empty the deployment sets no token, `GET
-/api/bugs` reports `{"enabled": false}` and the dialog greys out "Send" (the
-"Fill in on GitHub" path keeps working). Locally the variable defaults to empty.
+The deployment mounts the key as `GITHUB_BUG_APP_PRIVATE_KEY` and passes the two
+identifiers as `GITHUB_BUG_APP_ID` and `GITHUB_BUG_APP_INSTALLATION_ID`. When
+any of the three variables is empty nothing is set, `GET /api/bugs` reports
+`{"enabled": false}` and the dialog greys out "Send" (the "Fill in on GitHub"
+path keeps working). Rotate the key by generating a new one on the App page and
+adding a version of the secret (`gcloud secrets versions add`), then redeploy.
+Locally, set the three `GITHUB_BUG_APP_*` variables, or `GITHUB_BUG_TOKEN` with
+a personal fine-grained token, in the shell that starts the server.
 
 Replace every `replace-me` value before starting a deployment. Check the final
 names, without printing their values, with:

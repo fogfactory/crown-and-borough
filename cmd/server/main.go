@@ -82,8 +82,7 @@ func main() {
 		CreatorGate: creatorGateForEnvironment(onlineDevMode),
 		Readiness:   readinessChecks,
 		SeedAssets:  &assets,
-		// Without GITHUB_BUG_TOKEN the client is nil and the route is disabled.
-		BugIssues: api.NewGitHubIssueClient(os.Getenv("GITHUB_BUG_TOKEN"), "fogfactory/crown-and-borough"),
+		BugIssues:   bugIssueClient(),
 	}
 	if !onlineDevMode {
 		projectID := os.Getenv("FIREBASE_PROJECT_ID")
@@ -109,6 +108,30 @@ func main() {
 	if err := http.ListenAndServe(addr, api.WithCORSMode(server, onlineDevMode)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// bugIssueClient authenticates as the GitHub App described by
+// GITHUB_BUG_APP_ID, GITHUB_BUG_APP_INSTALLATION_ID and
+// GITHUB_BUG_APP_PRIVATE_KEY, or else with the GITHUB_BUG_TOKEN bot token
+// (local development). Without either the route is disabled.
+func bugIssueClient() api.IssueCreator {
+	const repository = "fogfactory/crown-and-borough"
+	app, err := api.NewGitHubAppIssueClient(
+		os.Getenv("GITHUB_BUG_APP_ID"),
+		os.Getenv("GITHUB_BUG_APP_INSTALLATION_ID"),
+		os.Getenv("GITHUB_BUG_APP_PRIVATE_KEY"),
+		repository,
+	)
+	if err != nil {
+		log.Printf("bug reports: GitHub App disabled: %v", err)
+	}
+	if app != nil {
+		return app
+	}
+	if token := api.NewGitHubIssueClient(os.Getenv("GITHUB_BUG_TOKEN"), repository); token != nil {
+		return token
+	}
+	return nil
 }
 
 func newGameStore(ctx context.Context, balance assetgen.Balance, assets assetgen.Assets, onlineDevMode bool) (store.GameStore, func(), error) {

@@ -46,9 +46,10 @@ type IssueCreator interface {
 	CreateIssue(ctx context.Context, title, body string, labels []string) (string, error)
 }
 
-// GitHubIssueClient creates issues through the GitHub REST API with a bot token.
+// GitHubIssueClient creates issues through the GitHub REST API. Its tokens come
+// from a TokenSource: a fixed bot token or a GitHub App installation.
 type GitHubIssueClient struct {
-	Token      string
+	Tokens     TokenSource
 	Repository string // owner/name
 	BaseURL    string // defaults to https://api.github.com
 	HTTPClient *http.Client
@@ -61,7 +62,7 @@ func NewGitHubIssueClient(token, repository string) *GitHubIssueClient {
 	if token == "" {
 		return nil
 	}
-	return &GitHubIssueClient{Token: token, Repository: repository}
+	return &GitHubIssueClient{Tokens: staticToken(token), Repository: repository}
 }
 
 func (c *GitHubIssueClient) CreateIssue(ctx context.Context, title, body string, labels []string) (string, error) {
@@ -77,11 +78,15 @@ func (c *GitHubIssueClient) CreateIssue(ctx context.Context, title, body string,
 	if err != nil {
 		return "", err
 	}
+	token, err := c.Tokens.Token(ctx)
+	if err != nil {
+		return "", err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/repos/"+c.Repository+"/issues", bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	req.Header.Set("Content-Type", "application/json")
