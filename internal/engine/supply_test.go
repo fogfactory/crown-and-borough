@@ -722,19 +722,20 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := famineEventForArmy(t, resolution.Events, "A1")
-		if !event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.ResourceCredit != 1 || event.CreditTerritoryID != "CCC" {
+		if !event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.ResourceCredit != 2 || event.CreditTerritoryID != "CCC" {
 			t.Errorf("famine event = %#v, want saved mill pillage credited to CCC", event)
 		}
 		if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 			t.Errorf("infrastructures = %#v, want only the castle left", resolution.State.Infrastructures)
 		}
 		// CCC carries no territory income in this scenario (zeroed out), so
-		// its only resources are the pillage credit.
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 1 {
+		// its only resources are the pillage credit: the bonus of 4 minus
+		// the 2 rations A1 still lacked after taking its mill's ration.
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 2 {
 			t.Errorf("credited source resources = %d, want only the pillage credit", got)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 1 {
-			t.Errorf("credited source event stock = %d, want 1", event.StockAfter)
+		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 2 {
+			t.Errorf("credited source event stock = %d, want 2", event.StockAfter)
 		}
 	})
 
@@ -785,16 +786,16 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		// holds 2 rations (AAA's and DDD's mills). A2, the closest, is served
 		// first: it needs 3, so it starves and takes the 1 ration its
 		// supplied strength of 2 still needs. The ration left feeds A1's
-		// demand of 1. A2 then recovers through its own mill at exactly zero
-		// gain (PillageBonus 3 against its own demand 3).
+		// demand of 1. A2 then recovers through its own mill: PillageBonus 3
+		// against the 2 rations it still lacks credits 1 ration to AAA.
 		for _, event := range resolution.Events {
 			if event.Type == EventTypeFamine && event.ArmyID == "A1" {
 				t.Errorf("A1 famine event = %#v, want A1 fed by the pool A2 left", event)
 			}
 		}
 		a2Event := famineEventForArmy(t, resolution.Events, "A2")
-		if !a2Event.SavedByPillage || a2Event.ResourceCredit != 0 || a2Event.InfrastructureID != "I3" || a2Event.SourceID != "DDD" {
-			t.Errorf("A2 famine event = %#v, want zero-gain recovery through its own mill", a2Event)
+		if !a2Event.SavedByPillage || a2Event.ResourceCredit != 1 || a2Event.CreditTerritoryID != "AAA" || a2Event.InfrastructureID != "I3" || a2Event.SourceID != "DDD" {
+			t.Errorf("A2 famine event = %#v, want recovery through its own mill crediting 1 ration to AAA", a2Event)
 		}
 		if ctxInfrastructurePresent(resolution.State, "I3") {
 			t.Error("auto-pillage should remove I3")
@@ -813,7 +814,11 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		// The mill's ration leaves A1 2 short: a pillage bonus of 1 cannot
+		// cover them.
+		balance := testBalance()
+		balance.PillageBonus = 1
+		resolution, err := Resolve(state, balance)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}

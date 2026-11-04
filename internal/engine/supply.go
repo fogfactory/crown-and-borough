@@ -34,6 +34,12 @@ type famineCandidate struct {
 	distance int
 }
 
+// residualDemand is what the army still lacks once fed from the pool: the
+// share an auto-pillage has to cover to save it.
+func (candidate famineCandidate) residualDemand() int {
+	return candidate.demand - candidate.received
+}
+
 // rationProductionParts breaks the local ration production of one territory
 // into its terrain and good harvest components, plus the terrain rations the
 // bad harvest calamity suppresses.
@@ -578,10 +584,11 @@ func allocateSupply(ctx *resolutionContext, sources []*supplySource, assignments
 
 	if consumed <= totalProduction {
 		// Production alone covered what the armies took: the pool's net
-		// excess is stored where it was produced, each source keeping at
-		// most what it produced beyond what its own armies took.
+		// excess is stored where it was produced, each source (in territory
+		// order) keeping at most what it produced beyond what its own armies
+		// took.
 		excess := totalProduction - consumed
-		for _, source := range sortedSupplySources(sources) {
+		for _, source := range sources {
 			stored := min(excess, max(0, source.production-served[source.territoryID]))
 			if stored == 0 {
 				continue
@@ -627,12 +634,6 @@ func starvingIntake(size, demand, missing, costBase int) int {
 	}
 	ownCover := armyCost(size, costBase) - demand
 	return min(demand-missing, max(0, armyCost(supplied, costBase)-ownCover))
-}
-
-func sortedSupplySources(sources []*supplySource) []*supplySource {
-	sorted := append([]*supplySource(nil), sources...)
-	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].territoryID < sorted[j].territoryID })
-	return sorted
 }
 
 // recordPoolRations traces the rations one source dispatched to the armies of
@@ -744,7 +745,7 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		event.InfrastructureID = infrastructure.ID
 		event.InfrastructureType = infrastructure.Type
 		ctx.removeInfrastructure(infrastructure.ID)
-		gain := ctx.balance.PillageBonus - candidate.demand
+		gain := ctx.balance.PillageBonus - candidate.residualDemand()
 		if gain >= 0 {
 			event.SavedByPillage = true
 			if gain > 0 {

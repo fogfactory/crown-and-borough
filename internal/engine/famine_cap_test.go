@@ -317,3 +317,33 @@ func TestResolveCoveredPoolStoresOnlyItsNetExcess(t *testing.T) {
 		t.Errorf("stocks XXX+YYY = %d, want 1: the mill's ration fed Y1", total)
 	}
 }
+
+func TestResolvePillageCoversOnlyTheDemandThePoolLeftUnfed(t *testing.T) {
+	// B (4 troops, 8 rations) starves on a castle holding 4 rations: it takes
+	// those 4 for its supplied strength of 3, and the pillage bonus of 4
+	// covers the remaining 4, which saves it at full size.
+	balance := testBalance()
+	balance.RationTerrain[models.TerrainMountain] = 0
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+	balance.PillageBonus = 4
+	state := famineCapState(t, models.TerrainMountain, models.Army{ID: "B", OwnerID: "P1", TerritoryID: "AAA", Size: 4, Starving: true})
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	setTerritoryResources(state, "AAA", 4)
+	validateTestState(t, state)
+
+	risks := ForecastFamineRisk(state, balance)["P1"].ArmiesAtRisk
+	if len(risks) != 1 || !risks[0].SavedByPillage || risks[0].ExpectedLoss != 0 {
+		t.Errorf("risks = %#v, want the pillage forecast to save B", risks)
+	}
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if event := famineEventForArmy(t, resolution.Events, "B"); !event.SavedByPillage || event.TroopsLost != 0 {
+		t.Errorf("famine event = %#v, want B saved by pillage", event)
+	}
+	if b := armyByID(t, resolution.State, "B"); b.Size != 4 || b.Starving {
+		t.Errorf("B = %+v, want it saved at size 4", b)
+	}
+}

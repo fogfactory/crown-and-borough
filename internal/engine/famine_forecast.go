@@ -77,16 +77,14 @@ func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[m
 		assignedFamine := allocateSupply(ctx, sources, assignments)
 
 		received := make(map[models.ArmyID]int, len(assignedFamine))
-		famined := make(map[models.ArmyID]bool, len(assignedFamine))
 		for _, candidate := range assignedFamine {
-			famined[candidate.army.ID] = true
 			received[candidate.army.ID] = candidate.received
 		}
 
 		forecast := FamineRiskForecast{}
 		for _, assignment := range assignments {
-			if famined[assignment.army.ID] {
-				forecast.NetConsumption += received[assignment.army.ID]
+			if taken, famined := received[assignment.army.ID]; famined {
+				forecast.NetConsumption += taken
 				continue
 			}
 			forecast.NetConsumption += assignment.demand
@@ -123,7 +121,7 @@ func (ctx *resolutionContext) armyFamineRisk(candidate famineCandidate) ArmyFami
 	// pillage that covers the demand saves the army (resolveFamine).
 	if infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID); infrastructure != nil {
 		risk.PillageInfrastructure = infrastructure.Type
-		risk.SavedByPillage = ctx.balance.PillageBonus >= candidate.demand
+		risk.SavedByPillage = ctx.balance.PillageBonus >= candidate.residualDemand()
 	}
 	if !risk.SavedByPillage {
 		risk.ExpectedLoss = max(0, candidate.army.Size-supplied)
