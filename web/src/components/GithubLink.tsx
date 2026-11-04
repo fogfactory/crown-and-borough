@@ -1,5 +1,6 @@
 import { IconBrandGithub } from '@tabler/icons-react'
 
+import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { REPOSITORY_URL } from '@/lib/repository'
 import { cn } from '@/lib/utils'
@@ -9,18 +10,21 @@ export function GithubLink({ className }: { className?: string }) {
   const { t } = useLanguage()
 
   return (
-    <a
-      href={REPOSITORY_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={t('app.github')}
-      title={t('app.github')}
-      className={cn(
-        'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900 lg:size-8',
-        className,
-      )}
+    <Button
+      asChild
+      variant="ghost"
+      size="icon"
+      className={cn('size-11 text-ink-500 lg:size-8', className)}
     >
-      <IconBrandGithub aria-hidden="true" className="size-5" />
-    </a>
+      <a
+        href={REPOSITORY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t('app.github')}
+        title={t('app.github')}
+      >
+        <IconBrandGithub aria-hidden="true" className="size-5" />
+      </a>
+    </Button>
   )
 }
