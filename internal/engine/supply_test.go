@@ -887,11 +887,11 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 			supplyTerritory("CCC", "CCC", models.TerrainPlain, "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2},
 			// Starving: true simulates a deficit already carried over from a
 			// previous turn's warning: only that persistent, second
 			// consecutive deficit triggers troop loss.
-			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2, Starving: true},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
 			// A4 holds DDD's mill: outside every fief and capital, only an
 			// army gives the mill a controller to feed (#470). Its local rations (3,
@@ -921,15 +921,17 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	event := famineEventForArmy(t, resolution.Events, "A2")
+	// Equal distance and size: the famine strikes the descending trigram
+	// first, so AAA is served before BBB.
+	event := famineEventForArmy(t, resolution.Events, "A1")
 	if event.SavedByPillage || event.SourceID != "ZZZ" {
-		t.Errorf("A2 famine event = %#v, want an unsaved source-assigned famine", event)
+		t.Errorf("A1 famine event = %#v, want an unsaved source-assigned famine", event)
 	}
-	if hasFamineEvent(resolution.Events, "A1") {
-		t.Errorf("events = %#v, want AAA selected before BBB", resolution.Events)
+	if hasFamineEvent(resolution.Events, "A2") {
+		t.Errorf("events = %#v, want BBB selected before AAA", resolution.Events)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" || army.Size != 1 {
-		t.Errorf("A2 = %+v, want it to stay at AAA with one troop lost", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 {
+		t.Errorf("A1 = %+v, want it to stay at BBB with one troop lost", army)
 	}
 }
 

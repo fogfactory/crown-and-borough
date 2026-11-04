@@ -279,3 +279,41 @@ func TestResolveShortPoolFeedsTheClosestStarvingArmyAtItsSuppliedStrength(t *tes
 		t.Errorf("forecast = %#v, want B alone at risk, supplied at 3, 1 R short, 6 R consumed", risks)
 	}
 }
+
+func TestResolveCoveredPoolStoresOnlyItsNetExcess(t *testing.T) {
+	// XXX's mill produces the 1 ration Y1 needs while Y1 is assigned to the
+	// YYY stock: the pool's excess is zero, so neither source gains a ration.
+	balance := testBalance()
+	balance.TerritoryIncome = 0
+	balance.VillageIncome = 0
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("XXX", "XXX", models.TerrainMountain, "YYY"),
+			supplyTerritory("YYY", "YYY", models.TerrainMountain, "XXX"),
+		},
+		[]models.Army{
+			{ID: "X1", OwnerID: "P1", TerritoryID: "XXX", Size: 1},
+			{ID: "Y1", OwnerID: "P1", TerritoryID: "YYY", Size: 2},
+		},
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "XXX"})
+	setTerritoryResources(state, "YYY", 1)
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, balance)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if source := supplyEventForSource(t, resolution.Events, "XXX"); source.Production != 1 {
+		t.Fatalf("XXX supply event = %#v, want the mill's 1 ration in the pool", source)
+	}
+	for _, army := range resolution.State.Armies {
+		if army.Starving {
+			t.Errorf("%s = %+v, want every army fed", army.ID, army)
+		}
+	}
+	total := resolution.State.TerritoryStates["XXX"].Resources + resolution.State.TerritoryStates["YYY"].Resources
+	if total != 1 {
+		t.Errorf("stocks XXX+YYY = %d, want 1: the mill's ration fed Y1", total)
+	}
+}

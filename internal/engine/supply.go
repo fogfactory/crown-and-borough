@@ -528,37 +528,18 @@ func closestSupplySource(ctx *resolutionContext, territoryID models.TerritoryID,
 
 // allocateSupply feeds one player's source-assigned armies from the pool of
 // its sources' production and stocks, and returns the armies it cannot feed.
-// When production covers every demand, each source stores its own excess.
-// Otherwise armies are served in the reverse of the famine order (closest,
-// then smallest, then highest territory ID first): each takes its whole
-// demand while the pool holds it; one that the pool cannot cover starves and
-// takes only what feeds its supplied strength, leaving the rest to the armies
-// served after it. Whatever no army takes stays in stock.
+// Armies are served in the reverse of the famine order (closest, then
+// smallest, then ascending trigram first): each takes its whole demand while
+// the pool holds it; one that the pool cannot cover starves and takes only
+// what feeds its supplied strength, leaving the rest to the armies served
+// after it. Whatever no army takes stays in stock.
 func allocateSupply(ctx *resolutionContext, sources []*supplySource, assignments []supplyAssignment) []famineCandidate {
-	totalDemand := 0
 	totalProduction := 0
 	totalStock := 0
 	for _, source := range sources {
-		totalDemand += source.demand
 		totalProduction += source.production
 		totalStock += ctx.state.TerritoryStates[source.territoryID].Resources
 	}
-	if totalDemand <= totalProduction {
-		for _, source := range sources {
-			excess := source.production - source.demand
-			if excess <= 0 {
-				continue
-			}
-			state := ctx.state.TerritoryStates[source.territoryID]
-			state.Resources += excess
-			ctx.state.TerritoryStates[source.territoryID] = state
-		}
-		for _, assignment := range assignments {
-			ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
-		}
-		return nil
-	}
-
 	sort.SliceStable(assignments, func(i, j int) bool {
 		if assignments[i].distance != assignments[j].distance {
 			return assignments[i].distance < assignments[j].distance
@@ -566,7 +547,7 @@ func allocateSupply(ctx *resolutionContext, sources []*supplySource, assignments
 		if assignments[i].army.Size != assignments[j].army.Size {
 			return assignments[i].army.Size < assignments[j].army.Size
 		}
-		return assignments[i].army.TerritoryID > assignments[j].army.TerritoryID
+		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
 	})
 	pool := totalProduction + totalStock
 	consumed := 0
@@ -596,8 +577,9 @@ func allocateSupply(ctx *resolutionContext, sources []*supplySource, assignments
 	}
 
 	if consumed <= totalProduction {
-		// Production alone covered what the armies took: every source keeps
-		// its own surplus, up to the pool's net excess.
+		// Production alone covered what the armies took: the pool's net
+		// excess is stored where it was produced, each source keeping at
+		// most what it produced beyond what its own armies took.
 		excess := totalProduction - consumed
 		for _, source := range sortedSupplySources(sources) {
 			stored := min(excess, max(0, source.production-served[source.territoryID]))
@@ -670,7 +652,7 @@ func sortDirectFamine(ctx *resolutionContext, candidates []famineCandidate) {
 		if candidates[i].army.Size != candidates[j].army.Size {
 			return candidates[i].army.Size > candidates[j].army.Size
 		}
-		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
+		return candidates[i].army.TerritoryID > candidates[j].army.TerritoryID
 	})
 }
 
@@ -682,7 +664,7 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 		if candidates[i].army.Size != candidates[j].army.Size {
 			return candidates[i].army.Size > candidates[j].army.Size
 		}
-		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
+		return candidates[i].army.TerritoryID > candidates[j].army.TerritoryID
 	})
 }
 

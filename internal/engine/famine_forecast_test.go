@@ -113,13 +113,14 @@ func TestForecastFamineRiskFlagsSharedSourceContention(t *testing.T) {
 	// armyCost(3, 2) = 4, mountain terrain rations = 1: each army needs 3
 	// from the network. Considered alone, either looks covered by CCC's
 	// stock of 3 - but together they need 6, CCC's stock only covers 3, and
-	// the tie-break (equal distance and size) picks AAA to starve first.
+	// the tie-break (equal distance and size, descending trigram) picks BBB
+	// to starve first.
 	if forecast.NetConsumption != 3 || len(forecast.ArmiesAtRisk) != 1 {
 		t.Fatalf("forecast = %#v, want exactly one army flagged", forecast)
 	}
 	risk := forecast.ArmiesAtRisk[0]
-	if risk.ArmyID != "A1" || risk.TerritoryID != "AAA" || risk.Deficit != 3 {
-		t.Errorf("risk = %#v, want A1 at AAA with a deficit of 3", risk)
+	if risk.ArmyID != "A2" || risk.TerritoryID != "BBB" || risk.Deficit != 3 {
+		t.Errorf("risk = %#v, want A2 at BBB with a deficit of 3", risk)
 	}
 }
 
