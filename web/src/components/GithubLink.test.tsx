@@ -1,13 +1,9 @@
 import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { GithubLink } from '@/components/GithubLink'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import { REPOSITORY_URL } from '@/lib/repository'
-
-afterEach(() => {
-  window.localStorage.clear()
-})
 
 describe('GithubLink', () => {
   it('links to the repository in a new tab without leaking the opener', () => {
@@ -25,14 +21,14 @@ describe('GithubLink', () => {
   })
 
   it('is labelled in French when the language is French', () => {
-    window.localStorage.setItem('crown-and-borough.language', 'fr')
-
     render(
-      <LanguageProvider>
+      <LanguageProvider initialLanguage="fr">
         <GithubLink />
       </LanguageProvider>,
     )
 
-    expect(screen.getByRole('link', { name: 'Code source sur GitHub' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Code source sur GitHub' }),
+    ).toBeInTheDocument()
   })
 })
