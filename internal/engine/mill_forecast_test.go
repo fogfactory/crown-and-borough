@@ -104,3 +104,24 @@ func TestForecastMillIncomeNilInWinter(t *testing.T) {
 		t.Fatalf("totals = %#v, want nil in winter", totals)
 	}
 }
+
+// TestForecastMillIncomeExcludesUncontrolledMills checks #470: an
+// uncontrolled mill's own production never counts toward any player's mill
+// income, even next to that player's castle.
+func TestForecastMillIncomeExcludesUncontrolledMills(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainMountain, "MIL"),
+			supplyTerritory("MIL", "MIL", models.TerrainMountain, "AAA"),
+		},
+		nil,
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeMill, Level: 3, TerritoryID: "MIL"})
+	setCapital(state, "P1", "I1")
+	validateTestState(t, state)
+
+	if totals := ForecastMillIncome(state, testBalance()); totals["P1"] != 0 {
+		t.Fatalf("mill income = %#v, want 0 for P1 (the uncontrolled mill stocks itself)", totals)
+	}
+}

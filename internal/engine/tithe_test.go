@@ -209,3 +209,24 @@ func TestTitheDivertsUncontrolledMillProduction(t *testing.T) {
 		t.Errorf("MIL stock = %d, want its production diverted", got)
 	}
 }
+
+// TestCardinalsLeaveTheRemainderInAnUncontrolledMill checks #470: when two
+// cardinals split an uncontrolled mill's 3 R, the 1 R remainder stays in the
+// mill's own stock.
+func TestCardinalsLeaveTheRemainderInAnUncontrolledMill(t *testing.T) {
+	state := titheState(t)
+	removeArmy(state, "A3")
+	validateTestState(t, state)
+	resolution, err := ResolveWithDeckOrders(state, testBalance(), map[models.PlayerID][]models.DeckOrder{
+		"P1": tithe("N1", "MIL"), "P2": tithe("N2", "MIL"),
+	})
+	if err != nil {
+		t.Fatalf("ResolveWithDeckOrders: %v", err)
+	}
+	if p1, p2 := supplyProduction(resolution.Events, "PCP"), supplyProduction(resolution.Events, "QCP"); p1 != 1 || p2 != 1 {
+		t.Errorf("capital production = %d and %d, want 1 R each (3 R split in two)", p1, p2)
+	}
+	if got := resolution.State.TerritoryStates["MIL"].Resources; got != 1 {
+		t.Errorf("MIL stock = %d, want the 1 R remainder", got)
+	}
+}

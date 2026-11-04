@@ -322,38 +322,49 @@ func TestCapturedMillStockFeedsTheCapturingArmy(t *testing.T) {
 	}
 }
 
-// TestCapturedMillStockCanBeTransferred checks #470: an army controlling a
-// mill can ship the stock the mill accumulated while uncontrolled with a
-// transfer order (T).
+// TestCapturedMillStockCanBeTransferred checks #470: an army that takes an
+// uncontrolled mill can ship, on the following turn, the stock the mill
+// accumulated while uncontrolled with a transfer order (T).
 func TestCapturedMillStockCanBeTransferred(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			supplyTerritory("MIL", "MIL", models.TerrainPlain, "BBB"),
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "MIL"),
+			supplyTerritory("MIL", "MIL", models.TerrainPlain, "AAA", "BBB"),
 			supplyTerritory("BBB", "BBB", models.TerrainPlain, "MIL"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "MIL", Size: 2},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
 		},
 	)
-	addNoble(state, "N1", "ONE", "P1", "MIL")
+	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "MIL"})
 	setTerritoryResources(state, "MIL", 4)
-	addChain(t, state, "A1", "N1", models.Order{
-		Type:       models.OrderTypeTransfer,
-		PositionID: "MIL",
-		TargetIDs:  []models.TerritoryID{"BBB"},
-		Amount:     2,
-	})
+	addChainOrders(t, state, "A1", "N1",
+		models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"MIL"}},
+		models.Order{Type: models.OrderTypeTransfer, PositionID: "MIL", TargetIDs: []models.TerritoryID{"BBB"}, Amount: 2},
+	)
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state, testBalance())
+	capture, err := Resolve(state, testBalance())
 	if err != nil {
-		t.Fatalf("Resolve: %v", err)
+		t.Fatalf("Resolve capture: %v", err)
 	}
-	event, ok := findEvent(resolution.Events, EventTypeTransfer)
+	if controller, controlled := capture.State.TerritoryController("MIL"); !controlled || controller != "P1" {
+		t.Fatalf("MIL controller = %q (%t), want P1 after the attack", controller, controlled)
+	}
+	stock := capture.State.TerritoryStates["MIL"].Resources
+	if stock < 2 {
+		t.Fatalf("MIL stock after capture = %d, want the accumulated stock kept", stock)
+	}
+
+	transfer, err := Resolve(capture.State, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve transfer: %v", err)
+	}
+	event, ok := findEvent(transfer.Events, EventTypeTransfer)
 	if !ok || event.SourceID != "MIL" || event.ResourceAmount != 2 || event.Outcome != OutcomeSuccess {
-		t.Errorf("transfer event = %#v, want 2 R shipped from the mill", event)
+		t.Errorf("transfer event = %#v, want 2 R shipped from the captured mill", event)
 	}
 }
 
