@@ -15,6 +15,7 @@ vi.mock('@/auth/AuthProvider', () => ({
 }))
 
 import { LanguageProvider } from '@/i18n/LanguageContext'
+import { REPOSITORY_URL } from '@/lib/repository'
 import { OnlineRoutes } from '@/online/OnlineApp'
 
 afterEach(() => {
@@ -36,7 +37,7 @@ describe('online information routes', () => {
     expect(screen.getByRole('link', { name: 'FAQ' })).toHaveAttribute('href', '/faq')
     expect(screen.getByRole('link', { name: 'Source code on GitHub' })).toHaveAttribute(
       'href',
-      'https://github.com/fogfactory/crown-and-borough',
+      REPOSITORY_URL,
     )
   })
 

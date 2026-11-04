@@ -614,7 +614,8 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
   Règles et FAQ ; un menu « Partie » qui regroupe la création d'une partie
   (joueurs, graine, années), la résolution forcée et la langue, et porte en
   pied la version et l'icône du dépôt GitHub (`GithubLink`, lien externe). En
-  ligne, un joueur qui n'a pas ce menu trouve l'icône seule en fin de barre.
+  ligne, le bandeau du site porte aussi cette icône, à côté de la langue :
+  un joueur sans menu « Partie » la trouve là.
 - **Tiroir à droite :** posé sur la carte, avec des onglets en marque-pages
   (Ordres, Rapport, Royaume, Règles) qui dépassent de son bord gauche. Il se replie
   pour rendre toute la carte ; le marque-page actif est en `brass-400`. Les

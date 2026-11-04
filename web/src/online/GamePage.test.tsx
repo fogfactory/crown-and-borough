@@ -545,31 +545,6 @@ describe('GamePage submission rehydration and divergence', () => {
   })
 })
 
-describe('GamePage header', () => {
-  it('keeps the GitHub link for a desktop player without the game menu', async () => {
-    // No matchMedia stub: jsdom answers desktop. canInvite false: no game menu.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((input: RequestInfo | URL) => {
-        const url = String(input)
-        if (url.endsWith('/api/games/GAME1'))
-          return Promise.resolve(jsonResponse({ canInvite: false }))
-        if (url.endsWith('/api/games/GAME1/map'))
-          return Promise.resolve(jsonResponse(map))
-        if (url.endsWith('/api/games/GAME1/state')) {
-          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
-        }
-        return Promise.resolve(jsonResponse({}))
-      }),
-    )
-    renderGame()
-    expect(
-      await screen.findByRole('link', { name: 'Source code on GitHub' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Game' })).not.toBeInTheDocument()
-  })
-})
-
 describe('GamePage notices', () => {
   it('announces a load failure as an alert', async () => {
     vi.stubGlobal(
