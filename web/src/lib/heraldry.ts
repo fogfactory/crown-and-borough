@@ -55,6 +55,12 @@ export type CrownKind = FiefTitle | 'king'
 // Heater shield, 15 × 19 units centred on the origin.
 export const SHIELD_WIDTH = 15
 export const SHIELD_HEIGHT = 19
+export const SHIELD_BOX: [number, number, number, number] = [
+  -SHIELD_WIDTH / 2,
+  -SHIELD_HEIGHT / 2,
+  SHIELD_WIDTH,
+  SHIELD_HEIGHT,
+]
 export const SHIELD_PATH =
   'M-7.5 -9.5 H7.5 V-0.5 C7.5 5 3.8 8.3 0 9.5 C-3.8 8.3 -7.5 5 -7.5 -0.5 Z'
 
@@ -285,4 +291,12 @@ function layoutArmy(size: number, seed: number): ArmyFigures {
     if (soldier.x < soldiers[bearer].x) bearer = index
   })
   return { soldiers, shadows, bearer }
+}
+
+/** Owner whose soldiers draw an army: rebels when its owner has no arms. */
+export function armyDrawingOwner(
+  armsByOwner: Map<string, ResolvedArms>,
+  armyOwner: string,
+): string {
+  return armsByOwner.has(armyOwner) ? armyOwner : NEUTRAL_PLAYER_ID
 }

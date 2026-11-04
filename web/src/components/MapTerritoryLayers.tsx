@@ -2,7 +2,7 @@ import { ArmyGlyph, CONTROL_REACH, ControlShield } from '@/components/MapHeraldr
 import { FamineMarker, InfrastructureMarker, NobleMarker } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
-import type { ResolvedArms } from '@/lib/heraldry'
+import { armyDrawingOwner, type ResolvedArms } from '@/lib/heraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import { centroid } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
@@ -251,11 +251,7 @@ export function LiveLayer({
                   }) scale(${annotationScale})`}
                 >
                   <ArmyGlyph
-                    owner={
-                      armsByOwner.has(territoryState.army.owner)
-                        ? territoryState.army.owner
-                        : NEUTRAL_PLAYER_ID
-                    }
+                    owner={armyDrawingOwner(armsByOwner, territoryState.army.owner)}
                     size={territoryState.army.size}
                     seed={territory.id}
                     compact={compactArmies}

@@ -9,6 +9,7 @@ import {
   armyFigures,
   greyArms,
   hashSeed,
+  SHIELD_BOX,
   SHIELD_HEIGHT,
   SHIELD_PATH,
   SHIELD_WIDTH,
@@ -152,7 +153,7 @@ export function HeraldryDefs({
               arms={arms}
               outline={SHIELD_PATH}
               clipId={`${shieldSymbolId(owner)}-clip`}
-              box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+              box={SHIELD_BOX}
             />
           </symbol>
           {occupiedOwners.has(owner) && (
@@ -161,7 +162,7 @@ export function HeraldryDefs({
                 arms={greyArms(arms)}
                 outline={SHIELD_PATH}
                 clipId={`${greyShieldSymbolId(owner)}-clip`}
-                box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+                box={SHIELD_BOX}
               />
             </symbol>
           )}

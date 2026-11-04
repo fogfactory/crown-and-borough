@@ -36,7 +36,7 @@ import { isOccupiedAgainstController } from '@/lib/occupation'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import type { EventMarks, MapFrame } from '@/lib/map-frame'
 import { boundsOf, centroid, pointsToPath } from '@/lib/map-svg-geometry'
-import { resolveArmsByOwner } from '@/lib/heraldry'
+import { armyDrawingOwner, resolveArmsByOwner } from '@/lib/heraldry'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
 import { hasSupplySource } from '@/lib/supply'
 import {
@@ -295,11 +295,7 @@ export function MapViewer({
   const armyOwners = new Set(
     state.territories.flatMap((territoryState) =>
       territoryState.army
-        ? [
-            armsByOwner.has(territoryState.army.owner)
-              ? territoryState.army.owner
-              : NEUTRAL_PLAYER_ID,
-          ]
+        ? [armyDrawingOwner(armsByOwner, territoryState.army.owner)]
         : [],
     ),
   )

@@ -3,9 +3,8 @@ import {
   BANNER_HEIGHT,
   BANNER_PATH,
   BANNER_WIDTH,
-  SHIELD_HEIGHT,
+  SHIELD_BOX,
   SHIELD_PATH,
-  SHIELD_WIDTH,
   greyArms,
   type CrownKind,
   type ResolvedArms,
@@ -44,7 +43,7 @@ export function ControlShieldIcon({
             arms={grey ? greyArms(arms) : arms}
             outline={SHIELD_PATH}
             clipId={`${id}-clip`}
-            box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+            box={SHIELD_BOX}
           />
         </symbol>
       </defs>
@@ -72,7 +71,7 @@ export function ShieldIcon({ id, arms }: { id: string; arms: ResolvedArms }) {
         arms={arms}
         outline={SHIELD_PATH}
         clipId={`${id}-clip`}
-        box={[-SHIELD_WIDTH / 2, -SHIELD_HEIGHT / 2, SHIELD_WIDTH, SHIELD_HEIGHT]}
+        box={SHIELD_BOX}
       />
     </svg>
   )
