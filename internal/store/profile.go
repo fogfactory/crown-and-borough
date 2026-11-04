@@ -112,7 +112,7 @@ func (s *MemoryProfileStore) UpdateReleaseNotes(ctx context.Context, uid string,
 		return PlayerProfile{}, err
 	}
 	uid = strings.TrimSpace(uid)
-	version, err := NormalizeReleaseNotesUpdate(update)
+	update, err := NormalizeReleaseNotesUpdate(update)
 	if err != nil {
 		return PlayerProfile{}, err
 	}
@@ -122,7 +122,7 @@ func (s *MemoryProfileStore) UpdateReleaseNotes(ctx context.Context, uid string,
 	if !ok {
 		return PlayerProfile{}, ErrProfileNotFound
 	}
-	if !ApplyReleaseNotesUpdate(&profile, version, update) {
+	if !ApplyReleaseNotesUpdate(&profile, update) {
 		return profile, nil
 	}
 	profile.UpdatedAt = s.now().UTC()
@@ -130,27 +130,29 @@ func (s *MemoryProfileStore) UpdateReleaseNotes(ctx context.Context, uid string,
 	return profile, nil
 }
 
-// NormalizeReleaseNotesUpdate validates an update and returns the trimmed
-// version to store (empty when the version is untouched).
-func NormalizeReleaseNotesUpdate(update ReleaseNotesUpdate) (string, error) {
+// NormalizeReleaseNotesUpdate validates an update and returns it with a
+// trimmed version.
+func NormalizeReleaseNotesUpdate(update ReleaseNotesUpdate) (ReleaseNotesUpdate, error) {
 	if update.LastSeenVersion == nil && update.HideReleaseNotes == nil {
-		return "", ErrInvalidReleaseNotes
+		return ReleaseNotesUpdate{}, ErrInvalidReleaseNotes
 	}
 	if update.LastSeenVersion == nil {
-		return "", nil
+		return update, nil
 	}
 	version := strings.TrimSpace(*update.LastSeenVersion)
 	if !releaseVersionPattern.MatchString(version) {
-		return "", ErrInvalidReleaseNotes
+		return ReleaseNotesUpdate{}, ErrInvalidReleaseNotes
 	}
-	return version, nil
+	update.LastSeenVersion = &version
+	return update, nil
 }
 
-// ApplyReleaseNotesUpdate mutates profile and reports whether anything changed.
-func ApplyReleaseNotesUpdate(profile *PlayerProfile, version string, update ReleaseNotesUpdate) bool {
+// ApplyReleaseNotesUpdate mutates profile with a normalized update and reports
+// whether anything changed.
+func ApplyReleaseNotesUpdate(profile *PlayerProfile, update ReleaseNotesUpdate) bool {
 	changed := false
-	if update.LastSeenVersion != nil && profile.LastSeenVersion != version {
-		profile.LastSeenVersion = version
+	if update.LastSeenVersion != nil && profile.LastSeenVersion != *update.LastSeenVersion {
+		profile.LastSeenVersion = *update.LastSeenVersion
 		changed = true
 	}
 	if update.HideReleaseNotes != nil && profile.HideReleaseNotes != *update.HideReleaseNotes {

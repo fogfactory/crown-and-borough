@@ -112,32 +112,12 @@ func (s *FirestoreStore) UpdateProfile(ctx context.Context, uid, displayName str
 	}
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
-	doc := s.client.Collection("players").Doc(uid)
-	var result store.PlayerProfile
-	s.recordTransaction()
-	err = s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
-		snapshot, err := transaction.Get(doc)
-		s.recordReads(1)
-		if status.Code(err) == codes.NotFound {
-			return store.ErrProfileNotFound
+	result, err := s.mutateProfile(operationContext, uid, func(document *profileDocument) bool {
+		if document.DisplayName == normalized {
+			return false
 		}
-		if err != nil {
-			return err
-		}
-		document, err := decodeProfileDocument(snapshot)
-		if err != nil {
-			return err
-		}
-		if document.DisplayName != normalized {
-			document.DisplayName = normalized
-			document.UpdatedAt = s.now().UTC()
-			if err := transaction.Set(doc, document); err != nil {
-				return err
-			}
-			s.recordWrites(1)
-		}
-		result = toPlayerProfile(document)
-		return nil
+		document.DisplayName = normalized
+		return true
 	})
 	if err != nil {
 		return store.PlayerProfile{}, wrapOperation("update profile", err)
@@ -153,16 +133,34 @@ func (s *FirestoreStore) UpdateReleaseNotes(ctx context.Context, uid string, upd
 		return store.PlayerProfile{}, err
 	}
 	uid = strings.TrimSpace(uid)
-	version, err := store.NormalizeReleaseNotesUpdate(update)
+	update, err := store.NormalizeReleaseNotesUpdate(update)
 	if err != nil {
 		return store.PlayerProfile{}, err
 	}
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
+	result, err := s.mutateProfile(operationContext, uid, func(document *profileDocument) bool {
+		profile := toPlayerProfile(*document)
+		if !store.ApplyReleaseNotesUpdate(&profile, update) {
+			return false
+		}
+		document.LastSeenVersion = profile.LastSeenVersion
+		document.HideReleaseNotes = profile.HideReleaseNotes
+		return true
+	})
+	if err != nil {
+		return store.PlayerProfile{}, wrapOperation("update release notes", err)
+	}
+	return result, nil
+}
+
+// mutateProfile applies mutate to the player document in a transaction and
+// writes it, with a fresh UpdatedAt, only when mutate reports a change.
+func (s *FirestoreStore) mutateProfile(ctx context.Context, uid string, mutate func(*profileDocument) bool) (store.PlayerProfile, error) {
 	doc := s.client.Collection("players").Doc(uid)
 	var result store.PlayerProfile
 	s.recordTransaction()
-	err = s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+	err := s.client.RunTransaction(ctx, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
 		snapshot, err := transaction.Get(doc)
 		s.recordReads(1)
 		if status.Code(err) == codes.NotFound {
@@ -175,10 +173,7 @@ func (s *FirestoreStore) UpdateReleaseNotes(ctx context.Context, uid string, upd
 		if err != nil {
 			return err
 		}
-		profile := toPlayerProfile(document)
-		if store.ApplyReleaseNotesUpdate(&profile, version, update) {
-			document.LastSeenVersion = profile.LastSeenVersion
-			document.HideReleaseNotes = profile.HideReleaseNotes
+		if mutate(&document) {
 			document.UpdatedAt = s.now().UTC()
 			if err := transaction.Set(doc, document); err != nil {
 				return err
@@ -188,10 +183,7 @@ func (s *FirestoreStore) UpdateReleaseNotes(ctx context.Context, uid string, upd
 		result = toPlayerProfile(document)
 		return nil
 	})
-	if err != nil {
-		return store.PlayerProfile{}, wrapOperation("update release notes", err)
-	}
-	return result, nil
+	return result, err
 }
 
 func (s *FirestoreStore) refreshActorName(ctx context.Context, uid, displayName string) error {
