@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Popover } from 'radix-ui'
 import { IconChevronDown, IconMenu2 } from '@tabler/icons-react'
 
+import { GithubLink } from '@/components/GithubLink'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { VersionBadge } from '@/components/VersionBadge'
 import { Button } from '@/components/ui/button'
@@ -235,7 +236,10 @@ export function GameMenu({
               <LanguageSwitcher />
             </section>
           )}
-          <VersionBadge />
+          <div className="flex items-center justify-between gap-2">
+            <VersionBadge />
+            <GithubLink />
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
