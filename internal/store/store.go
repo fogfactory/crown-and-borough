@@ -91,6 +91,38 @@ type MembershipStore interface {
 	ListActorMemberships(context.Context, string) ([]Membership, error)
 }
 
+// BugReportCollection is the Firestore collection holding bug reports, apart
+// from the games.
+const BugReportCollection = "bugReports"
+
+// BugReport is the private part of a player's bug report: their own game view,
+// kept out of the public GitHub issue, which only cites Ref.
+type BugReport struct {
+	// ID is human readable: <game>-t<turn>-<player>-<ref>.
+	ID string
+	// Ref is the opaque random suffix of ID, the only part the public issue
+	// shows (the rest names the game and the player).
+	Ref      string
+	GameID   GameID
+	Turn     int
+	PlayerID models.PlayerID
+	UID      string
+	Title    string
+	IssueURL string
+	// GameView is the masked JSON projection of the game the player sees.
+	GameView  string
+	CreatedAt time.Time
+}
+
+// BugReportStore keeps bug reports in a collection of their own, apart from
+// the games, so maintainers can read and delete them freely.
+type BugReportStore interface {
+	// CreateBugReport fails if the ID is taken; it never overwrites a report.
+	CreateBugReport(context.Context, BugReport) error
+	SetBugReportIssue(ctx context.Context, id, issueURL string) error
+	DeleteBugReport(ctx context.Context, id string) error
+}
+
 type Status string
 
 const (

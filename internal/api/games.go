@@ -47,7 +47,7 @@ func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve Ac
 	return NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: resolve})
 }
 
-func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) http.Handler {
+func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) *GamesHandler {
 	profiles := options.Profiles
 	if profiles == nil {
 		profiles, _ = gameStore.(store.ProfileStore)
@@ -232,17 +232,58 @@ func (h *GamesHandler) getMap(w http.ResponseWriter, r *http.Request, actor stor
 }
 
 func (h *GamesHandler) getState(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
-	snapshot, err := h.store.State(r.Context(), actor, id)
+	snapshot, viewerID, err := h.viewerState(r.Context(), actor, id)
 	if err != nil {
 		h.writeStoreError(w, err)
 		return
 	}
+	writeJSON(w, http.StatusOK, h.playerStateView(snapshot, viewerID))
+}
+
+// playerStateView is the body of GET /api/games/{id}/state.
+type playerStateView struct {
+	StateView
+	Revision store.Revision `json:"revision"`
+}
+
+func (h *GamesHandler) playerStateView(snapshot store.GameSnapshot, viewerID models.PlayerID) playerStateView {
+	return playerStateView{StateView: projectStateForPlayer(snapshot.State, viewerID, h.balance), Revision: snapshot.Revision}
+}
+
+// viewerState loads the game state with the actor's viewer identity.
+func (h *GamesHandler) viewerState(ctx context.Context, actor store.Actor, id store.GameID) (store.GameSnapshot, models.PlayerID, error) {
+	snapshot, err := h.store.State(ctx, actor, id)
+	if err != nil {
+		return store.GameSnapshot{}, "", err
+	}
 	viewerID, ok := snapshot.ViewerFor(actor)
 	if !ok {
-		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
-		return
+		return store.GameSnapshot{}, "", store.ErrNotMember
 	}
-	writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID, h.balance))
+	return snapshot, viewerID, nil
+}
+
+// PlayerState returns the projection of the game the actor sees (the body of
+// GET /api/games/{id}/state) with the labels naming a bug report.
+func (h *GamesHandler) PlayerState(ctx context.Context, actor store.Actor, id store.GameID) (PlayerGameView, error) {
+	snapshot, viewerID, err := h.viewerState(ctx, actor, id)
+	if err != nil {
+		return PlayerGameView{}, err
+	}
+	game := PlayerGameView{
+		GameName: snapshot.Name,
+		PlayerID: viewerID,
+		View:     h.playerStateView(snapshot, viewerID),
+	}
+	if snapshot.State != nil {
+		game.Turn = snapshot.State.Turn
+		for _, player := range snapshot.State.Players {
+			if player.ID == viewerID {
+				game.PlayerName = player.Name
+			}
+		}
+	}
+	return game, nil
 }
 
 func (h *GamesHandler) getBalance(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -570,13 +611,6 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 	writeJSON(w, http.StatusOK, response)
 }
 
-func writeGameState(w http.ResponseWriter, revision store.Revision, state StateView) {
-	writeJSON(w, http.StatusOK, struct {
-		StateView
-		Revision store.Revision `json:"revision"`
-	}{StateView: state, Revision: revision})
-}
-
 func (h *GamesHandler) viewerIDForGame(ctx context.Context, actor store.Actor, id store.GameID) (models.PlayerID, bool) {
 	snapshot, err := h.store.Get(ctx, actor, id)
 	if err != nil {
@@ -613,7 +647,7 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 	case errors.Is(err, store.ErrUnknownGame), errors.Is(err, store.ErrInvalidReport):
 		writeAPIError(w, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, store.ErrNotMember):
-		writeAPIError(w, http.StatusForbidden, "not_member", err.Error())
+		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 	case errors.Is(err, store.ErrNotCreator):
 		writeAPIError(w, http.StatusForbidden, "not_creator", err.Error())
 	case errors.Is(err, store.ErrInvalidPlayers):

@@ -82,6 +82,7 @@ func main() {
 		CreatorGate: creatorGateForEnvironment(onlineDevMode),
 		Readiness:   readinessChecks,
 		SeedAssets:  &assets,
+		BugIssues:   bugIssueClient(),
 	}
 	if !onlineDevMode {
 		projectID := os.Getenv("FIREBASE_PROJECT_ID")
@@ -107,6 +108,30 @@ func main() {
 	if err := http.ListenAndServe(addr, api.WithCORSMode(server, onlineDevMode)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// bugIssueClient authenticates as the GitHub App described by
+// GITHUB_BUG_APP_ID, GITHUB_BUG_APP_INSTALLATION_ID and
+// GITHUB_BUG_APP_PRIVATE_KEY, or else with the GITHUB_BUG_TOKEN bot token
+// (local development). Without either the route is disabled.
+func bugIssueClient() api.IssueCreator {
+	const repository = "fogfactory/crown-and-borough"
+	app, err := api.NewGitHubAppIssueClient(
+		os.Getenv("GITHUB_BUG_APP_ID"),
+		os.Getenv("GITHUB_BUG_APP_INSTALLATION_ID"),
+		os.Getenv("GITHUB_BUG_APP_PRIVATE_KEY"),
+		repository,
+	)
+	if err != nil {
+		log.Printf("bug reports: GitHub App disabled: %v", err)
+	}
+	if app != nil {
+		return app
+	}
+	if token := api.NewGitHubIssueClient(os.Getenv("GITHUB_BUG_TOKEN"), repository); token != nil {
+		return token
+	}
+	return nil
 }
 
 func newGameStore(ctx context.Context, balance assetgen.Balance, assets assetgen.Assets, onlineDevMode bool) (store.GameStore, func(), error) {
@@ -173,6 +198,8 @@ type serverOptions struct {
 	CreatorGate api.CreatorGate
 	Readiness   []api.ReadinessCheck
 	SeedAssets  *assetgen.Assets
+	// BugIssues files the issues of POST /api/bugs; nil disables the route.
+	BugIssues api.IssueCreator
 }
 
 func newApplicationServer(options serverOptions) *http.ServeMux {
@@ -206,6 +233,10 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
 	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
+	// Firestore keeps bug reports in their own collection; without it the
+	// handler keeps them in memory.
+	bugReports, _ := options.Store.(store.BugReportStore)
+	mux.Handle("/api/bugs", api.NewBugsHandler(api.BugHandlerOptions{Actor: resolveActor, Issues: options.BugIssues, State: games.PlayerState, Reports: bugReports}))
 	if options.SeedAssets != nil {
 		mux.Handle("GET /api/seed", api.SeedHandler(*options.SeedAssets))
 	}

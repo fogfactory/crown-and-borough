@@ -89,6 +89,10 @@ suite('Firestore security rules', () => {
     await assertFails(getDoc(doc(alice, 'games/game-1/reports/1')))
     await assertFails(getDoc(doc(alice, 'games/game-1/turns/1/submissions/alice')))
     await assertFails(getDoc(doc(alice, 'invitations/hash')))
+    await assertFails(getDoc(doc(alice, 'bugReports/game-t1-alice-abc123')))
+    await assertFails(
+      setDoc(doc(alice, 'bugReports/game-t1-alice-abc123'), { gameViewJson: '{}' }),
+    )
   })
 
   it('restricts profiles to the authenticated uid', async () => {

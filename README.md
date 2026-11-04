@@ -126,6 +126,25 @@ memberships, canonical state, pending submissions, reports, privacy metadata,
 and filtered projections are persisted in Firestore Native mode. No Firebase
 token or clear invitation code is stored by the backend.
 
+## Bug reports
+
+`POST /api/bugs` (authenticated, 256 KiB body limit, 3 reports per 10 minutes
+per player) creates a public GitHub issue from the in-game bug report dialog.
+The player's game view never goes to GitHub: it is stored in the private
+Firestore collection `bugReports` (in memory without Firestore), under a
+readable ID such as `partie-du-mardi-t12-heloise-3f9a2c41b07e`
+(`<game>-t<turn>-<player>-<ref>`). The public issue only cites the random
+`ref`, since the full ID names the game and the player; find the report in
+the console by filtering on `ref` or `issueUrl`.
+It authenticates as a GitHub App installed on `fogfactory/crown-and-borough`
+with the *Issues: read and write* permission: set `GITHUB_BUG_APP_ID`,
+`GITHUB_BUG_APP_INSTALLATION_ID` and `GITHUB_BUG_APP_PRIVATE_KEY` (the PEM
+private key; `\n` escapes are accepted). A personal bot token in
+`GITHUB_BUG_TOKEN` also works, for local trials. Leave them empty (the default,
+also in `docker-compose.yml`) to disable the route: `GET /api/bugs` then answers
+`{"enabled": false}` and the dialog greys out "Send". Deployment: see
+`docs/deploy-cloudrun.md`.
+
 ## Firestore Persistence
 
 Production mode requires Application Default Credentials and

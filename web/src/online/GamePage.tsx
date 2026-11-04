@@ -12,6 +12,7 @@ import { useAuth } from '@/auth/AuthProvider'
 import { GameLayout } from '@/components/GameLayout'
 import { GameDrawer, drawerPanelOf, type Panel } from '@/components/GameDrawer'
 import { useIsDesktop } from '@/lib/use-media-query'
+import { BugReportButton } from '@/components/BugReportDialog'
 import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { ownTerritoriesFrame } from '@/lib/map-frame'
@@ -1002,6 +1003,7 @@ export function GamePage() {
               {t('online.finished')}
             </span>
           )}
+          {!desktop && <BugReportButton />}
           {(!desktop || (summary.status !== 'finished' && summary.canInvite)) && (
             <GameMenu
               language={!desktop}
