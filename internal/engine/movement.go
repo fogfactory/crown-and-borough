@@ -1144,13 +1144,23 @@ func executeLocalOrders(ctx *resolutionContext) {
 // supportedArmyLeft reports whether the army a defensive support targets
 // left its origin by a join or a complete dispersion: the support then does
 // not prevent an enemy from entering the vacated territory. A dislodged army
-// did not leave on its own.
+// did not leave on its own, and a dispersion that leaves troops behind still
+// holds its origin, although its carrier keeps the army ID and moves away.
 func (ctx *resolutionContext) supportedArmyLeft(support *supportIntent) bool {
 	if support.offensive || support.targetArmyID == "" || ctx.dislodged[support.targetArmyID] != nil {
 		return false
 	}
+	if result := ctx.disperseResults[support.targetArmyID]; result != nil && result.remaining > 0 {
+		return false
+	}
+	return !ctx.supportedArmyOnTarget(support)
+}
+
+// supportedArmyOnTarget reports whether the army a defensive support targets
+// still stands on the supported territory.
+func (ctx *resolutionContext) supportedArmyOnTarget(support *supportIntent) bool {
 	army := ctx.armiesByID[support.targetArmyID]
-	return army == nil || army.TerritoryID != support.targetID
+	return army != nil && army.TerritoryID == support.targetID
 }
 
 func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.Army) {

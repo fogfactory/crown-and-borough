@@ -216,7 +216,7 @@ func TestResolveDefensiveSupportUnlessAttacking(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			state := defensiveSupportState(t)
+			state := defensiveSupportState(t, 3, true)
 			if tc.order != nil {
 				addChain(t, state, "A2", "N2", *tc.order)
 			}
@@ -244,7 +244,7 @@ func TestResolveDefensiveSupportUnlessAttacking(t *testing.T) {
 	}
 	for _, tc := range attacks {
 		t.Run(tc.name, func(t *testing.T) {
-			state := defensiveSupportState(t)
+			state := defensiveSupportState(t, 3, true)
 			addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{tc.target}})
 			validateTestState(t, state)
 
@@ -264,33 +264,48 @@ func TestResolveDefensiveSupportUnlessAttacking(t *testing.T) {
 		})
 	}
 
-	t.Run("army that joins without any attack", func(t *testing.T) {
-		state := defensiveSupportState(t)
-		state.Chains = nil
-		for index := range state.Armies {
-			state.Armies[index].ChainID = nil
-		}
-		addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}})
-		addChain(t, state, "A3", "N3", models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"BBB"}})
-		validateTestState(t, state)
+	withoutAttack := []struct {
+		name       string
+		size       int
+		order      models.Order
+		staysOnBBB bool
+	}{
+		{name: "army that joins without any attack", size: 3, order: models.Order{Type: models.OrderTypeJoin, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}}},
+		{name: "dispersion leaving troops behind without any attack", size: 3, order: models.Order{Type: models.OrderTypeDisperse, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}}, staysOnBBB: true},
+		{name: "dispersion of every troop without any attack", size: 1, order: models.Order{Type: models.OrderTypeDisperse, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"EEE": {"TWO"}}}},
+	}
+	for _, tc := range withoutAttack {
+		t.Run(tc.name, func(t *testing.T) {
+			state := defensiveSupportState(t, tc.size, false)
+			addChain(t, state, "A2", "N2", tc.order)
+			validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
-		if err != nil {
-			t.Fatalf("Resolve: %v", err)
-		}
-		if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "EEE" {
-			t.Errorf("A2 territory = %q, want EEE after the join", army.TerritoryID)
-		}
-		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Reason != "support_void" {
-			t.Errorf("S1 reason = %q, found=%t, want support_void", event.Reason, found)
-		}
-	})
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			held := false
+			for _, army := range armiesAt(resolution.State, "BBB") {
+				held = held || army.OwnerID == "P2"
+			}
+			if held != tc.staysOnBBB {
+				t.Errorf("P2 army on BBB = %t, want %t", held, tc.staysOnBBB)
+			}
+			want := "support_void"
+			if tc.staysOnBBB {
+				want = "support_applied"
+			}
+			if event, found := findOutcome(resolution.Events, "S1"); !found || event.Reason != want {
+				t.Errorf("S1 reason = %q, found=%t, want %s", event.Reason, found, want)
+			}
+		})
+	}
 }
 
-// defensiveSupportState places A1 (5, P1) on AAA attacking A2 (3, P2) in the
-// castle of BBB, which A3 (3, P3) supports from CCC. A4 (5, P3) holds DDD and
-// EEE is empty.
-func defensiveSupportState(t *testing.T) *models.GameState {
+// defensiveSupportState places A1 (5, P1) on AAA, attacking A2 (a2Size, P2)
+// in the castle of BBB when attack is set, and A3 (3, P3) supporting BBB from
+// CCC. A4 (5, P3) holds DDD and EEE is empty.
+func defensiveSupportState(t *testing.T, a2Size int, attack bool) *models.GameState {
 	t.Helper()
 	state := testState(t,
 		[]models.Territory{
@@ -302,7 +317,7 @@ func defensiveSupportState(t *testing.T) *models.GameState {
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 5},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: a2Size},
 			{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 3},
 			{ID: "A4", OwnerID: "P3", TerritoryID: "DDD", Size: 5},
 		},
@@ -311,7 +326,9 @@ func defensiveSupportState(t *testing.T) *models.GameState {
 	addNoble(state, "N2", "TWO", "P2", "BBB")
 	addNoble(state, "N3", "THR", "P3", "CCC")
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	if attack {
+		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	}
 	addChain(t, state, "A3", "N3", models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"BBB"}})
 	keepTestArmiesSupplied(state)
 	return state
