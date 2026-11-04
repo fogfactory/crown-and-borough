@@ -156,6 +156,31 @@ describe('BugReportButton', () => {
     open.mockRestore()
   })
 
+  it('never copies the game view for the public GitHub issue', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).endsWith('/state')
+          ? json({ revision: 4, armies: ['secret-army'] })
+          : json({ enabled: true }),
+      ),
+    )
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    stubClipboard(writeText)
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    await openAndFill('/games/g1')
+    await waitFor(() =>
+      expect(screen.getByLabelText('Captured context (JSON)').textContent).toContain(
+        'secret-army',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Fill in on GitHub' }))
+    await screen.findByText(/copied to your clipboard: paste it/)
+    expect(writeText.mock.calls[0][0]).not.toContain('secret-army')
+    expect(JSON.parse(writeText.mock.calls[0][0]).game).toBeUndefined()
+    open.mockRestore()
+  })
+
   it('tells the player when the clipboard is unavailable', async () => {
     mockFetch(true)
     stubClipboard(vi.fn().mockRejectedValue(new Error('denied')))

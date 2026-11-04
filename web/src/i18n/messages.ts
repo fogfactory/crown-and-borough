@@ -1244,23 +1244,23 @@ const englishMessages = {
   'bugReport.descriptionPlaceholder': 'What you did, what you expected, what happened.',
   'bugReport.contextSummary': 'Captured context',
   'bugReport.contextHelp':
-    'Your game view as you see it (never the full server state nor other players’ private information), the last API calls (method, path and status only, no credentials), the deployed version and your browser.',
+    'Your game view as you see it (never the full server state nor other players’ private information), the last API calls (method, path and status only, no credentials), the deployed version and your browser. Your game view is kept privately for the maintainers: it never appears on GitHub.',
   'bugReport.contextPreview': 'Captured context (JSON)',
   'bugReport.publicNotice':
-    'Sending creates a public issue on GitHub: your summary, description and the context above will be visible to everyone.',
+    'Sending creates a public issue on GitHub: your summary, description, version, browser and API calls will be visible to everyone. Your game view is stored privately and only its reference appears in the issue.',
   'bugReport.send': 'Send',
   'bugReport.sending': 'Sending...',
   'bugReport.sendDisabled':
     'Sending is not enabled on this server. Use “Fill in on GitHub”.',
   'bugReport.confirm':
-    'This publishes a public issue on GitHub with your summary, description and the captured context. Publish it?',
+    'This publishes a public issue on GitHub with your summary, description and the captured context, except your game view, which is stored privately. Publish it?',
   'bugReport.confirmSend': 'Publish the issue',
   'bugReport.back': 'Back',
   'bugReport.fillOnGithub': 'Fill in on GitHub',
   'bugReport.pasteHint':
-    'Paste the full captured context below (it was copied to your clipboard).',
+    'Paste the captured context below (it was copied to your clipboard, without your game view).',
   'bugReport.copied':
-    'GitHub opened in a new tab. The full context was copied to your clipboard: paste it into the issue.',
+    'GitHub opened in a new tab. The context, without your game view, was copied to your clipboard: paste it into the issue.',
   'bugReport.copyFailed':
     'GitHub opened in a new tab, but the context could not be copied to your clipboard.',
   'bugReport.sent': 'Thank you, your report was published.',
@@ -2649,23 +2649,23 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Ce que vous avez fait, ce que vous attendiez, ce qui s’est produit.',
   'bugReport.contextSummary': 'Contexte capturé',
   'bugReport.contextHelp':
-    'Votre vue de la partie telle que vous la voyez (jamais l’état complet du serveur ni les informations privées des autres joueurs), les derniers appels à l’API (méthode, chemin et statut uniquement, sans identifiants), la version déployée et votre navigateur.',
+    'Votre vue de la partie telle que vous la voyez (jamais l’état complet du serveur ni les informations privées des autres joueurs), les derniers appels à l’API (méthode, chemin et statut uniquement, sans identifiants), la version déployée et votre navigateur. Votre vue de la partie est conservée en privé pour les mainteneurs : elle n’apparaît jamais sur GitHub.',
   'bugReport.contextPreview': 'Contexte capturé (JSON)',
   'bugReport.publicNotice':
-    'L’envoi crée une issue publique sur GitHub : votre résumé, votre description et le contexte ci-dessus seront visibles de tous.',
+    'L’envoi crée une issue publique sur GitHub : votre résumé, votre description, la version, le navigateur et les appels à l’API seront visibles de tous. Votre vue de la partie est conservée en privé et seule sa référence figure dans l’issue.',
   'bugReport.send': 'Envoyer',
   'bugReport.sending': 'Envoi...',
   'bugReport.sendDisabled':
     'L’envoi n’est pas activé sur ce serveur. Utilisez « Remplir sur GitHub ».',
   'bugReport.confirm':
-    'Cela publie une issue publique sur GitHub avec votre résumé, votre description et le contexte capturé. La publier ?',
+    'Cela publie une issue publique sur GitHub avec votre résumé, votre description et le contexte capturé, sauf votre vue de la partie, conservée en privé. La publier ?',
   'bugReport.confirmSend': 'Publier l’issue',
   'bugReport.back': 'Retour',
   'bugReport.fillOnGithub': 'Remplir sur GitHub',
   'bugReport.pasteHint':
-    'Collez ci-dessous le contexte complet capturé (il a été copié dans votre presse-papiers).',
+    'Collez ci-dessous le contexte capturé (il a été copié dans votre presse-papiers, sans votre vue de la partie).',
   'bugReport.copied':
-    'GitHub s’est ouvert dans un nouvel onglet. Le contexte complet a été copié dans votre presse-papiers : collez-le dans l’issue.',
+    'GitHub s’est ouvert dans un nouvel onglet. Le contexte, sans votre vue de la partie, a été copié dans votre presse-papiers : collez-le dans l’issue.',
   'bugReport.copyFailed':
     'GitHub s’est ouvert dans un nouvel onglet, mais le contexte n’a pas pu être copié dans votre presse-papiers.',
   'bugReport.sent': 'Merci, votre signalement a été publié.',

@@ -210,7 +210,13 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
 	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
-	mux.Handle("/api/bugs", api.NewBugsHandler(api.BugHandlerOptions{Actor: resolveActor, Issues: options.BugIssues, State: games.PlayerState}))
+	// Firestore keeps bug reports in their own collection; the memory store
+	// (development) gets an in-process one.
+	bugReports, ok := options.Store.(store.BugReportStore)
+	if !ok {
+		bugReports = store.NewMemoryBugReportStore()
+	}
+	mux.Handle("/api/bugs", api.NewBugsHandler(api.BugHandlerOptions{Actor: resolveActor, Issues: options.BugIssues, State: games.PlayerState, Reports: bugReports}))
 	if options.SeedAssets != nil {
 		mux.Handle("GET /api/seed", api.SeedHandler(*options.SeedAssets))
 	}

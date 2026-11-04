@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -476,4 +478,32 @@ func requestGamesWithHeaders(t *testing.T, handler http.Handler, method, path, b
 	}
 	handler.ServeHTTP(recorder, request)
 	return recorder
+}
+
+func TestGamesHandlerPlayerStateLabelsTheView(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: DevActorResolver("P1")})
+	game := createGameHTTP(t, handler, "P1", `{"name":"labelled game","players":6}`)
+
+	view, err := handler.PlayerState(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
+	if err != nil {
+		t.Fatalf("player state: %v", err)
+	}
+	if view.GameName != "labelled game" || view.PlayerID == "" || view.PlayerName == "" || view.Turn < 1 {
+		t.Fatalf("labels = %+v", view)
+	}
+	raw, err := json.Marshal(view.View)
+	if err != nil {
+		t.Fatalf("encode view: %v", err)
+	}
+	if len(raw) > bugGameViewMaxBytes {
+		t.Fatalf("a fresh 6-player view is %d bytes, over the stored limit", len(raw))
+	}
+	if _, err := handler.PlayerState(context.Background(), store.Actor{ID: "intruder", Development: true}, game.ID); !errors.Is(err, store.ErrNotMember) {
+		t.Fatalf("outsider = %v, want ErrNotMember", err)
+	}
+	// A snapshot without the actor answers not_member with the API message.
+	if !errors.Is(errNotViewer, store.ErrNotMember) || errNotViewer.Error() != "actor is not a member of this game" {
+		t.Fatalf("errNotViewer = %v", errNotViewer)
+	}
 }

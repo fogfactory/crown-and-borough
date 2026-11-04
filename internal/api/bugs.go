@@ -3,17 +3,22 @@ package api
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"math"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
 
+	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
@@ -25,10 +30,12 @@ const (
 	bugDescriptionRunes = 4000
 	// GitHub rejects issue bodies above 65536 characters.
 	bugBodyMaxBytes = 60000
-	bugActorLimit   = 3
-	bugActorWindow  = 10 * time.Minute
-	bugGlobalLimit  = 30
-	bugGlobalWindow = time.Hour
+	// Firestore documents are capped at 1 MiB; the rest of a report is small.
+	bugGameViewMaxBytes = 1000000
+	bugActorLimit       = 3
+	bugActorWindow      = 10 * time.Minute
+	bugGlobalLimit      = 30
+	bugGlobalWindow     = time.Hour
 )
 
 // ErrBugReportsDisabled is returned when no GitHub token is configured.
@@ -97,25 +104,39 @@ func (c *GitHubIssueClient) CreateIssue(ctx context.Context, title, body string,
 	return created.HTMLURL, nil
 }
 
+// PlayerGameView is the projection of a game as one player sees it, with the
+// labels that name a bug report.
+type PlayerGameView struct {
+	GameName   string
+	Turn       int
+	PlayerID   models.PlayerID
+	PlayerName string
+	View       any
+}
+
 // PlayerStateFunc returns the projection of a game as the actor sees it.
-type PlayerStateFunc func(ctx context.Context, actor store.Actor, id store.GameID) (any, error)
+type PlayerStateFunc func(ctx context.Context, actor store.Actor, id store.GameID) (PlayerGameView, error)
 
 // BugHandlerOptions configures BugsHandler.
 type BugHandlerOptions struct {
 	Actor  ActorResolver
 	Issues IssueCreator    // nil disables the route
 	State  PlayerStateFunc // nil attaches no game projection
-	Now    func() time.Time
+	// Reports keeps the game view privately; the public issue only cites the
+	// report ID. Nil leaves the game view out entirely.
+	Reports store.BugReportStore
+	Now     func() time.Time
 }
 
 // BugsHandler serves GET /api/bugs (availability) and POST /api/bugs. Its rate
 // limits live in process memory: they are global only while the service runs a
 // single instance (--max-instances 1 in the Cloud Run deployment).
 type BugsHandler struct {
-	actor  ActorResolver
-	issues IssueCreator
-	state  PlayerStateFunc
-	now    func() time.Time
+	actor   ActorResolver
+	issues  IssueCreator
+	state   PlayerStateFunc
+	reports store.BugReportStore
+	now     func() time.Time
 
 	mu     sync.Mutex
 	byUser map[string][]time.Time
@@ -132,13 +153,13 @@ func NewBugsHandler(options BugHandlerOptions) *BugsHandler {
 	if client, ok := issues.(*GitHubIssueClient); ok && client == nil {
 		issues = nil
 	}
-	return &BugsHandler{actor: options.Actor, issues: issues, state: options.State, now: now, byUser: map[string][]time.Time{}}
+	return &BugsHandler{actor: options.Actor, issues: issues, state: options.State, reports: options.Reports, now: now, byUser: map[string][]time.Time{}}
 }
 
 type bugRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
-	// GameID names the game whose projection the server attaches: the
+	// GameID names the game whose projection the server stores privately: the
 	// client never sends game state, so it cannot forge or leak it.
 	GameID string `json:"gameId"`
 	// Context is the client side capture (version, browser, API calls).
@@ -189,68 +210,167 @@ func (h *BugsHandler) create(w http.ResponseWriter, r *http.Request, actor store
 		writeAPIError(w, http.StatusBadRequest, "invalid_bug_report", "the title or the description is too long")
 		return
 	}
-	if !h.allow(actor.ID) {
-		w.Header().Set("Retry-After", "600")
+	at, retryAfter, ok := h.allow(actor.ID)
+	if !ok {
+		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))))
 		writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "too many bug reports, try again later")
 		return
 	}
-	issueURL, err := h.issues.CreateIssue(r.Context(), redactSecrets(title), buildBugBody(description, h.captureContext(r.Context(), actor, body)), []string{"bug"})
+	report, gameNote := h.saveGameView(r.Context(), actor, store.GameID(strings.TrimSpace(body.GameID)), title)
+	issueURL, err := h.issues.CreateIssue(r.Context(), redactSecrets(title), buildBugBody(description, body.Context, gameNote), []string{"bug"})
 	if err != nil {
+		// Nothing was filed: drop the private report and give the slot back, so
+		// an outage neither locks players out nor piles up orphan reports.
+		if report != nil {
+			if err := h.reports.DeleteBugReport(context.WithoutCancel(r.Context()), report.ID); err != nil {
+				log.Printf("bug report %s: could not delete the orphan report: %v", report.ID, err)
+			}
+		}
+		h.release(actor.ID, at)
 		writeAPIError(w, http.StatusBadGateway, "bug_report_failed", "the issue could not be created")
 		return
+	}
+	if report != nil {
+		// Link the private report back to its issue; it stays usable without.
+		if err := h.reports.SetBugReportIssue(context.WithoutCancel(r.Context()), report.ID, issueURL); err != nil {
+			log.Printf("bug report %s: could not record the issue url: %v", report.ID, err)
+		}
 	}
 	writeJSON(w, http.StatusCreated, struct {
 		URL string `json:"url"`
 	}{URL: issueURL})
 }
 
-// captureContext merges the client capture with the player's own projection of
-// the game, read by the server. The result is untrusted until masked.
-func (h *BugsHandler) captureContext(ctx context.Context, actor store.Actor, body bugRequest) json.RawMessage {
-	captured := map[string]any{}
-	if len(body.Context) > 0 {
-		var client any
-		if json.Unmarshal(body.Context, &client) == nil {
-			captured["client"] = client
-		}
+// saveGameView stores the player's own projection of the game in the private
+// bug report store and returns the line the public issue shows in its place.
+func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameID store.GameID, title string) (*store.BugReport, string) {
+	if gameID == "" || h.state == nil {
+		return nil, ""
 	}
-	if gameID := strings.TrimSpace(body.GameID); gameID != "" && h.state != nil {
-		if game, err := h.state(ctx, actor, store.GameID(gameID)); err == nil {
-			captured["game"] = game
-		} else {
-			captured["game"] = "unavailable"
-		}
+	if h.reports == nil {
+		return nil, "_Game view: not stored (no private report store on this server)._"
 	}
-	if len(captured) == 0 {
-		return nil
-	}
-	raw, err := json.Marshal(captured)
+	game, err := h.state(ctx, actor, gameID)
 	if err != nil {
-		return nil
+		if !errors.Is(err, store.ErrNotMember) && !errors.Is(err, store.ErrUnknownGame) {
+			log.Printf("bug report: could not read game %s for %s: %v", gameID, actor.ID, err)
+		}
+		return nil, "_Game view: unavailable._"
 	}
-	return raw
+	view, err := maskedJSON(game.View)
+	if err != nil {
+		log.Printf("bug report: could not encode the view of game %s: %v", gameID, err)
+		return nil, "_Game view: unavailable._"
+	}
+	if len(view) > bugGameViewMaxBytes {
+		log.Printf("bug report: view of game %s is %d bytes, over the stored limit", gameID, len(view))
+		return nil, "_Game view: too large to store._"
+	}
+	report := &store.BugReport{
+		GameID:    gameID,
+		Turn:      game.Turn,
+		PlayerID:  game.PlayerID,
+		UID:       actor.ID,
+		Title:     redactSecrets(title),
+		GameView:  view,
+		CreatedAt: h.now(),
+	}
+	// A suffix collision is rare; retry with a fresh one rather than
+	// overwriting another report.
+	for attempt := 0; ; attempt++ {
+		report.Ref = bugReportRef()
+		report.ID = bugReportID(game, report.Ref)
+		err = h.reports.CreateBugReport(ctx, *report)
+		if !errors.Is(err, store.ErrBugReportExists) || attempt == 2 {
+			break
+		}
+	}
+	if err != nil {
+		log.Printf("bug report %s: could not store the game view: %v", report.ID, err)
+		return nil, "_Game view: could not be stored._"
+	}
+	// Only the opaque ref is public: the full ID names the game and the player.
+	return report, fmt.Sprintf("Game view (private, maintainers only): Firestore `%s`, ref `%s`", store.BugReportCollection, report.Ref)
 }
 
-func (h *BugsHandler) allow(actorID string) bool {
+func bugReportRef() string {
+	suffix := make([]byte, 3)
+	_, _ = cryptorand.Read(suffix)
+	return fmt.Sprintf("%x", suffix)
+}
+
+// bugReportID reads as <game>-t<turn>-<player>-<ref>, so a maintainer can
+// tell reports apart in the Firestore console.
+func bugReportID(game PlayerGameView, ref string) string {
+	return fmt.Sprintf("%s-t%d-%s-%s",
+		reportIDPart(game.GameName, "game"), game.Turn,
+		reportIDPart(game.PlayerName, string(game.PlayerID)), ref)
+}
+
+func reportIDPart(value, fallback string) string {
+	slug := slugAssetName(value)
+	if slug == "" {
+		slug = slugAssetName(fallback)
+	}
+	if slug == "" {
+		slug = "unknown"
+	}
+	if runes := []rune(slug); len(runes) > 32 {
+		slug = strings.TrimRight(string(runes[:32]), "-")
+	}
+	return slug
+}
+
+// allow records a report at the returned time, or reports how long the actor
+// must wait before the limits let one through.
+func (h *BugsHandler) allow(actorID string) (time.Time, time.Duration, bool) {
 	now := h.now()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.global = prune(h.global, now.Add(-bugGlobalWindow))
+	// prune reuses the backing array, so every pruned slice is stored back.
 	for id, times := range h.byUser {
-		if id != actorID && len(prune(times, now.Add(-bugActorWindow))) == 0 {
+		if kept := prune(times, now.Add(-bugActorWindow)); len(kept) == 0 {
 			delete(h.byUser, id)
+		} else {
+			h.byUser[id] = kept
 		}
 	}
-	recent := prune(h.byUser[actorID], now.Add(-bugActorWindow))
-	if len(recent) >= bugActorLimit || len(h.global) >= bugGlobalLimit {
-		if len(recent) == 0 {
-			delete(h.byUser, actorID)
-		}
-		return false
+	recent := h.byUser[actorID]
+	var wait time.Duration
+	if len(recent) >= bugActorLimit {
+		wait = recent[len(recent)-bugActorLimit].Add(bugActorWindow).Sub(now)
+	}
+	if len(h.global) >= bugGlobalLimit {
+		wait = max(wait, h.global[len(h.global)-bugGlobalLimit].Add(bugGlobalWindow).Sub(now))
+	}
+	if wait > 0 {
+		return time.Time{}, wait, false
 	}
 	h.byUser[actorID] = append(recent, now)
 	h.global = append(h.global, now)
-	return true
+	return now, 0, true
+}
+
+// release gives back the slot allow recorded at the given time.
+func (h *BugsHandler) release(actorID string, at time.Time) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.global = removeTime(h.global, at)
+	if times := removeTime(h.byUser[actorID], at); len(times) == 0 {
+		delete(h.byUser, actorID)
+	} else {
+		h.byUser[actorID] = times
+	}
+}
+
+func removeTime(times []time.Time, at time.Time) []time.Time {
+	for index, entry := range times {
+		if entry.Equal(at) {
+			return append(times[:index], times[index+1:]...)
+		}
+	}
+	return times
 }
 
 func prune(times []time.Time, cutoff time.Time) []time.Time {
@@ -288,6 +408,21 @@ func maskContext(raw json.RawMessage) (string, bool) {
 	return string(masked), true
 }
 
+// maskedJSON returns value as compact JSON with the same masking as the
+// public context: the private store is not a reason to keep credentials.
+func maskedJSON(value any) (string, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return "", err
+	}
+	masked, err := json.Marshal(maskValue(decoded))
+	return string(masked), err
+}
+
 func maskValue(value any) any {
 	switch typed := value.(type) {
 	case string:
@@ -317,10 +452,23 @@ func redactSecrets(text string) string {
 	return text
 }
 
-func buildBugBody(description string, rawContext json.RawMessage) string {
+var mention = regexp.MustCompile(`@([A-Za-z0-9])`)
+
+// defuseMentions breaks @handles with a zero-width space so a player cannot
+// make the bot notify arbitrary GitHub users or teams.
+func defuseMentions(text string) string {
+	return mention.ReplaceAllString(text, "@​$1")
+}
+
+// buildBugBody writes the public issue body: the description, the note
+// standing for the private game view, and the masked client capture.
+func buildBugBody(description string, rawContext json.RawMessage, gameNote string) string {
 	var out strings.Builder
-	out.WriteString(redactSecrets(description))
+	out.WriteString(defuseMentions(redactSecrets(description)))
 	out.WriteString("\n\n_Reported from the in-game bug report dialog._\n")
+	if gameNote != "" {
+		out.WriteString("\n" + gameNote + "\n")
+	}
 	if len(rawContext) == 0 || string(rawContext) == "null" {
 		return out.String()
 	}

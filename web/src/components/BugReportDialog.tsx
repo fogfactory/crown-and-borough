@@ -72,8 +72,9 @@ function BugReportContent({ onClose }: { onClose: () => void }) {
   // Captured once when the dialog opens: what the player sees is what is sent.
   const [context] = useState(() => captureBugContext(language))
   const gameId = currentGameId(useLocation().pathname)
-  // The player's own game view, fetched like the game page does; the server
-  // builds its own copy for "Send" and never trusts one from the browser.
+  // The player's own game view, fetched like the game page does, for the
+  // preview only: on "Send" the server stores its own copy privately and never
+  // trusts one from the browser.
   const [game, setGame] = useState<unknown>(null)
   const json = useMemo(() => contextJson(context, game), [context, game])
 
@@ -118,7 +119,8 @@ function BugReportContent({ onClose }: { onClose: () => void }) {
   const fillOnGithub = async () => {
     // navigator.clipboard is missing outside secure contexts.
     const copied = await Promise.resolve()
-      .then(() => navigator.clipboard.writeText(json))
+      // The issue is public: the game view stays out of the copied context.
+      .then(() => navigator.clipboard.writeText(contextJson(context)))
       .then(() => true)
       .catch(() => false)
     const url = githubIssueUrl(

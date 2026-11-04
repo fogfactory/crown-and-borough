@@ -130,6 +130,12 @@ token or clear invitation code is stored by the backend.
 
 `POST /api/bugs` (authenticated, 256 KiB body limit, 3 reports per 10 minutes
 per player) creates a public GitHub issue from the in-game bug report dialog.
+The player's game view never goes to GitHub: it is stored in the private
+Firestore collection `bugReports` (in memory without Firestore), under a
+readable ID such as `partie-du-mardi-t12-heloise-3f9a2c`
+(`<game>-t<turn>-<player>-<ref>`). The public issue only cites the random
+`ref`, since the full ID names the game and the player; find the report in
+the console by filtering on `ref` or `issueUrl`.
 It needs `GITHUB_BUG_TOKEN`, a bot token with permission to create issues on
 `fogfactory/crown-and-borough`; leave it empty (the default, also in
 `docker-compose.yml`) to disable the route: `GET /api/bugs` then answers

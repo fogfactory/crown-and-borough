@@ -58,13 +58,20 @@ export function maskSecrets(value: unknown): unknown {
 }
 
 function maskPath(path: string): string {
-  const [base, query] = path.split('?', 2)
-  if (!query) return maskText(base)
-  const params = new URLSearchParams(query)
-  for (const key of [...params.keys()]) {
-    if (SENSITIVE_QUERY.test(key)) params.set(key, MASKED)
-  }
-  return maskText(`${base}?${decodeURIComponent(params.toString())}`)
+  const separator = path.indexOf('?')
+  if (separator < 0) return maskText(path)
+  // Pairs keep their raw encoding: decoding would turn an escaped & or = in a
+  // value into a fake separator, and a malformed escape would throw.
+  const pairs = path
+    .slice(separator + 1)
+    .split('&')
+    .map((pair) => {
+      const [key] = new URLSearchParams(pair).keys()
+      return key !== undefined && SENSITIVE_QUERY.test(key)
+        ? `${pair.split('=', 1)[0]}=${MASKED}`
+        : pair
+    })
+  return maskText(`${path.slice(0, separator)}?${pairs.join('&')}`)
 }
 
 /**
@@ -117,8 +124,13 @@ export function currentGameId(pathname: string): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
-/** What the player sees in the preview and copies for GitHub: the capture plus their game view. */
-export function contextJson(context: BugContext, game: unknown): string {
+/**
+ * The capture as JSON. The preview passes the player's game view (stored
+ * privately on "Send"); the public GitHub path omits the argument, so the
+ * game view is never copied there.
+ */
+export function contextJson(context: BugContext, game?: unknown): string {
+  if (game === undefined) return JSON.stringify(context, null, 2)
   return JSON.stringify({ ...context, game: game ? maskSecrets(game) : null }, null, 2)
 }
 
@@ -148,12 +160,21 @@ export function githubIssueUrl(title: string, summary: string): string {
       body,
       labels: 'bug',
     }).toString()}`
-  let body = summary
-  let url = build(body)
-  while (url.length > GITHUB_URL_LIMIT && body.length > 0) {
-    const excess = url.length - GITHUB_URL_LIMIT
-    body = body.slice(0, Math.max(0, body.length - Math.max(excess / 3, 20)))
-    url = build(`${body}…`)
+  const full = build(summary)
+  if (full.length <= GITHUB_URL_LIMIT) return full
+  // Longest prefix whose URL fits: encoding expands text unevenly (up to 9
+  // URL characters per UTF-16 unit), so search instead of estimating.
+  const trimmed = (end: number) => {
+    // Never leave a lone high surrogate (half of an emoji) at the cut.
+    if (end > 0 && /[\uD800-\uDBFF]/.test(summary[end - 1])) end--
+    return build(`${summary.slice(0, end)}…`)
   }
-  return url
+  let low = 0
+  let high = summary.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (trimmed(middle).length <= GITHUB_URL_LIMIT) low = middle
+    else high = middle - 1
+  }
+  return trimmed(low)
 }

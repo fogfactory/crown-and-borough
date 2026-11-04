@@ -58,6 +58,12 @@ describe('API call buffer', () => {
     expect(call.path).toContain('lang=fr')
   })
 
+  it('keeps escaped query values encoded and survives malformed escapes', () => {
+    recordApiCall('GET', '/api/x?q=a%26token%3Dx&bad=%E0%A4%A&sig=s?1', 200)
+    const [call] = recentApiCalls()
+    expect(call.path).toBe(`/api/x?q=a%26token%3Dx&bad=%E0%A4%A&sig=${MASKED}`)
+  })
+
   it('records apiRequest calls without the Authorization header', async () => {
     vi.stubGlobal(
       'fetch',
@@ -135,5 +141,11 @@ describe('githubIssueUrl', () => {
     const url = githubIssueUrl('t', 'é & ligne\n'.repeat(3000))
     expect(url.length).toBeLessThanOrEqual(GITHUB_URL_LIMIT)
     expect(new URL(url).searchParams.get('body')!.length).toBeGreaterThan(100)
+  })
+
+  it('never splits an emoji when trimming', () => {
+    const body = new URL(githubIssueUrl('t', '😀'.repeat(3000))).searchParams.get('body')!
+    expect(body).not.toContain('�')
+    expect(body).toMatch(/^(😀)+…$/u)
   })
 })

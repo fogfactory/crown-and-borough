@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -161,6 +162,51 @@ func TestBugsRateLimitPerActor(t *testing.T) {
 	}
 }
 
+func TestBugsRateLimitKeepsOtherActorsHistory(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	handler := bugsServer(&fakeIssues{}, func() time.Time { return now })
+	postBug(t, handler, "bob", validBug)
+	now = now.Add(bugActorWindow - time.Minute)
+	postBug(t, handler, "bob", validBug)
+	// Bob's first report expires; Alice's report sweeps the map meanwhile.
+	now = now.Add(2 * time.Minute)
+	postBug(t, handler, "alice", validBug)
+	for i := 0; i < bugActorLimit-1; i++ {
+		if response := postBug(t, handler, "bob", validBug); response.Code != http.StatusCreated {
+			t.Fatalf("bob report %d = %d", i, response.Code)
+		}
+	}
+	response := postBug(t, handler, "bob", validBug)
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("bob over limit = %d", response.Code)
+	}
+	if got := response.Header().Get("Retry-After"); got != "480" {
+		t.Fatalf("Retry-After = %q", got)
+	}
+}
+
+func TestBugsUpstreamFailureKeepsQuota(t *testing.T) {
+	issues := &fakeIssues{err: errors.New("down")}
+	handler := bugsServer(issues, nil)
+	for i := 0; i < bugActorLimit+1; i++ {
+		if response := postBug(t, handler, "alice", validBug); response.Code != http.StatusBadGateway {
+			t.Fatalf("failure %d = %d", i, response.Code)
+		}
+	}
+	issues.err = nil
+	if response := postBug(t, handler, "alice", validBug); response.Code != http.StatusCreated {
+		t.Fatalf("after outage = %d", response.Code)
+	}
+}
+
+func TestBugsDefuseMentions(t *testing.T) {
+	issues := &fakeIssues{}
+	postBug(t, bugsServer(issues, nil), "alice", `{"title":"x","description":"ping @octocat and @org/team"}`)
+	if strings.Contains(issues.body, "@octocat") || strings.Contains(issues.body, "@org/") {
+		t.Fatalf("body = %s", issues.body)
+	}
+}
+
 func TestBugsUpstreamFailureHidesDetails(t *testing.T) {
 	issues := &fakeIssues{err: errors.New("secret upstream detail")}
 	response := postBug(t, bugsServer(issues, nil), "alice", validBug)
@@ -206,31 +252,140 @@ func TestGitHubIssueClientRejectsErrors(t *testing.T) {
 	}
 }
 
-func TestBugsAttachServerSideGameProjection(t *testing.T) {
+func TestBugsStoreGameViewPrivately(t *testing.T) {
 	issues := &fakeIssues{}
+	reports := store.NewMemoryBugReportStore()
 	handler := NewBugsHandler(BugHandlerOptions{
-		Actor:  BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
-		Issues: issues,
-		State: func(_ context.Context, actor store.Actor, id store.GameID) (any, error) {
+		Actor:   BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
+		Issues:  issues,
+		Reports: reports,
+		Now:     func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+		State: func(_ context.Context, actor store.Actor, id store.GameID) (PlayerGameView, error) {
 			if id != "g1" {
-				return nil, errors.New("not found")
+				return PlayerGameView{}, errors.New("not found")
 			}
-			return map[string]any{"viewer": actor.ID, "inviteCode": "SECRET1"}, nil
+			return PlayerGameView{
+				GameName:   "Partie du Mardi",
+				Turn:       12,
+				PlayerID:   "p1",
+				PlayerName: "Héloïse",
+				View:       map[string]any{"viewer": actor.ID, "army": "SECRET-ARMY", "inviteCode": "SECRET1"},
+			}, nil
 		},
 	})
 	body := `{"title":"x","description":"y","gameId":"g1","context":{"version":"1"},"game":{"forged":true}}`
 	if response := postBug(t, handler, "alice", strings.Replace(body, `,"game":{"forged":true}`, "", 1)); response.Code != http.StatusCreated {
 		t.Fatalf("create = %d", response.Code)
 	}
-	if !strings.Contains(issues.body, `"viewer": "alice"`) || strings.Contains(issues.body, "SECRET1") {
-		t.Fatalf("body = %s", issues.body)
+	if strings.Contains(issues.body, "SECRET") || strings.Contains(issues.body, `"viewer"`) {
+		t.Fatalf("game view reached the public issue: %s", issues.body)
+	}
+	// The public issue cites only the opaque ref, never the game or player name.
+	if strings.Contains(issues.body, "partie") || strings.Contains(issues.body, "heloise") {
+		t.Fatalf("names reached the public issue: %s", issues.body)
+	}
+	ref := regexp.MustCompile("ref `([0-9a-f]{6})`").FindStringSubmatch(issues.body)
+	if ref == nil {
+		t.Fatalf("missing report ref in %s", issues.body)
+	}
+	report, ok := reports.BugReport("partie-du-mardi-t12-heloise-" + ref[1])
+	if !ok || report.Ref != ref[1] || report.GameID != "g1" || report.Turn != 12 || report.PlayerID != "p1" || report.UID != "alice" {
+		t.Fatalf("report = %+v", report)
+	}
+	if !strings.Contains(report.GameView, "SECRET-ARMY") || strings.Contains(report.GameView, "SECRET1") {
+		t.Fatalf("stored view = %s", report.GameView)
+	}
+	if report.IssueURL != "https://github.com/example/repo/issues/7" {
+		t.Fatalf("issue url = %q", report.IssueURL)
 	}
 	// A client-supplied game blob is rejected, not published.
 	if response := postBug(t, handler, "alice", body); response.Code != http.StatusBadRequest {
 		t.Fatalf("forged game = %d", response.Code)
 	}
 	postBug(t, handler, "bob", `{"title":"x","description":"y","gameId":"other"}`)
-	if !strings.Contains(issues.body, "unavailable") {
+	if !strings.Contains(issues.body, "Game view: unavailable") {
 		t.Fatalf("body = %s", issues.body)
+	}
+}
+
+func TestBugsWithoutReportStoreNeverPublishGameView(t *testing.T) {
+	issues := &fakeIssues{}
+	handler := NewBugsHandler(BugHandlerOptions{
+		Actor:  BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
+		Issues: issues,
+		State: func(context.Context, store.Actor, store.GameID) (PlayerGameView, error) {
+			return PlayerGameView{View: map[string]any{"army": "SECRET-ARMY"}}, nil
+		},
+	})
+	postBug(t, handler, "alice", `{"title":"x","description":"y","gameId":"g1"}`)
+	if strings.Contains(issues.body, "SECRET-ARMY") || !strings.Contains(issues.body, "not stored") {
+		t.Fatalf("body = %s", issues.body)
+	}
+}
+
+func gameViewHandler(issues IssueCreator, reports store.BugReportStore) http.Handler {
+	return NewBugsHandler(BugHandlerOptions{
+		Actor:   BearerActorResolver(func(token string) (store.Actor, error) { return store.Actor{ID: token}, nil }),
+		Issues:  issues,
+		Reports: reports,
+		State: func(context.Context, store.Actor, store.GameID) (PlayerGameView, error) {
+			return PlayerGameView{GameName: "g", Turn: 1, PlayerID: "p1", View: map[string]any{"army": 1}}, nil
+		},
+	})
+}
+
+func TestBugsDeleteTheReportWhenTheIssueFails(t *testing.T) {
+	reports := store.NewMemoryBugReportStore()
+	handler := gameViewHandler(&fakeIssues{err: errors.New("down")}, reports)
+	for i := 0; i < bugActorLimit+1; i++ {
+		if response := postBug(t, handler, "alice", `{"title":"x","description":"y","gameId":"g1"}`); response.Code != http.StatusBadGateway {
+			t.Fatalf("failure %d = %d", i, response.Code)
+		}
+	}
+	if reports.Len() != 0 {
+		t.Fatalf("%d orphan reports left", reports.Len())
+	}
+}
+
+// collidingReports reports a collision on the first create, like a suffix
+// already taken.
+type collidingReports struct {
+	*store.MemoryBugReportStore
+	collided bool
+}
+
+func (c *collidingReports) CreateBugReport(ctx context.Context, report store.BugReport) error {
+	if !c.collided {
+		c.collided = true
+		return store.ErrBugReportExists
+	}
+	return c.MemoryBugReportStore.CreateBugReport(ctx, report)
+}
+
+func TestBugsRetryOnReportIDCollision(t *testing.T) {
+	issues := &fakeIssues{}
+	reports := &collidingReports{MemoryBugReportStore: store.NewMemoryBugReportStore()}
+	if response := postBug(t, gameViewHandler(issues, reports), "alice", `{"title":"x","description":"y","gameId":"g1"}`); response.Code != http.StatusCreated {
+		t.Fatalf("create = %d", response.Code)
+	}
+	if reports.Len() != 1 || !strings.Contains(issues.body, "ref `") {
+		t.Fatalf("reports=%d body=%s", reports.Len(), issues.body)
+	}
+}
+
+func TestMemoryBugReportStoreRefusesDuplicateIDs(t *testing.T) {
+	reports := store.NewMemoryBugReportStore()
+	ctx := context.Background()
+	if err := reports.CreateBugReport(ctx, store.BugReport{ID: "a", GameView: "first"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := reports.CreateBugReport(ctx, store.BugReport{ID: "a", GameView: "second"}); !errors.Is(err, store.ErrBugReportExists) {
+		t.Fatalf("duplicate = %v", err)
+	}
+	if err := reports.SetBugReportIssue(ctx, "a", "https://x/1"); err != nil {
+		t.Fatal(err)
+	}
+	if report, _ := reports.BugReport("a"); report.GameView != "first" || report.IssueURL != "https://x/1" {
+		t.Fatalf("report = %+v", report)
 	}
 }

@@ -915,11 +915,13 @@ dans la barre d'une partie sur téléphone) ouvre une fenêtre modale
 (`BugReportDialog.tsx`, même habillage que les notes de version) : résumé,
 description, aperçu repliable du contexte capturé (vue de partie du joueur,
 lue via `GET /api/games/{id}/state`, derniers appels API sans identifiants,
-version, navigateur ; à l'envoi, le serveur reconstruit lui-même la vue) et un avis
-rappelant que l'envoi publie une issue publique. « Envoyer » demande une
+version, navigateur ; à l'envoi, le serveur reconstruit lui-même la vue et la
+conserve en privé) et un avis rappelant que l'envoi publie une issue publique
+où seule la référence de la vue de partie figure. « Envoyer » demande une
 confirmation explicite avant de publier et est grisé quand le serveur n'a pas
 de jeton ; « Remplir sur GitHub » ouvre le formulaire d'issue pré-rempli et
-copie le JSON complet dans le presse-papiers pour que le joueur le colle.
+copie le contexte, sans la vue de partie, dans le presse-papiers pour que le
+joueur le colle.
 
 La fenêtre « Lignée et alliances » (`LineageDialog.tsx`) est un **arbre
 généalogique** tissé en tapisserie : de l'encre sur parchemin, une barre d'or feuillue pour

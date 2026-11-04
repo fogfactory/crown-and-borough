@@ -545,6 +545,12 @@ gh variable set PUBLIC_HOSTING_URL --repo "$GITHUB_REPOSITORY" --body "https://c
 
 ### Bug report token
 
+The player's game view attached to a report is stored in the Firestore
+collection `bugReports` (backend-only, denied to clients by `firestore.rules`),
+never on GitHub: the issue only cites the report's random `ref`. Filter the
+collection on `ref` or `issueUrl` to find it; reports are plain documents that
+can be deleted from the console once triaged.
+
 The in-game bug report dialog files public issues through `POST /api/bugs`,
 which needs a GitHub token able to create issues on the repository
 (fine-grained, `Issues: read and write` on this repository only). The server
