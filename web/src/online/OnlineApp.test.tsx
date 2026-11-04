@@ -36,6 +36,21 @@ describe('online information routes', () => {
     expect(screen.getByRole('link', { name: 'FAQ' })).toHaveAttribute('href', '/faq')
   })
 
+  it('links to the GitHub repository from the authenticated header', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MemoryRouter initialEntries={['/faq']}>
+          <OnlineRoutes />
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Source code on GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/fogfactory/crown-and-borough',
+    )
+  })
+
   it('loads the full rules page without an inner scroll container', async () => {
     vi.stubGlobal(
       'fetch',

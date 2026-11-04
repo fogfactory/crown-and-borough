@@ -16,7 +16,7 @@ export function GithubLink({ className }: { className?: string }) {
       aria-label={t('app.github')}
       title={t('app.github')}
       className={cn(
-        'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900 sm:size-8',
+        'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-ink-500 transition hover:bg-paper-100 hover:text-ink-900 lg:size-8',
         className,
       )}
     >

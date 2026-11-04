@@ -13,6 +13,7 @@ import { GameLayout } from '@/components/GameLayout'
 import { GameDrawer, drawerPanelOf, type Panel } from '@/components/GameDrawer'
 import { useIsDesktop } from '@/lib/use-media-query'
 import { GameMenu } from '@/components/GameMenu'
+import { GithubLink } from '@/components/GithubLink'
 import { MapViewer } from '@/components/MapViewer'
 import { ownTerritoriesFrame } from '@/lib/map-frame'
 import { useMapLinkState } from '@/lib/use-map-link-state'
@@ -1002,7 +1003,7 @@ export function GamePage() {
               {t('online.finished')}
             </span>
           )}
-          {(!desktop || (summary.status !== 'finished' && summary.canInvite)) && (
+          {!desktop || (summary.status !== 'finished' && summary.canInvite) ? (
             <GameMenu
               language={!desktop}
               resolution={
@@ -1015,6 +1016,8 @@ export function GamePage() {
                   : undefined
               }
             />
+          ) : (
+            <GithubLink />
           )}
         </div>
       </div>

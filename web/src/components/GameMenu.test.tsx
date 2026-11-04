@@ -22,6 +22,16 @@ describe('GameMenu', () => {
     expect(onResolve).toHaveBeenCalledOnce()
   })
 
+  it('links to the GitHub repository next to the version', () => {
+    renderMenu({})
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    expect(screen.getByRole('link', { name: 'Code source sur GitHub' })).toHaveAttribute(
+      'href',
+      'https://github.com/fogfactory/crown-and-borough',
+    )
+  })
+
   it('asks for a confirmation before an online forced resolution', () => {
     const onResolve = vi.fn()
     renderMenu({ resolution: { disabled: false, confirm: true, onResolve } })
