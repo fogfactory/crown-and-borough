@@ -13,11 +13,6 @@ import {
   type ReleaseNotesEntry,
 } from '@/lib/release-notes'
 
-/** Fetched notes, tagged with the version range they were fetched for. */
-type FetchedNotes =
-  | { range: string; status: 'ready'; entries: ReleaseNotesEntry[] }
-  | { range: string; status: 'failed' }
-
 /**
  * Shows the notes of the versions deployed since the player last looked, once
  * per session. Whether to open is decided locally; the notes are fetched from
@@ -30,10 +25,10 @@ export function ReleaseNotesDialog() {
   const current = deployedVersion()
   const [dismissed, setDismissed] = useState(false)
   const [hideFuture, setHideFuture] = useState(false)
-  const [fetched, setFetched] = useState<FetchedNotes | null>(null)
+  // null while loading; a failed fetch shows the same fallback as no notes.
+  const [entries, setEntries] = useState<ReleaseNotesEntry[] | null>(null)
 
   const lastSeen = profile?.lastSeenVersion ?? ''
-  const range = `${lastSeen}..${current}`
   const open =
     !!profile &&
     !profile.hideReleaseNotes &&
@@ -43,19 +38,16 @@ export function ReleaseNotesDialog() {
   useEffect(() => {
     if (!open) return
     const controller = new AbortController()
-    fetchReleaseNotes(lastSeen, current, controller.signal).then(
-      (entries) => setFetched({ range, status: 'ready', entries }),
-      () => {
-        if (!controller.signal.aborted) setFetched({ range, status: 'failed' })
-      },
-    )
+    setEntries(null)
+    fetchReleaseNotes(lastSeen, current, controller.signal)
+      .catch(() => [])
+      .then((fetched) => {
+        if (!controller.signal.aborted) setEntries(fetched)
+      })
     return () => controller.abort()
-  }, [open, lastSeen, current, range])
+  }, [open, lastSeen, current])
 
   if (!open) return null
-
-  const notes = fetched?.range === range ? fetched : null
-  const entries = notes?.status === 'ready' ? notes.entries : []
 
   const close = () => {
     setDismissed(true)
@@ -93,13 +85,13 @@ export function ReleaseNotesDialog() {
             </Dialog.Close>
           </header>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
-            {!notes && (
+            {!entries && (
               <p className="text-sm text-ink-500">{t('releaseNotes.loading')}</p>
             )}
-            {notes && entries.length === 0 && (
+            {entries?.length === 0 && (
               <p className="text-sm text-ink-700">{t('releaseNotes.unavailable')}</p>
             )}
-            {entries.map((entry) => (
+            {entries?.map((entry) => (
               <section key={entry.version} aria-label={entry.version}>
                 <h3 className="font-display text-base font-semibold text-ink-900">
                   {t('app.version', { version: entry.version })}

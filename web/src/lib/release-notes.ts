@@ -1,10 +1,9 @@
-import { REPOSITORY_URL } from '@/lib/repository'
+import { REPOSITORY_SLUG, REPOSITORY_URL } from '@/lib/repository'
 
 export const RELEASES_URL = `${REPOSITORY_URL}/releases`
 
 /** Public GitHub API listing the releases published by release-please. */
-export const RELEASES_API_URL =
-  'https://api.github.com/repos/fogfactory/crown-and-borough/releases'
+export const RELEASES_API_URL = `https://api.github.com/repos/${REPOSITORY_SLUG}/releases`
 
 /** Releases fetched per dialog; older ones stay reachable through RELEASES_URL. */
 const RELEASES_PAGE_SIZE = 50
@@ -28,7 +27,8 @@ export interface GitHubRelease {
   draft: boolean
 }
 
-const VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/
+// Keep aligned with releaseVersionPattern in internal/store/profile.go.
+const VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]*)?$/
 
 function parseVersion(value: string): [number, number, number] | null {
   const match = VERSION_PATTERN.exec(value.trim())

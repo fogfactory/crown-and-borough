@@ -10,9 +10,10 @@ import (
 	"unicode/utf8"
 )
 
-// releaseVersionPattern accepts the SemVer versions stamped by release-please
-// (optionally v-prefixed, with a pre-release or build suffix).
-var releaseVersionPattern = regexp.MustCompile(`^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]*)?$`)
+// releaseVersionPattern accepts the SemVer versions stamped by release-please,
+// with an optional pre-release or build suffix. Keep it aligned with
+// VERSION_PATTERN in web/src/lib/release-notes.ts.
+var releaseVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]*)?$`)
 
 const (
 	MinimumDisplayNameLength = 1
@@ -131,7 +132,7 @@ func (s *MemoryProfileStore) UpdateReleaseNotes(ctx context.Context, uid string,
 }
 
 // NormalizeReleaseNotesUpdate validates an update and returns it with a
-// trimmed version.
+// trimmed version, stored without its "v" prefix.
 func NormalizeReleaseNotesUpdate(update ReleaseNotesUpdate) (ReleaseNotesUpdate, error) {
 	if update.LastSeenVersion == nil && update.HideReleaseNotes == nil {
 		return ReleaseNotesUpdate{}, ErrInvalidReleaseNotes
@@ -139,7 +140,7 @@ func NormalizeReleaseNotesUpdate(update ReleaseNotesUpdate) (ReleaseNotesUpdate,
 	if update.LastSeenVersion == nil {
 		return update, nil
 	}
-	version := strings.TrimSpace(*update.LastSeenVersion)
+	version := strings.TrimPrefix(strings.TrimSpace(*update.LastSeenVersion), "v")
 	if !releaseVersionPattern.MatchString(version) {
 		return ReleaseNotesUpdate{}, ErrInvalidReleaseNotes
 	}

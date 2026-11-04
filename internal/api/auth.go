@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -18,9 +17,26 @@ func NewAuthHandler(profiles store.ProfileStore, resolve ActorResolver) http.Han
 	return &AuthHandler{profiles: profiles, actor: resolve}
 }
 
+type authMethod func(*AuthHandler, http.ResponseWriter, *http.Request, store.Actor)
+
+type authRoute struct {
+	allow   string
+	methods map[string]authMethod
+}
+
+var authRoutes = map[string]authRoute{
+	"/api/auth/me": {allow: "GET, PUT", methods: map[string]authMethod{
+		http.MethodGet: (*AuthHandler).getProfile,
+		http.MethodPut: (*AuthHandler).updateProfile,
+	}},
+	"/api/auth/me/release-notes": {allow: "PUT", methods: map[string]authMethod{
+		http.MethodPut: (*AuthHandler).updateReleaseNotes,
+	}},
+}
+
 func (h *AuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimSuffix(r.URL.Path, "/")
-	if path != "/api/auth/me" && path != "/api/auth/me/release-notes" {
+	route, ok := authRoutes[strings.TrimSuffix(r.URL.Path, "/")]
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
@@ -33,24 +49,13 @@ func (h *AuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeActorError(w, err)
 		return
 	}
-	if path == "/api/auth/me/release-notes" {
-		if r.Method != http.MethodPut {
-			w.Header().Set("Allow", "PUT")
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		h.updateReleaseNotes(w, r, actor)
+	handle, ok := route.methods[r.Method]
+	if !ok {
+		w.Header().Set("Allow", route.allow)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	switch r.Method {
-	case http.MethodGet:
-		h.getProfile(w, r, actor)
-	case http.MethodPut:
-		h.updateProfile(w, r, actor)
-	default:
-		w.Header().Set("Allow", "GET, PUT")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
+	handle(h, w, r, actor)
 }
 
 func (h *AuthHandler) getProfile(w http.ResponseWriter, r *http.Request, actor store.Actor) {
@@ -64,10 +69,7 @@ func (h *AuthHandler) getProfile(w http.ResponseWriter, r *http.Request, actor s
 
 func (h *AuthHandler) updateProfile(w http.ResponseWriter, r *http.Request, actor store.Actor) {
 	var body profileUpdateRequest
-	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&body); err != nil {
+	if err := decodeJSONBody(w, r, 4<<10, &body); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_profile_request", err.Error())
 		return
 	}
@@ -85,10 +87,7 @@ func (h *AuthHandler) updateProfile(w http.ResponseWriter, r *http.Request, acto
 
 func (h *AuthHandler) updateReleaseNotes(w http.ResponseWriter, r *http.Request, actor store.Actor) {
 	var body releaseNotesUpdateRequest
-	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&body); err != nil {
+	if err := decodeJSONBody(w, r, 4<<10, &body); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_release_notes_request", err.Error())
 		return
 	}
