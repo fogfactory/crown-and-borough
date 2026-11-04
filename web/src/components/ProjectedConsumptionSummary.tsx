@@ -47,7 +47,13 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
                 territory: <TerritoryRef id={risk.territoryId} />,
                 size: risk.size,
                 deficit: risk.deficit,
+                supplied: risk.suppliedStrength,
               })}
+              {risk.suppliedStrength === 0 && risk.expectedLoss > 0
+                ? t('app.armyAtRiskVanishes')
+                : risk.expectedLoss > 0
+                  ? t('app.armyAtRiskLoss', { count: risk.expectedLoss })
+                  : ''}
             </li>
           ))}
         </ul>

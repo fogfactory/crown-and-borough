@@ -802,7 +802,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		}
 	})
 
-	t.Run("negative pillage gain starves a size-three army down to two", func(t *testing.T) {
+	t.Run("negative pillage gain starves a size-three army down to its supplied strength", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
 			// Starving: true simulates a deficit already carried over from a
@@ -819,11 +819,11 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := famineEventForArmy(t, resolution.Events, "A1")
-		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 1 {
-			t.Errorf("famine event = %#v, want an unsaved three-troop army with one troop lost", event)
+		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 2 {
+			t.Errorf("famine event = %#v, want an unsaved three-troop army with two troops lost", event)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.Size != 2 {
-			t.Errorf("A1 size = %d, want 2 after one famine turn", army.Size)
+		if army := armyByID(t, resolution.State, "A1"); army.Size != 1 || army.Starving {
+			t.Errorf("A1 size = %d, want 1 (its supplied strength) and famine over", army.Size)
 		}
 		report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 		var consumption *ConsumptionReport
@@ -833,8 +833,8 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				break
 			}
 		}
-		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 1 {
-			t.Errorf("consumption report = %#v, want a famine line for A1 with initial size 3 and one lost troop", report.Consumption)
+		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 2 || consumption.SuppliedStrength != 1 {
+			t.Errorf("consumption report = %#v, want a famine line for A1 with initial size 3 and two lost troops", report.Consumption)
 		}
 		if len(resolution.State.Infrastructures) != 0 {
 			t.Errorf("infrastructures = %#v, want auto-pillage to remove I1", resolution.State.Infrastructures)
@@ -944,7 +944,7 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 // starves the army (no orders, so nothing but ravitaillement happens), turn
 // 2 exercises the combat effect.
 func TestResolveFamineCombatEffects(t *testing.T) {
-	t.Run("attacker fights at full strength the turn it starves, zero the turn after", func(t *testing.T) {
+	t.Run("attacker fights at full strength the turn it starves, cannot attack the turn after", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
@@ -981,8 +981,11 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("turn 2 Resolve: %v", err)
 		}
-		if got := combatContenderForce(t, turn2.Events, "BBB", "A1"); got != 0 {
-			t.Errorf("A1 attack force in turn 2 = %d, want famine force 0", got)
+		if outcome, found := findOutcome(turn2.Events, "O1"); !found || outcome.Reason != "famished_attacker" {
+			t.Errorf("A1 attack outcome = %#v, found=%t, want famished_attacker", outcome, found)
+		}
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "AAA" {
+			t.Errorf("A1 = %+v, want it to stay put", army)
 		}
 	})
 
@@ -1085,7 +1088,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		}
 	})
 
-	t.Run("a zero-force attack can still move to an empty territory, only from the turn after it starves", func(t *testing.T) {
+	t.Run("a starving army cannot attack even an empty territory, only from the turn after it starves", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
@@ -1114,8 +1117,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("turn 2 Resolve: %v", err)
 		}
-		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "BBB" {
-			t.Errorf("A1 = %+v, want the zero-force attack to still move onto the empty territory", army)
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "AAA" {
+			t.Errorf("A1 = %+v, want the invalid attack to leave it on AAA", army)
 		}
 	})
 }

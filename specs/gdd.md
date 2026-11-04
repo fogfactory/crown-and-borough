@@ -599,15 +599,18 @@ En cas de déficit :
 2. les armées restantes passent en famine, en commençant par les plus éloignées
    de leur source, puis les plus grosses, puis le trigramme décroissant.
 
-Une armée qui termine le tour en famine est marquée **affamée**, un statut qui
-persiste jusqu'à la résolution de ravitaillement suivante. Pendant tout le
-tour suivant, une armée affamée combat et se défend à force 0, même si elle
-est commandée par un noble : le bonus de noble ne s'applique alors pas ; elle
-ne peut pas émettre de transfert de ressources (`T`, section 6). Ce premier
-tour de famine ne lui inflige aucune autre conséquence : ni pillage de
-l'infrastructure de sa case, ni perte de troupe, ce qui laisse au joueur tout
-le tour suivant pour réagir en déplaçant l'armée ou en lui envoyant des
-ressources par transfert.
+La **valeur ravitaillée** `s` d'une armée est la plus grande taille dont le coût
+`2^(s - 1)` tient dans les rations qu'elle atteint (`s = 0` si elle n'en
+atteint aucune). Une armée dont la demande n'est pas couverte à la fin du tour
+est marquée **affamée**, un statut qui persiste jusqu'à la résolution de
+ravitaillement suivante. Pendant tout le tour suivant, une armée affamée
+se défend à la force `s - 1` (au plus sa taille), même si elle est commandée
+par un noble : le bonus de noble ne s'applique alors pas. Elle ne peut ni
+attaquer (son ordre d'attaque est invalide), ni soutenir, ni émettre de
+transfert de ressources (`T`, section 6). Ce premier tour
+de famine ne lui inflige aucune perte de troupe ni pillage de l'infrastructure
+de sa case, ce qui laisse au joueur tout le tour suivant pour réagir en
+déplaçant l'armée ou en lui envoyant des ressources par transfert.
 
 À la résolution de ravitaillement du tour suivant, son statut est recalculé
 exactement comme celui de n'importe quelle armée : si elle a atteint une
@@ -615,8 +618,10 @@ source suffisante entre-temps, elle redevient valide dès ce tour. Si elle est
 encore en déficit alors qu'elle est déjà affamée, elle pille automatiquement
 l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
 diminué de sa demande résiduelle, peut la sortir de famine. Si le pillage est
-insuffisant ou impossible, elle perd une troupe, sans jamais descendre sous 1
-troupe, et reste affamée pour le tour d'après.
+insuffisant ou impossible, elle perd autant de troupes qu'il en faut pour
+revenir à sa valeur ravitaillée `s`, et n'est alors plus affamée. Si `s = 0`,
+elle disparaît : personne ne pouvant capturer ses nobles, ils meurent avec
+elle, et sa case garde son contrôleur.
 
 ## 6. Ordres et chaînes de commandement
 

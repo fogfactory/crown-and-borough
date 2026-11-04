@@ -201,12 +201,13 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 	}
 	switch order.Type {
 	case models.OrderTypeAttack:
-		targetID := order.TargetIDs[0]
-		strength := army.Size
 		if ctx.famished[army.ID] {
-			strength = 0
+			// A famished army only defends: it cannot take the offensive.
+			record.invalidate("famished_attacker")
+			return
 		}
-		ctx.attacks[army.ID] = &attackIntent{armyID: army.ID, source: army.TerritoryID, target: targetID, size: strength}
+		targetID := order.TargetIDs[0]
+		ctx.attacks[army.ID] = &attackIntent{armyID: army.ID, source: army.TerritoryID, target: targetID, size: army.Size}
 		ctx.attackedTerritories[targetID] = true
 	case models.OrderTypeJoin:
 		targetID := order.TargetIDs[0]

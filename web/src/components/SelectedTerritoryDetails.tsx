@@ -312,7 +312,7 @@ export function SelectedTerritoryDetails({
               </span>
               {army.starving && (
                 <span className="basis-full text-xs font-semibold text-vermilion-700">
-                  {t('app.armyStarving')}
+                  {t('app.armyStarving', { strength: army.starvingStrength ?? 0 })}
                 </span>
               )}
             </dd>

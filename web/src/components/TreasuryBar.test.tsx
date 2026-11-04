@@ -57,8 +57,8 @@ describe('TreasuryBar', () => {
         {
           ...state.players[0],
           armiesAtRisk: [
-            { territoryId: 'ROS', size: 3, deficit: 2 },
-            { territoryId: 'BOI', size: 1, deficit: 1 },
+            { territoryId: 'ROS', size: 3, deficit: 2, suppliedStrength: 1, expectedLoss: 2 },
+            { territoryId: 'BOI', size: 1, deficit: 1, suppliedStrength: 0, expectedLoss: 1 },
           ],
         },
       ],

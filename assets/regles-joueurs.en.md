@@ -618,15 +618,19 @@ When there is a deficit:
 2. remaining armies enter **famine**, starting with those furthest from their
    source, then the largest, then descending trigram.
 
+An army's **supplied value** `s` is the largest size whose cost `2^(s - 1)`
+fits in the rations it reaches (`s = 0` if none reaches it).
+
 An army that lacks rations at this end-of-turn resolution is marked
 **famished**, a status that persists through the entire following turn: it
-**attacks and defends at strength 0**, even when it carries a free noble — the
-noble bonus does not apply — and it cannot send a resource transfer (it can
-still receive one, see section 5). This first turn in deficit costs it
-nothing else: no pillage of the infrastructure on its territory, no troop
-loss. You therefore have the entire following turn to pull it out of deficit,
-either by moving it away from the affected area or by sending it resources
-through a transfer.
+**defends at strength `s − 1`** (never above its size), even when it carries
+a free noble — the noble bonus does not apply. It **cannot attack** (its
+attack order is invalid), **cannot support**, and cannot send a resource
+transfer (it can still receive one, see section 5). This first turn
+in deficit costs it nothing else: no pillage of the infrastructure on its
+territory, no troop loss. You therefore have the entire following turn to pull
+it out of deficit, either by moving it away from the affected area or by
+sending it resources through a transfer.
 
 Its status is only recalculated at the next supply resolution, at the end of
 that following turn. If it reached a sufficient source in the meantime, it
@@ -634,16 +638,18 @@ becomes valid again from that turn on. If it is still in deficit at that
 point, while already famished, it **pillages the infrastructure on its
 territory automatically**, if it occupies one: the pillage bonus, reduced by
 its residual demand, may cover the deficit. If pillage is insufficient or
-impossible, it loses **1 troop**, never falling below 1, and stays famished
-for the turn after that.
+impossible, it **loses as many troops as needed to come back down to `s`** and
+is no longer famished. If `s = 0`, it **disappears**: its nobles **die with
+it** (nobody can capture them) and the territory keeps its controller.
 
-Example: a 2-troop army in deficit demands 2 rations. Lacking sufficient
-stocks, it ends the turn in deficit and is marked famished: it will attack and
-defend at strength 0 for the entire following turn, but loses nothing for
-now. If, at the following turn's resolution, its stocks and pillage still
-cannot cover its deficit, it loses one troop, becomes a 1-troop army, and
-stays famished for the turn after that — its fate depends on what it reaches
-as a supply source by that resolution, not on its new demand.
+Example: a 4-troop army demands 8 rations but reaches only 3. Its supplied
+value is `s = 2` (2 rations feed 2 troops, 4 are needed for 3). It is marked
+famished and defends at strength 1 for the entire following turn (it cannot attack or support),
+losing nothing for now. If, at the following turn's resolution, its stocks and
+pillage still cannot cover its deficit, it loses 2 troops and is back to 2
+fed troops. Reaching 0 rations, the same army would disappear at that
+resolution. The value `s` depends on what the army reaches as a supply source
+by that resolution, not on its size.
 
 In the interface, selecting an army or a controlled source shows its supply or
 the area it reaches (outside winter only). A transfer being drafted also shows

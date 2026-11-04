@@ -69,6 +69,8 @@ type consumptionDetail struct {
 	famined               bool
 	warned                bool
 	troopsLost            int
+	suppliedStrength      int
+	destroyed             bool
 	savedByPillage        bool
 	pillageInfrastructure models.InfraType
 	resourceCredit        int
@@ -92,6 +94,7 @@ func resolveSupply(ctx *resolutionContext) {
 	// (below) sets it back on whichever one fails to.
 	for index := range ctx.state.Armies {
 		ctx.state.Armies[index].Starving = false
+		ctx.state.Armies[index].StarvingStrength = 0
 	}
 	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
@@ -640,6 +643,38 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 	})
 }
 
+// suppliedStrength is the largest size an army can field on the rations it
+// reaches: the largest s whose cost 2^(s-1) fits in the army's own cost minus
+// the rations it is missing. Zero when it reaches no ration at all.
+func suppliedStrength(size, missing, costBase int) int {
+	reached := armyCost(size, costBase) - missing
+	supplied := 0
+	for supplied < size && armyCost(supplied+1, costBase) <= reached {
+		supplied++
+	}
+	return supplied
+}
+
+// destroyStarvedArmy removes an army whose supplied strength is zero. Nobody
+// can capture its nobles, so the free nobles of its owner on the territory
+// die with it; the territory keeps its controller.
+func (ctx *resolutionContext) destroyStarvedArmy(armyID models.ArmyID, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	var dying []models.Noble
+	for _, nobleID := range ctx.noblesAt(territoryID) {
+		noble := ctx.noblesByID[nobleID]
+		if noble != nil && noble.OwnerID == ownerID && noble.Status == models.NobleStatusFree {
+			dying = append(dying, *noble)
+		}
+	}
+	if record := ctx.records[armyID]; record != nil {
+		record.destroyed = true
+	}
+	ctx.removeArmy(armyID)
+	for _, noble := range dying {
+		ctx.removeNobleInAction(noble, models.DeathCauseFamine)
+	}
+}
+
 func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 	event := Event{
 		Type:        EventTypeFamine,
@@ -650,6 +685,7 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		SourceID:    candidate.sourceID,
 		Troops:      candidate.army.Size,
 	}
+	supplied := suppliedStrength(candidate.army.Size, candidate.demand, ctx.balance.CostBase)
 	if !ctx.famished[candidate.army.ID] {
 		// First turn this army falls into deficit: only a warning. It is
 		// marked Starving for next turn's own combat, support and
@@ -660,12 +696,15 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		// (only the famished sender is blocked, not the recipient) — before
 		// a second consecutive deficit triggers the auto-pillage below.
 		event.Warned = true
+		event.SuppliedStrength = supplied
 		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
 			army.Starving = true
+			army.StarvingStrength = max(0, supplied-1)
 		}
 		if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
 			detail.famined = true
 			detail.warned = true
+			detail.suppliedStrength = supplied
 		}
 		ctx.events = append(ctx.events, event)
 		return
@@ -691,28 +730,39 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		}
 	}
 	if !event.SavedByPillage {
-		// Starving carries the penalty into next turn's own combat, support
-		// and noble-bonus checks (ctx.famished's seeding in
-		// newResolutionContext): this turn's own combat already resolved
-		// earlier and is never reopened by a famine discovered only now
-		// (#208).
+		event.SuppliedStrength = supplied
+		// The army sheds every troop it cannot feed: it comes back down to
+		// its supplied strength, and disappears when it reaches no ration.
 		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
-			army.Starving = true
-			if army.Size > 1 {
-				army.Size--
-				event.TroopsLost = 1
+			event.TroopsLost = max(0, army.Size-supplied)
+			if supplied == 0 {
+				event.Destroyed = true
+			} else {
+				army.Size = min(army.Size, supplied)
 			}
 		}
 	}
 	if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
 		detail.famined = true
 		detail.troopsLost = event.TroopsLost
+		detail.suppliedStrength = event.SuppliedStrength
+		detail.destroyed = event.Destroyed
 		detail.savedByPillage = event.SavedByPillage
 		detail.pillageInfrastructure = event.InfrastructureType
 		detail.resourceCredit = event.ResourceCredit
 		detail.creditTerritory = event.CreditTerritoryID
 	}
 	ctx.events = append(ctx.events, event)
+	if event.Destroyed {
+		ctx.events = append(ctx.events, Event{
+			Type:        EventTypeArmyDestroyed,
+			Phase:       6,
+			ArmyID:      candidate.army.ID,
+			TerritoryID: candidate.army.TerritoryID,
+			Reason:      "famine",
+		})
+		ctx.destroyStarvedArmy(candidate.army.ID, candidate.army.TerritoryID, candidate.army.OwnerID)
+	}
 }
 
 func (ctx *resolutionContext) consumptionDetailFor(army models.Army) *consumptionDetail {
@@ -830,6 +880,8 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 			ReceivedLocal:      detail.receivedLocal,
 			ReceivedTransfer:   detail.receivedTransfer,
 			TroopsLost:         detail.troopsLost,
+			SuppliedStrength:   detail.suppliedStrength,
+			Destroyed:          detail.destroyed,
 			SavedByPillage:     detail.savedByPillage,
 			Warned:             detail.warned,
 			InfrastructureType: detail.pillageInfrastructure,

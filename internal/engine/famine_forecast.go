@@ -10,13 +10,19 @@ import (
 // ArmyFamineRisk is one player army ForecastFamineRisk determines would
 // starve this turn if nothing changes. Deficit is the ration shortfall that
 // goes unmet (demand minus what its assigned source or local production
-// covers), not a troop count: an actual famine costs an army 1 troop (see
-// resolveFamine), regardless of the deficit's size.
+// covers), not a troop count: a famine costs an army that was already
+// starving every troop beyond what its rations feed (see resolveFamine).
 type ArmyFamineRisk struct {
 	ArmyID      models.ArmyID      `json:"armyId"`
 	TerritoryID models.TerritoryID `json:"territoryId"`
 	Size        int                `json:"size"`
 	Deficit     int                `json:"deficit"`
+	// SuppliedStrength is the size the rations the army reaches can feed.
+	SuppliedStrength int `json:"suppliedStrength"`
+	// ExpectedLoss is the troops the army sheds this turn when it was already
+	// starving (all of them when SuppliedStrength is zero); a first deficit
+	// only caps its strength at SuppliedStrength − 1.
+	ExpectedLoss int `json:"expectedLoss"`
 }
 
 // FamineRiskForecast is one player's projected ravitaillement for the next
@@ -79,20 +85,10 @@ func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[m
 			forecast.NetConsumption += assignment.demand
 		}
 		for _, candidate := range direct {
-			forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ArmyFamineRisk{
-				ArmyID:      candidate.army.ID,
-				TerritoryID: candidate.army.TerritoryID,
-				Size:        candidate.army.Size,
-				Deficit:     candidate.demand,
-			})
+			forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ctx.armyFamineRisk(candidate))
 		}
 		for _, candidate := range assignedFamine {
-			forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ArmyFamineRisk{
-				ArmyID:      candidate.army.ID,
-				TerritoryID: candidate.army.TerritoryID,
-				Size:        candidate.army.Size,
-				Deficit:     candidate.demand,
-			})
+			forecast.ArmiesAtRisk = append(forecast.ArmiesAtRisk, ctx.armyFamineRisk(candidate))
 		}
 		sortArmyFamineRisks(forecast.ArmiesAtRisk)
 		forecasts[ownerID] = forecast
@@ -102,4 +98,19 @@ func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[m
 
 func sortArmyFamineRisks(risks []ArmyFamineRisk) {
 	sort.SliceStable(risks, func(i, j int) bool { return risks[i].TerritoryID < risks[j].TerritoryID })
+}
+
+func (ctx *resolutionContext) armyFamineRisk(candidate famineCandidate) ArmyFamineRisk {
+	supplied := suppliedStrength(candidate.army.Size, candidate.demand, ctx.balance.CostBase)
+	risk := ArmyFamineRisk{
+		ArmyID:           candidate.army.ID,
+		TerritoryID:      candidate.army.TerritoryID,
+		Size:             candidate.army.Size,
+		Deficit:          candidate.demand,
+		SuppliedStrength: supplied,
+	}
+	if ctx.famished[candidate.army.ID] {
+		risk.ExpectedLoss = max(0, candidate.army.Size-supplied)
+	}
+	return risk
 }

@@ -544,8 +544,8 @@ chaînes, met à jour le contrôle territorial, puis résout le ravitaillement d
 fin de tour (revenu territorial, moulins, rations, famine) sur les positions et
 le contrôle ainsi obtenus, territoires tout juste capturés compris
 ([#208](https://github.com/fogfactory/crown-and-borough/issues/208)). Une
-armée en déficit à cette étape est marquée affamée : elle combat à force 0,
-sans bonus de noble, et ne peut ni transférer ni recevoir de transfert pendant
+armée en déficit à cette étape est marquée affamée : elle se défend à une force plafonnée à sa valeur ravitaillée moins un,
+sans bonus de noble, et ne peut ni attaquer, ni soutenir, ni émettre de transfert pendant
 tout le tour suivant, jusqu'à sa prochaine évaluation (voir
 [`ravitaillement.md`](ravitaillement.md)). Le rapport contient des sections
 typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,

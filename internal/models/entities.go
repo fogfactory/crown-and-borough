@@ -88,10 +88,10 @@ type Territory struct {
 // When equal-size armies must be ordered, the territory ID is the lexicographic
 // tie-break (GDD §4, §8). Starving is set by the previous turn's famine
 // resolution when this army's demand went unmet without an auto-pillage
-// rescue (engine.resolveFamine, #208): it fights at strength 0, cannot
-// support, grants no noble bonus, and cannot send a transfer for the turn it
-// carries, then is recomputed (including cleared) at that same turn's own
-// ravitaillement. A dispersed army copies it to every resulting splinter
+// rescue (engine.resolveFamine, #208): it defends at most at
+// StarvingStrength (its supplied size minus one), grants no noble bonus, and
+// cannot attack, support or send a transfer for the turn it carries, then is recomputed
+// (including cleared) at that same turn's own ravitaillement. A dispersed army copies it to every resulting splinter
 // (plain struct-copy semantics, like every other field but ChainID and Size);
 // a fusion keeps only the surviving host's own value and discards the
 // absorbed army's, again with no special-casing needed.
@@ -102,6 +102,9 @@ type Army struct {
 	Size        int         `json:"size"`
 	ChainID     *ChainID    `json:"chain"`
 	Starving    bool        `json:"starving,omitempty"`
+	// StarvingStrength caps the army's force while Starving: zero when the
+	// army is starving without any supplied troop to fight with.
+	StarvingStrength int `json:"starvingStrength,omitempty"`
 }
 
 // Noble is an immortal, non-combatant entity that emits at most one order

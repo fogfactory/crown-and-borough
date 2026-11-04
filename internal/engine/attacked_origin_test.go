@@ -126,11 +126,10 @@ func TestResolveEnemyAttackCancelsJoinOriginOutsideAnyCycle(t *testing.T) {
 	}
 }
 
-// TestCancelAttackedOriginPeacefulCountsStarvingAttack exercises the
-// enumeration rule directly: an attack at strength zero, because its army is
-// famished, still targets its destination and therefore still cancels a
-// join or dispersion leaving from there.
-func TestCancelAttackedOriginPeacefulCountsStarvingAttack(t *testing.T) {
+// TestCancelAttackedOriginPeacefulIgnoresStarvingAttack exercises the
+// enumeration rule directly: a famished army cannot attack, so its invalid
+// attack order never targets its destination and cancels nothing.
+func TestCancelAttackedOriginPeacefulIgnoresStarvingAttack(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TBB", "TCC"),
@@ -149,20 +148,19 @@ func TestCancelAttackedOriginPeacefulCountsStarvingAttack(t *testing.T) {
 	validateTestState(t, state)
 
 	ctx := newResolutionContext(state, testBalance())
-	// A2 is famished before its order is enumerated, so its attack is built
-	// with strength zero, the same as resolveSeasonEffects would leave it.
+	// A2 is famished before its order is enumerated.
 	ctx.famished["A2"] = true
 	enumerateIntentions(ctx)
-	if attack := ctx.attacks["A2"]; attack == nil || attack.size != 0 || attack.target != "TAA" {
-		t.Fatalf("A2 attack = %+v, want a starving attack on TAA", attack)
+	if attack := ctx.attacks["A2"]; attack != nil {
+		t.Fatalf("A2 attack = %+v, want no attack from a famished army", attack)
 	}
 	cancelAttackedOriginPeaceful(ctx)
 
-	if !ctx.cancelledPeaceful["A1"] {
-		t.Error("A1's join should be cancelled by the starving attack on its origin")
+	if ctx.cancelledPeaceful["A1"] {
+		t.Error("A1's join should not be cancelled by an invalid attack")
 	}
-	if _, exists := ctx.joins["A1"]; exists {
-		t.Error("A1's join should be removed from ctx.joins once cancelled")
+	if _, exists := ctx.joins["A1"]; !exists {
+		t.Error("A1's join should stay in ctx.joins")
 	}
 }
 
