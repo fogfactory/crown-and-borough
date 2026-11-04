@@ -34,7 +34,8 @@ const englishMessages = {
   'score.ally': 'Ally ({partner})',
   'sim.start': 'Simulate',
   'sim.stop': 'Exit simulation',
-  'sim.banner': 'Simulation: nothing is committed. Scores and the board show the hypothetical state.',
+  'sim.banner':
+    'Simulation: nothing is committed. Scores and the board show the hypothetical state.',
   'sim.undo': 'Undo',
   'sim.redo': 'Redo',
   'sim.reset': 'Reset',
@@ -277,7 +278,8 @@ const englishMessages = {
   'map.resourcesMarker': 'Resources: {count}',
   'map.armyMarker': 'Army of {owner}, size {size}',
   'map.rebelArmyMarker': 'Rebel army, size {size}',
-  'map.armyMarkerStarving': 'Army of {owner}, size {size} — starving: fights at strength 0 this turn',
+  'map.armyMarkerStarving':
+    'Army of {owner}, size {size} — starving: fights at strength 0 this turn',
   'map.armyStarvingBadge': 'Starving: will fight at strength 0 this turn',
   'orders.winterTitle': 'Winter orders',
   'orders.winterDescription':
@@ -322,17 +324,22 @@ const englishMessages = {
   'orders.abbeyRegionAria': 'Region (village seed) of the abbey for card {code}',
   'orders.spiedHand': 'Your spy reveals the hand of {player}: {cards}',
   'orders.electionsTitle': 'Elections this winter',
-  'orders.electionsTimingNote': 'A title won this winter (election, cardinal purchase) is conferred at the investiture and can only be used next winter.',
+  'orders.electionsTimingNote':
+    'A title won this winter (election, cardinal purchase) is conferred at the investiture and can only be used next winter.',
   'orders.electionBishopHeading': 'Bishopric of {name} (seat {seat})',
   'orders.electionPopeHeading': 'Conclave',
   'orders.electionKingHeading': 'Royal election',
-  'orders.electionKingRule': 'Relative majority, at least {minVotes} voices and the blessing of the clergy (2 bishops or 1 cardinal among your voters). Candidacy: K R NNN. Vote: V R NNN',
-  'orders.electionKingClergy': 'Clergy among your voices: {count} (cardinal or pope: {cardinal}). Two bishops or one cardinal behind a candidate anoint him.',
+  'orders.electionKingRule':
+    'Relative majority, at least {minVotes} voices and the blessing of the clergy (2 bishops or 1 cardinal among your voters). Candidacy: K R NNN. Vote: V R NNN',
+  'orders.electionKingClergy':
+    'Clergy among your voices: {count} (cardinal or pope: {cardinal}). Two bishops or one cardinal behind a candidate anoint him.',
   'orders.electionKingCardinalYes': 'yes',
   'orders.electionKingCardinalNo': 'no',
   'orders.voiceFief': '{name} (fief): {votes}',
-  'orders.electionBishopRule': 'Relative majority. Candidacy: K E NNN {seat}. Vote: V E NNN {seat}',
-  'orders.electionPopeRule': 'Absolute majority: {required} voices. Candidacy: K P NNN. Vote: V P NNN (by one of your cardinals)',
+  'orders.electionBishopRule':
+    'Relative majority. Candidacy: K E NNN {seat}. Vote: V E NNN {seat}',
+  'orders.electionPopeRule':
+    'Absolute majority: {required} voices. Candidacy: K P NNN. Vote: V P NNN (by one of your cardinals)',
   'orders.electionVoices': 'Your voices: {voices}',
   'orders.electionNoVoice': 'You hold no voice in this election.',
   'orders.voiceSeat': 'Seat {territory}: {votes}',
@@ -349,8 +356,10 @@ const englishMessages = {
   'orders.electionCandidateHint': 'Click a noble to add their candidacy:',
   'orders.electionCandidateAdded': 'Candidacy added',
   'orders.electionCandidacyComment': 'candidacy {name}',
-  'orders.electionNoCandidate': 'None of your nobles can run (free, unmarried, not excommunicated men only).',
-  'orders.calamityForecast': 'Your astrologer foresees the next calamities: {kinds} (strike one with V C NNN I)',
+  'orders.electionNoCandidate':
+    'None of your nobles can run (free, unmarried, not excommunicated men only).',
+  'orders.calamityForecast':
+    'Your astrologer foresees the next calamities: {kinds} (strike one with V C NNN I)',
   'orders.handTitle': 'Your hand',
   'orders.hand': 'Cards in hand',
   'orders.handEmpty': 'No card in hand.',
@@ -359,7 +368,8 @@ const englishMessages = {
     'Draw the top card of the shared deck, then play noble cards on a castle or village where you hold an army, claim cards for an heir against a noble married into your family, and dignity cards on one of your nobles. The hand limit is shared between special cards and noble cards; at most 2 cards are drawn per winter across both decks, and at most one of them from the noble deck.',
   'orders.nobleDraw': 'Draw a noble card (T N)',
   'orders.nobleDeckSize': 'Deck: {count} card(s) left',
-  'orders.handCounter': 'Hand: {count}/{limit} cards (special: {special}, noble: {noble})',
+  'orders.handCounter':
+    'Hand: {count}/{limit} cards (special: {special}, noble: {noble})',
   'orders.nobleHandFull': 'Your hand is full: play or discard a card before drawing.',
   'orders.nobleDrawUsed': 'Draw already ordered this winter.',
   'orders.nobleDeckEmpty': 'The noble deck is empty.',
@@ -384,25 +394,31 @@ const englishMessages = {
   'orders.houseOrders': 'Orders of the house',
   'orders.form.mapPick': 'A click on the map fills the highlighted field.',
   'orders.titlesTitle': 'Orders of your titles',
-  'orders.titlesDescription': 'Pope, bishop, astrologer and fief orders: each button opens a window to set the order, which is added to the sheet with a comment.',
+  'orders.titlesDescription':
+    'Pope, bishop, astrologer and fief orders: each button opens a window to set the order, which is added to the sheet with a comment.',
   'orders.excommunicate': 'Excommunicate (X E)',
   'orders.marriage': 'Announce a marriage (M N)',
-  'orders.marriageHelp': 'The marriage is concluded only if the other player orders the reverse marriage (M N spouse noble) the same winter.',
+  'orders.marriageHelp':
+    'The marriage is concluded only if the other player orders the reverse marriage (M N spouse noble) the same winter.',
   'orders.field.fiance': 'Your noble',
   'orders.field.spouse': 'Spouse (another house)',
   'orders.comment.marriage': 'marry {name} and {spouse}',
   'orders.dissolve': 'Dissolve the marriage (X D)',
   'orders.dissolveRequest': 'Request dissolution (X D)',
-  'orders.dissolveHelp': 'The pope dissolves a marriage when one of the spouses’ owners asks for it. Both orders (pope and request) must be on the sheets; a single one suffices if the pope owns a spouse. Claims are kept.',
+  'orders.dissolveHelp':
+    'The pope dissolves a marriage when one of the spouses’ owners asks for it. Both orders (pope and request) must be on the sheets; a single one suffices if the pope owns a spouse. Claims are kept.',
   'orders.comment.dissolve': 'dissolve the marriage of {name} and {spouse}',
   'orders.inquiry': 'Investigate a noble (Q)',
-  'orders.inquiryHelp': 'Reveals the hidden dignity of the noble, if any. The cost is paid even when nothing is hidden. One inquiry per cardinal or pope each winter.',
+  'orders.inquiryHelp':
+    'Reveals the hidden dignity of the noble, if any. The cost is paid even when nothing is hidden. One inquiry per cardinal or pope each winter.',
   'orders.field.investigated': 'Investigated noble',
   'orders.trial': 'Put a noble on trial (J)',
-  'orders.trialHelp': 'A trial needs two distinct cardinals each filing the same trial (J), from the same player or from two. The noble must be excommunicated, be an unmarried lady with a lady dignity, or have commissioned an assassination; the King is never tried. The verdict falls at the very end of the winter and the sentence is death.',
+  'orders.trialHelp':
+    'A trial needs two distinct cardinals each filing the same trial (J), from the same player or from two. The noble must be excommunicated, be an unmarried lady with a lady dignity, or have commissioned an assassination; the King is never tried. The verdict falls at the very end of the winter and the sentence is death.',
   'orders.field.tried': 'Noble on trial',
   'orders.field.trialCardinal': 'Backing cardinal',
-  'orders.hint.trialSecond': 'A trial of {name} only takes place if a second cardinal, yours or another player\'s, files the same trial on the sheet; a lone order has no effect.',
+  'orders.hint.trialSecond':
+    "A trial of {name} only takes place if a second cardinal, yours or another player's, files the same trial on the sheet; a lone order has no effect.",
   'orders.comment.trial': 'put {name} on trial',
   'orders.comment.inquiry': 'investigate {name}',
   'orders.field.capital': 'Capital (castle)',
@@ -412,7 +428,8 @@ const englishMessages = {
   'reports.ritual.succeeded': 'The ritual bent a calamity onto the region of {region}.',
   'reports.ritual.failed': 'The ritual bent no calamity.',
   'orders.ritual': 'Ritual (S R)',
-  'orders.ritualHelp': 'Either call a calamity (it may not be drawn), or fix the season of one calamity of next year: you cannot do both. It strikes the region where your Witch stands.',
+  'orders.ritualHelp':
+    'Either call a calamity (it may not be drawn), or fix the season of one calamity of next year: you cannot do both. It strikes the region where your Witch stands.',
   'orders.field.ritualMode': 'Effect',
   'orders.field.ritualChoice': 'Calamity or season',
   'orders.ritual.modeCalamity': 'Call a calamity',
@@ -428,36 +445,47 @@ const englishMessages = {
   'orders.hint.annexCost': 'Annex {territory} · cost {cost} R',
   'orders.hint.rankCost': '{from} → {to} · {count} territories · cost {cost} R',
   'orders.hint.fiefNotConnected': 'The territories are not all connected to the capital.',
-  'orders.hint.fiefTooSmall': 'Pick at least 2 more territories next to the capital (3 in all).',
+  'orders.hint.fiefTooSmall':
+    'Pick at least 2 more territories next to the capital (3 in all).',
   'orders.hint.cost': 'Cost: {cost} R',
   'orders.appease': 'Appease a revolt',
-  'orders.appeaseHelp': 'Remove a rebel army: with a free rite that may kill the cleric, or by paying, which is safe.',
+  'orders.appeaseHelp':
+    'Remove a rebel army: with a free rite that may kill the cleric, or by paying, which is safe.',
   'orders.field.appeaseMode': 'Way',
   'orders.appease.rebels': '{territory} · {count} rebel troops',
   'orders.appease.rite': 'Appease (rite)',
-  'orders.appease.riteHelp': 'Free, in the region where the cleric stands. A d6 removes the rebel army on 1 to 3, fails on 4 or 5, and on a 6 fails and kills the cleric.',
+  'orders.appease.riteHelp':
+    'Free, in the region where the cleric stands. A d6 removes the rebel army on 1 to 3, fails on 4 or 5, and on a 6 fails and kills the cleric.',
   'orders.appease.paid': 'Appease (paid)',
   'orders.comment.appeaseRite': '{name} tries to appease the revolt at {territory}',
   'orders.comment.appeasePaid': '{name} pays to appease the revolt at {territory}',
-  'orders.calamityVetoHelp': 'Remove one of the next 3 calamities from the draw pile: it goes to the discard and the following one replaces it. Once per winter.',
+  'orders.calamityVetoHelp':
+    'Remove one of the next 3 calamities from the draw pile: it goes to the discard and the following one replaces it. Once per winter.',
   'orders.liftExcommunication': 'Lift an excommunication (X L)',
   'orders.buyCardinal': 'Buy a cardinal (N C)',
   'orders.calamityVeto': 'Strike a calamity off (V C)',
   'orders.foundFief': 'Found a fief (T F)',
-  'orders.foundFiefHelp': 'Pick the capital (a castle) and the connected territories you control, free of fiefs and of foreign armies (3 at least).',
+  'orders.foundFiefHelp':
+    'Pick the capital (a castle) and the connected territories you control, free of fiefs and of foreign armies (3 at least).',
   'orders.assignFief': 'Assign a vacant fief (T A)',
   'orders.annexTerritory': 'Annex a territory (T X)',
-  'orders.annexTerritoryHelp': 'Add to a fief a free territory next to it that one of your armies holds alone. The title does not change.',
+  'orders.annexTerritoryHelp':
+    'Add to a fief a free territory next to it that one of your armies holds alone. The title does not change.',
   'orders.changeRank': 'Raise a fief by one rank (T R)',
-  'orders.changeRankHelp': 'Raises the fief to the next title (barony, county, marquisate, duchy). Once per winter and per fief; the cost grows with its territories.',
+  'orders.changeRankHelp':
+    'Raises the fief to the next title (barony, county, marquisate, duchy). Once per winter and per fief; the cost grows with its territories.',
   'orders.royalAnnex': 'Grant an annexation (W X)',
-  'orders.royalAnnexHelp': 'Royal order: lets a fief annex a territory of another fief. It only counts if that fief’s player submits the matching T X the same winter.',
+  'orders.royalAnnexHelp':
+    'Royal order: lets a fief annex a territory of another fief. It only counts if that fief’s player submits the matching T X the same winter.',
   'orders.royalRank': 'Grant a rank (W R)',
-  'orders.royalRankHelp': 'Royal order: makes free the one-rank rise (T R) the fief’s titulaire asks for this winter, whatever the fief’s size.',
+  'orders.royalRankHelp':
+    'Royal order: makes free the one-rank rise (T R) the fief’s titulaire asks for this winter, whatever the fief’s size.',
   'orders.royalFound': 'Pay for a fief (W F)',
-  'orders.royalFoundHelp': 'Royal order: the fief founded this winter by T F on this capital costs its player nothing.',
+  'orders.royalFoundHelp':
+    'Royal order: the fief founded this winter by T F on this capital costs its player nothing.',
   'orders.royalGrant': 'Grant a crown fief (W G)',
-  'orders.royalGrantHelp': 'Royal order: gives a vacant fief of the crown to a noble of any player, subject to the line of succession.',
+  'orders.royalGrantHelp':
+    'Royal order: gives a vacant fief of the crown to a noble of any player, subject to the line of succession.',
   'orders.field.grantee': 'Noble receiving the fief',
   'orders.comment.royalAnnex': 'accord: fief {capital} annexes {territory}',
   'orders.comment.royalRank': 'accord: fief {capital} rises in rank for free',
@@ -531,7 +559,8 @@ const englishMessages = {
   'orders.comment.tunnelAttack': '{card}: attack from {origin} on {target}',
   'orders.comment.ambush': '{card}: ambush on the attack from {origin} on {target}',
   'orders.comment.assassination': '{card}: {commissioner} has {target} killed',
-  'orders.comment.justice': '{card}: {target} is executed if they commissioned an assassination',
+  'orders.comment.justice':
+    '{card}: {target} is executed if they commissioned an assassination',
   'orders.comment.discardSpecial': 'discard {card}',
   'orders.comment.discard': 'discard {name}',
   'orders.nobleCardsActionDescription':
@@ -540,7 +569,8 @@ const englishMessages = {
   'orders.nobleCardsAria': 'Noble card orders of {player}',
   'reports.reason.noble_draw_already_used': 'A noble card was already drawn this winter.',
   'reports.reason.noble_deck_empty': 'The noble deck is empty.',
-  'reports.reason.hand_limit_reached': 'Your hand is full (shared limit for special and noble cards).',
+  'reports.reason.hand_limit_reached':
+    'Your hand is full (shared limit for special and noble cards).',
   'reports.reason.card_not_in_hand': 'This card is not in your noble hand.',
   'reports.reason.justice_king': 'The King is never a valid target.',
   'reports.reason.justice_unknown_noble': 'This noble is no longer alive.',
@@ -631,15 +661,19 @@ const englishMessages = {
   'reports.electionPope': 'Conclave',
   'reports.electionKing': 'Royal election',
   'reports.electionAnointed': '(anointed)',
-  'reports.electionResult.no_anointment': 'no blessing from the clergy, the throne stays vacant',
+  'reports.electionResult.no_anointment':
+    'no blessing from the clergy, the throne stays vacant',
   'reports.electionRequired': '{count} voices needed',
   'reports.electionResult.elected': '{noble} is elected',
   'reports.electionResult.tie': 'tie, nobody is elected',
   'reports.electionResult.no_candidate': 'no candidate, the seat stays vacant',
   'reports.electionResult.no_majority': 'no majority, nobody is elected',
-  'reports.marriageConcluded': 'Marriage: {noble} ({owner}) and {spouse} ({spouseOwner}).',
-  'reports.marriageDissolved': 'The pope dissolves the marriage of {noble} ({owner}) and {spouse} ({spouseOwner}).',
-  'reports.marriageFailed': 'Rumor: the marriage negotiation between {noble} and {spouse} failed.',
+  'reports.marriageConcluded':
+    'Marriage: {noble} ({owner}) and {spouse} ({spouseOwner}).',
+  'reports.marriageDissolved':
+    'The pope dissolves the marriage of {noble} ({owner}) and {spouse} ({spouseOwner}).',
+  'reports.marriageFailed':
+    'Rumor: the marriage negotiation between {noble} and {spouse} failed.',
   'reports.fiefConquered':
     '{capital}: the fief passes from {previousOwner} to {owner}, vacant',
   'reports.fiefVacated': '{capital}: the fief held by {owner} is now vacant',
@@ -652,43 +686,63 @@ const englishMessages = {
   'reports.cardPlayed': '{player}: {card} played on {region}',
   'reports.cardPlayedBare': '{player}: {card} played',
   'reports.cardPlayedOnNoble': '{player}: {card} played on {noble}',
-  'reports.cardPlayedAssassination': '{player}: {card} played on {noble}, commissioned by {commissioner}',
+  'reports.cardPlayedAssassination':
+    '{player}: {card} played on {noble}, commissioned by {commissioner}',
   'reports.cardRestored': '{player}: {card} returned to hand',
   'reports.cardScheduled': '{card} scheduled for {season} in {region}',
   'reports.calamityApplied': '{card} active in {region}',
   'reports.calamityCanceled': '{card} canceled in {region}',
   'reports.bonusEffect': '{card} active in {region}',
-  'reports.revoltAppeased.paid': '{noble} pays {cost} R to appease the revolt at {territory}',
+  'reports.revoltAppeased.paid':
+    '{noble} pays {cost} R to appease the revolt at {territory}',
   'reports.revoltAppeased.succeeded': '{noble} appeases the revolt at {territory}',
   'reports.revoltAppeased.failed': '{noble} fails to appease the revolt at {territory}',
-  'reports.revoltAppeased.failed_death': '{noble} fails to appease the revolt at {territory} and dies',
+  'reports.revoltAppeased.failed_death':
+    '{noble} fails to appease the revolt at {territory} and dies',
   'reports.neutralArmyCreated': 'Neutral army of {count} troops raised at {territory}',
   'reports.neutralArmyCreatedTroop':
     'Neutral army of {count} troop raised at {territory}',
   'reports.plagueDeath': 'Noble {noble} died from plague at {territory}',
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
-  'reports.trialExecuted': 'Noble {noble}, revealed as {dignity}, was tried and executed at {territory}',
-  'reports.trialUnfounded': 'The trial of noble {noble} was unfounded: nobody was executed',
-  'reports.tunnelEscape': 'Noble {noble} escaped through a tunnel from {source} to {territory}',
-  'reports.tunnelBypass': 'The attack from {source} on {territory} went through a tunnel and ignored its fortifications',
-  'reports.assassinationPublic': 'Noble {noble} was assassinated at {territory}; nobody claims the deed',
-  'reports.assassinationCommissioner': 'Noble {noble} was assassinated at {territory}, at the behest of {commissioner}',
-  'reports.assassinationRevealed': 'Your inquiry reveals that {commissioner} commissioned the assassination of {noble}',
-  'reports.justiceExecuted': 'Justice is done: {player} had noble {noble} executed at {territory} for an assassination',
-  'reports.justiceNoEffect': '{noble} has no assassination to answer for: the Justice card has no effect',
-  'reports.tunnelVoid': 'The tunnel played on the attack from {source} on {territory} had no effect: the attack did not take place',
-  'reports.ambushCapture': 'Ambush: {noble} was captured when the army driven from {territory} retreated',
-  'reports.ambushVoid': 'The ambush played on the attack from {source} on {territory} had no effect',
+  'reports.trialExecuted':
+    'Noble {noble}, revealed as {dignity}, was tried and executed at {territory}',
+  'reports.trialUnfounded':
+    'The trial of noble {noble} was unfounded: nobody was executed',
+  'reports.tunnelEscape':
+    'Noble {noble} escaped through a tunnel from {source} to {territory}',
+  'reports.tunnelBypass':
+    'The attack from {source} on {territory} went through a tunnel and ignored its fortifications',
+  'reports.assassinationPublic':
+    'Noble {noble} was assassinated at {territory}; nobody claims the deed',
+  'reports.assassinationCommissioner':
+    'Noble {noble} was assassinated at {territory}, at the behest of {commissioner}',
+  'reports.assassinationRevealed':
+    'Your inquiry reveals that {commissioner} commissioned the assassination of {noble}',
+  'reports.justiceExecuted':
+    'Justice is done: {player} had noble {noble} executed at {territory} for an assassination',
+  'reports.justiceNoEffect':
+    '{noble} has no assassination to answer for: the Justice card has no effect',
+  'reports.tunnelVoid':
+    'The tunnel played on the attack from {source} on {territory} had no effect: the attack did not take place',
+  'reports.ambushCapture':
+    'Ambush: {noble} was captured when the army driven from {territory} retreated',
+  'reports.ambushVoid':
+    'The ambush played on the attack from {source} on {territory} had no effect',
   'reports.excommunication': 'Noble {noble} is excommunicated by the pope',
   'reports.excommunicationLifted': 'The pope lifts the excommunication of noble {noble}',
-  'reports.eonUnmasked': 'Noble {noble} is unmasked: she was a chevalier d’Éon in disguise',
-  'reports.dignityRevealed': 'An inquiry reveals the hidden dignity of {noble}: {dignity}',
+  'reports.eonUnmasked':
+    'Noble {noble} is unmasked: she was a chevalier d’Éon in disguise',
+  'reports.dignityRevealed':
+    'An inquiry reveals the hidden dignity of {noble}: {dignity}',
   'reports.reason.not_married': 'This noble has no active marriage.',
-  'reports.reason.dissolution_not_requested': 'The pope’s order needs the request of a spouse’s owner.',
+  'reports.reason.dissolution_not_requested':
+    'The pope’s order needs the request of a spouse’s owner.',
   'reports.reason.dissolution_not_granted': 'Only the pope can grant a dissolution.',
-  'reports.reason.not_cardinal': 'Only a cardinal or the pope, with an active title, can order an inquiry; a trial needs an active cardinal for each of its orders.',
+  'reports.reason.not_cardinal':
+    'Only a cardinal or the pope, with an active title, can order an inquiry; a trial needs an active cardinal for each of its orders.',
   'reports.reason.trial_limit': 'Each cardinal can back only one trial per winter.',
-  'reports.reason.inquiry_limit': 'Each cardinal or pope can order one inquiry per winter.',
+  'reports.reason.inquiry_limit':
+    'Each cardinal or pope can order one inquiry per winter.',
   'reports.neutralFamine':
     'Starving neutral army at {territory}: {before} → {after} troops',
   'reports.cardCanceled': '{player}: {card} canceled at {territory}',
@@ -748,24 +802,33 @@ const englishMessages = {
   'rumor.seigneurial_tax.level2':
     'Several lords are pressuring their bailiffs; more than one fief will be taxed hard.',
   'rumor.seigneurial_tax.level3':
-    "Tax collectors ride out across the realm; several fiefs are about to be squeezed to the last denier.",
+    'Tax collectors ride out across the realm; several fiefs are about to be squeezed to the last denier.',
   'rumor.justice': 'Magistrates are said to be sharpening their axes.',
   'rumor.justice.level1': 'A clerk swears the court keeps a list of unpunished crimes.',
-  'rumor.justice.level2': 'Whispers of trials awaiting the guilty spread through the kingdom.',
-  'rumor.justice.level3': 'The whole realm talks of justice: no murderer sleeps easy any more.',
-  'rumor.assassination.killing': 'A noble was found dead; whispers say the deed was no accident.',
+  'rumor.justice.level2':
+    'Whispers of trials awaiting the guilty spread through the kingdom.',
+  'rumor.justice.level3':
+    'The whole realm talks of justice: no murderer sleeps easy any more.',
+  'rumor.assassination.killing':
+    'A noble was found dead; whispers say the deed was no accident.',
   'rumor.assassination': 'Courtiers whisper of daggers and poisoned cups.',
   'rumor.assassination.level1': 'A courtier swears a dagger waits behind a tapestry.',
-  'rumor.assassination.level2': 'Whispers of poisoners at several courts spread through the kingdom.',
-  'rumor.assassination.level3': 'The whole realm talks of murder: no noble sleeps easy any more.',
+  'rumor.assassination.level2':
+    'Whispers of poisoners at several courts spread through the kingdom.',
+  'rumor.assassination.level3':
+    'The whole realm talks of murder: no noble sleeps easy any more.',
   'rumor.tunnel': 'Servants speak of old passages running beneath the castles.',
   'rumor.tunnel.level1': 'A servant swears an old passage runs beneath a castle wall.',
-  'rumor.tunnel.level2': 'Whispers of secret passages beneath several castles spread through the kingdom.',
-  'rumor.tunnel.level3': 'The whole realm talks of tunnels: no cell or rampart seems safe any more.',
+  'rumor.tunnel.level2':
+    'Whispers of secret passages beneath several castles spread through the kingdom.',
+  'rumor.tunnel.level3':
+    'The whole realm talks of tunnels: no cell or rampart seems safe any more.',
   'rumor.ambush': 'Hushed voices speak of men waiting in the woods along the roads.',
   'rumor.ambush.level1': 'A peddler swears he saw armed men lying in wait in a ditch.',
-  'rumor.ambush.level2': 'Whispers of ambushes laid along the roads spread through the kingdom.',
-  'rumor.ambush.level3': 'The whole realm talks of ambushes: no road is safe for a lord any more.',
+  'rumor.ambush.level2':
+    'Whispers of ambushes laid along the roads spread through the kingdom.',
+  'rumor.ambush.level3':
+    'The whole realm talks of ambushes: no road is safe for a lord any more.',
   'reports.ordersExecuted': 'Orders executed',
   'reports.hiddenOrder': 'An order was processed, but its details are hidden.',
   'reports.receptionReceived': 'Received',
@@ -827,44 +890,62 @@ const englishMessages = {
     'A free noble must be on or adjacent to the territory.',
   'reports.reason.noble_not_prisoner': 'The noble is not a prisoner.',
   'reports.reason.noble_not_held': 'The noble is not held by this player.',
-  'reports.reason.noble_not_controlled': 'The noble is neither yours and free, nor held by one of your armies.',
-  'reports.reason.no_army_at_destination': 'No other player’s army stands on the destination.',
+  'reports.reason.noble_not_controlled':
+    'The noble is neither yours and free, nor held by one of your armies.',
+  'reports.reason.no_army_at_destination':
+    'No other player’s army stands on the destination.',
   'reports.reason.transfer_to_self': 'A noble cannot be handed to your own army.',
-  'reports.reason.transfer_status_to_owner': 'A status cannot be set when handing a noble back to its owner.',
-  'reports.reason.marriage_not_reciprocated': 'The other player did not submit the matching marriage order.',
+  'reports.reason.transfer_status_to_owner':
+    'A status cannot be set when handing a noble back to its owner.',
+  'reports.reason.marriage_not_reciprocated':
+    'The other player did not submit the matching marriage order.',
   'reports.reason.election_not_open': 'This election is not open this winter.',
   'reports.reason.cardinal_requires_bishop': 'Only a bishop can be promoted to cardinal.',
-  'reports.reason.not_pope': 'Only the pope, with an active title, can pronounce papal sanctions.',
+  'reports.reason.not_pope':
+    'Only the pope, with an active title, can pronounce papal sanctions.',
   'reports.reason.cannot_excommunicate_self': 'The pope cannot excommunicate himself.',
-  'reports.reason.excommunication_limit': 'The pope can pronounce one excommunication per winter.',
+  'reports.reason.excommunication_limit':
+    'The pope can pronounce one excommunication per winter.',
   'reports.reason.already_excommunicated': 'This noble is already excommunicated.',
-  'reports.reason.excommunication_slot_taken': 'Another noble of this player is already excommunicated: lift that excommunication first.',
+  'reports.reason.excommunication_slot_taken':
+    'Another noble of this player is already excommunicated: lift that excommunication first.',
   'reports.reason.not_excommunicated': 'This noble is not excommunicated.',
   'reports.reason.excommunication_not_liftable': 'This excommunication cannot be lifted.',
   'reports.reason.noble_not_witch': 'Only one of your free Witches can perform a ritual.',
   'reports.reason.ritual_already_used': 'Only one ritual can be performed per winter.',
-  'reports.reason.ritual_invalid_target': 'A ritual calls one calamity (plague, bad weather, famine) or fixes one season (spring, summer, autumn), never both.',
+  'reports.reason.ritual_invalid_target':
+    'A ritual calls one calamity (plague, bad weather, famine) or fixes one season (spring, summer, autumn), never both.',
   'reports.reason.ritual_no_region': 'The Witch stands in no region.',
-  'reports.reason.dignity_exclusive': 'This lady already carries a dignity of the same kind (one visible and one hidden at most).',
-  'reports.reason.dignity_hidden_own_only': 'A hidden dignity can only be played on one of your own ladies.',
+  'reports.reason.dignity_exclusive':
+    'This lady already carries a dignity of the same kind (one visible and one hidden at most).',
+  'reports.reason.dignity_hidden_own_only':
+    'A hidden dignity can only be played on one of your own ladies.',
   'reports.reason.dignity_female_only': 'This dignity can only be played on a lady.',
   'reports.reason.calamity_not_forecast': 'This calamity is not among the forecast ones.',
-  'reports.reason.calamity_veto_already_used': 'This astrologer already struck a calamity this winter.',
-  'reports.reason.noble_not_astrologer': 'Only the owner of a free astrologer can strike a calamity.',
-  'reports.reason.already_cardinal': 'The noble is already a cardinal or being promoted this winter.',
+  'reports.reason.calamity_veto_already_used':
+    'This astrologer already struck a calamity this winter.',
+  'reports.reason.noble_not_astrologer':
+    'Only the owner of a free astrologer can strike a calamity.',
+  'reports.reason.already_cardinal':
+    'The noble is already a cardinal or being promoted this winter.',
   'reports.reason.cardinal_cap_reached': 'The maximum number of cardinals is reached.',
-  'reports.reason.candidate_not_eligible': 'This noble cannot run: only free, non-excommunicated men are eligible (unmarried for a bishopric or the conclave; non-bastard and holding a fief for the throne).',
-  'reports.reason.candidacy_already_filed': 'You already filed a candidacy in this election.',
+  'reports.reason.candidate_not_eligible':
+    'This noble cannot run: only free, non-excommunicated men are eligible (unmarried for a bishopric or the conclave; non-bastard and holding a fief for the throne).',
+  'reports.reason.candidacy_already_filed':
+    'You already filed a candidacy in this election.',
   'reports.reason.unknown_candidate': 'This noble is not a candidate in this election.',
   'reports.reason.vote_already_cast': 'You already voted in this election.',
   'reports.reason.no_voice': 'You have no voice in this election.',
-  'reports.reason.marriage_refused': 'The marriage was refused: you did not submit the matching order.',
-  'reports.reason.marriage_pending': 'Marriage pending: it only takes place if the other player submits the matching order.',
+  'reports.reason.marriage_refused':
+    'The marriage was refused: you did not submit the matching order.',
+  'reports.reason.marriage_pending':
+    'Marriage pending: it only takes place if the other player submits the matching order.',
   'reports.reason.marriage_same_owner': 'Both nobles belong to the same player.',
   'reports.reason.marriage_same_sex': 'A marriage needs a man and a lady.',
   'reports.reason.marriage_forbidden': 'A dignity forbids this noble to marry.',
   'reports.reason.noble_not_owned': 'The noble does not belong to this player.',
-  'reports.reason.noble_not_free': 'Both nobles must be free (neither hostage nor imprisoned).',
+  'reports.reason.noble_not_free':
+    'Both nobles must be free (neither hostage nor imprisoned).',
   'reports.reason.noble_already_married': 'One of the nobles is already married.',
   'reports.reason.no_capital': 'The noble owner has no capital.',
   'reports.reason.no_army_at_capital': 'The noble owner has no army at the capital.',
@@ -955,8 +1036,7 @@ const englishMessages = {
   'reports.reason.fief_not_found': 'No fief has this capital.',
   'reports.reason.fief_not_owned': 'The fief does not belong to the player.',
   'reports.reason.fief_not_vacant': 'The fief already has a titulaire.',
-  'reports.reason.annex_not_titular':
-    'The noble is not the titulaire of this fief.',
+  'reports.reason.annex_not_titular': 'The noble is not the titulaire of this fief.',
   'reports.reason.annex_already_member': 'The territory already belongs to this fief.',
   'reports.reason.annex_not_adjacent':
     'The territory does not border the fief across a crossable border.',
@@ -970,19 +1050,27 @@ const englishMessages = {
   'reports.reason.rank_not_titular': 'The noble is not the titulaire of this fief.',
   'reports.reason.rank_max': 'The fief is already a duchy.',
   'reports.reason.rank_already_changed': 'The fief already rose in rank this winter.',
-  'reports.reason.royal_not_issuer': 'Only the king, or the regent in his stead, can issue a royal order.',
-  'reports.reason.royal_fief_not_crown': 'The fief is not a crown fief: it has a titulaire, or it was not returned to the crown.',
-  'reports.reason.royal_order_limit': 'The royal order limit of this type is reached for this winter.',
-  'reports.reason.royal_accord_unused': 'The order this accord authorizes is not on any sheet this winter: consumed without effect.',
-  'reports.reason.royal_accord_pending': 'Accord pending: it only counts if the order it authorizes is on its player’s sheet.',
+  'reports.reason.royal_not_issuer':
+    'Only the king, or the regent in his stead, can issue a royal order.',
+  'reports.reason.royal_fief_not_crown':
+    'The fief is not a crown fief: it has a titulaire, or it was not returned to the crown.',
+  'reports.reason.royal_order_limit':
+    'The royal order limit of this type is reached for this winter.',
+  'reports.reason.royal_accord_unused':
+    'The order this accord authorizes is not on any sheet this winter: consumed without effect.',
+  'reports.reason.royal_accord_pending':
+    'Accord pending: it only counts if the order it authorizes is on its player’s sheet.',
   'reports.reason.capital_castle_lost': "The fief capital's castle was destroyed.",
   'reports.reason.fief_auto_assigned_default_holder':
     'No T A order this winter: automatically assigned to the free noble with the smallest trigram.',
   'reports.reason.prosperity_fief': "founded in the origin's controller's fief",
-  'reports.reason.prosperity_controlled': "founded on land the origin's controller controls",
+  'reports.reason.prosperity_controlled':
+    "founded on land the origin's controller controls",
   'reports.reason.prosperity_free': 'founded on free land',
-  'reports.reason.prosperity_depot_upgraded': 'no eligible land: a supply depot became a village',
-  'reports.reason.prosperity_mill_upgraded': 'no eligible land or depot: a mill became a village',
+  'reports.reason.prosperity_depot_upgraded':
+    'no eligible land: a supply depot became a village',
+  'reports.reason.prosperity_mill_upgraded':
+    'no eligible land or depot: a mill became a village',
   'reports.reason.reception.concurrent':
     'Concurrent reception: {territory} was targeted by {count} chains in turn {turn}.',
   'reports.reason.reception.noArmy': 'No army occupies receiving position {territory}.',
@@ -1076,7 +1164,7 @@ const englishMessages = {
     "`XXX T YYY N` executes after supply, once per army per turn — the army then performs no other order. `YYY` must be a castle, village, or the territory of another living player's army: a bare supply depot cannot receive. The route follows the donor's supply range (3 territories, plus any controlled depots along the way); an enemy army on an intermediate territory blocks the transfer, but an enemy army at the destination does not. The amount is capped at `2^(N - 1)` for an army of `N` troops, and a famished army cannot transfer at all. If the stock is insufficient, a `single` transfer simply fails with no effect and the chain continues; in `loop`, the order keeps retrying and sends whatever remains as a partial delivery once the stock drops below the requested amount.",
   'faq.q12': 'How do special cards and calamities apply?',
   'faq.a12':
-    'Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Plague strikes the armies and nobles that start or end the turn in its region, whether they stay, leave or enter (retreats included), once per turn: crossing the region does not avoid it. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, a seigneurial tax played on the capital of the territory\'s fief this turn or the previous one (see the next question), or a trial that executed a lady in the territory\'s region last season (`P PR NNN`, or `P TR NNN`, puts the noble with code NNN on trial: only an unmarried lady carrying a dignity, hidden or not, other than the Abbess, is executed — the trial reveals the dignity — any other trial is unfounded and its card is spent; the revolt may then be played on that region during the next action season): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.',
+    "Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Plague strikes the armies and nobles that start or end the turn in its region, whether they stay, leave or enter (retreats included), once per turn: crossing the region does not avoid it. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, a seigneurial tax played on the capital of the territory's fief this turn or the previous one (see the next question), or a trial that executed a lady in the territory's region last season (`P PR NNN`, or `P TR NNN`, puts the noble with code NNN on trial: only an unmarried lady carrying a dignity, hidden or not, other than the Abbess, is executed — the trial reveals the dignity — any other trial is unfounded and its card is spent; the revolt may then be played on that region during the next action season): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.",
   'faq.q14': 'Why is the projected famine risk only an estimate?',
   'faq.a14':
     "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
@@ -1091,7 +1179,7 @@ const englishMessages = {
     "`P TX XXX` (or `P ST XXX`) plays the seigneurial tax on XXX, the fief's capital — the one exception to `TER` always being a region's seed village — in spring, summer, or autumn, never in winter. It is rejected if you do not control the targeted fief; a vacant fief can still be taxed by whoever holds it. It doubles the fief's territorial income for the turn, village included, and never touches mill production. Two tax cards played on the same fief the same turn do not stack: the second is consumed with no effect. Played through a bishop, a cardinal or the pope on a bishopric (`P DI HHH XXX`, XXX being its seed village), it is a tithe instead: it diverts the production of the bishopric's mills to your capital. A bishop taxes only their own bishopric; the pope’s tithe (`P DI HHH`, no target) covers every bishopric; the bishop outranks the cardinals, who outrank the pope. The king (or the regent) can also tax any fief he does not hold himself (`P TX KKK XXX`): the fief keeps its income and the same amount is created for the king’s capital, unless its lord taxes it the same turn. Playing it also opens Révolte on every territory of the fief or bishopric, capital included, independently of any bad harvest, for the turn it is played and the following one.",
   'faq.q18': 'Where do the new villages that appear on their own come from?',
   'faq.a18':
-    'They are the exodus of prosperity: right after winter conservation, the total stock lost that winter, summed across the whole map, triggers one founding per full threshold crossed. It starts from whichever territories lost the most, and lands on the nearest free tile that is not next to an existing village or castle — inside a fief of the origin territory\'s controller when possible, else land that player controls, else anywhere free at all. The founded village belongs to whoever controls the arrival tile, which may not be the player whose loss triggered it.',
+    "They are the exodus of prosperity: right after winter conservation, the total stock lost that winter, summed across the whole map, triggers one founding per full threshold crossed. It starts from whichever territories lost the most, and lands on the nearest free tile that is not next to an existing village or castle — inside a fief of the origin territory's controller when possible, else land that player controls, else anywhere free at all. The founded village belongs to whoever controls the arrival tile, which may not be the player whose loss triggered it.",
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -1146,6 +1234,39 @@ const englishMessages = {
   'releaseNotes.unavailable':
     'The release notes could not be loaded. They are listed on GitHub.',
   'releaseNotes.hideFuture': 'Do not show release notes for future versions',
+  'bugReport.open': 'Report a bug',
+  'bugReport.close': 'Close',
+  'bugReport.title': 'Report a bug',
+  'bugReport.intro':
+    'Describe what went wrong. The context below is attached to help us reproduce it.',
+  'bugReport.summaryLabel': 'Short summary',
+  'bugReport.descriptionLabel': 'What happened?',
+  'bugReport.descriptionPlaceholder': 'What you did, what you expected, what happened.',
+  'bugReport.contextSummary': 'Captured context',
+  'bugReport.contextHelp':
+    'Your game view as you see it (never the full server state nor other players’ private information), the last API calls (method, path and status only, no credentials), the deployed version and your browser.',
+  'bugReport.contextPreview': 'Captured context (JSON)',
+  'bugReport.publicNotice':
+    'Sending creates a public issue on GitHub: your summary, description and the context above will be visible to everyone.',
+  'bugReport.send': 'Send',
+  'bugReport.sending': 'Sending...',
+  'bugReport.sendDisabled':
+    'Sending is not enabled on this server. Use “Fill in on GitHub”.',
+  'bugReport.confirm':
+    'This publishes a public issue on GitHub with your summary, description and the captured context. Publish it?',
+  'bugReport.confirmSend': 'Publish the issue',
+  'bugReport.back': 'Back',
+  'bugReport.fillOnGithub': 'Fill in on GitHub',
+  'bugReport.pasteHint':
+    'Paste the full captured context below (it was copied to your clipboard).',
+  'bugReport.copied':
+    'GitHub opened in a new tab. The full context was copied to your clipboard: paste it into the issue.',
+  'bugReport.copyFailed':
+    'GitHub opened in a new tab, but the context could not be copied to your clipboard.',
+  'bugReport.sent': 'Thank you, your report was published.',
+  'bugReport.viewIssue': 'View the issue',
+  'bugReport.error':
+    'The report could not be sent. Try again later or use “Fill in on GitHub”.',
   'home.title': 'Your games',
   'home.empty': 'No games yet. Create one or join a friend.',
   'home.create': 'Create a game',
@@ -1287,7 +1408,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'score.ally': 'Allié ({partner})',
   'sim.start': 'Simuler',
   'sim.stop': 'Quitter la simulation',
-  'sim.banner': 'Simulation : rien n’est engagé. Les scores et le plateau montrent l’état hypothétique.',
+  'sim.banner':
+    'Simulation : rien n’est engagé. Les scores et le plateau montrent l’état hypothétique.',
   'sim.undo': 'Annuler',
   'sim.redo': 'Rétablir',
   'sim.reset': 'Réinitialiser',
@@ -1577,17 +1699,22 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.abbeyRegionAria': "Région (village seed) de l'abbaye pour la carte {code}",
   'orders.spiedHand': 'Votre espionne dévoile la main de {player} : {cards}',
   'orders.electionsTitle': 'Élections de cet hiver',
-  'orders.electionsTimingNote': 'Un titre acquis cet hiver (élection, achat de cardinal) est conféré à l’investiture et ne sera utilisable qu’à l’hiver suivant.',
+  'orders.electionsTimingNote':
+    'Un titre acquis cet hiver (élection, achat de cardinal) est conféré à l’investiture et ne sera utilisable qu’à l’hiver suivant.',
   'orders.electionBishopHeading': 'Évêché de {name} (siège {seat})',
   'orders.electionPopeHeading': 'Conclave',
   'orders.electionKingHeading': 'Élection royale',
-  'orders.electionKingRule': 'Majorité relative, au moins {minVotes} voix et l’onction du clergé (2 évêques ou 1 cardinal parmi les votants). Candidature : K R NNN. Vote : V R NNN',
-  'orders.electionKingClergy': 'Clergé parmi vos voix : {count} (cardinal ou pape : {cardinal}). Deux évêques ou un cardinal derrière un candidat l’oignent.',
+  'orders.electionKingRule':
+    'Majorité relative, au moins {minVotes} voix et l’onction du clergé (2 évêques ou 1 cardinal parmi les votants). Candidature : K R NNN. Vote : V R NNN',
+  'orders.electionKingClergy':
+    'Clergé parmi vos voix : {count} (cardinal ou pape : {cardinal}). Deux évêques ou un cardinal derrière un candidat l’oignent.',
   'orders.electionKingCardinalYes': 'oui',
   'orders.electionKingCardinalNo': 'non',
   'orders.voiceFief': '{name} (fief) : {votes}',
-  'orders.electionBishopRule': 'Majorité relative. Candidature : K E NNN {seat}. Vote : V E NNN {seat}',
-  'orders.electionPopeRule': 'Majorité absolue : {required} voix. Candidature : K P NNN. Vote : V P NNN (porté par un de vos cardinaux)',
+  'orders.electionBishopRule':
+    'Majorité relative. Candidature : K E NNN {seat}. Vote : V E NNN {seat}',
+  'orders.electionPopeRule':
+    'Majorité absolue : {required} voix. Candidature : K P NNN. Vote : V P NNN (porté par un de vos cardinaux)',
   'orders.electionVoices': 'Vos voix : {voices}',
   'orders.electionNoVoice': 'Vous n’avez aucune voix dans cette élection.',
   'orders.voiceSeat': 'Siège {territory} : {votes}',
@@ -1604,8 +1731,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.electionCandidateHint': 'Cliquez sur un noble pour ajouter sa candidature :',
   'orders.electionCandidateAdded': 'Candidature ajoutée',
   'orders.electionCandidacyComment': 'candidature {name}',
-  'orders.electionNoCandidate': 'Aucun de vos nobles ne peut se présenter (hommes libres, célibataires et non excommuniés).',
-  'orders.calamityForecast': 'Votre astrologue prévoit les prochaines calamités : {kinds} (en rayer une avec V C NNN I)',
+  'orders.electionNoCandidate':
+    'Aucun de vos nobles ne peut se présenter (hommes libres, célibataires et non excommuniés).',
+  'orders.calamityForecast':
+    'Votre astrologue prévoit les prochaines calamités : {kinds} (en rayer une avec V C NNN I)',
   'orders.handTitle': 'Votre main',
   'orders.hand': 'Cartes en main',
   'orders.handEmpty': 'Aucune carte en main.',
@@ -1614,8 +1743,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Piochez la carte du dessus du deck commun, puis jouez les cartes de noble sur un château ou village où vous avez une armée, les prétentions d’un héritier contre un noble marié dans votre famille et les dignités sur l’un de vos nobles. La limite de main est partagée entre cartes spéciales et cartes de noble ; au plus 2 cartes sont piochées par hiver, tous decks confondus, dont une seule dans le deck de nobles.',
   'orders.nobleDraw': 'Piocher une carte de noble (T N)',
   'orders.nobleDeckSize': 'Deck : {count} carte(s) restante(s)',
-  'orders.handCounter': 'Main : {count}/{limit} cartes (spéciales : {special}, nobles : {noble})',
-  'orders.nobleHandFull': 'Votre main est pleine : jouez ou défaussez une carte avant de piocher.',
+  'orders.handCounter':
+    'Main : {count}/{limit} cartes (spéciales : {special}, nobles : {noble})',
+  'orders.nobleHandFull':
+    'Votre main est pleine : jouez ou défaussez une carte avant de piocher.',
   'orders.nobleDrawUsed': 'Pioche déjà ordonnée cet hiver.',
   'orders.nobleDeckEmpty': 'Le deck de nobles est vide.',
   'orders.nobleHand': 'Main de nobles',
@@ -1635,39 +1766,48 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.nobleHandClaimHeirAria': 'Héritier pour la carte {code}',
   'orders.nobleHandClaimTargetAria': 'Noble visé par la carte {code}',
   'orders.dialogCancel': 'Annuler',
-  'orders.dialogConfirm': 'Ajouter l\'ordre',
+  'orders.dialogConfirm': "Ajouter l'ordre",
   'orders.houseOrders': 'Ordres de la maison',
   'orders.form.mapPick': 'Un clic sur la carte remplit le champ entouré.',
   'orders.titlesTitle': 'Ordres de vos titres',
-  'orders.titlesDescription': 'Ordres du pape, des évêques, des astrologues et des fiefs : chaque bouton ouvre une fenêtre pour régler l\'ordre, ajouté à la feuille avec un commentaire.',
+  'orders.titlesDescription':
+    "Ordres du pape, des évêques, des astrologues et des fiefs : chaque bouton ouvre une fenêtre pour régler l'ordre, ajouté à la feuille avec un commentaire.",
   'orders.excommunicate': 'Excommunier (X E)',
   'orders.marriage': 'Annoncer un mariage (M N)',
-  'orders.marriageHelp': 'Le mariage n\'est conclu que si l\'autre joueur ordonne le mariage réciproque (M N conjoint noble) le même hiver.',
+  'orders.marriageHelp':
+    "Le mariage n'est conclu que si l'autre joueur ordonne le mariage réciproque (M N conjoint noble) le même hiver.",
   'orders.field.fiance': 'Votre noble',
   'orders.field.spouse': 'Conjoint (autre maison)',
   'orders.comment.marriage': 'marier {name} et {spouse}',
   'orders.dissolve': 'Dissoudre le mariage (X D)',
   'orders.dissolveRequest': 'Demander la dissolution (X D)',
-  'orders.dissolveHelp': 'Le pape dissout un mariage à la demande du propriétaire d\'un des époux. Les deux ordres (pape et demande) doivent figurer sur les feuilles ; un seul suffit si le pape possède un époux. Les prétentions sont conservées.',
+  'orders.dissolveHelp':
+    "Le pape dissout un mariage à la demande du propriétaire d'un des époux. Les deux ordres (pape et demande) doivent figurer sur les feuilles ; un seul suffit si le pape possède un époux. Les prétentions sont conservées.",
   'orders.comment.dissolve': 'dissoudre le mariage de {name} et {spouse}',
   'orders.inquiry': 'Enquêter sur un noble (Q)',
-  'orders.inquiryHelp': 'Révèle la dignité cachée du noble, s\'il en a une. Le coût est payé même si rien n\'est caché. Une enquête par cardinal ou pape et par hiver.',
+  'orders.inquiryHelp':
+    "Révèle la dignité cachée du noble, s'il en a une. Le coût est payé même si rien n'est caché. Une enquête par cardinal ou pape et par hiver.",
   'orders.field.investigated': 'Noble enquêté',
   'orders.trial': 'Mettre un noble en procès (J)',
-  'orders.trialHelp': 'Un procès exige que deux cardinaux distincts déposent chacun le même procès (J), pour un même joueur ou pour deux. Le noble doit être excommunié, être une dame célibataire portant une dignité de dame, ou avoir commandité un assassinat ; le roi n\'est jamais jugé. Le verdict tombe en toute fin d\'hiver et la peine est la mort.',
+  'orders.trialHelp':
+    "Un procès exige que deux cardinaux distincts déposent chacun le même procès (J), pour un même joueur ou pour deux. Le noble doit être excommunié, être une dame célibataire portant une dignité de dame, ou avoir commandité un assassinat ; le roi n'est jamais jugé. Le verdict tombe en toute fin d'hiver et la peine est la mort.",
   'orders.field.tried': 'Noble jugé',
   'orders.field.trialCardinal': 'Cardinal qui porte le procès',
-  'orders.hint.trialSecond': 'Le procès de {name} n\'a lieu que si un second cardinal, le vôtre ou celui d\'un autre joueur, dépose le même procès sur sa feuille ; un ordre isolé reste sans effet.',
+  'orders.hint.trialSecond':
+    "Le procès de {name} n'a lieu que si un second cardinal, le vôtre ou celui d'un autre joueur, dépose le même procès sur sa feuille ; un ordre isolé reste sans effet.",
   'orders.comment.trial': 'mettre {name} en procès',
   'orders.comment.inquiry': 'enquêter sur {name}',
   'orders.field.capital': 'Capitale (château)',
-  'reports.cardScheduledOmens': 'De curieux présages annoncent {card} en {season} sur {region}',
-  'orders.calamityWarningItemOmens': '{card} — {season} dans {region} (présages inhabituels)',
+  'reports.cardScheduledOmens':
+    'De curieux présages annoncent {card} en {season} sur {region}',
+  'orders.calamityWarningItemOmens':
+    '{card} — {season} dans {region} (présages inhabituels)',
   'reports.ritual.declared': 'Rituel préparé.',
   'reports.ritual.succeeded': 'Le rituel a dévié une calamité sur la région de {region}.',
-  'reports.ritual.failed': 'Le rituel n\'a dévié aucune calamité.',
+  'reports.ritual.failed': "Le rituel n'a dévié aucune calamité.",
   'orders.ritual': 'Rituel (S R)',
-  'orders.ritualHelp': 'Soit appeler une calamité (elle peut ne pas être tirée), soit fixer la saison d\'une calamité de l\'an prochain : pas les deux. Elle frappe la région où se trouve votre Sorcière.',
+  'orders.ritualHelp':
+    "Soit appeler une calamité (elle peut ne pas être tirée), soit fixer la saison d'une calamité de l'an prochain : pas les deux. Elle frappe la région où se trouve votre Sorcière.",
   'orders.field.ritualMode': 'Effet',
   'orders.field.ritualChoice': 'Calamité ou saison',
   'orders.ritual.modeCalamity': 'Appeler une calamité',
@@ -1682,37 +1822,49 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.hint.fiefCost': '{title} · {count} territoires · coût {cost} R',
   'orders.hint.annexCost': 'Annexer {territory} · coût {cost} R',
   'orders.hint.rankCost': '{from} → {to} · {count} territoires · coût {cost} R',
-  'orders.hint.fiefNotConnected': 'Les territoires ne sont pas tous reliés à la capitale.',
-  'orders.hint.fiefTooSmall': 'Choisissez au moins 2 territoires de plus, reliés à la capitale (3 au total).',
+  'orders.hint.fiefNotConnected':
+    'Les territoires ne sont pas tous reliés à la capitale.',
+  'orders.hint.fiefTooSmall':
+    'Choisissez au moins 2 territoires de plus, reliés à la capitale (3 au total).',
   'orders.hint.cost': 'Coût : {cost} R',
   'orders.appease': 'Apaiser une révolte',
-  'orders.appeaseHelp': "Retire une armée rebelle : par un rite gratuit qui peut tuer l'ecclésiastique, ou en payant, sans risque.",
+  'orders.appeaseHelp':
+    "Retire une armée rebelle : par un rite gratuit qui peut tuer l'ecclésiastique, ou en payant, sans risque.",
   'orders.field.appeaseMode': 'Voie',
   'orders.appease.rebels': '{territory} · {count} troupes rebelles',
   'orders.appease.rite': 'Apaiser (rite)',
-  'orders.appease.riteHelp': 'Gratuit, dans la région où se trouve l\'ecclésiastique. Un d6 retire l\'armée rebelle sur 1 à 3, échoue sur 4 ou 5, et sur 6 échoue et tue l\'ecclésiastique.',
+  'orders.appease.riteHelp':
+    "Gratuit, dans la région où se trouve l'ecclésiastique. Un d6 retire l'armée rebelle sur 1 à 3, échoue sur 4 ou 5, et sur 6 échoue et tue l'ecclésiastique.",
   'orders.appease.paid': 'Apaiser (payant)',
-  'orders.comment.appeaseRite': '{name} tente d\'apaiser la révolte de {territory}',
+  'orders.comment.appeaseRite': "{name} tente d'apaiser la révolte de {territory}",
   'orders.comment.appeasePaid': '{name} paie pour apaiser la révolte de {territory}',
-  'orders.calamityVetoHelp': 'Retire une des 3 prochaines calamités de la pioche : elle va à la défausse et la suivante la remplace. Une fois par hiver.',
+  'orders.calamityVetoHelp':
+    'Retire une des 3 prochaines calamités de la pioche : elle va à la défausse et la suivante la remplace. Une fois par hiver.',
   'orders.liftExcommunication': 'Lever une excommunication (X L)',
   'orders.buyCardinal': 'Acheter un cardinal (N C)',
   'orders.calamityVeto': 'Rayer une calamité (V C)',
   'orders.foundFief': 'Fonder un fief (T F)',
-  'orders.foundFiefHelp': 'Choisissez la capitale (un château) et les territoires reliés que vous contrôlez, sans fief ni armée étrangère (3 au moins).',
+  'orders.foundFiefHelp':
+    'Choisissez la capitale (un château) et les territoires reliés que vous contrôlez, sans fief ni armée étrangère (3 au moins).',
   'orders.assignFief': 'Attribuer un fief vacant (T A)',
   'orders.annexTerritory': 'Annexer un territoire (T X)',
-  'orders.annexTerritoryHelp': 'Ajoute à un fief un territoire libre voisin que l’une de vos armées tient seule. Le titre ne change pas.',
+  'orders.annexTerritoryHelp':
+    'Ajoute à un fief un territoire libre voisin que l’une de vos armées tient seule. Le titre ne change pas.',
   'orders.changeRank': 'Monter un fief d’un rang (T R)',
-  'orders.changeRankHelp': 'Porte le fief au titre suivant (baronnie, comté, marquisat, duché). Une fois par hiver et par fief ; le coût croît avec ses territoires.',
+  'orders.changeRankHelp':
+    'Porte le fief au titre suivant (baronnie, comté, marquisat, duché). Une fois par hiver et par fief ; le coût croît avec ses territoires.',
   'orders.royalAnnex': 'Accorder une annexion (W X)',
-  'orders.royalAnnexHelp': 'Ordre royal : autorise un fief à annexer un territoire d’un autre fief. Il ne compte que si le joueur de ce fief soumet le T X correspondant le même hiver.',
+  'orders.royalAnnexHelp':
+    'Ordre royal : autorise un fief à annexer un territoire d’un autre fief. Il ne compte que si le joueur de ce fief soumet le T X correspondant le même hiver.',
   'orders.royalRank': 'Accorder un rang (W R)',
-  'orders.royalRankHelp': 'Ordre royal : rend gratuite la montée d’un rang (T R) que le titulaire du fief demande cet hiver, quelle que soit la taille du fief.',
+  'orders.royalRankHelp':
+    'Ordre royal : rend gratuite la montée d’un rang (T R) que le titulaire du fief demande cet hiver, quelle que soit la taille du fief.',
   'orders.royalFound': 'Offrir un fief (W F)',
-  'orders.royalFoundHelp': 'Ordre royal : le fief constitué cet hiver par T F sur cette capitale ne coûte rien à son joueur.',
+  'orders.royalFoundHelp':
+    'Ordre royal : le fief constitué cet hiver par T F sur cette capitale ne coûte rien à son joueur.',
   'orders.royalGrant': 'Octroyer un fief de la couronne (W G)',
-  'orders.royalGrantHelp': 'Ordre royal : donne un fief vacant de la couronne à un noble de n’importe quel joueur, sous réserve de la ligne de succession.',
+  'orders.royalGrantHelp':
+    'Ordre royal : donne un fief vacant de la couronne à un noble de n’importe quel joueur, sous réserve de la ligne de succession.',
   'orders.field.grantee': 'Noble qui reçoit le fief',
   'orders.comment.royalAnnex': 'accord : le fief {capital} annexe {territory}',
   'orders.comment.royalRank': 'accord : le fief {capital} monte d’un rang gratuitement',
@@ -1770,7 +1922,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.field.assassinationTarget': 'Noble à assassiner',
   'orders.field.justiceTarget': 'Noble à juger',
   'orders.comment.excommunicate': 'excommunier {name}',
-  'orders.comment.lift': 'lever l\'excommunication de {name}',
+  'orders.comment.lift': "lever l'excommunication de {name}",
   'orders.comment.buyCardinal': 'acheter le cardinalat de {name}',
   'orders.comment.calamityVeto': 'rayer la calamité {positions}',
   'orders.comment.foundFief': 'fonder le fief {capital} pour {name}',
@@ -1786,23 +1938,27 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.comment.tunnelAttack': '{card} : attaque de {origin} sur {target}',
   'orders.comment.ambush': '{card} : embuscade sur l’attaque de {origin} sur {target}',
   'orders.comment.assassination': '{card} : {commissioner} fait tuer {target}',
-  'orders.comment.justice': '{card} : {target} est exécuté s’il a commandité un assassinat',
+  'orders.comment.justice':
+    '{card} : {target} est exécuté s’il a commandité un assassinat',
   'orders.comment.discardSpecial': 'défausser {card}',
   'orders.comment.discard': 'défausser {name}',
   'orders.nobleCardsActionDescription':
     'Les cartes de noble, de prétention et de bâtard se jouent à n’importe quelle saison.',
   'orders.nobleCardsPlaceholder': 'R N CCC XXX\nC N HHH CCC\nD N NNN BAS',
   'orders.nobleCardsAria': 'Ordres de cartes de noble de {player}',
-  'reports.reason.noble_draw_already_used': 'Une carte de noble a déjà été piochée cet hiver.',
+  'reports.reason.noble_draw_already_used':
+    'Une carte de noble a déjà été piochée cet hiver.',
   'reports.reason.noble_deck_empty': 'Le deck de nobles est vide.',
-  'reports.reason.hand_limit_reached': 'Votre main est pleine (limite partagée entre cartes spéciales et cartes de noble).',
+  'reports.reason.hand_limit_reached':
+    'Votre main est pleine (limite partagée entre cartes spéciales et cartes de noble).',
   'reports.reason.card_not_in_hand': "Cette carte n'est pas dans votre main de nobles.",
   'reports.reason.justice_king': 'Le roi n’est jamais une cible valide.',
   'reports.reason.justice_unknown_noble': 'Ce noble n’est plus en vie.',
   'reports.reason.noble_already_bastard': 'Ce noble est déjà bâtard.',
   'reports.reason.claim_requires_marriage':
     "L'héritier doit avoir été posé pendant le mariage du noble visé avec l'un de vos nobles.",
-  'reports.reason.claim_on_own_noble': 'Vous ne pouvez pas prétendre aux titres de votre propre noble.',
+  'reports.reason.claim_on_own_noble':
+    'Vous ne pouvez pas prétendre aux titres de votre propre noble.',
   'reports.reason.claim_by_bastard': 'Un bâtard ne peut pas prétendre à des titres.',
   'reports.reason.claim_already_staked': 'Ce noble porte déjà une prétention.',
   'reports.reason.claim_against_married_eon':
@@ -1887,15 +2043,18 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.electionPope': 'Conclave',
   'reports.electionKing': 'Élection royale',
   'reports.electionAnointed': '(oint)',
-  'reports.electionResult.no_anointment': 'pas d’onction du clergé, le trône reste vacant',
+  'reports.electionResult.no_anointment':
+    'pas d’onction du clergé, le trône reste vacant',
   'reports.electionRequired': '{count} voix requises',
   'reports.electionResult.elected': '{noble} est élu',
   'reports.electionResult.tie': 'égalité, personne n’est élu',
   'reports.electionResult.no_candidate': 'aucun candidat, le siège reste vacant',
   'reports.electionResult.no_majority': 'pas de majorité, personne n’est élu',
   'reports.marriageConcluded': 'Mariage : {noble} ({owner}) et {spouse} ({spouseOwner}).',
-  'reports.marriageDissolved': 'Le pape dissout le mariage de {noble} ({owner}) et {spouse} ({spouseOwner}).',
-  'reports.marriageFailed': 'Rumeur : la négociation de mariage entre {noble} et {spouse} a échoué.',
+  'reports.marriageDissolved':
+    'Le pape dissout le mariage de {noble} ({owner}) et {spouse} ({spouseOwner}).',
+  'reports.marriageFailed':
+    'Rumeur : la négociation de mariage entre {noble} et {spouse} a échoué.',
   'reports.fiefConquered':
     '{capital} : le fief passe de {previousOwner} à {owner}, vacant',
   'reports.fiefVacated': '{capital} : le fief détenu par {owner} devient vacant',
@@ -1908,41 +2067,61 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.cardPlayed': '{player} : {card} jouée sur {region}',
   'reports.cardPlayedBare': '{player} : {card} jouée',
   'reports.cardPlayedOnNoble': '{player} : {card} jouée sur {noble}',
-  'reports.cardPlayedAssassination': '{player} : {card} jouée sur {noble}, commanditée par {commissioner}',
+  'reports.cardPlayedAssassination':
+    '{player} : {card} jouée sur {noble}, commanditée par {commissioner}',
   'reports.cardScheduled': '{card} à venir en {season} dans {region}',
   'reports.calamityApplied': '{card} active dans {region}',
   'reports.calamityCanceled': '{card} annulée dans {region}',
   'reports.bonusEffect': '{card} actif dans {region}',
-  'reports.revoltAppeased.paid': '{noble} paie {cost} R pour apaiser la révolte de {territory}',
+  'reports.revoltAppeased.paid':
+    '{noble} paie {cost} R pour apaiser la révolte de {territory}',
   'reports.revoltAppeased.succeeded': '{noble} apaise la révolte de {territory}',
   'reports.revoltAppeased.failed': '{noble} échoue à apaiser la révolte de {territory}',
-  'reports.revoltAppeased.failed_death': '{noble} échoue à apaiser la révolte de {territory} et meurt',
+  'reports.revoltAppeased.failed_death':
+    '{noble} échoue à apaiser la révolte de {territory} et meurt',
   'reports.neutralArmyCreated': 'Armée neutre de {count} troupes créée à {territory}',
   'reports.neutralArmyCreatedTroop': 'Armée neutre de {count} troupe créée à {territory}',
   'reports.plagueDeath': 'Le noble {noble} meurt de la peste à {territory}',
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
-  'reports.trialExecuted': 'Le noble {noble}, révélé comme {dignity}, est jugé et exécuté à {territory}',
-  'reports.trialUnfounded': 'Le procès du noble {noble} est non fondé : personne n’est exécuté',
-  'reports.tunnelEscape': 'Le noble {noble} s’évade par un souterrain de {source} vers {territory}',
-  'reports.tunnelBypass': 'L’attaque de {source} sur {territory} passe par un souterrain et ignore ses fortifications',
-  'reports.assassinationPublic': 'Le noble {noble} est assassiné à {territory} ; personne ne revendique le crime',
-  'reports.assassinationCommissioner': 'Le noble {noble} est assassiné à {territory}, sur ordre de {commissioner}',
-  'reports.assassinationRevealed': 'Votre enquête révèle que {commissioner} a commandité l’assassinat de {noble}',
-  'reports.justiceExecuted': 'Justice est rendue : {player} a fait exécuter le noble {noble} à {territory} pour un assassinat',
-  'reports.justiceNoEffect': '{noble} n’a aucun assassinat à expier : la carte Justice reste sans effet',
-  'reports.tunnelVoid': 'Le souterrain joué sur l’attaque de {source} sur {territory} est sans effet : l’attaque n’a pas eu lieu',
-  'reports.ambushCapture': 'Embuscade : {noble} est capturé quand l’armée chassée de {territory} bat en retraite',
-  'reports.ambushVoid': 'L’embuscade jouée sur l’attaque de {source} sur {territory} est sans effet',
+  'reports.trialExecuted':
+    'Le noble {noble}, révélé comme {dignity}, est jugé et exécuté à {territory}',
+  'reports.trialUnfounded':
+    'Le procès du noble {noble} est non fondé : personne n’est exécuté',
+  'reports.tunnelEscape':
+    'Le noble {noble} s’évade par un souterrain de {source} vers {territory}',
+  'reports.tunnelBypass':
+    'L’attaque de {source} sur {territory} passe par un souterrain et ignore ses fortifications',
+  'reports.assassinationPublic':
+    'Le noble {noble} est assassiné à {territory} ; personne ne revendique le crime',
+  'reports.assassinationCommissioner':
+    'Le noble {noble} est assassiné à {territory}, sur ordre de {commissioner}',
+  'reports.assassinationRevealed':
+    'Votre enquête révèle que {commissioner} a commandité l’assassinat de {noble}',
+  'reports.justiceExecuted':
+    'Justice est rendue : {player} a fait exécuter le noble {noble} à {territory} pour un assassinat',
+  'reports.justiceNoEffect':
+    '{noble} n’a aucun assassinat à expier : la carte Justice reste sans effet',
+  'reports.tunnelVoid':
+    'Le souterrain joué sur l’attaque de {source} sur {territory} est sans effet : l’attaque n’a pas eu lieu',
+  'reports.ambushCapture':
+    'Embuscade : {noble} est capturé quand l’armée chassée de {territory} bat en retraite',
+  'reports.ambushVoid':
+    'L’embuscade jouée sur l’attaque de {source} sur {territory} est sans effet',
   'reports.excommunication': 'Le noble {noble} est excommunié par le pape',
   'reports.excommunicationLifted': 'Le pape lève l’excommunication du noble {noble}',
-  'reports.eonUnmasked': 'Le noble {noble} est démasqué : c’était un chevalier d’Éon déguisé',
-  'reports.dignityRevealed': 'Une enquête révèle la dignité cachée de {noble} : {dignity}',
-  'reports.reason.not_married': 'Ce noble n\'a pas de mariage en cours.',
-  'reports.reason.dissolution_not_requested': 'L\'ordre du pape exige la demande du propriétaire d\'un époux.',
+  'reports.eonUnmasked':
+    'Le noble {noble} est démasqué : c’était un chevalier d’Éon déguisé',
+  'reports.dignityRevealed':
+    'Une enquête révèle la dignité cachée de {noble} : {dignity}',
+  'reports.reason.not_married': "Ce noble n'a pas de mariage en cours.",
+  'reports.reason.dissolution_not_requested':
+    "L'ordre du pape exige la demande du propriétaire d'un époux.",
   'reports.reason.dissolution_not_granted': 'Seul le pape peut accorder une dissolution.',
-  'reports.reason.not_cardinal': 'Seul un cardinal ou le pape, titre actif, peut ordonner une enquête ; un procès exige un cardinal actif pour chacun de ses ordres.',
-  'reports.reason.trial_limit': 'Chaque cardinal ne peut porter qu\'un procès par hiver.',
-  'reports.reason.inquiry_limit': 'Chaque cardinal ou pape ne peut ordonner qu\'une enquête par hiver.',
+  'reports.reason.not_cardinal':
+    'Seul un cardinal ou le pape, titre actif, peut ordonner une enquête ; un procès exige un cardinal actif pour chacun de ses ordres.',
+  'reports.reason.trial_limit': "Chaque cardinal ne peut porter qu'un procès par hiver.",
+  'reports.reason.inquiry_limit':
+    "Chaque cardinal ou pape ne peut ordonner qu'une enquête par hiver.",
   'reports.neutralFamine':
     'Armée neutre affamée à {territory} : {before} → {after} troupes',
   'reports.cardCanceled': '{player} : {card} annulée à {territory}',
@@ -2005,22 +2184,35 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'rumor.seigneurial_tax.level3':
     'Des collecteurs sillonnent le royaume ; plusieurs fiefs vont être pressurés jusqu’au dernier denier.',
   'rumor.justice': 'On dit que les magistrats aiguisent leurs haches.',
-  'rumor.justice.level1': 'Un greffier jure que la cour tient la liste des crimes impunis.',
-  'rumor.justice.level2': 'Des rumeurs de procès attendant les coupables courent le royaume.',
-  'rumor.justice.level3': 'Tout le royaume parle de justice : plus aucun assassin ne dort tranquille.',
-  'rumor.assassination.killing': 'Un noble a été retrouvé mort ; on murmure que ce n’était pas un accident.',
-  'rumor.assassination': 'Les courtisans chuchotent de poignards et de coupes empoisonnées.',
-  'rumor.assassination.level1': 'Un courtisan jure qu’un poignard attend derrière une tapisserie.',
-  'rumor.assassination.level2': 'Des rumeurs d’empoisonneurs dans plusieurs cours courent le royaume.',
-  'rumor.assassination.level3': 'Tout le royaume parle de meurtre : plus aucun noble ne dort tranquille.',
+  'rumor.justice.level1':
+    'Un greffier jure que la cour tient la liste des crimes impunis.',
+  'rumor.justice.level2':
+    'Des rumeurs de procès attendant les coupables courent le royaume.',
+  'rumor.justice.level3':
+    'Tout le royaume parle de justice : plus aucun assassin ne dort tranquille.',
+  'rumor.assassination.killing':
+    'Un noble a été retrouvé mort ; on murmure que ce n’était pas un accident.',
+  'rumor.assassination':
+    'Les courtisans chuchotent de poignards et de coupes empoisonnées.',
+  'rumor.assassination.level1':
+    'Un courtisan jure qu’un poignard attend derrière une tapisserie.',
+  'rumor.assassination.level2':
+    'Des rumeurs d’empoisonneurs dans plusieurs cours courent le royaume.',
+  'rumor.assassination.level3':
+    'Tout le royaume parle de meurtre : plus aucun noble ne dort tranquille.',
   'rumor.tunnel': 'Les valets parlent de vieux passages sous les châteaux.',
   'rumor.tunnel.level1': 'Un valet jure qu’un vieux passage court sous une muraille.',
-  'rumor.tunnel.level2': 'Des rumeurs de passages secrets sous plusieurs châteaux courent le royaume.',
-  'rumor.tunnel.level3': 'Tout le royaume parle de souterrains : ni cachot ni rempart ne semblent plus sûrs.',
+  'rumor.tunnel.level2':
+    'Des rumeurs de passages secrets sous plusieurs châteaux courent le royaume.',
+  'rumor.tunnel.level3':
+    'Tout le royaume parle de souterrains : ni cachot ni rempart ne semblent plus sûrs.',
   'rumor.ambush': 'On murmure que des hommes guettent dans les bois le long des routes.',
-  'rumor.ambush.level1': 'Un colporteur jure avoir vu des hommes en armes tapis dans un fossé.',
-  'rumor.ambush.level2': 'Des rumeurs d’embuscades tendues sur les routes courent le royaume.',
-  'rumor.ambush.level3': 'Tout le royaume parle d’embuscades : plus aucune route n’est sûre pour un seigneur.',
+  'rumor.ambush.level1':
+    'Un colporteur jure avoir vu des hommes en armes tapis dans un fossé.',
+  'rumor.ambush.level2':
+    'Des rumeurs d’embuscades tendues sur les routes courent le royaume.',
+  'rumor.ambush.level3':
+    'Tout le royaume parle d’embuscades : plus aucune route n’est sûre pour un seigneur.',
   'reports.ordersExecuted': 'Ordres exécutés',
   'reports.hiddenOrder': 'Un ordre a été traité, mais ses détails sont masqués.',
   'reports.receptionReceived': 'Reçue',
@@ -2086,44 +2278,66 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Un noble libre doit être sur le territoire ou adjacent.',
   'reports.reason.noble_not_prisoner': "Le noble n'est pas prisonnier.",
   'reports.reason.noble_not_held': "Le noble n'est pas détenu par ce joueur.",
-  'reports.reason.noble_not_controlled': "Le noble n'est ni libre et à vous, ni détenu par l'une de vos armées.",
-  'reports.reason.no_army_at_destination': "Aucune armée d'un autre joueur ne se trouve sur la destination.",
-  'reports.reason.transfer_to_self': "Un noble ne peut pas être remis à votre propre armée.",
-  'reports.reason.transfer_status_to_owner': "Aucun statut ne peut être fixé quand le noble est rendu à son propriétaire.",
-  'reports.reason.marriage_not_reciprocated': "L'autre joueur n'a pas soumis l'ordre de mariage correspondant.",
+  'reports.reason.noble_not_controlled':
+    "Le noble n'est ni libre et à vous, ni détenu par l'une de vos armées.",
+  'reports.reason.no_army_at_destination':
+    "Aucune armée d'un autre joueur ne se trouve sur la destination.",
+  'reports.reason.transfer_to_self':
+    'Un noble ne peut pas être remis à votre propre armée.',
+  'reports.reason.transfer_status_to_owner':
+    'Aucun statut ne peut être fixé quand le noble est rendu à son propriétaire.',
+  'reports.reason.marriage_not_reciprocated':
+    "L'autre joueur n'a pas soumis l'ordre de mariage correspondant.",
   'reports.reason.election_not_open': "Cette élection n'est pas ouverte cet hiver.",
   'reports.reason.cardinal_requires_bishop': 'Seul un évêque peut être promu cardinal.',
-  'reports.reason.not_pope': 'Seul le pape, titre actif, peut prononcer des sanctions pontificales.',
-  'reports.reason.cannot_excommunicate_self': 'Le pape ne peut pas s\'excommunier lui-même.',
-  'reports.reason.excommunication_limit': 'Le pape ne peut prononcer qu\'une excommunication par hiver.',
+  'reports.reason.not_pope':
+    'Seul le pape, titre actif, peut prononcer des sanctions pontificales.',
+  'reports.reason.cannot_excommunicate_self':
+    "Le pape ne peut pas s'excommunier lui-même.",
+  'reports.reason.excommunication_limit':
+    "Le pape ne peut prononcer qu'une excommunication par hiver.",
   'reports.reason.already_excommunicated': 'Ce noble est déjà excommunié.',
-  'reports.reason.excommunication_slot_taken': 'Un autre noble de ce joueur est déjà excommunié : levez d\'abord cette excommunication.',
-  'reports.reason.not_excommunicated': 'Ce noble n\'est pas excommunié.',
-  'reports.reason.excommunication_not_liftable': 'Cette excommunication ne peut pas être levée.',
-  'reports.reason.noble_not_witch': 'Seule une de vos Sorcières libres peut faire un rituel.',
+  'reports.reason.excommunication_slot_taken':
+    "Un autre noble de ce joueur est déjà excommunié : levez d'abord cette excommunication.",
+  'reports.reason.not_excommunicated': "Ce noble n'est pas excommunié.",
+  'reports.reason.excommunication_not_liftable':
+    'Cette excommunication ne peut pas être levée.',
+  'reports.reason.noble_not_witch':
+    'Seule une de vos Sorcières libres peut faire un rituel.',
   'reports.reason.ritual_already_used': 'Un seul rituel peut être fait par hiver.',
-  'reports.reason.ritual_invalid_target': 'Un rituel appelle une calamité (peste, mauvais temps, famine) ou fixe une saison (printemps, été, automne), jamais les deux.',
+  'reports.reason.ritual_invalid_target':
+    'Un rituel appelle une calamité (peste, mauvais temps, famine) ou fixe une saison (printemps, été, automne), jamais les deux.',
   'reports.reason.ritual_no_region': 'La Sorcière ne se trouve dans aucune région.',
-  'reports.reason.dignity_exclusive': 'Cette dame porte déjà une dignité du même genre (une visible et une cachée au plus).',
-  'reports.reason.dignity_hidden_own_only': 'Une dignité cachée ne se joue que sur l\'une de vos propres dames.',
+  'reports.reason.dignity_exclusive':
+    'Cette dame porte déjà une dignité du même genre (une visible et une cachée au plus).',
+  'reports.reason.dignity_hidden_own_only':
+    "Une dignité cachée ne se joue que sur l'une de vos propres dames.",
   'reports.reason.dignity_female_only': 'Cette dignité ne se joue que sur une dame.',
-  'reports.reason.calamity_not_forecast': 'Cette calamité ne fait pas partie de la prévision.',
-  'reports.reason.calamity_veto_already_used': 'Cet astrologue a déjà rayé une calamité cet hiver.',
-  'reports.reason.noble_not_astrologer': 'Seul le propriétaire d\'une astrologue libre peut rayer une calamité.',
+  'reports.reason.calamity_not_forecast':
+    'Cette calamité ne fait pas partie de la prévision.',
+  'reports.reason.calamity_veto_already_used':
+    'Cet astrologue a déjà rayé une calamité cet hiver.',
+  'reports.reason.noble_not_astrologer':
+    "Seul le propriétaire d'une astrologue libre peut rayer une calamité.",
   'reports.reason.already_cardinal': 'Le noble est déjà cardinal ou promu cet hiver.',
   'reports.reason.cardinal_cap_reached': 'Le nombre maximal de cardinaux est atteint.',
-  'reports.reason.candidate_not_eligible': 'Ce noble ne peut pas se présenter : seuls les hommes libres et non excommuniés sont éligibles (célibataires pour un évêché ou le conclave ; non bâtards et titulaires d’un fief pour le trône).',
-  'reports.reason.candidacy_already_filed': 'Vous avez déjà présenté une candidature à cette élection.',
+  'reports.reason.candidate_not_eligible':
+    'Ce noble ne peut pas se présenter : seuls les hommes libres et non excommuniés sont éligibles (célibataires pour un évêché ou le conclave ; non bâtards et titulaires d’un fief pour le trône).',
+  'reports.reason.candidacy_already_filed':
+    'Vous avez déjà présenté une candidature à cette élection.',
   'reports.reason.unknown_candidate': "Ce noble n'est pas candidat à cette élection.",
   'reports.reason.vote_already_cast': 'Vous avez déjà voté à cette élection.',
   'reports.reason.no_voice': "Vous n'avez aucune voix dans cette élection.",
-  'reports.reason.marriage_refused': "Mariage refusé : vous n'avez pas soumis l'ordre correspondant.",
-  'reports.reason.marriage_pending': "Mariage en attente : il n'a lieu que si l'autre joueur soumet l'ordre correspondant.",
+  'reports.reason.marriage_refused':
+    "Mariage refusé : vous n'avez pas soumis l'ordre correspondant.",
+  'reports.reason.marriage_pending':
+    "Mariage en attente : il n'a lieu que si l'autre joueur soumet l'ordre correspondant.",
   'reports.reason.marriage_same_owner': 'Les deux nobles appartiennent au même joueur.',
   'reports.reason.marriage_same_sex': 'Un mariage exige un homme et une dame.',
   'reports.reason.marriage_forbidden': 'Une dignité interdit à ce noble de se marier.',
   'reports.reason.noble_not_owned': "Le noble n'appartient pas à ce joueur.",
-  'reports.reason.noble_not_free': 'Les deux nobles doivent être libres (ni otage ni au cachot).',
+  'reports.reason.noble_not_free':
+    'Les deux nobles doivent être libres (ni otage ni au cachot).',
   'reports.reason.noble_already_married': "L'un des nobles est déjà marié.",
   'reports.reason.no_capital': "Le propriétaire du noble n'a pas de capitale.",
   'reports.reason.no_army_at_capital':
@@ -2235,16 +2449,22 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.rank_not_titular': "Le noble n'est pas le titulaire de ce fief.",
   'reports.reason.rank_max': 'Le fief est déjà un duché.',
   'reports.reason.rank_already_changed': 'Le fief a déjà monté en rang cet hiver.',
-  'reports.reason.royal_not_issuer': 'Seul le roi, ou la régente à sa place, peut émettre un ordre royal.',
-  'reports.reason.royal_fief_not_crown': 'Le fief n’est pas un fief de la couronne : il a un titulaire, ou il n’est pas revenu à la couronne.',
-  'reports.reason.royal_order_limit': 'La limite d’ordres royaux de ce type est atteinte cet hiver.',
-  'reports.reason.royal_accord_unused': 'L’ordre que cet accord autorise ne figure sur aucune feuille cet hiver : consommé sans effet.',
-  'reports.reason.royal_accord_pending': 'Accord en attente : il ne compte que si l’ordre qu’il autorise figure sur la feuille de son joueur.',
+  'reports.reason.royal_not_issuer':
+    'Seul le roi, ou la régente à sa place, peut émettre un ordre royal.',
+  'reports.reason.royal_fief_not_crown':
+    'Le fief n’est pas un fief de la couronne : il a un titulaire, ou il n’est pas revenu à la couronne.',
+  'reports.reason.royal_order_limit':
+    'La limite d’ordres royaux de ce type est atteinte cet hiver.',
+  'reports.reason.royal_accord_unused':
+    'L’ordre que cet accord autorise ne figure sur aucune feuille cet hiver : consommé sans effet.',
+  'reports.reason.royal_accord_pending':
+    'Accord en attente : il ne compte que si l’ordre qu’il autorise figure sur la feuille de son joueur.',
   'reports.reason.capital_castle_lost':
     'Le château de la capitale du fief a été détruit.',
   'reports.reason.fief_auto_assigned_default_holder':
     'Aucun ordre T A cet hiver : attribution automatique au noble libre au trigramme le plus petit.',
-  'reports.reason.prosperity_fief': 'fondé dans le fief du seigneur du territoire d’origine',
+  'reports.reason.prosperity_fief':
+    'fondé dans le fief du seigneur du territoire d’origine',
   'reports.reason.prosperity_controlled':
     'fondé sur une terre contrôlée par ce même seigneur',
   'reports.reason.prosperity_free': 'fondé sur une terre libre',
@@ -2409,7 +2629,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'profile.hideReleaseNotes': 'Masquer les notes de version',
   'profile.hideReleaseNotesDescription':
     'Ne pas afficher la liste des changements quand une nouvelle version est déployée.',
-  'profile.hideReleaseNotesFailed': 'Impossible d’enregistrer la préférence des notes de version.',
+  'profile.hideReleaseNotesFailed':
+    'Impossible d’enregistrer la préférence des notes de version.',
   'releaseNotes.title': 'Nouveautés',
   'releaseNotes.close': 'Fermer',
   'releaseNotes.allReleases': 'Toutes les versions sur GitHub',
@@ -2417,6 +2638,40 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'releaseNotes.unavailable':
     'Les notes de version n’ont pas pu être chargées. Elles sont consultables sur GitHub.',
   'releaseNotes.hideFuture': 'Ne plus afficher les notes des versions futures',
+  'bugReport.open': 'Signaler un bug',
+  'bugReport.close': 'Fermer',
+  'bugReport.title': 'Signaler un bug',
+  'bugReport.intro':
+    'Décrivez ce qui s’est mal passé. Le contexte ci-dessous est joint pour nous aider à reproduire le problème.',
+  'bugReport.summaryLabel': 'Résumé court',
+  'bugReport.descriptionLabel': 'Que s’est-il passé ?',
+  'bugReport.descriptionPlaceholder':
+    'Ce que vous avez fait, ce que vous attendiez, ce qui s’est produit.',
+  'bugReport.contextSummary': 'Contexte capturé',
+  'bugReport.contextHelp':
+    'Votre vue de la partie telle que vous la voyez (jamais l’état complet du serveur ni les informations privées des autres joueurs), les derniers appels à l’API (méthode, chemin et statut uniquement, sans identifiants), la version déployée et votre navigateur.',
+  'bugReport.contextPreview': 'Contexte capturé (JSON)',
+  'bugReport.publicNotice':
+    'L’envoi crée une issue publique sur GitHub : votre résumé, votre description et le contexte ci-dessus seront visibles de tous.',
+  'bugReport.send': 'Envoyer',
+  'bugReport.sending': 'Envoi...',
+  'bugReport.sendDisabled':
+    'L’envoi n’est pas activé sur ce serveur. Utilisez « Remplir sur GitHub ».',
+  'bugReport.confirm':
+    'Cela publie une issue publique sur GitHub avec votre résumé, votre description et le contexte capturé. La publier ?',
+  'bugReport.confirmSend': 'Publier l’issue',
+  'bugReport.back': 'Retour',
+  'bugReport.fillOnGithub': 'Remplir sur GitHub',
+  'bugReport.pasteHint':
+    'Collez ci-dessous le contexte complet capturé (il a été copié dans votre presse-papiers).',
+  'bugReport.copied':
+    'GitHub s’est ouvert dans un nouvel onglet. Le contexte complet a été copié dans votre presse-papiers : collez-le dans l’issue.',
+  'bugReport.copyFailed':
+    'GitHub s’est ouvert dans un nouvel onglet, mais le contexte n’a pas pu être copié dans votre presse-papiers.',
+  'bugReport.sent': 'Merci, votre signalement a été publié.',
+  'bugReport.viewIssue': 'Voir l’issue',
+  'bugReport.error':
+    'Le signalement n’a pas pu être envoyé. Réessayez plus tard ou utilisez « Remplir sur GitHub ».',
   'home.title': 'Vos parties',
   'home.empty': 'Aucune partie. Créez-en une ou rejoignez un ami.',
   'home.create': 'Créer une partie',
@@ -2517,13 +2772,17 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'treasury.famineArmy': 'famine : 1 armée',
   'treasury.famineArmies': 'famine : {count} armées',
   'help.seeRule': 'Voir la règle',
-  'orders.winterSummary': 'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
-  'orders.actionSummary': 'Une chaîne par noble ; une chaîne vide laisse le noble inactif.',
+  'orders.winterSummary':
+    'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
+  'orders.actionSummary':
+    'Une chaîne par noble ; une chaîne vide laisse le noble inactif.',
   'orders.titlesSummary': 'Ordres de vos titres : chaque bouton ouvre un formulaire.',
   'orders.deckSummary': 'Les cartes se jouent à part des chaînes de nobles.',
   'orders.deckWinterSummary': "La main se complète d'elle-même en hiver.",
-  'orders.nobleDeckSummary': 'Piochez une carte de noble, puis jouez nobles, prétentions et dignités.',
-  'orders.electionsSummary': "Un titre acquis cet hiver ne sert qu'à partir de l'hiver suivant.",
+  'orders.nobleDeckSummary':
+    'Piochez une carte de noble, puis jouez nobles, prétentions et dignités.',
+  'orders.electionsSummary':
+    "Un titre acquis cet hiver ne sert qu'à partir de l'hiver suivant.",
 }
 
 export type MessageKey = keyof typeof englishMessages

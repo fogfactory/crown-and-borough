@@ -20,6 +20,7 @@ import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
 import { JoinPage } from '@/online/JoinPage'
 import { InfoPage, type InfoPageKind } from '@/components/InfoPage'
+import { BugReportButton } from '@/components/BugReportDialog'
 import { GithubLink } from '@/components/GithubLink'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { VersionBadge } from '@/components/VersionBadge'
@@ -81,6 +82,7 @@ function OnlineHeader() {
             </Link>
           )}
           <LanguageSwitcher />
+          <BugReportButton />
           <GithubLink />
           <Button
             type="button"
