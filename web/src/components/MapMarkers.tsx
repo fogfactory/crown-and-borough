@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react'
+import { useId, type SVGProps } from 'react'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
@@ -70,7 +70,6 @@ const RUIN_CUT_PATH =
   'M0 512V268L60 232 105 280 165 214 225 262 285 206 345 268 410 226 470 270 512 244V512z'
 const RUIN_RUBBLE_PATH =
   'M70 500l22-26 28 8 10 22zM250 505l18-20 30 6 8 14zM380 500l24-24 26 10 6 14zM440 506l16-14 22 8 4 6z'
-const RUIN_CLIP_ID = 'village-ruin-clip'
 
 /** One layer (halo, fill or casing) of a marker glyph: the plain path, or,
  * for a ruined village, the cut glyph plus its rubble. */
@@ -79,13 +78,16 @@ export function GlyphPath({
   ruined,
   ...pathProps
 }: { d: string; ruined: boolean } & SVGProps<SVGPathElement>) {
+  // Each clip needs its own id: a shared one would resolve to the first copy
+  // in the document, which may sit in a hidden svg and drop the clip.
+  const clipId = `village-ruin-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   if (!ruined) return <path d={d} {...pathProps} />
   return (
     <g data-ruined-marker="true">
-      <clipPath id={RUIN_CLIP_ID}>
+      <clipPath id={clipId}>
         <path d={RUIN_CUT_PATH} />
       </clipPath>
-      <g clipPath={`url(#${RUIN_CLIP_ID})`}>
+      <g clipPath={`url(#${clipId})`}>
         <path d={d} {...pathProps} />
       </g>
       <path d={RUIN_RUBBLE_PATH} {...pathProps} />

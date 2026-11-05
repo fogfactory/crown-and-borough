@@ -380,10 +380,14 @@ func millCostForLevel(costs assetgen.Costs, targetLevel int) (int, bool) {
 }
 
 func (ctx *resolutionContext) addWinterInfrastructure(infrastructureType models.InfraType, territoryID models.TerritoryID) *models.Infrastructure {
+	level := 1
+	if infrastructureType == models.InfraTypeVillage {
+		level = startingVillageLevel
+	}
 	infrastructure := models.Infrastructure{
 		ID:          nextInfrastructureID(ctx.state.Infrastructures),
 		Type:        infrastructureType,
-		Level:       1,
+		Level:       level,
 		TerritoryID: territoryID,
 	}
 	ctx.state.Infrastructures = append(ctx.state.Infrastructures, infrastructure)

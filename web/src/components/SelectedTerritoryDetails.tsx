@@ -1,4 +1,3 @@
-import { isRuinedVillage } from '@/lib/infrastructure'
 import { Popover } from 'radix-ui'
 import { IconCrown, IconX } from '@tabler/icons-react'
 
@@ -6,6 +5,7 @@ import { ArmyIcon, ControlShieldIcon } from '@/components/ArmsIcons'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
+import { isRuinedVillage } from '@/lib/infrastructure'
 import { formatCardLabel } from '@/lib/card-hand'
 import { CodeTag, NobleRef, TerritoryRef } from '@/components/MapLinks'
 import { resolveArmsByOwner } from '@/lib/heraldry'
