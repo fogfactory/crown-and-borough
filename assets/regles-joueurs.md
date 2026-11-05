@@ -477,26 +477,26 @@ vers une destination adjacente choisie par ordre de priorité décroissant :
    positionnelle, y compris celle que le retraité vient de quitter ce même
    tour, relève de cette deuxième priorité comme n'importe quelle autre case
    vide — seul l'ancrage donne la première priorité ;
-3. armée amie adjacente non délogée (priorité à la plus petite en troupes),
-   avec fusion : l'hôte gagne `N − 1` troupes si la retraitante a `N ≥ 2`
-   troupes, ou `1` troupe si `N = 1` (aucune perte). Plusieurs armées
-   retraitantes peuvent fusionner séquentiellement sur un même hôte ami sans
-   collision destructive.
+3. armée amie adjacente non délogée (priorité aux armées qui ne sont pas
+   affamées, puis à la plus petite en troupes), avec fusion : l'hôte
+   gagne `N − 1` troupes si la retraitante a `N ≥ 2` troupes, ou `1` troupe si
+   `N = 1` (aucune perte). Plusieurs armées retraitantes peuvent fusionner
+   séquentiellement sur un même hôte ami sans collision destructive.
 
 À égalité dans une catégorie, la destination la plus proche d'un château ou
 village contrôlé par le propriétaire du retraité l'emporte, puis l'ordre
-lexicographique (trigramme croissant). Pour les armées amies, le tri se fait
-par taille croissante, puis distance à la source contrôlée la plus proche,
-puis trigramme croissant. La case d'origine de l'attaquant est toujours
-exclue. Un château **ancré** — membre d'un fief ou capitale d'un joueur, même
-neutre ou ennemi pour le retraité — défend contre une retraite et n'est
-jamais une destination valide ; un château vide **inerte** (ni fief, ni
-capitale, ni armée) redevient en revanche une destination valide de deuxième
-priorité, comme l'absence de château ; un château en ruine ne défend contre
-une retraite que s'il est la capitale d'un fief, sinon il est inerte. Deux
-armées qui doivent reculer sur la même case vide sans alternative sont
-détruites. L'ordre de traitement des
-armées en retraite suit le trigramme croissant de leur case d'origine.
+lexicographique (trigramme croissant). Pour les armées amies, le tri se fait par
+armée non affamée d'abord, puis taille croissante, puis distance à la source
+contrôlée la plus proche, puis trigramme croissant. La case d'origine de
+l'attaquant est toujours exclue. Un château **ancré** — membre d'un fief ou
+capitale d'un joueur, même neutre ou ennemi pour le retraité — défend contre
+une retraite et n'est jamais une destination valide ; un château vide **inerte**
+(ni fief, ni capitale, ni armée) redevient en revanche une destination valide de
+deuxième priorité, comme l'absence de château ; un château en ruine ne défend
+contre une retraite que s'il est la capitale d'un fief, sinon il est inerte.
+Deux armées qui doivent reculer sur la même case vide sans alternative sont
+détruites. L'ordre de traitement des armées en retraite suit le trigramme
+croissant de leur case d'origine.
 
 La prise de contrôle d'un territoire suit l'armée qui s'y arrête, mais son
 maintien dépend de son **ancrage** : membre d'un fief, ou capitale d'un

@@ -451,24 +451,24 @@ adjacent destination chosen by descending priority order:
    positionally, including the one the retreating army just left this same
    turn, falls back to this second priority like any other empty territory —
    only an anchor earns the first;
-3. an adjacent, non-dislodged friendly army (smallest troop size first), with
-   merging: the host gains `N − 1` troops if the retreating army has `N ≥ 2`
-   troops, or `1` troop if `N = 1` (no loss). Multiple retreating armies can
-   merge sequentially into the same friendly host without destructive
-   collision.
+3. an adjacent, non-dislodged friendly army (armies that are not starving first,
+   then smallest troop size), with merging: the host gains `N − 1` troops if the
+   retreating army has `N ≥ 2` troops, or `1` troop if `N = 1` (no loss).
+   Multiple retreating armies can merge sequentially into the same friendly host
+   without destructive collision.
 
-Ties within a bucket are broken by distance to the nearest controlled castle
-or village, then ascending trigram. For friendly armies, sorting is by troop
-size ascending, then distance to the nearest controlled source, then
-ascending trigram. The attacker's origin territory is always excluded. An
-**anchored** castle — a member of a fief or a player's capital, even neutral
-or enemy to the retreating army — defends against retreat and is never a
-valid destination; an empty **inert** castle (neither fief, nor capital, nor
-army) becomes a valid second-priority destination again, just like no castle
+Ties within a bucket are broken by distance to the nearest controlled castle or
+village, then ascending trigram. For friendly armies, sorting is by non-starving
+army first, then troop size ascending, then distance to the nearest controlled
+source, then ascending trigram. The attacker's origin territory is always
+excluded. An **anchored** castle — a member of a fief or a player's capital,
+even neutral or enemy to the retreating army — defends against retreat and is
+never a valid destination; an empty **inert** castle (neither fief, nor capital,
+nor army) becomes a valid second-priority destination again, just like no castle
 at all; a castle in ruins defends against retreat only if it is a fief's
-capital, otherwise it is inert. Two armies that must retreat to the same empty territory with no
-alternative are destroyed. Retreat resolution order follows the ascending
-trigram of their origin territory.
+capital, otherwise it is inert. Two armies that must retreat to the same empty
+territory with no alternative are destroyed. Retreat resolution order follows
+the ascending trigram of their origin territory.
 
 Taking control of a territory follows the army that stops there; keeping it
 depends on its **anchor**: a member of a fief, or a player's own capital — a
