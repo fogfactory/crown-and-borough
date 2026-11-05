@@ -227,7 +227,7 @@ func (ctx *resolutionContext) upgradeInfrastructureToVillage(territoryID models.
 		return nil
 	}
 	infrastructure.Type = models.InfraTypeVillage
-	infrastructure.Level = startingVillageLevel
+	infrastructure.Level = models.InfraTypeVillage.StartingLevel()
 	infrastructure.Fortified = false
 	return infrastructure
 }

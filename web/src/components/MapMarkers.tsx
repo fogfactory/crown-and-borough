@@ -27,7 +27,7 @@ import { isRuinedVillage, showsLevelBadge } from '@/lib/infrastructure'
 // https://game-icons.net/1x1/delapouite/windmill.html
 // https://game-icons.net/1x1/delapouite/barn.html
 // Filled 512x512 silhouettes, scaled down to the marker footprint.
-const MARKER_GLYPHS: Record<Infrastructure['type'], string> = {
+export const MARKER_GLYPHS: Record<Infrastructure['type'], string> = {
   castle:
     'M255.95 27.11L180.6 107.614l150.7 1.168-75.35-81.674h-.003zM25 109.895v68.01l19.412 25.99h71.06l19.528-26v-68h-14v15.995h-18v-15.994H89v15.995H71v-15.994H57v15.995H39v-15.994H25zm352 0v68l19.527 26h71.06L487 177.906v-68.01h-14v15.995h-18v-15.994h-14v15.995h-18v-15.994h-14v15.995h-18v-15.994h-14zm-176 15.877V260.89h110V126.63l-110-.857zm55 20.118c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zM41 221.897V484.89h78V221.897H41zm352 0V484.89h78V221.897h-78zM56 241.89c4 0 8 4 8 12v32H48v-32c0-8 4-12 8-12zm400 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12zm-303 37v23h-16v183h87v-55c0-24 16-36 32-36s32 12 32 36v55h87v-183h-16v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14v23h-18v-23h-14zm-49 43c4 0 8 4 8 12v32H96v-32c0-8 4-12 8-12zm72 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm80 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm80 0c8 0 16 4 16 12v32h-32v-32c0-8 8-12 16-12zm72 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12zm-352 64c4 0 8 4 8 12v32H48v-32c0-8 4-12 8-12zm400 0c4 0 8 4 8 12v32h-16v-32c0-8 4-12 8-12z',
   village:
@@ -71,23 +71,35 @@ const RUIN_CUT_PATH =
 const RUIN_RUBBLE_PATH =
   'M70 500l22-26 28 8 10 22zM250 505l18-20 30 6 8 14zM380 500l24-24 26 10 6 14zM440 506l16-14 22 8 4 6z'
 
+/** Clip id for a ruined marker, undefined for an intact one. Each marker
+ * needs its own id: a shared one would resolve to the first copy in the
+ * document, which may sit in a hidden svg and drop the clip. */
+export function useRuinClipId(ruined: boolean): string | undefined {
+  const id = useId()
+  return ruined ? `village-ruin-${id.replace(/[^a-zA-Z0-9_-]/g, '')}` : undefined
+}
+
+/** The roof-cutting clip, rendered once per ruined marker. */
+export function RuinClipPath({ id }: { id: string | undefined }) {
+  if (!id) return null
+  return (
+    <clipPath id={id}>
+      <path d={RUIN_CUT_PATH} />
+    </clipPath>
+  )
+}
+
 /** One layer (halo, fill or casing) of a marker glyph: the plain path, or,
- * for a ruined village, the cut glyph plus its rubble. */
+ * for a ruined village, the glyph cut by ruinClipId plus its rubble. */
 export function GlyphPath({
   d,
-  ruined,
+  ruinClipId,
   ...pathProps
-}: { d: string; ruined: boolean } & SVGProps<SVGPathElement>) {
-  // Each clip needs its own id: a shared one would resolve to the first copy
-  // in the document, which may sit in a hidden svg and drop the clip.
-  const clipId = `village-ruin-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
-  if (!ruined) return <path d={d} {...pathProps} />
+}: { d: string; ruinClipId: string | undefined } & SVGProps<SVGPathElement>) {
+  if (!ruinClipId) return <path d={d} {...pathProps} />
   return (
     <g data-ruined-marker="true">
-      <clipPath id={clipId}>
-        <path d={RUIN_CUT_PATH} />
-      </clipPath>
-      <g clipPath={`url(#${clipId})`}>
+      <g clipPath={`url(#${ruinClipId})`}>
         <path d={d} {...pathProps} />
       </g>
       <path d={RUIN_RUBBLE_PATH} {...pathProps} />
@@ -144,6 +156,7 @@ export function InfrastructureMarker({
   const { t } = useLanguage()
   const fortified = infrastructure.type === 'village' && infrastructure.fortified === true
   const ruined = isRuinedVillage(infrastructure)
+  const ruinClipId = useRuinClipId(ruined)
   const levelLabel = ruined
     ? t('infrastructure.ruined')
     : t('app.level', { level: infrastructure.level })
@@ -171,10 +184,11 @@ export function InfrastructureMarker({
             strokeWidth="2"
           />
           <g transform="translate(-13 -13) scale(0.05078125)">
-            <GlyphPath d={glyph} ruined={ruined} fill={MAP_PARCHMENT} />
+            <RuinClipPath id={ruinClipId} />
+            <GlyphPath d={glyph} ruinClipId={ruinClipId} fill={MAP_PARCHMENT} />
             <GlyphPath
               d={glyph}
-              ruined={ruined}
+              ruinClipId={ruinClipId}
               fill="none"
               stroke={INTENT_OUTLINE_COLOR}
               strokeWidth={10}
@@ -194,19 +208,20 @@ export function InfrastructureMarker({
         </>
       ) : (
         <g transform="translate(-13 -13) scale(0.05078125)" data-fortified-marker={fortified || undefined}>
+          <RuinClipPath id={ruinClipId} />
           {/* Paper halo keeps the glyph readable over the terrain symbols. */}
           <GlyphPath
             d={glyph}
-            ruined={ruined}
+            ruinClipId={ruinClipId}
             fill={MAP_HALO}
             stroke={MAP_HALO}
             strokeWidth={28}
           />
           {/* Owner tincture fills the building, ink casing defines its shape. */}
-          <GlyphPath d={glyph} ruined={ruined} fill={fill} />
+          <GlyphPath d={glyph} ruinClipId={ruinClipId} fill={fill} />
           <GlyphPath
             d={glyph}
-            ruined={ruined}
+            ruinClipId={ruinClipId}
             fill="none"
             stroke={MARKER_CASING_COLOR}
             strokeWidth={8}

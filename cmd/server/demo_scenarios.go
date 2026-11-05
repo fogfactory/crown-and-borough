@@ -801,8 +801,9 @@ func forgeVillages(state *models.GameState) error {
 		if state.Infrastructures[index].Type != models.InfraTypeVillage {
 			continue
 		}
-		state.Infrastructures[index].Level = next % 4
-		fmt.Printf("demo villages: village on %s at level %d\n", state.Infrastructures[index].TerritoryID, next%4)
+		level := next % 4
+		state.Infrastructures[index].Level = level
+		fmt.Printf("demo villages: village on %s at level %d\n", state.Infrastructures[index].TerritoryID, level)
 		next++
 	}
 	if next == 0 {

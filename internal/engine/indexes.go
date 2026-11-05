@@ -317,10 +317,6 @@ func (ctx *resolutionContext) hasFortifiedVillage(territoryID models.TerritoryID
 	return infrastructure != nil && infrastructure.Type == models.InfraTypeVillage && infrastructure.Fortified
 }
 
-// startingVillageLevel is the level of every village generated at game
-// creation and of every village founded by prosperity.
-const startingVillageLevel = 1
-
 // villageProduction is the R per action turn the village on territoryID
 // yields before any harvest effect: village_income per level, so nothing for
 // a level-0 village or a territory without a village.

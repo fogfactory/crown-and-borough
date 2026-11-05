@@ -497,9 +497,11 @@ export function SelectedTerritoryDetails({
               {selectedState.infrastructures
                 .map(
                   (infrastructure) =>
-                    isRuinedVillage(infrastructure)
-                      ? `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('infrastructure.ruined')}`
-                      : `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} ${infrastructure.level}`,
+                    `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}${
+                      isRuinedVillage(infrastructure)
+                        ? ` · ${t('infrastructure.ruined')}`
+                        : ` ${infrastructure.level}`
+                    }`,
                 )
                 .join(' · ')}
             </dd>

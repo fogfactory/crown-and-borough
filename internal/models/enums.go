@@ -116,6 +116,13 @@ func (i InfraType) MinLevel() int {
 	return 1
 }
 
+// StartingLevel is the level of a freshly built or founded infrastructure of
+// this type: level 1 for every type, a generated or prosperity-founded village
+// included.
+func (i InfraType) StartingLevel() int {
+	return 1
+}
+
 // NobleStatus describes whether a noble is free, held as a hostage, or locked
 // in a dungeon. Free and hostage nobles can emit a new order chain; a dungeon
 // noble cannot.
