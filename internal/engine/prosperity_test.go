@@ -560,6 +560,7 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 		}
 		state := winterTestState(t, territories, nil)
 		addVillageWithResources(state, "I1", "ORI", "P1", 8)
+		state.Infrastructures[len(state.Infrastructures)-1].Level = 3 // origin at the ceiling
 		addVillageAtLevel(state, "I2", "BBB", 1)
 		// AAA is adjacent to the origin village and BBB, so nothing is free.
 		resolution, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
@@ -568,9 +569,6 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 		}
 		if infrastructure := infrastructureAtState(t, resolution.State, "BBB"); infrastructure.Level != 2 {
 			t.Fatalf("BBB level = %d, want 2", infrastructure.Level)
-		}
-		if infrastructure := infrastructureAtState(t, resolution.State, "ORI"); infrastructure.Level != 1 {
-			t.Fatalf("origin level = %d, want 1 (origin untouched)", infrastructure.Level)
 		}
 	})
 
@@ -581,6 +579,7 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 			territory("BBB", "BBB", "AAA"),
 		}, nil)
 		addVillageWithResources(state, "I1", "ORI", "P1", 8)
+		state.Infrastructures[len(state.Infrastructures)-1].Level = 3 // origin at the ceiling
 		addVillageAtLevel(state, "I2", "BBB", 3)
 		validateTestState(t, state)
 		resolution, err := ResolveWinter(state, prosperityGrowthBalance(4), nil)
@@ -603,11 +602,47 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 			territory("BBB", "BBB", "MID"),
 		}, nil)
 		addVillageWithResources(state, "I1", "ORI", "P1", 8)
+		state.Infrastructures[len(state.Infrastructures)-1].Level = 3 // origin at the ceiling
 		addVillageAtLevel(state, "I2", "ZZZ", 2)
 		addVillageAtLevel(state, "I3", "BBB", 2)
 		_, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
 		if event.DestinationID != "BBB" || event.Reason != prosperityReasonLeveledUp {
 			t.Fatalf("event = %#v, want BBB by trigram", event)
+		}
+	})
+}
+
+func TestProsperityOriginVillageCanBeTargeted(t *testing.T) {
+	t.Run("a ruined origin village renovates itself", func(t *testing.T) {
+		state := winterTestState(t, []models.Territory{
+			territory("ORI", "ORI", "MID"),
+			territory("MID", "MID", "ORI", "FAR"),
+			territory("FAR", "FAR", "MID"),
+		}, nil)
+		addVillageWithResources(state, "I1", "ORI", "P1", 8)
+		state.Infrastructures[len(state.Infrastructures)-1].Level = 0
+		addVillageAtLevel(state, "I2", "FAR", 0)
+		resolution, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
+		if event.DestinationID != "ORI" || event.Reason != prosperityReasonRenovated {
+			t.Fatalf("event = %#v, want ORI renovated", event)
+		}
+		if infrastructure := infrastructureAtState(t, resolution.State, "ORI"); infrastructure.Level != 1 {
+			t.Fatalf("ORI level = %d, want 1", infrastructure.Level)
+		}
+	})
+
+	t.Run("a lone origin village levels up", func(t *testing.T) {
+		state := winterTestState(t, []models.Territory{
+			territory("ORI", "ORI", "MID"),
+			territory("MID", "MID", "ORI"),
+		}, nil)
+		addVillageWithResources(state, "I1", "ORI", "P1", 8)
+		resolution, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
+		if event.DestinationID != "ORI" || event.Reason != prosperityReasonLeveledUp {
+			t.Fatalf("event = %#v, want ORI leveled up", event)
+		}
+		if infrastructure := infrastructureAtState(t, resolution.State, "ORI"); infrastructure.Level != 2 {
+			t.Fatalf("ORI level = %d, want 2", infrastructure.Level)
 		}
 	})
 }

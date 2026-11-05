@@ -1084,7 +1084,7 @@ Wherever a step has several candidates, the one closest to the origin
 territory is chosen, in priority order: inside a fief of the player who
 controls the origin territory, else land that player controls, else anywhere,
 including neutral or another player's; equidistant candidates are separated
-by trigram. The origin territory itself is never the target. The village
+by trigram. The origin territory itself is a candidate, at distance 0. The village
 affected belongs to the controller of the target tile, with no necessary
 link to the player whose origin territory triggered the founding.
 

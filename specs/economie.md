@@ -471,8 +471,8 @@ Règle retenue — **fondation par surplus** :
    sinon contrôlé par ce joueur, sinon n'importe quel candidat restant, y
    compris neutre ou contrôlé par un autre joueur. Seule la fondation (2)
    est soumise à la contrainte de non-adjacence ; les égalités de distance
-   sont départagées par trigramme croissant. Le territoire d'origine n'est
-   jamais la cible. Si aucune issue n'est possible, rien ne se passe.
+   sont départagées par trigramme croissant ; le territoire d'origine lui-même
+   est un candidat à distance 0. Si aucune issue n'est possible, rien ne se passe.
 
 La contrainte de non-adjacence évite qu'un nouveau village apparaisse collé à
 une infrastructure existante ; elle s'applique à tous les niveaux de priorité

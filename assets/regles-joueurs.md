@@ -1136,7 +1136,7 @@ Quand une étape a plusieurs candidats, on retient le plus proche du
 territoire d'origine, en priorité dans un fief du joueur qui contrôle ce
 territoire, sinon sous son contrôle, sinon n'importe où, y compris neutre ou
 chez un autre joueur ; à égalité de distance, le trigramme tranche. Le
-territoire d'origine n'est jamais la cible. Le village concerné appartient au
+territoire d'origine lui-même est un candidat, à distance 0. Le village concerné appartient au
 contrôleur de la case cible, sans rapport nécessaire avec le joueur dont le
 territoire d'origine a déclenché la fondation.
 

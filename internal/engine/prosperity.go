@@ -77,7 +77,7 @@ func (ctx *resolutionContext) prosperityRankedLosses(stockBefore map[models.Terr
 // by one. It mutates state immediately, so a change made by this call is
 // visible to the next one in the same winter (economie.md#prospérité).
 func (ctx *resolutionContext) foundProsperityVillage(originID models.TerritoryID) {
-	if destinationID, _, found := ctx.prosperityPick(originID, excludingOrigin(originID, ctx.prosperityRuinEligible)); found {
+	if destinationID, _, found := ctx.prosperityPick(originID, ctx.prosperityRuinEligible); found {
 		infrastructure := ctx.infrastructureAt(destinationID)
 		infrastructure.Level = models.InfraTypeVillage.StartingLevel()
 		ctx.emitProsperityFounded(originID, destinationID, infrastructure, prosperityReasonRenovated)
@@ -98,7 +98,7 @@ func (ctx *resolutionContext) foundProsperityVillage(originID models.TerritoryID
 		ctx.emitProsperityFounded(originID, millID, infrastructure, prosperityReasonMillUpgraded)
 		return
 	}
-	if destinationID, _, found := ctx.prosperityPick(originID, excludingOrigin(originID, ctx.prosperityGrowthEligible)); found {
+	if destinationID, _, found := ctx.prosperityPick(originID, ctx.prosperityGrowthEligible); found {
 		infrastructure := ctx.infrastructureAt(destinationID)
 		infrastructure.Level++
 		ctx.emitProsperityFounded(originID, destinationID, infrastructure, prosperityReasonLeveledUp)
@@ -106,14 +106,6 @@ func (ctx *resolutionContext) foundProsperityVillage(originID models.TerritoryID
 	}
 	// Nothing to renovate, found, upgrade or grow: nothing happens
 	// (economie.md#prospérité).
-}
-
-// excludingOrigin narrows eligible so the origin territory is never the
-// destination: a founding leaves its origin untouched.
-func excludingOrigin(originID models.TerritoryID, eligible func(models.TerritoryID) bool) func(models.TerritoryID) bool {
-	return func(territoryID models.TerritoryID) bool {
-		return territoryID != originID && eligible(territoryID)
-	}
 }
 
 // prosperityRuinEligible reports whether territoryID carries a ruined
