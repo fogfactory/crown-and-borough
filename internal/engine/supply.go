@@ -34,10 +34,16 @@ type famineCandidate struct {
 	distance int
 }
 
-// residualDemand is what the army still lacks once fed from the pool: the
-// share an auto-pillage has to cover to save it.
-func (candidate famineCandidate) residualDemand() int {
-	return candidate.demand - candidate.received
+// pillageOutcome is the infrastructure an already starving army pillages on
+// its territory (nil when there is none) and the pillage bonus left once it
+// covers the demand the pool left unfed: a gain of zero or more saves the
+// army. resolveFamine applies it and the famine forecast reads it.
+func (ctx *resolutionContext) pillageOutcome(candidate famineCandidate) (*models.Infrastructure, int) {
+	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
+	if infrastructure == nil {
+		return nil, 0
+	}
+	return infrastructure, ctx.balance.PillageBonus - (candidate.demand - candidate.received)
 }
 
 // rationProductionParts breaks the local ration production of one territory
@@ -141,11 +147,11 @@ func resolveSupply(ctx *resolutionContext) {
 		})
 	}
 
-	sortDirectFamine(ctx, directFamine)
+	sortFamineOrder(directFamine)
 	for _, candidate := range directFamine {
 		ctx.resolveFamine(candidate)
 	}
-	sortAssignedFamine(ctx, assignedFamine)
+	sortFamineOrder(assignedFamine)
 	for _, candidate := range assignedFamine {
 		ctx.resolveFamine(candidate)
 	}
@@ -648,16 +654,9 @@ func (ctx *resolutionContext) recordPoolRations(sourceID, territoryID models.Ter
 	ctx.poolRations[sourceID][territoryID] += amount
 }
 
-func sortDirectFamine(ctx *resolutionContext, candidates []famineCandidate) {
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].army.Size != candidates[j].army.Size {
-			return candidates[i].army.Size > candidates[j].army.Size
-		}
-		return candidates[i].army.TerritoryID > candidates[j].army.TerritoryID
-	})
-}
-
-func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
+// sortFamineOrder puts the famine order first: farthest from the source, then
+// largest, then descending trigram. Direct candidates carry no distance.
+func sortFamineOrder(candidates []famineCandidate) {
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].distance != candidates[j].distance {
 			return candidates[i].distance > candidates[j].distance
@@ -674,9 +673,10 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 // the rations it is missing. Zero when it reaches no ration at all.
 func suppliedStrength(size, missing, costBase int) int {
 	reached := armyCost(size, costBase) - missing
-	supplied := 0
-	for supplied < size && armyCost(supplied+1, costBase) <= reached {
+	supplied, nextCost := 0, 1
+	for supplied < size && nextCost <= reached {
 		supplied++
+		nextCost *= costBase
 	}
 	return supplied
 }
@@ -691,9 +691,6 @@ func (ctx *resolutionContext) destroyStarvedArmy(armyID models.ArmyID, territory
 		if noble != nil && noble.OwnerID == ownerID && noble.Status == models.NobleStatusFree {
 			dying = append(dying, *noble)
 		}
-	}
-	if record := ctx.records[armyID]; record != nil {
-		record.destroyed = true
 	}
 	// Chains already progressed this turn: drop the one the army still
 	// carries, or it would point at an army that no longer exists.
@@ -740,12 +737,10 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		ctx.events = append(ctx.events, event)
 		return
 	}
-	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
-	if infrastructure != nil {
+	if infrastructure, gain := ctx.pillageOutcome(candidate); infrastructure != nil {
 		event.InfrastructureID = infrastructure.ID
 		event.InfrastructureType = infrastructure.Type
 		ctx.removeInfrastructure(infrastructure.ID)
-		gain := ctx.balance.PillageBonus - candidate.residualDemand()
 		if gain >= 0 {
 			event.SavedByPillage = true
 			if gain > 0 {

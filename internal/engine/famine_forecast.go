@@ -117,11 +117,10 @@ func (ctx *resolutionContext) armyFamineRisk(candidate famineCandidate) ArmyFami
 	if !ctx.famished[candidate.army.ID] {
 		return risk
 	}
-	// A second deficit pillages the territory's infrastructure first, and a
-	// pillage that covers the demand saves the army (resolveFamine).
-	if infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID); infrastructure != nil {
+	// A second deficit pillages the territory's infrastructure first.
+	if infrastructure, gain := ctx.pillageOutcome(candidate); infrastructure != nil {
 		risk.PillageInfrastructure = infrastructure.Type
-		risk.SavedByPillage = ctx.balance.PillageBonus >= candidate.residualDemand()
+		risk.SavedByPillage = gain >= 0
 	}
 	if !risk.SavedByPillage {
 		risk.ExpectedLoss = max(0, candidate.army.Size-supplied)
