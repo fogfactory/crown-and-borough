@@ -972,6 +972,23 @@ function seasonEffectLine(
         ),
       }
     }
+    case 'army_revolt':
+      return {
+        key,
+        owner: effect.victimOwner,
+        label: richTranslate(
+          t,
+          effect.reason === 'neutralized'
+            ? 'reports.armyRevolt.neutralized'
+            : 'reports.armyRevolt.suppressed',
+          {
+            owner: effect.victimOwner ?? t('reports.unknownPlayer'),
+            territory: territoryLabel(map, effect.territory, t),
+            size: effect.sizeBefore ?? 0,
+            total: effect.troops ?? 0,
+          },
+        ),
+      }
     case 'revolt_appeased':
       return {
         key,
@@ -1053,6 +1070,7 @@ function groupSeasonEffects(
         break
       case 'famine':
       case 'neutral_army_created':
+      case 'army_revolt':
         flat.push(line)
         break
       default:

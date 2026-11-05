@@ -700,6 +700,10 @@ revenir à `s`** et n'est alors plus affamée. Si `s = 0`, elle **disparaît** :
 ses nobles **meurent avec elle** (personne ne peut les capturer) et sa case
 garde son contrôleur.
 
+Une armée affamée est aussi exposée à la carte **Révolte** pendant ce tour :
+n'importe quel joueur peut la jouer sur sa case, et si les jets atteignent sa
+taille, elle devient neutre et ses nobles meurent (voir section 9).
+
 Exemple : une armée de 4 troupes demande 8 rations mais n'en atteint que 3.
 Sa valeur ravitaillée est `s = 2` (2 rations suffisent pour 2 troupes, 4 pour
 3). Elle est marquée affamée et se défend à la force 1 tout le tour suivant
@@ -1156,7 +1160,8 @@ dans la feuille `winter`.
   son évêché) ce tour-ci ou le
   tour précédent — tout territoire du fief est alors éligible, pas seulement
   sa capitale taxée, ou si un procès a exécuté une dame dans la région de BRU
-  à la saison d'action précédente ;
+  à la saison d'action précédente, ou si une armée affamée d'un joueur
+  occupe BRU (la carte vise alors cette armée) ;
 - `P AG HHH BRU` et `P AP HHH BRU` : faire apaiser par l'ecclésiastique HHH
   (pape, cardinal, évêque ou abbesse) la révolte de BRU, sans carte (voir
   « Apaisement de révolte » plus bas) ;
@@ -1266,6 +1271,23 @@ ne se résout en hiver.
   de disparaître. Les armées neutres ne perdent jamais leur force à cause
   d'une famine, mais perdent une troupe en fin de tour si la production
   locale de leur territoire ne suffit pas à les nourrir ;
+- la Révolte se joue aussi sur une **armée affamée** (section 7) : tout
+  joueur, y compris son propriétaire, peut jouer `P RE TER` sur la case d'une
+  armée de joueur affamée, sans autre condition. La carte vise alors l'armée,
+  même si le territoire remplit aussi une condition de révolte : aucune armée
+  rebelle n'est levée et aucun combat n'a lieu. Toutes les cartes jouées sur
+  la même armée sont résolues ensemble, avant les mouvements : chacune tire
+  un jet entre **{{special_orders.effects.revolt_army_min_size}}** et
+  **{{special_orders.effects.revolt_army_max_size}}**, et les jets
+  s'additionnent. Si le total est **supérieur ou égal** à la taille de
+  l'armée, elle devient `NEUTRAL` avec toutes ses troupes, sur sa case : ses
+  ordres du tour sont annulés et les nobles libres de son propriétaire
+  présents sur la case meurent. Sinon, l'armée reste à son propriétaire et
+  les cartes sont dépensées sans effet. Une fois neutre, l'armée suit la
+  règle des armées neutres : elle perd une troupe en fin de tour tant que la
+  production locale de sa case ne la nourrit pas. Exemple : deux joueurs
+  jouent chacun une Révolte sur une armée affamée de 3 troupes et tirent 1
+  et 2 ; le total de 3 atteint sa taille, l'armée devient neutre ;
 - l'Apaisement de révolte ne consomme aucune carte et se joue au printemps, en
   été ou en automne, avant les cartes de Révolte du tour, par un
   ecclésiastique du joueur (pape, cardinal, évêque ou abbesse ; titre non

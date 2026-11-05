@@ -70,7 +70,8 @@ type StateView struct {
 	// (papal sanctions, cardinal purchase, fief sites) with their prices.
 	WinterAids *engine.WinterAids `json:"winterAids,omitempty"`
 	// RevoltTargets lists, outside winter, the territories a Révolte card can
-	// be played on (a public rule: famine, recent tax or trial in the region).
+	// be played on (a public rule: famine, recent tax or trial in the region,
+	// or a player army that starved last turn).
 	RevoltTargets []models.TerritoryID `json:"revoltTargets,omitempty"`
 	// AppeasementCostBase is the base of the paid revolt appeasement price:
 	// base^size R for a rebel army of that size.

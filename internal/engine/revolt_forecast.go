@@ -8,7 +8,8 @@ import (
 // ForecastRevoltTargets lists the territories a Révolte card can be played on
 // in the current season: an active famine in the region, a fief or bishopric
 // taxed this turn or the previous one, or a trial that executed a lady there
-// (specs/ordres-speciaux.md). It reads the persisted state only: a tax played
+// (specs/ordres-speciaux.md), or a player army that starved last turn, which
+// the card then targets (gdd.md section 5). It reads the persisted state only: a tax played
 // on the sheet being written is not part of it. It returns nil in winter, where
 // no card can be played.
 func ForecastRevoltTargets(state *models.GameState, balance assetgen.Balance) []models.TerritoryID {

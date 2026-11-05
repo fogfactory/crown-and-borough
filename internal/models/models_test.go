@@ -213,7 +213,7 @@ func TestNobleDisplayName(t *testing.T) {
 
 func TestDeathCauseIsValid(t *testing.T) {
 	for _, valid := range []models.DeathCause{
-		models.DeathCauseNatural, models.DeathCauseExecution, models.DeathCauseAssassination,
+		models.DeathCauseNatural, models.DeathCauseExecution, models.DeathCauseAssassination, models.DeathCauseRevolt,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("DeathCause %q: want valid", valid)

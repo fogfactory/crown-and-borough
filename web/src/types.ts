@@ -49,6 +49,7 @@ export type EventType =
   | 'calamity_canceled'
   | 'bonus_effect'
   | 'neutral_army_created'
+  | 'army_revolt'
   | 'revolt_appeased'
   | 'plague_noble_death'
   | 'plague_noble_survived'
@@ -1242,7 +1243,7 @@ export interface DeceasedNoble {
   name: string
   owner: PlayerId
   sex?: 'male' | 'female'
-  cause: 'natural' | 'execution' | 'assassination' | 'martyr' | 'famine'
+  cause: 'natural' | 'execution' | 'assassination' | 'martyr' | 'famine' | 'revolt'
   turn: number
   /** Code of the noble who commissioned this assassination, for the viewers who know it. */
   commissioner?: string

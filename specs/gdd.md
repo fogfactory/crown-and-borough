@@ -349,7 +349,8 @@ simultanée des ordres d'armée :
   ses moulins ; le Beau temps double leur production ;
 - la famine supprime les rations de terrain de sa région et son revenu
   territorial ; la Récolte abondante les double ;
-- la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
+- la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`
+  sur un territoire, ou qui rend `NEUTRAL` une armée affamée (section 5).
 
 Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
 
@@ -642,6 +643,21 @@ insuffisant ou impossible, elle perd autant de troupes qu'il en faut pour
 revenir à sa valeur ravitaillée `s`, et n'est alors plus affamée. Si `s = 0`,
 elle disparaît : personne ne pouvant capturer ses nobles, ils meurent avec
 elle, et sa case garde son contrôleur.
+
+Tant qu'elle est affamée, une armée de joueur est aussi exposée à la carte
+**Révolte** : tout joueur qui la détient, propriétaire de l'armée compris,
+peut la jouer sur le territoire de l'armée (`P RE TER`) sans autre condition.
+La carte vise alors l'armée, et non le territoire, même si celui-ci remplit
+aussi une condition territoriale de révolte : elle ne lève aucune armée
+rebelle et ne livre aucun combat. Les cartes jouées sur une même armée sont
+résolues ensemble, avant les mouvements : leurs jets, bornés par la balance
+comme pour toute révolte, s'additionnent. Si le total est **supérieur ou
+égal** à la taille de l'armée, elle devient `NEUTRAL` avec toutes ses troupes
+sur sa case : sa chaîne est annulée et les nobles libres de son ancien
+propriétaire présents sur la case meurent. Sinon, l'armée reste à son
+propriétaire et les cartes sont dépensées sans effet. L'armée neutre suit
+ensuite la règle de famine des armées neutres : elle perd une troupe par tour
+tant que la production locale de sa case ne la nourrit pas.
 
 ## 6. Ordres et chaînes de commandement
 

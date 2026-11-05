@@ -660,6 +660,10 @@ pillage is insufficient or impossible, it **loses as many troops as needed to co
 is no longer famished. If `s = 0`, it **disappears**: its nobles **die with
 it** (nobody can capture them) and the territory keeps its controller.
 
+A famished army is also exposed to the **Revolt** card during that turn: any
+player can play it on its territory, and if the rolls reach its size, it
+turns neutral and its nobles die (see section 9).
+
 Example: a 4-troop army demands 8 rations but reaches only 3. Its supplied
 value is `s = 2` (2 rations feed 2 troops, 4 are needed for 3). It is marked
 famished and defends at strength 1 for the entire following turn (it cannot
@@ -1102,7 +1106,8 @@ from noble chains and requiring no noble. Winter discards are written in the
   affects its region, or when a seigneurial tax was played on the capital of
   BRU's fief (or a tithe on its bishopric) this turn or the previous one — every territory of the fief is
   then eligible, not only its taxed capital, or when a trial executed a lady
-  in BRU's region during the previous action season;
+  in BRU's region during the previous action season, or when a player's
+  famished army occupies BRU (the card then targets that army);
 - `P FQ HHH BRU` and `P PQ HHH BRU`: have the cleric HHH (pope, cardinal,
   bishop or abbess) appease the revolt at BRU, with no card (see "Revolt
   appeasement" below);
@@ -1201,6 +1206,23 @@ countered. No calamity resolves in winter.
   retreats like any defeated army instead of vanishing. Neutral armies never
   lose strength to a famine, but lose one troop at the end of the turn when
   the local production of their territory cannot feed them;
+- Revolt can also be played on a **famished army** (section 7): any player,
+  its owner included, can play `P RV TER` on the territory of a player's
+  famished army, with no other condition. The card then targets the army,
+  even if the territory also meets a revolt condition: no rebel army is
+  raised and no battle is fought. Every card played on the same army is
+  resolved together, before movements: each one rolls between
+  **{{special_orders.effects.revolt_army_min_size}}** and
+  **{{special_orders.effects.revolt_army_max_size}}**, and the rolls add up.
+  If the total is **greater than or equal to** the army's size, it turns
+  `NEUTRAL` with all its troops, on its territory: its orders for the turn
+  are cancelled and its owner's free nobles on the territory die. Otherwise,
+  the army stays with its owner and the cards are spent with no effect. Once
+  neutral, the army follows the rule of neutral armies: it loses one troop at
+  the end of the turn while the local production of its territory cannot feed
+  it. Example: two players each play a Revolt on a famished army of 3 troops
+  and roll 1 and 2; the total of 3 reaches its size, and the army turns
+  neutral;
 - Revolt appeasement uses no card and is played in spring, summer or autumn,
   before the turn's Revolt cards, by one of the player's clerics (pope,
   cardinal, bishop or abbess; title not suspended) on a territory holding a

@@ -92,6 +92,7 @@ const englishMessages = {
   'lineage.cause.assassination': 'Assassinated',
   'lineage.cause.martyr': 'Martyr',
   'lineage.cause.famine': 'Famine',
+  'lineage.cause.revolt': 'Revolt',
   'lineage.assassinatedBy': 'Killed on the orders of {name} ({code})',
   'lineage.commissionedKilling': 'Had {name} ({code}) killed',
   'lineage.claimHonoured': 'Claim on {target} honoured',
@@ -450,6 +451,9 @@ const englishMessages = {
   'orders.hint.cancelsNone': 'No announced calamity to cancel in this region.',
   'orders.hint.cancels': 'Cancels: {list}',
   'orders.hint.cancelsShort': 'cancels a calamity',
+  'orders.hint.revoltArmyShort': 'starving army',
+  'orders.hint.revoltArmy':
+    'Starving army of {size} troops: it turns neutral if the revolt rolls played on it this turn total at least {size}.',
   'orders.hint.fiefCost': '{title} · {count} territories · cost {cost} R',
   'orders.hint.annexCost': 'Annex {territory} · cost {cost} R',
   'orders.hint.rankCost': '{from} → {to} · {count} territories · cost {cost} R',
@@ -564,6 +568,7 @@ const englishMessages = {
   'orders.comment.dignity': '{dignity} for {name}',
   'orders.comment.claim': 'claim of {name} by {heir}',
   'orders.comment.playSpecial': '{card} on {target}',
+  'orders.comment.revoltArmy': '{card} on the starving army at {target}',
   'orders.comment.tunnelEscape': '{card}: free {target}',
   'orders.comment.tunnelAttack': '{card}: attack from {origin} on {target}',
   'orders.comment.ambush': '{card}: ambush on the attack from {origin} on {target}',
@@ -711,6 +716,10 @@ const englishMessages = {
   'reports.neutralArmyCreated': 'Neutral army of {count} troops raised at {territory}',
   'reports.neutralArmyCreatedTroop':
     'Neutral army of {count} troop raised at {territory}',
+  'reports.armyRevolt.neutralized':
+    'Revolt at {territory}: the starving army of {owner} ({size} troops) turns neutral, revolt total {total}',
+  'reports.armyRevolt.suppressed':
+    'Revolt at {territory}: the starving army of {owner} ({size} troops) holds, revolt total {total}',
   'reports.plagueDeath': 'Noble {noble} died from plague at {territory}',
   'reports.plagueSurvived': 'Noble {noble} at {territory} survived the plague',
   'reports.trialExecuted':
@@ -1187,7 +1196,7 @@ const englishMessages = {
     "`XXX T YYY N` executes after supply, once per army per turn — the army then performs no other order. `YYY` must be a castle, village, or the territory of another living player's army: a bare supply depot cannot receive. The route follows the donor's supply range (3 territories, plus any controlled depots along the way); an enemy army on an intermediate territory blocks the transfer, but an enemy army at the destination does not. The amount is capped at `2^(N - 1)` for an army of `N` troops, and a famished army cannot transfer at all. If the stock is insufficient, a `single` transfer simply fails with no effect and the chain continues; in `loop`, the order keeps retrying and sends whatever remains as a partial delivery once the stock drops below the requested amount.",
   'faq.q12': 'How do special cards and calamities apply?',
   'faq.a12':
-    "Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Plague strikes the armies and nobles that start or end the turn in its region, whether they stay, leave or enter (retreats included), once per turn: crossing the region does not avoid it. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, a seigneurial tax played on the capital of the territory's fief this turn or the previous one (see the next question), or a trial that executed a lady in the territory's region last season (`P PR NNN`, or `P TR NNN`, puts the noble with code NNN on trial: only an unmarried lady carrying a dignity, hidden or not, other than the Abbess, is executed — the trial reveals the dignity — any other trial is unfounded and its card is spent; the revolt may then be played on that region during the next action season): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed.",
+    "Calamities (plague, bad weather, bad harvest) are drawn automatically and programmed ahead of time into a season slot of the following year; they are announced as soon as they are drawn and apply on their own, without you playing a card. Plague strikes the armies and nobles that start or end the turn in its region, whether they stay, leave or enter (retreats included), once per turn: crossing the region does not avoid it. Your bonus cards (fair weather, abundant harvest, revolt) are played instead, with an order in the `special` field — no noble needed — in spring, summer, or autumn, never in winter. Fair weather only cancels bad weather, and abundant harvest only cancels bad harvest; a card that cancels a calamity does not also grant its regional bonus. Weather acts on mills: bad weather stops them, fair weather doubles their production. The harvest acts on the land: bad harvest removes terrain rations and territory income, abundant harvest doubles them. If several cards of the same kind are played on the same region, only one is effective: with an active calamity the first cancels it and a second applies the bonus, without a calamity the first applies it directly — the rest are consumed with no effect. Revolt (`P RV TER`) requires an active bad harvest in the region, a seigneurial tax played on the capital of the territory's fief this turn or the previous one (see the next question), or a trial that executed a lady in the territory's region last season (`P PR NNN`, or `P TR NNN`, puts the noble with code NNN on trial: only an unmarried lady carrying a dignity, hidden or not, other than the Abbess, is executed — the trial reveals the dignity — any other trial is unfounded and its card is spent; the revolt may then be played on that region during the next action season): it raises a neutral army, or, if the territory is occupied, triggers a combat where the loser retreats or is destroyed. Any player may also play it on the territory of a famished player army, with no other condition: the card then targets that army, the rolls of every revolt played on it add up, and if the total reaches its size it turns neutral and its nobles die.",
   'faq.q14': 'Why is the projected famine risk only an estimate?',
   'faq.a14':
     "The command post replays the same ravitaillement resolution used at the end of the turn, including how several of your armies split a shared source's stock, so it flags exactly the armies that would starve if nothing changes. It stays an estimate for two reasons outside its control: it always assumes a normal harvest, since a bad harvest or bad weather card already drawn for this season, but not yet revealed, never changes this projection; and it assumes your orders stay exactly as currently drafted, since it runs before you submit them and cannot foresee a last-minute transfer, dispersal, or new infrastructure that would change the outcome. It is never shown in winter, since ravitaillement does not happen then.",
@@ -1489,6 +1498,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'lineage.cause.assassination': 'Assassiné',
   'lineage.cause.martyr': 'Martyr',
   'lineage.cause.famine': 'Famine',
+  'lineage.cause.revolt': 'Révolte',
   'lineage.assassinatedBy': 'Tué sur ordre de {name} ({code})',
   'lineage.commissionedKilling': 'A fait tuer {name} ({code})',
   'lineage.claimHonoured': 'Prétention à {target} honorée',
@@ -1851,6 +1861,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.hint.cancelsNone': 'Aucune calamité annoncée à annuler dans cette région.',
   'orders.hint.cancels': 'Annule : {list}',
   'orders.hint.cancelsShort': 'annule une calamité',
+  'orders.hint.revoltArmyShort': 'armée affamée',
+  'orders.hint.revoltArmy':
+    'Armée affamée de {size} troupes : elle devient neutre si les jets de révolte joués sur elle ce tour totalisent au moins {size}.',
   'orders.hint.fiefCost': '{title} · {count} territoires · coût {cost} R',
   'orders.hint.annexCost': 'Annexer {territory} · coût {cost} R',
   'orders.hint.rankCost': '{from} → {to} · {count} territoires · coût {cost} R',
@@ -1966,6 +1979,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.comment.dignity': '{dignity} pour {name}',
   'orders.comment.claim': 'prétention sur {name} par {heir}',
   'orders.comment.playSpecial': '{card} sur {target}',
+  'orders.comment.revoltArmy': "{card} sur l'armée affamée de {target}",
   'orders.comment.tunnelEscape': '{card} : évader {target}',
   'orders.comment.tunnelAttack': '{card} : attaque de {origin} sur {target}',
   'orders.comment.ambush': '{card} : embuscade sur l’attaque de {origin} sur {target}',
@@ -2113,6 +2127,10 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     '{noble} échoue à apaiser la révolte de {territory} et meurt',
   'reports.neutralArmyCreated': 'Armée neutre de {count} troupes créée à {territory}',
   'reports.neutralArmyCreatedTroop': 'Armée neutre de {count} troupe créée à {territory}',
+  'reports.armyRevolt.neutralized':
+    "Révolte à {territory} : l'armée affamée de {owner} ({size} troupes) devient neutre, total des jets {total}",
+  'reports.armyRevolt.suppressed':
+    "Révolte à {territory} : l'armée affamée de {owner} ({size} troupes) tient bon, total des jets {total}",
   'reports.plagueDeath': 'Le noble {noble} meurt de la peste à {territory}',
   'reports.plagueSurvived': 'Le noble {noble} à {territory} survit à la peste',
   'reports.trialExecuted':
@@ -2613,7 +2631,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     '`XXX T YYY N` s’exécute après le ravitaillement, une fois par armée et par tour — elle ne fait alors aucun autre ordre. `YYY` doit être un château, un village, ou la case d’une armée d’un autre joueur vivant : un dépôt de vivres sans armée ne peut pas recevoir. La route suit la portée de ravitaillement du donneur (3 cases, plus les dépôts contrôlés rencontrés en chemin) ; toute armée adverse sur une case intermédiaire bloque le transfert, mais une armée adverse en destination ne l’empêche pas. Le montant est plafonné à `2^(N - 1)` pour une armée de `N` troupes, et une armée affamée ne peut pas transférer du tout. Si le stock est insuffisant, un transfert `single` échoue simplement sans effet et la chaîne continue ; en `loop`, l’ordre retente et envoie le reliquat en livraison partielle dès que le stock devient inférieur au montant demandé.',
   'faq.q12': 'Comment les cartes spéciales et les calamités s’appliquent-elles ?',
   'faq.a12':
-    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. La peste frappe les armées et les nobles qui commencent ou terminent le tour dans sa région, qu’ils y restent, en sortent ou y entrent (retraite comprise), une seule fois par tour : traverser la région ne l’évite pas. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte la région, qu’une taxe seigneuriale ait été jouée sur la capitale du fief du territoire ce tour-ci ou le précédent (voir la question suivante), ou qu’un procès ait exécuté une dame dans la région du territoire (`P PR NNN` ou `P TR NNN` met en procès le noble de code NNN : seule une dame non mariée portant une dignité, cachée ou non, hors Abbesse, est exécutée — le procès révèle la dignité — tout autre procès est non fondé et sa carte est consommée ; la révolte peut alors être jouée sur cette région à la prochaine saison d’action) : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit.',
+    'Les calamités (peste, mauvais temps, mauvaise récolte) sont tirées automatiquement et programmées à l’avance dans un slot saisonnier de l’année suivante ; elles s’annoncent dès leur tirage et s’appliquent d’elles-mêmes, sans que tu joues de carte. La peste frappe les armées et les nobles qui commencent ou terminent le tour dans sa région, qu’ils y restent, en sortent ou y entrent (retraite comprise), une seule fois par tour : traverser la région ne l’évite pas. Tes cartes bonus (beau temps, bonne récolte, révolte) se jouent, elles, avec un ordre dans le champ `special` — pas besoin de noble — au printemps, en été ou en automne, jamais en hiver. Beau temps n’annule que le mauvais temps, et bonne récolte n’annule que la mauvaise récolte ; jouer une carte qui annule une calamité ne produit pas en plus son bonus régional. La météo agit sur les moulins : le mauvais temps les arrête, le beau temps double leur production. La récolte agit sur la terre : la mauvaise récolte supprime les rations de terrain et le revenu territorial, la bonne récolte les double. Si plusieurs cartes du même type sont jouées sur la même région, une seule est effective : avec une calamité active la première l’annule et une seconde applique le bonus, sans calamité la première l’applique directement — le reste est consommé sans effet. La révolte (`P RE TER`) exige qu’une mauvaise récolte affecte la région, qu’une taxe seigneuriale ait été jouée sur la capitale du fief du territoire ce tour-ci ou le précédent (voir la question suivante), ou qu’un procès ait exécuté une dame dans la région du territoire (`P PR NNN` ou `P TR NNN` met en procès le noble de code NNN : seule une dame non mariée portant une dignité, cachée ou non, hors Abbesse, est exécutée — le procès révèle la dignité — tout autre procès est non fondé et sa carte est consommée ; la révolte peut alors être jouée sur cette région à la prochaine saison d’action) : elle fait apparaître une armée neutre ou, si le territoire est occupé, déclenche un combat où le perdant se retire ou est détruit. Tout joueur peut aussi la jouer sur la case d’une armée de joueur affamée, sans autre condition : la carte vise alors cette armée, les jets de toutes les révoltes jouées sur elle s’additionnent et, si le total atteint sa taille, elle devient neutre et ses nobles meurent.',
   'faq.q14': 'Pourquoi le risque de famine affiché n’est-il qu’une estimation ?',
   'faq.a14':
     'Le poste de commandement rejoue la même résolution de ravitaillement que celle appliquée en fin de tour, y compris la façon dont plusieurs de tes armées se partagent le stock d’une même source : il signale donc exactement les armées qui seraient affamées si rien ne change. Ça reste une estimation pour deux raisons hors de son contrôle : elle suppose toujours une récolte normale, puisqu’une carte de mauvaise récolte ou de mauvais temps déjà tirée pour cette saison mais pas encore révélée ne change jamais cette projection ; et elle suppose que tes ordres restent exactement tels que rédigés actuellement, puisqu’elle s’exécute avant leur soumission et ne peut pas anticiper un transfert, une dispersion ou une nouvelle infrastructure de dernière minute qui changerait l’issue. Elle n’est jamais affichée en hiver, puisque le ravitaillement n’a pas lieu à cette saison.',

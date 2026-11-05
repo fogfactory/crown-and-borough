@@ -467,6 +467,27 @@ describe('ReportPanel', () => {
     expect(text).toContain('Your inquiry reveals that One (ONE) commissioned the assassination of Two (TWO)')
   })
 
+  it('reports a revolt that turns a starving army neutral and one it holds against', () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            seasonEffects: [
+              { kind: 'army_revolt', cardKind: 'revolt', territory: 'AAA', victimOwner: 'P1', sizeBefore: 3, troops: 4, reason: 'neutralized' },
+              { kind: 'army_revolt', cardKind: 'revolt', territory: 'AAA', victimOwner: 'P1', sizeBefore: 3, troops: 2, reason: 'suppressed' },
+            ],
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+    const text = container.textContent ?? ''
+    expect(text).toMatch(/starving army of .+ \(3 troops\) turns neutral, revolt total 4/)
+    expect(text).toMatch(/starving army of .+ \(3 troops\) holds, revolt total 2/)
+  })
+
   it('names the player and the noble of a justice done, and tells a failure to its player', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="en">

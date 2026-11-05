@@ -95,6 +95,9 @@ type resolutionContext struct {
 	supplyConsumption   map[models.ArmyID]*consumptionDetail
 	poolRations         map[models.TerritoryID]map[models.TerritoryID]int
 	pendingRevoltSizes  map[models.TerritoryID]int
+	// armyRevoltRolls sums, per starving army, the revolt rolls played on it
+	// this turn: every card is resolved together by resolveArmyRevolts.
+	armyRevoltRolls map[models.ArmyID]int
 	// pendingTunnels holds the tunnel cards played on an attack, matched with
 	// the attack intents once they are enumerated (applyPendingTunnels);
 	// tunneledAttacks then holds the attacking armies whose attack ignores the
@@ -181,6 +184,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		supplyConsumption:     make(map[models.ArmyID]*consumptionDetail),
 		poolRations:           make(map[models.TerritoryID]map[models.TerritoryID]int),
 		pendingRevoltSizes:    make(map[models.TerritoryID]int),
+		armyRevoltRolls:       make(map[models.ArmyID]int),
 		tunneledAttacks:       make(map[models.ArmyID]bool),
 		ambushAttacks:         make(map[models.ArmyID]deckOrderIntent),
 		taxedFiefsThisTurn:    make(map[models.FiefID]bool),
