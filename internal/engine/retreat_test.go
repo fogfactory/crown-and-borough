@@ -560,78 +560,62 @@ func TestResolveRetreatProcessingOrderByOriginTerritory(t *testing.T) {
 	}
 }
 
-func TestResolveRetreatFriendlyHostPrefersSuppliedOverSmallerStarving(t *testing.T) {
-	state := testState(t,
-		[]models.Territory{
-			territory("AAA", "AAA", "BBB", "EEE", "FFF"),
-			territory("BBB", "BBB", "AAA"),
-			territory("EEE", "EEE", "AAA"),
-			territory("FFF", "FFF", "AAA"),
-		},
-		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
-			{ID: "A5", OwnerID: "P1", TerritoryID: "EEE", Size: 1, Starving: true},
-			{ID: "A6", OwnerID: "P1", TerritoryID: "FFF", Size: 2},
-		},
-	)
-	addNoble(state, "N1", "ONE", "P1", "AAA")
-	addNoble(state, "N2", "TWO", "P2", "BBB")
-	addNoble(state, "N5", "FIV", "P1", "EEE")
-	addNoble(state, "N6", "SIX", "P1", "FFF")
-	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
-	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
-	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "EEE"})
-	addChain(t, state, "A6", "N6", models.Order{Type: models.OrderTypeHold, PositionID: "FFF"})
-	validateTestState(t, state)
+func TestResolveRetreatFriendlyHostStarvingRankedLast(t *testing.T) {
+	tests := []struct {
+		name         string
+		suppliedHost bool
+		wantHost     models.ArmyID
+	}{
+		{name: "supplied host beats smaller starving one", suppliedHost: true, wantHost: "A6"},
+		{name: "starving host as last resort", suppliedHost: false, wantHost: "A5"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			territories := []models.Territory{
+				territory("AAA", "AAA", "BBB", "EEE"),
+				territory("BBB", "BBB", "AAA"),
+				territory("EEE", "EEE", "AAA"),
+			}
+			armies := []models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
+				{ID: "A5", OwnerID: "P1", TerritoryID: "EEE", Size: 1, Starving: true},
+			}
+			if tt.suppliedHost {
+				territories[0] = territory("AAA", "AAA", "BBB", "EEE", "FFF")
+				territories = append(territories, territory("FFF", "FFF", "AAA"))
+				armies = append(armies, models.Army{ID: "A6", OwnerID: "P1", TerritoryID: "FFF", Size: 2})
+			}
+			state := testState(t, territories, armies)
+			addNoble(state, "N1", "ONE", "P1", "AAA")
+			addNoble(state, "N2", "TWO", "P2", "BBB")
+			addNoble(state, "N5", "FIV", "P1", "EEE")
+			addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+			addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+			addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "EEE"})
+			if tt.suppliedHost {
+				addNoble(state, "N6", "SIX", "P1", "FFF")
+				addChain(t, state, "A6", "N6", models.Order{Type: models.OrderTypeHold, PositionID: "FFF"})
+			}
+			validateTestState(t, state)
 
-	resolution, err := Resolve(state, testBalance())
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	var retreat *Event
-	for i := range resolution.Events {
-		if e := &resolution.Events[i]; e.Type == EventTypeRetreat && e.ArmyID == "A1" {
-			retreat = e
-		}
-	}
-	if retreat == nil || retreat.HostArmyID != "A6" {
-		t.Fatalf("A1 retreat = %+v, want a merge into the supplied host A6", retreat)
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			retreat, ok := retreatForArmy(resolution.Events, "A1")
+			if !ok || retreat.HostArmyID != tt.wantHost {
+				t.Fatalf("A1 retreat = %+v (found %v), want a merge into %s", retreat, ok, tt.wantHost)
+			}
+		})
 	}
 }
 
-func TestResolveRetreatFriendlyHostStarvingIsLastResort(t *testing.T) {
-	state := testState(t,
-		[]models.Territory{
-			territory("AAA", "AAA", "BBB", "EEE"),
-			territory("BBB", "BBB", "AAA"),
-			territory("EEE", "EEE", "AAA"),
-		},
-		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
-			{ID: "A5", OwnerID: "P1", TerritoryID: "EEE", Size: 1, Starving: true},
-		},
-	)
-	addNoble(state, "N1", "ONE", "P1", "AAA")
-	addNoble(state, "N2", "TWO", "P2", "BBB")
-	addNoble(state, "N5", "FIV", "P1", "EEE")
-	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
-	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
-	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "EEE"})
-	validateTestState(t, state)
-
-	resolution, err := Resolve(state, testBalance())
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	var retreat *Event
-	for i := range resolution.Events {
-		if e := &resolution.Events[i]; e.Type == EventTypeRetreat && e.ArmyID == "A1" {
-			retreat = e
+func retreatForArmy(events []Event, armyID models.ArmyID) (Event, bool) {
+	for _, event := range events {
+		if event.Type == EventTypeRetreat && event.ArmyID == armyID {
+			return event, true
 		}
 	}
-	if retreat == nil || retreat.HostArmyID != "A5" {
-		t.Fatalf("A1 retreat = %+v, want a merge into the starving host A5 as last resort", retreat)
-	}
+	return Event{}, false
 }
