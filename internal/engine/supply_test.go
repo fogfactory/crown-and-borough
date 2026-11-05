@@ -722,23 +722,24 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := famineEventForArmy(t, resolution.Events, "A1")
-		if !event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.ResourceCredit != 1 || event.CreditTerritoryID != "CCC" {
+		if !event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.ResourceCredit != 2 || event.CreditTerritoryID != "CCC" {
 			t.Errorf("famine event = %#v, want saved mill pillage credited to CCC", event)
 		}
 		if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 			t.Errorf("infrastructures = %#v, want only the castle left", resolution.State.Infrastructures)
 		}
 		// CCC carries no territory income in this scenario (zeroed out), so
-		// its only resources are the pillage credit.
-		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 1 {
+		// its only resources are the pillage credit: the bonus of 4 minus
+		// the 2 rations A1 still lacked after taking its mill's ration.
+		if got := resolution.State.TerritoryStates["CCC"].Resources; got != 2 {
 			t.Errorf("credited source resources = %d, want only the pillage credit", got)
 		}
-		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 1 {
-			t.Errorf("credited source event stock = %d, want 1", event.StockAfter)
+		if event := supplyEventForSource(t, resolution.Events, "CCC"); event.StockAfter != 2 {
+			t.Errorf("credited source event stock = %d, want 2", event.StockAfter)
 		}
 	})
 
-	t.Run("the farthest assigned army is evaluated first and can recover at zero gain", func(t *testing.T) {
+	t.Run("the closest assigned army is served first and the pool feeds the farther one", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
@@ -778,31 +779,30 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		// A2's own presence now captures DDD before ravitaillement runs
-		// (control resolves first, #208), turning its mill into a legitimate
-		// self-supplied source (CCC carries no settlement of its own):
-		// DDD -- not AAA -- becomes the closest source for both armies (0
-		// for A2 standing right on it, 1 for A1 at neighboring CCC). A1 is
-		// therefore now the farther-assigned army evaluated first
-		// (sortAssignedFamine): it exhausts DDD's single level of mill
-		// production and, with no infrastructure of its own at CCC to
-		// pillage, loses a troop outright. A2, evaluated second, recovers
-		// through its own mill at exactly zero gain (PillageBonus 3 against
-		// its own demand 3).
-		a1Event := famineEventForArmy(t, resolution.Events, "A1")
-		if a1Event.SavedByPillage || a1Event.SourceID != "DDD" || a1Event.TroopsLost != 1 {
-			t.Errorf("A1 famine event = %#v, want an unsaved deficit through DDD", a1Event)
+		// A2's own presence captures DDD before ravitaillement runs (control
+		// resolves first, #208), turning its mill into a self-supplied
+		// source: DDD becomes the closest source for both armies (0 for A2
+		// standing on it, 1 for A1 at neighboring CCC). The player's pool
+		// holds 2 rations (AAA's and DDD's mills). A2, the closest, is served
+		// first: it needs 3, so it starves and takes the 1 ration its
+		// supplied strength of 2 still needs. The ration left feeds A1's
+		// demand of 1. A2 then recovers through its own mill: PillageBonus 3
+		// against the 2 rations it still lacks credits 1 ration to AAA.
+		for _, event := range resolution.Events {
+			if event.Type == EventTypeFamine && event.ArmyID == "A1" {
+				t.Errorf("A1 famine event = %#v, want A1 fed by the pool A2 left", event)
+			}
 		}
 		a2Event := famineEventForArmy(t, resolution.Events, "A2")
-		if !a2Event.SavedByPillage || a2Event.ResourceCredit != 0 || a2Event.InfrastructureID != "I3" || a2Event.SourceID != "DDD" {
-			t.Errorf("A2 famine event = %#v, want zero-gain recovery through its own mill", a2Event)
+		if !a2Event.SavedByPillage || a2Event.ResourceCredit != 1 || a2Event.CreditTerritoryID != "AAA" || a2Event.InfrastructureID != "I3" || a2Event.SourceID != "DDD" {
+			t.Errorf("A2 famine event = %#v, want recovery through its own mill crediting 1 ration to AAA", a2Event)
 		}
 		if ctxInfrastructurePresent(resolution.State, "I3") {
 			t.Error("auto-pillage should remove I3")
 		}
 	})
 
-	t.Run("negative pillage gain starves a size-three army down to two", func(t *testing.T) {
+	t.Run("negative pillage gain starves a size-three army down to its supplied strength of two", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{supplyTerritory("AAA", "AAA", models.TerrainMountain)},
 			// Starving: true simulates a deficit already carried over from a
@@ -814,16 +814,20 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 		addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 		validateTestState(t, state)
 
-		resolution, err := Resolve(state, testBalance())
+		// The mill's ration leaves A1 2 short: a pillage bonus of 1 cannot
+		// cover them.
+		balance := testBalance()
+		balance.PillageBonus = 1
+		resolution, err := Resolve(state, balance)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
 		event := famineEventForArmy(t, resolution.Events, "A1")
-		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 1 {
+		if event.SavedByPillage || event.InfrastructureID != "I1" || event.InfrastructureType != models.InfraTypeMill || event.Troops != 3 || event.TroopsLost != 1 || event.SuppliedStrength != 2 {
 			t.Errorf("famine event = %#v, want an unsaved three-troop army with one troop lost", event)
 		}
-		if army := armyByID(t, resolution.State, "A1"); army.Size != 2 {
-			t.Errorf("A1 size = %d, want 2 after one famine turn", army.Size)
+		if army := armyByID(t, resolution.State, "A1"); army.Size != 2 || army.Starving {
+			t.Errorf("A1 size = %d, want 2 (its supplied strength) and famine over", army.Size)
 		}
 		report := BuildTurnReport(state, resolution.State, resolution.Events, nil)
 		var consumption *ConsumptionReport
@@ -833,7 +837,7 @@ func TestResolveSupplyFamineAndAutoPillage(t *testing.T) {
 				break
 			}
 		}
-		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 1 {
+		if consumption == nil || !consumption.Famine || consumption.Size != 3 || consumption.TroopsLost != 1 || consumption.SuppliedStrength != 2 {
 			t.Errorf("consumption report = %#v, want a famine line for A1 with initial size 3 and one lost troop", report.Consumption)
 		}
 		if len(resolution.State.Infrastructures) != 0 {
@@ -888,11 +892,11 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 			supplyTerritory("CCC", "CCC", models.TerrainPlain, "AAA"),
 		},
 		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2},
 			// Starving: true simulates a deficit already carried over from a
 			// previous turn's warning: only that persistent, second
 			// consecutive deficit triggers troop loss.
-			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2, Starving: true},
+			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2, Starving: true},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
 			{ID: "A3", OwnerID: "P2", TerritoryID: "CCC", Size: 1},
 			// A4 holds DDD's mill: outside every fief and capital, only an
 			// army gives the mill a controller to feed (#470). Its local rations (3,
@@ -922,15 +926,17 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	event := famineEventForArmy(t, resolution.Events, "A2")
+	// Equal distance and size: the famine strikes the descending trigram
+	// first, so AAA is served before BBB.
+	event := famineEventForArmy(t, resolution.Events, "A1")
 	if event.SavedByPillage || event.SourceID != "ZZZ" {
-		t.Errorf("A2 famine event = %#v, want an unsaved source-assigned famine", event)
+		t.Errorf("A1 famine event = %#v, want an unsaved source-assigned famine", event)
 	}
-	if hasFamineEvent(resolution.Events, "A1") {
-		t.Errorf("events = %#v, want AAA selected before BBB", resolution.Events)
+	if hasFamineEvent(resolution.Events, "A2") {
+		t.Errorf("events = %#v, want BBB selected before AAA", resolution.Events)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" || army.Size != 1 {
-		t.Errorf("A2 = %+v, want it to stay at AAA with one troop lost", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 {
+		t.Errorf("A1 = %+v, want it to stay at BBB with one troop lost", army)
 	}
 }
 
@@ -944,7 +950,7 @@ func TestResolveAssignedFamineTieBreaks(t *testing.T) {
 // starves the army (no orders, so nothing but ravitaillement happens), turn
 // 2 exercises the combat effect.
 func TestResolveFamineCombatEffects(t *testing.T) {
-	t.Run("attacker fights at full strength the turn it starves, zero the turn after", func(t *testing.T) {
+	t.Run("attacker fights at full strength the turn it starves, cannot attack the turn after", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
@@ -981,8 +987,11 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("turn 2 Resolve: %v", err)
 		}
-		if got := combatContenderForce(t, turn2.Events, "BBB", "A1"); got != 0 {
-			t.Errorf("A1 attack force in turn 2 = %d, want famine force 0", got)
+		if outcome, found := findOutcome(turn2.Events, "O1"); !found || outcome.Reason != "famished_attacker" {
+			t.Errorf("A1 attack outcome = %#v, found=%t, want famished_attacker", outcome, found)
+		}
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "AAA" {
+			t.Errorf("A1 = %+v, want it to stay put", army)
 		}
 	})
 
@@ -1085,7 +1094,7 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		}
 	})
 
-	t.Run("a zero-force attack can still move to an empty territory, only from the turn after it starves", func(t *testing.T) {
+	t.Run("a starving army cannot attack even an empty territory, only from the turn after it starves", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{
 				supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
@@ -1114,8 +1123,8 @@ func TestResolveFamineCombatEffects(t *testing.T) {
 		if err != nil {
 			t.Fatalf("turn 2 Resolve: %v", err)
 		}
-		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "BBB" {
-			t.Errorf("A1 = %+v, want the zero-force attack to still move onto the empty territory", army)
+		if army := armyByID(t, turn2.State, "A1"); army.TerritoryID != "AAA" {
+			t.Errorf("A1 = %+v, want the invalid attack to leave it on AAA", army)
 		}
 	})
 }

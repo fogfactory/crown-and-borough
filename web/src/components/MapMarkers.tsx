@@ -60,7 +60,7 @@ const FORTIFICATION_WALL_TRANSFORM = `translate(0 ${512 - 512 / 3}) scale(1 ${1 
 
 const MARKER_CASING_COLOR = MAP_INK
 
-const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
+export const INFRASTRUCTURE_LABEL_KEYS: Record<Infrastructure['type'], MessageKey> = {
   mill: 'infrastructure.mill',
   supply_depot: 'infrastructure.supply_depot',
   castle: 'infrastructure.castle',

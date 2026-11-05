@@ -98,7 +98,7 @@ func (order appeaseOrder) Apply(ctx *ExecutionContext) {
 			return
 		}
 		event.Reason, event.Cost = "paid", cost
-		resolution.removeRebelArmy(rebels.ID)
+		resolution.removeArmy(rebels.ID)
 		resolution.events = append(resolution.events, event)
 		return
 	}
@@ -107,7 +107,7 @@ func (order appeaseOrder) Apply(ctx *ExecutionContext) {
 	switch {
 	case roll <= religion.AppeasementSuccessRolls:
 		event.Reason = "succeeded"
-		resolution.removeRebelArmy(rebels.ID)
+		resolution.removeArmy(rebels.ID)
 		resolution.events = append(resolution.events, event)
 	case roll > 6-religion.AppeasementDeathRolls:
 		event.Reason = "failed_death"
@@ -128,8 +128,8 @@ func appeasementCost(base, size int) int {
 	return cost
 }
 
-// removeRebelArmy disbands a NEUTRAL army at once.
-func (ctx *resolutionContext) removeRebelArmy(armyID models.ArmyID) {
+// removeArmy drops an army from play at once.
+func (ctx *resolutionContext) removeArmy(armyID models.ArmyID) {
 	armies := ctx.state.Armies[:0]
 	for _, army := range ctx.state.Armies {
 		if army.ID != armyID {

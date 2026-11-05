@@ -1267,6 +1267,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                             },
                           )
                         : ''}
+                      {line.destroyed ? t('reports.famineDestroyed') : ''}
                       {(line.resourceCredit ?? 0) > 0 && (
                         <>
                           {' '}

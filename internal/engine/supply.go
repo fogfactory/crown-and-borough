@@ -24,10 +24,26 @@ type supplyAssignment struct {
 }
 
 type famineCandidate struct {
-	army     models.Army
-	demand   int
+	army   models.Army
+	demand int
+	// missing is the part of demand the pool could not reach; received is
+	// what the army still took from it to feed its supplied strength.
+	missing  int
+	received int
 	sourceID models.TerritoryID
 	distance int
+}
+
+// pillageOutcome is the infrastructure an already starving army pillages on
+// its territory (nil when there is none) and the pillage bonus left once it
+// covers the demand the pool left unfed: a gain of zero or more saves the
+// army. resolveFamine applies it and the famine forecast reads it.
+func (ctx *resolutionContext) pillageOutcome(candidate famineCandidate) (*models.Infrastructure, int) {
+	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
+	if infrastructure == nil {
+		return nil, 0
+	}
+	return infrastructure, ctx.balance.PillageBonus - (candidate.demand - candidate.received)
 }
 
 // rationProductionParts breaks the local ration production of one territory
@@ -69,6 +85,8 @@ type consumptionDetail struct {
 	famined               bool
 	warned                bool
 	troopsLost            int
+	suppliedStrength      int
+	destroyed             bool
 	savedByPillage        bool
 	pillageInfrastructure models.InfraType
 	resourceCredit        int
@@ -92,6 +110,7 @@ func resolveSupply(ctx *resolutionContext) {
 	// (below) sets it back on whichever one fails to.
 	for index := range ctx.state.Armies {
 		ctx.state.Armies[index].Starving = false
+		ctx.state.Armies[index].StarvingStrength = 0
 	}
 	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
@@ -108,8 +127,7 @@ func resolveSupply(ctx *resolutionContext) {
 		allSources = append(allSources, sources...)
 		assignments, direct := assignSupply(ctx, ownerID, sources, receivedRations)
 		directFamine = append(directFamine, direct...)
-		delta := resolveSupplyStocks(ctx, sources)
-		assignedFamine = append(assignedFamine, selectAssignedFamine(ctx, assignments, delta)...)
+		assignedFamine = append(assignedFamine, allocateSupply(ctx, sources, assignments)...)
 		for _, source := range sources {
 			ctx.supplyStockConsumed[source.territoryID] += source.stockConsumed
 		}
@@ -129,11 +147,11 @@ func resolveSupply(ctx *resolutionContext) {
 		})
 	}
 
-	sortDirectFamine(ctx, directFamine)
+	sortFamineOrder(directFamine)
 	for _, candidate := range directFamine {
 		ctx.resolveFamine(candidate)
 	}
-	sortAssignedFamine(ctx, assignedFamine)
+	sortFamineOrder(assignedFamine)
 	for _, candidate := range assignedFamine {
 		ctx.resolveFamine(candidate)
 	}
@@ -484,7 +502,7 @@ func assignSupply(
 		}
 		source, distance := closestSupplySource(ctx, army.TerritoryID, sources)
 		if source == nil {
-			direct = append(direct, famineCandidate{army: army, demand: demand})
+			direct = append(direct, famineCandidate{army: army, demand: demand, missing: demand})
 			continue
 		}
 		detail.receivedTransfer = demand
@@ -520,27 +538,75 @@ func closestSupplySource(ctx *resolutionContext, territoryID models.TerritoryID,
 	return closest, distance
 }
 
-func resolveSupplyStocks(ctx *resolutionContext, sources []*supplySource) int {
-	totalDemand := 0
+// allocateSupply feeds one player's source-assigned armies from the pool of
+// its sources' production and stocks, and returns the armies it cannot feed.
+// Armies are served in the reverse of the famine order (closest, then
+// smallest, then ascending trigram first): each takes its whole demand while
+// the pool holds it; one that the pool cannot cover starves and takes only
+// what feeds its supplied strength, leaving the rest to the armies served
+// after it. Whatever no army takes stays in stock.
+func allocateSupply(ctx *resolutionContext, sources []*supplySource, assignments []supplyAssignment) []famineCandidate {
 	totalProduction := 0
+	totalStock := 0
 	for _, source := range sources {
-		totalDemand += source.demand
 		totalProduction += source.production
+		totalStock += ctx.state.TerritoryStates[source.territoryID].Resources
 	}
-	if totalDemand <= totalProduction {
+	sort.SliceStable(assignments, func(i, j int) bool {
+		if assignments[i].distance != assignments[j].distance {
+			return assignments[i].distance < assignments[j].distance
+		}
+		if assignments[i].army.Size != assignments[j].army.Size {
+			return assignments[i].army.Size < assignments[j].army.Size
+		}
+		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
+	})
+	pool := totalProduction + totalStock
+	consumed := 0
+	served := make(map[models.TerritoryID]int, len(sources))
+	candidates := make([]famineCandidate, 0)
+	for _, assignment := range assignments {
+		taken := assignment.demand
+		if taken > pool {
+			missing := assignment.demand - pool
+			taken = starvingIntake(assignment.army.Size, assignment.demand, missing, ctx.balance.CostBase)
+			candidates = append(candidates, famineCandidate{
+				army:     assignment.army,
+				demand:   assignment.demand,
+				missing:  missing,
+				received: taken,
+				sourceID: assignment.source.territoryID,
+				distance: assignment.distance,
+			})
+			if detail := ctx.supplyConsumption[assignment.army.ID]; detail != nil {
+				detail.receivedTransfer = taken
+			}
+		}
+		pool -= taken
+		consumed += taken
+		served[assignment.source.territoryID] += taken
+		ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, taken)
+	}
+
+	if consumed <= totalProduction {
+		// Production alone covered what the armies took: the pool's net
+		// excess is stored where it was produced, each source (in territory
+		// order) keeping at most what it produced beyond what its own armies
+		// took.
+		excess := totalProduction - consumed
 		for _, source := range sources {
-			excess := source.production - source.demand
-			if excess <= 0 {
+			stored := min(excess, max(0, source.production-served[source.territoryID]))
+			if stored == 0 {
 				continue
 			}
 			state := ctx.state.TerritoryStates[source.territoryID]
-			state.Resources += excess
+			state.Resources += stored
 			ctx.state.TerritoryStates[source.territoryID] = state
+			excess -= stored
 		}
-		return 0
+		return candidates
 	}
-
-	delta := totalDemand - totalProduction
+	delta := consumed - totalProduction
 	stocks := append([]*supplySource(nil), sources...)
 	sort.SliceStable(stocks, func(i, j int) bool {
 		left := ctx.state.TerritoryStates[stocks[i].territoryID]
@@ -555,56 +621,25 @@ func resolveSupplyStocks(ctx *resolutionContext, sources []*supplySource) int {
 			break
 		}
 		state := ctx.state.TerritoryStates[source.territoryID]
-		consumed := min(state.Resources, delta)
-		state.Resources -= consumed
+		drawn := min(state.Resources, delta)
+		state.Resources -= drawn
 		ctx.state.TerritoryStates[source.territoryID] = state
-		source.stockConsumed += consumed
-		delta -= consumed
-	}
-	return delta
-}
-
-func selectAssignedFamine(ctx *resolutionContext, assignments []supplyAssignment, delta int) []famineCandidate {
-	if delta == 0 {
-		for _, assignment := range assignments {
-			ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
-		}
-		return nil
-	}
-	sort.SliceStable(assignments, func(i, j int) bool {
-		if assignments[i].distance != assignments[j].distance {
-			return assignments[i].distance > assignments[j].distance
-		}
-		if assignments[i].army.Size != assignments[j].army.Size {
-			return assignments[i].army.Size > assignments[j].army.Size
-		}
-		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
-	})
-	candidates := make([]famineCandidate, 0)
-	famined := make(map[models.ArmyID]bool)
-	for _, assignment := range assignments {
-		if delta == 0 {
-			break
-		}
-		if detail := ctx.supplyConsumption[assignment.army.ID]; detail != nil {
-			detail.receivedTransfer = 0
-		}
-		famined[assignment.army.ID] = true
-		candidates = append(candidates, famineCandidate{
-			army:     assignment.army,
-			demand:   assignment.demand,
-			sourceID: assignment.source.territoryID,
-			distance: assignment.distance,
-		})
-		delta -= assignment.demand
-	}
-	for _, assignment := range assignments {
-		if famined[assignment.army.ID] {
-			continue
-		}
-		ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
+		source.stockConsumed += drawn
+		delta -= drawn
 	}
 	return candidates
+}
+
+// starvingIntake is what a starving army takes from the pool: the rations its
+// supplied strength still needs beyond what it covers on its own (local
+// rations and discounts), never more than the pool left it.
+func starvingIntake(size, demand, missing, costBase int) int {
+	supplied := suppliedStrength(size, missing, costBase)
+	if supplied == 0 {
+		return 0
+	}
+	ownCover := armyCost(size, costBase) - demand
+	return min(demand-missing, max(0, armyCost(supplied, costBase)-ownCover))
 }
 
 // recordPoolRations traces the rations one source dispatched to the armies of
@@ -619,16 +654,9 @@ func (ctx *resolutionContext) recordPoolRations(sourceID, territoryID models.Ter
 	ctx.poolRations[sourceID][territoryID] += amount
 }
 
-func sortDirectFamine(ctx *resolutionContext, candidates []famineCandidate) {
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].army.Size != candidates[j].army.Size {
-			return candidates[i].army.Size > candidates[j].army.Size
-		}
-		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
-	})
-}
-
-func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
+// sortFamineOrder puts the famine order first: farthest from the source, then
+// largest, then descending trigram. Direct candidates carry no distance.
+func sortFamineOrder(candidates []famineCandidate) {
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].distance != candidates[j].distance {
 			return candidates[i].distance > candidates[j].distance
@@ -636,8 +664,43 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 		if candidates[i].army.Size != candidates[j].army.Size {
 			return candidates[i].army.Size > candidates[j].army.Size
 		}
-		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
+		return candidates[i].army.TerritoryID > candidates[j].army.TerritoryID
 	})
+}
+
+// suppliedStrength is the largest size an army can field on the rations it
+// reaches: the largest s whose cost 2^(s-1) fits in the army's own cost minus
+// the rations it is missing. Zero when it reaches no ration at all.
+func suppliedStrength(size, missing, costBase int) int {
+	reached := armyCost(size, costBase) - missing
+	supplied, nextCost := 0, 1
+	for supplied < size && nextCost <= reached {
+		supplied++
+		nextCost *= costBase
+	}
+	return supplied
+}
+
+// destroyStarvedArmy removes an army whose supplied strength is zero. Nobody
+// can capture its nobles, so the free nobles of its owner on the territory
+// die with it; the territory keeps its controller.
+func (ctx *resolutionContext) destroyStarvedArmy(armyID models.ArmyID, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	var dying []models.Noble
+	for _, nobleID := range ctx.noblesAt(territoryID) {
+		noble := ctx.noblesByID[nobleID]
+		if noble != nil && noble.OwnerID == ownerID && noble.Status == models.NobleStatusFree {
+			dying = append(dying, *noble)
+		}
+	}
+	// Chains already progressed this turn: drop the one the army still
+	// carries, or it would point at an army that no longer exists.
+	if army := ctx.armiesByID[armyID]; army != nil && army.ChainID != nil {
+		ctx.removeChain(*army.ChainID)
+	}
+	ctx.removeArmy(armyID)
+	for _, noble := range dying {
+		ctx.removeNobleInAction(noble, models.DeathCauseFamine)
+	}
 }
 
 func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
@@ -650,6 +713,7 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		SourceID:    candidate.sourceID,
 		Troops:      candidate.army.Size,
 	}
+	supplied := suppliedStrength(candidate.army.Size, candidate.missing, ctx.balance.CostBase)
 	if !ctx.famished[candidate.army.ID] {
 		// First turn this army falls into deficit: only a warning. It is
 		// marked Starving for next turn's own combat, support and
@@ -660,22 +724,23 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		// (only the famished sender is blocked, not the recipient) — before
 		// a second consecutive deficit triggers the auto-pillage below.
 		event.Warned = true
+		event.SuppliedStrength = supplied
 		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
 			army.Starving = true
+			army.StarvingStrength = max(0, supplied-1)
 		}
 		if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
 			detail.famined = true
 			detail.warned = true
+			detail.suppliedStrength = supplied
 		}
 		ctx.events = append(ctx.events, event)
 		return
 	}
-	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
-	if infrastructure != nil {
+	if infrastructure, gain := ctx.pillageOutcome(candidate); infrastructure != nil {
 		event.InfrastructureID = infrastructure.ID
 		event.InfrastructureType = infrastructure.Type
 		ctx.removeInfrastructure(infrastructure.ID)
-		gain := ctx.balance.PillageBonus - candidate.demand
 		if gain >= 0 {
 			event.SavedByPillage = true
 			if gain > 0 {
@@ -691,28 +756,39 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 		}
 	}
 	if !event.SavedByPillage {
-		// Starving carries the penalty into next turn's own combat, support
-		// and noble-bonus checks (ctx.famished's seeding in
-		// newResolutionContext): this turn's own combat already resolved
-		// earlier and is never reopened by a famine discovered only now
-		// (#208).
+		event.SuppliedStrength = supplied
+		// The army sheds every troop it cannot feed: it comes back down to
+		// its supplied strength, and disappears when it reaches no ration.
 		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
-			army.Starving = true
-			if army.Size > 1 {
-				army.Size--
-				event.TroopsLost = 1
+			event.TroopsLost = max(0, army.Size-supplied)
+			if supplied == 0 {
+				event.Destroyed = true
+			} else {
+				army.Size = min(army.Size, supplied)
 			}
 		}
 	}
 	if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
 		detail.famined = true
 		detail.troopsLost = event.TroopsLost
+		detail.suppliedStrength = event.SuppliedStrength
+		detail.destroyed = event.Destroyed
 		detail.savedByPillage = event.SavedByPillage
 		detail.pillageInfrastructure = event.InfrastructureType
 		detail.resourceCredit = event.ResourceCredit
 		detail.creditTerritory = event.CreditTerritoryID
 	}
 	ctx.events = append(ctx.events, event)
+	if event.Destroyed {
+		ctx.events = append(ctx.events, Event{
+			Type:        EventTypeArmyDestroyed,
+			Phase:       6,
+			ArmyID:      candidate.army.ID,
+			TerritoryID: candidate.army.TerritoryID,
+			Reason:      "famine",
+		})
+		ctx.destroyStarvedArmy(candidate.army.ID, candidate.army.TerritoryID, candidate.army.OwnerID)
+	}
 }
 
 func (ctx *resolutionContext) consumptionDetailFor(army models.Army) *consumptionDetail {
@@ -830,6 +906,8 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 			ReceivedLocal:      detail.receivedLocal,
 			ReceivedTransfer:   detail.receivedTransfer,
 			TroopsLost:         detail.troopsLost,
+			SuppliedStrength:   detail.suppliedStrength,
+			Destroyed:          detail.destroyed,
 			SavedByPillage:     detail.savedByPillage,
 			Warned:             detail.warned,
 			InfrastructureType: detail.pillageInfrastructure,

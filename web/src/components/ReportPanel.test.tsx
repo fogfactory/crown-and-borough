@@ -398,9 +398,9 @@ describe('ReportPanel', () => {
       screen.getByText(/source ROS · local 1 · sources 0 · reçu 1 · manque 3/),
     ).toBeInTheDocument()
     expect(screen.getByText(/· sauvée par pillage/)).toBeInTheDocument()
-    expect(screen.getByText(/· perd 1 troupe/)).toBeInTheDocument()
+    expect(screen.getByText(/· −1 troupe/)).toBeInTheDocument()
     expect(
-      screen.getByText(/manque de vivres — agis avant le tour suivant/),
+      screen.getByText(/manque de vivres — elle se défend à force réduite/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Un bel ensoleillement gagne le royaume/)).toBeInTheDocument()
     expect(screen.getByText(withText(/Beau temps \(BT\) jouée sur Rosemont \(ROS\)/))).toBeInTheDocument()

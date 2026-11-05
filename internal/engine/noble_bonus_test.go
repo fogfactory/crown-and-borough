@@ -178,10 +178,9 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 	})
 }
 
-// TestResolveFamishedNobleCommandHasZeroForce mirrors #208's F2 redesign:
-// famine now resolves at the end of the turn, so it only weakens combat the
-// turn after an army's demand first goes unmet (see
-// TestResolveFamineCombatEffects), never the same turn.
+// TestResolveFamishedNobleCommandHasZeroForce: the turn after its demand
+// first goes unmet, a famished army defends at its capped strength and gets no
+// noble bonus (see TestResolveFamineCombatEffects).
 func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
@@ -202,6 +201,7 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 
 	state2 := cloneGameState(turn1.State)
 	addNoble(state2, "N1", "ONE", "P1", "AAA")
+	addNoble(state2, "N2", "TWO", "P2", "BBB")
 	state2.Armies = append([]models.Army(nil), state2.Armies...)
 	state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
 	territoryState := state2.TerritoryStates["BBB"]
@@ -209,8 +209,9 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	territoryState.Army = &armyID
 	state2.TerritoryStates["BBB"] = territoryState
 	state2.NextArmyID = nextArmyID(state2.Armies)
-	addChain(t, state2, "A1", "N1", models.Order{
-		Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
+	addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+	addChain(t, state2, "A2", "N2", models.Order{
+		Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"},
 	})
 	validateTestState(t, state2)
 
@@ -218,7 +219,7 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("turn 2 Resolve: %v", err)
 	}
-	contender := combatContenderForNobleBonus(t, turn2.Events, "BBB", "A1")
+	contender := combatContenderForNobleBonus(t, turn2.Events, "AAA", "A1")
 	if contender.Force != 0 || contender.NobleBonus != 0 {
 		t.Errorf("famished contender = %#v, want zero force and zero noble bonus", contender)
 	}

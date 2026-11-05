@@ -1,7 +1,8 @@
 import { TerritoryRef } from '@/components/MapLinks'
+import { INFRASTRUCTURE_LABEL_KEYS } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { richTranslate } from '@/lib/rich-text'
-import type { PlayerId, StateData } from '@/types'
+import type { ArmyRisk, PlayerId, StateData } from '@/types'
 
 interface ProjectedConsumptionSummaryProps {
   state: StateData | null
@@ -47,7 +48,14 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
                 territory: <TerritoryRef id={risk.territoryId} />,
                 size: risk.size,
                 deficit: risk.deficit,
+                supplied: risk.suppliedStrength,
               })}
+              {risk.pillageInfrastructure
+                ? t(risk.savedByPillage ? 'app.armyAtRiskSavedByPillage' : 'app.armyAtRiskPillage', {
+                    infrastructure: t(INFRASTRUCTURE_LABEL_KEYS[risk.pillageInfrastructure]),
+                  })
+                : ''}
+              {riskLossLabel(risk, t)}
             </li>
           ))}
         </ul>
@@ -56,4 +64,11 @@ export function ProjectedConsumptionSummary({ state, playerId }: ProjectedConsum
       )}
     </div>
   )
+}
+
+/** The troops a starving army loses this turn, or its disappearance. */
+function riskLossLabel(risk: ArmyRisk, t: ReturnType<typeof useLanguage>['t']): string {
+  if (risk.expectedLoss === 0) return ''
+  if (risk.suppliedStrength === 0) return t('app.armyAtRiskVanishes')
+  return t('app.armyAtRiskLoss', { count: risk.expectedLoss })
 }

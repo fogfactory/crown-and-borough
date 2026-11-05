@@ -42,12 +42,20 @@ décrite dans [`architecture.md`](architecture.md).
   laisser passer le flux traversant selon la règle ci-dessus.
 - La portée de base est de trois cases ; un dépôt contrôlé, non occupé, ajoute
   deux cases.
-- En déficit, les stocks sont épuisés puis les armées passent en famine selon
-  la distance, la taille et le trigramme territorial.
+- La **valeur ravitaillée** `s` d'une armée est la plus grande taille dont le
+  coût `2^(s - 1)` tient dans les rations qu'elle atteint (`s = 0` si aucune ne
+  l'atteint).
+- En déficit, la production et les stocks des sources du joueur forment une
+  réserve commune, servie dans l'ordre inverse de la famine (distance, taille
+  et trigramme territorial) : une armée prend sa demande entière si la réserve
+  la couvre ; sinon elle passe en famine et ne prend que ce qui nourrit sa
+  valeur `s`, et le reliquat passe aux armées suivantes. Ce qu'aucune armée ne
+  prend reste en stock.
 - Une armée qui termine ainsi le tour en déficit est marquée **affamée**, un
-  statut qui persiste pendant tout le tour suivant : elle combat et se défend
-  à force zéro, même avec un noble commandant, et ne peut émettre de transfert
-  de ressources (elle peut toujours en recevoir). Ce premier tour de déficit
+  statut qui persiste pendant tout le tour suivant : elle se défend à la
+  force `s - 1`, sans bonus de noble ; elle ne peut ni attaquer (ordre
+  invalide), ni soutenir, ni émettre de transfert de ressources (elle peut
+  toujours en recevoir). Ce premier tour de déficit
   ne lui coûte ni pillage de l'infrastructure de sa case, ni perte de troupe,
   ce qui laisse au joueur tout le tour suivant pour la déplacer ou lui envoyer
   des ressources.
@@ -55,8 +63,12 @@ décrite dans [`architecture.md`](architecture.md).
   les mêmes règles : elle redevient valide dès qu'elle atteint une source
   suffisante. Si elle est encore en déficit à ce moment alors qu'elle est déjà
   affamée, elle pille automatiquement une infrastructure située sur sa case ;
-  si le pillage est insuffisant ou impossible, elle perd une troupe, jusqu'à
-  un minimum de 1 troupe, et reste affamée pour le tour d'après.
+  si le pillage est insuffisant ou impossible, elle perd autant de troupes
+  qu'il en faut pour revenir à `s` et n'est plus affamée. Si `s = 0`, elle
+  disparaît ; ses nobles meurent avec elle (personne ne peut les capturer) et sa case garde son contrôleur.
+- La projection affiche pour chaque armée à risque sa valeur ravitaillée, la
+  perte attendue et, pour une armée déjà affamée, l'infrastructure qu'elle
+  pillera et si ce pillage la nourrit.
 
 La projection de ravitaillement affichée au joueur (`/supply`) applique les
 calamités de la saison en cours et les cartes bonus de son brouillon sur les

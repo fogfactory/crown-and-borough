@@ -166,6 +166,8 @@ type ConsumptionReport struct {
 	Warned                bool               `json:"warned,omitempty"`
 	SavedByPillage        bool               `json:"savedByPillage,omitempty"`
 	TroopsLost            int                `json:"troopsLost,omitempty"`
+	SuppliedStrength      int                `json:"suppliedStrength,omitempty"`
+	Destroyed             bool               `json:"destroyed,omitempty"`
 	PillageInfrastructure models.InfraType   `json:"pillageInfrastructure,omitempty"`
 	ResourceCredit        int                `json:"resourceCredit,omitempty"`
 	CreditTerritory       models.TerritoryID `json:"creditTerritory,omitempty"`
@@ -530,6 +532,8 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Warned:                event.Warned,
 				SavedByPillage:        event.SavedByPillage,
 				TroopsLost:            event.TroopsLost,
+				SuppliedStrength:      event.SuppliedStrength,
+				Destroyed:             event.Destroyed,
 				PillageInfrastructure: event.InfrastructureType,
 				ResourceCredit:        event.ResourceCredit,
 				CreditTerritory:       event.CreditTerritoryID,

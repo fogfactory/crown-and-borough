@@ -166,10 +166,12 @@ export interface Army {
   chain: Chain | null
   /**
    * Set by last turn's ravitaillement when this army's demand went unmet: it
-   * fights at strength 0 this turn, until ravitaillement re-evaluates it at
-   * this same turn's own end (issue #208).
+   * fights at no more than starvingStrength this turn, until ravitaillement
+   * re-evaluates it at this same turn's own end (issue #208).
    */
   starving?: boolean
+  /** Force ceiling of a starving army (absent when zero). */
+  starvingStrength?: number
 }
 
 export interface Order {
@@ -465,13 +467,21 @@ export interface Player {
 /**
  * One army the famine risk forecast flags as starving, addressed by its
  * territory like the rest of the app addresses armies. Deficit is the
- * ration shortfall that goes unmet, not a troop count (an actual famine
- * costs 1 troop, regardless of the deficit's size).
+ * ration shortfall that goes unmet, not a troop count. suppliedStrength is
+ * the size the army's rations can feed; expectedLoss is what it sheds this
+ * turn when it was already starving (all of its troops when suppliedStrength
+ * is zero).
  */
 export interface ArmyRisk {
   territoryId: string
   size: number
   deficit: number
+  suppliedStrength: number
+  expectedLoss: number
+  /** Infrastructure an already starving army pillages on its territory. */
+  pillageInfrastructure?: InfraType
+  /** The pillage covers the demand and spares every troop. */
+  savedByPillage?: boolean
 }
 
 export interface ScoreBreakdown {
@@ -902,6 +912,10 @@ export interface ConsumptionReport {
   warned?: boolean
   savedByPillage?: boolean
   troopsLost?: number
+  /** Size the rations the army reached could feed. */
+  suppliedStrength?: number
+  /** The army reached no ration and disappeared. */
+  destroyed?: boolean
   pillageInfrastructure?: InfraType
   resourceCredit?: number
   creditTerritory?: string
@@ -1226,7 +1240,7 @@ export interface DeceasedNoble {
   name: string
   owner: PlayerId
   sex?: 'male' | 'female'
-  cause: 'natural' | 'execution' | 'assassination' | 'martyr'
+  cause: 'natural' | 'execution' | 'assassination' | 'martyr' | 'famine'
   turn: number
   /** Code of the noble who commissioned this assassination, for the viewers who know it. */
   commissioner?: string

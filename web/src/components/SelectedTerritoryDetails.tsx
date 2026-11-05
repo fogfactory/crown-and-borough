@@ -8,6 +8,7 @@ import { formatOrderLabel } from '@/lib/order-label'
 import { formatCardLabel } from '@/lib/card-hand'
 import { CodeTag, NobleRef, TerritoryRef } from '@/components/MapLinks'
 import { resolveArmsByOwner } from '@/lib/heraldry'
+import { INFRASTRUCTURE_LABEL_KEYS } from '@/components/MapMarkers'
 import { NoblePawnIcon } from '@/components/NobleHolder'
 import { richTranslate } from '@/lib/rich-text'
 import { religiousTitlesByHolder } from '@/lib/lineage'
@@ -35,15 +36,6 @@ const TERRAIN_LABEL_KEYS: Record<MapData['territories'][number]['terrain'], Mess
     swamp: 'terrain.swamp',
   }
 
-const INFRASTRUCTURE_LABEL_KEYS: Record<
-  StateData['territories'][number]['infrastructures'][number]['type'],
-  MessageKey
-> = {
-  mill: 'infrastructure.mill',
-  supply_depot: 'infrastructure.supply_depot',
-  castle: 'infrastructure.castle',
-  village: 'infrastructure.village',
-}
 
 const FIEF_TITLE_KEYS: Record<
   NonNullable<StateData['fiefs']>[number]['title'],
@@ -312,7 +304,7 @@ export function SelectedTerritoryDetails({
               </span>
               {army.starving && (
                 <span className="basis-full text-xs font-semibold text-vermilion-700">
-                  {t('app.armyStarving')}
+                  {t('app.armyStarving', { strength: army.starvingStrength ?? 0 })}
                 </span>
               )}
             </dd>

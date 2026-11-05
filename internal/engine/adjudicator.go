@@ -575,13 +575,14 @@ func (adj *adjudicator) holdStrengthAgainst(defender models.Army, attackerID mod
 func (adj *adjudicator) defenseStrength(defender models.Army) (int, int) {
 	ctx := adj.ctx
 	base := ctx.fortificationBonus(defender.TerritoryID)
-	if !ctx.famished[defender.ID] {
-		size := defender.Size
-		if outcome := adj.peacefulOutcome(defender.ID, adj.peaceful[defender.ID] != nil && adj.dislodged(defender.ID)); outcome.hasResidual {
-			size = outcome.residual
-		}
-		base += size
+	size := defender.Size
+	if outcome := adj.peacefulOutcome(defender.ID, adj.peaceful[defender.ID] != nil && adj.dislodged(defender.ID)); outcome.hasResidual {
+		size = outcome.residual
 	}
+	if ctx.famished[defender.ID] {
+		size = min(size, defender.StarvingStrength)
+	}
+	base += size
 	base += nobleCommandBonus(ctx, defender)
 	supported := 0
 	for _, supportID := range sortedArmyMap(ctx.supports) {

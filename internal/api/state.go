@@ -122,6 +122,11 @@ type ArmyRiskView struct {
 	TerritoryID models.TerritoryID `json:"territoryId"`
 	Size        int                `json:"size"`
 	Deficit     int                `json:"deficit"`
+	// SuppliedStrength and ExpectedLoss mirror engine.ArmyFamineRisk.
+	SuppliedStrength      int              `json:"suppliedStrength"`
+	ExpectedLoss          int              `json:"expectedLoss"`
+	PillageInfrastructure models.InfraType `json:"pillageInfrastructure,omitempty"`
+	SavedByPillage        bool             `json:"savedByPillage,omitempty"`
 }
 
 // TerritoryView is the live state displayed on one map territory.
@@ -149,13 +154,15 @@ type TerritoryView struct {
 // The current v1 endpoint exposes every chain; server-side player filtering is
 // tracked as a later online feature. Starving mirrors models.Army.Starving:
 // set by last turn's ravitaillement when this army's demand went unmet, it
-// fights at strength 0 this turn until ravitaillement re-evaluates it at the
-// turn's own end (#208).
+// fights at no more than StarvingStrength this turn until ravitaillement
+// re-evaluates it at the turn's own end (#208).
 type ArmyView struct {
 	Owner    models.PlayerID `json:"owner"`
 	Size     int             `json:"size"`
 	Chain    *ChainView      `json:"chain"`
 	Starving bool            `json:"starving,omitempty"`
+	// StarvingStrength is the force ceiling of a starving army.
+	StarvingStrength int `json:"starvingStrength,omitempty"`
 }
 
 // ChainView is the public, code-addressed representation of an active chain.
@@ -472,6 +479,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 					Owner:    army.OwnerID,
 					Size:     army.Size,
 					Starving: army.Starving,
+
+					StarvingStrength: army.StarvingStrength,
 				}
 				if chain, exists := chainsByArmyID[army.ID]; exists {
 					armyView.Chain = projectChain(chain, nobleCodesByID)
@@ -504,6 +513,11 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 					TerritoryID: risk.TerritoryID,
 					Size:        risk.Size,
 					Deficit:     risk.Deficit,
+
+					SuppliedStrength:      risk.SuppliedStrength,
+					ExpectedLoss:          risk.ExpectedLoss,
+					PillageInfrastructure: risk.PillageInfrastructure,
+					SavedByPillage:        risk.SavedByPillage,
 				})
 			}
 		}

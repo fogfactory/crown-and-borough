@@ -222,6 +222,10 @@ type Event struct {
 	RationsLost        int                        `json:"rationsLost,omitempty"`
 	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
 	Warned             bool                       `json:"warned,omitempty"`
+	// SuppliedStrength is the size the rations an army reaches can feed.
+	SuppliedStrength int `json:"suppliedStrength,omitempty"`
+	// Destroyed marks an army that reached no ration and disappeared.
+	Destroyed bool `json:"destroyed,omitempty"`
 
 	TerrainRations       int                        `json:"terrainRations,omitempty"`
 	BonusRations         int                        `json:"bonusRations,omitempty"`

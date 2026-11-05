@@ -592,22 +592,40 @@ elle-même une source ni un dépôt utilisable, ni pour le contrôleur ni pour
 l'occupant. La portée de base est de 3 cases ; chaque dépôt de vivres
 contrôlé, non occupé, rencontré sur le trajet ajoute 2 cases.
 
-En cas de déficit :
+La **valeur ravitaillée** `s` d'une armée est la plus grande taille dont le coût
+`2^(s - 1)` tient dans les rations qu'elle atteint (`s = 0` si elle n'en
+atteint aucune).
 
-1. les stocks des châteaux, villages et caches contrôlés sont épuisés du plus
-   petit au plus grand, avec le trigramme territorial comme départage ;
-2. les armées restantes passent en famine, en commençant par les plus éloignées
-   de leur source, puis les plus grosses, puis le trigramme décroissant.
+En cas de déficit, la production et les stocks des sources d'un joueur forment
+une réserve commune, servie armée par armée dans l'ordre inverse de la famine :
+les armées passent en famine en commençant par les plus éloignées de leur
+source, puis les plus grosses, puis le trigramme décroissant, et sont donc
+servies en commençant par les plus proches, puis les plus petites.
 
-Une armée qui termine le tour en famine est marquée **affamée**, un statut qui
-persiste jusqu'à la résolution de ravitaillement suivante. Pendant tout le
-tour suivant, une armée affamée combat et se défend à force 0, même si elle
-est commandée par un noble : le bonus de noble ne s'applique alors pas ; elle
-ne peut pas émettre de transfert de ressources (`T`, section 6). Ce premier
-tour de famine ne lui inflige aucune autre conséquence : ni pillage de
-l'infrastructure de sa case, ni perte de troupe, ce qui laisse au joueur tout
-le tour suivant pour réagir en déplaçant l'armée ou en lui envoyant des
-ressources par transfert.
+1. une armée dont la demande tient dans ce qui reste de la réserve la prend en
+   entier ;
+2. sinon, elle passe en famine et ne prend que les rations qui nourrissent sa
+   valeur ravitaillée `s`, calculée sur ce qui reste ; le reliquat passe aux
+   armées servies après elle ;
+3. ce qu'aucune armée ne prend reste en stock ; les stocks des châteaux,
+   villages et caches contrôlés sont entamés du plus petit au plus grand, avec
+   le trigramme territorial comme départage.
+
+Exemple : une réserve de 7 rations sert une armée de 4 troupes sur la source
+(8 rations) puis une armée de 2 troupes plus éloignée (2 rations). La première
+passe en famine avec `s = 3` et prend 4 rations ; la seconde prend ses 2
+rations ; la dernière ration reste en stock.
+
+Une armée dont la demande n'est pas couverte à la fin du tour
+est marquée **affamée**, un statut qui persiste jusqu'à la résolution de
+ravitaillement suivante. Pendant tout le tour suivant, une armée affamée
+se défend à la force `s - 1` (au plus sa taille), même si elle est commandée
+par un noble : le bonus de noble ne s'applique alors pas. Elle ne peut ni
+attaquer (son ordre d'attaque est invalide), ni soutenir, ni émettre de
+transfert de ressources (`T`, section 6). Ce premier tour
+de famine ne lui inflige aucune perte de troupe ni pillage de l'infrastructure
+de sa case, ce qui laisse au joueur tout le tour suivant pour réagir en
+déplaçant l'armée ou en lui envoyant des ressources par transfert.
 
 À la résolution de ravitaillement du tour suivant, son statut est recalculé
 exactement comme celui de n'importe quelle armée : si elle a atteint une
@@ -615,8 +633,10 @@ source suffisante entre-temps, elle redevient valide dès ce tour. Si elle est
 encore en déficit alors qu'elle est déjà affamée, elle pille automatiquement
 l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
 diminué de sa demande résiduelle, peut la sortir de famine. Si le pillage est
-insuffisant ou impossible, elle perd une troupe, sans jamais descendre sous 1
-troupe, et reste affamée pour le tour d'après.
+insuffisant ou impossible, elle perd autant de troupes qu'il en faut pour
+revenir à sa valeur ravitaillée `s`, et n'est alors plus affamée. Si `s = 0`,
+elle disparaît : personne ne pouvant capturer ses nobles, ils meurent avec
+elle, et sa case garde son contrôleur.
 
 ## 6. Ordres et chaînes de commandement
 
