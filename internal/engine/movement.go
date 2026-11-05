@@ -1425,9 +1425,10 @@ func (ctx *resolutionContext) sortTerritoriesBySupplyAndLex(owner models.PlayerI
 }
 
 // sortFriendlyHosts orders the friendly armies a retreat can merge into:
-// hosts that are not starving come before starving ones (a merge into a
-// starving host only adds troops the supply cannot feed), then the smallest
-// first, then the closest to a controlled settlement, then by trigram.
+// hosts that are not starving come before starving ones, then the smallest
+// first, then the closest to a controlled settlement, then by trigram. The
+// starving status is the one carried into this turn (ctx.famished): this
+// turn's ravitaillement only resolves after retreats.
 func (ctx *resolutionContext) sortFriendlyHosts(owner models.PlayerID, hostIDs []models.ArmyID) {
 	sort.Slice(hostIDs, func(i, j int) bool {
 		if starvedI, starvedJ := ctx.famished[hostIDs[i]], ctx.famished[hostIDs[j]]; starvedI != starvedJ {
