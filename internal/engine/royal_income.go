@@ -33,7 +33,7 @@ func creditRoyalTaxSupplements(ctx *resolutionContext) {
 			if !controlledBy(ctx.controllerNow, fief.OwnerID, territoryID) {
 				continue
 			}
-			parts := territoryIncomeParts(ctx, territoryID, ctx.hasInfrastructure(territoryID, models.InfraTypeVillage))
+			parts := territoryIncomeParts(ctx, territoryID)
 			amount += parts.base + parts.bonus
 		}
 		creditRoyalFlow(ctx, playerID, amount, incomeSourceRoyalTax, fief.CapitalTerritoryID)

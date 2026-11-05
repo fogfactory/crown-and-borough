@@ -182,9 +182,10 @@ type InquiryRecord struct {
 	Noble  NobleID  `json:"noble"`
 }
 
-// Infrastructure is a buildable structure. Level is >= 1: a mill yields +1 R
-// per level and a castle honours its defensive bonus regardless of its level
-// (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there
+// Infrastructure is a buildable structure. Level is >= 1, except for a
+// village, whose level runs from 0 (a ruin that produces nothing) upwards: a
+// mill yields +1 R per level, a village yields village_income per level and a
+// castle honours its defensive bonus regardless of its level (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there
 // is no owner, whoever controls the territory benefits from it. A neutral
 // village is simply a village infrastructure on an uncontrolled territory.
 // Fortified only ever applies to a village (GDD §8, #193): it keeps its
@@ -195,7 +196,7 @@ type InquiryRecord struct {
 type Infrastructure struct {
 	ID          InfraID     `json:"id"`
 	Type        InfraType   `json:"type"`
-	Level       int         `json:"level"` // >= 1; mill yields +1 R per level (GDD §7)
+	Level       int         `json:"level"` // >= 1 (>= 0 for a village); production is per level (GDD §7)
 	TerritoryID TerritoryID `json:"territory"`
 	Fortified   bool        `json:"fortified,omitempty"`
 }

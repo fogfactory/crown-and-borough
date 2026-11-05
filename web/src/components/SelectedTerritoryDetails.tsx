@@ -1,3 +1,4 @@
+import { isRuinedVillage } from '@/lib/infrastructure'
 import { Popover } from 'radix-ui'
 import { IconCrown, IconX } from '@tabler/icons-react'
 
@@ -496,7 +497,9 @@ export function SelectedTerritoryDetails({
               {selectedState.infrastructures
                 .map(
                   (infrastructure) =>
-                    `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} ${infrastructure.level}`,
+                    isRuinedVillage(infrastructure)
+                      ? `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('infrastructure.ruined')}`
+                      : `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} ${infrastructure.level}`,
                 )
                 .join(' · ')}
             </dd>

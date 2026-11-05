@@ -500,7 +500,11 @@ captivité d'un noble y est écrite en texte, avec ses titres.
   sont remplies de la teinture du joueur qui contrôle la case, ou de
   `paper-50` si la case est neutre ; cerne `ink-900`, halo `paper-map`.
 - La couronne de la capitale est en `brass-700` ; le niveau reste un chiffre
-  en haut à droite, en Alegreya 700.
+  en haut à droite, en Alegreya 700. Il est omis au niveau 1
+  pour un moulin ; un village l'affiche dès le niveau 1. Un village en ruine
+  (niveau 0) n'affiche pas de chiffre : sa silhouette est amputée de ses toits
+  par une cassure irrégulière, avec des gravats à son pied, et sa description indique « En ruine ». La légende de
+  la carte distingue le village en ruine du village intact.
 
 **Précision.** Le stock d'un château ou d'un village s'affiche « 10 R » à côté
 du bâtiment, et la légende rappelle que R désigne les ressources ; aucun

@@ -1,7 +1,7 @@
 import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
 import { ArmyIcon, ControlShieldIcon } from '@/components/ArmsIcons'
 import { NoblePawn } from '@/components/MapHeraldry'
-import { GameIconGlyph } from '@/components/MapMarkers'
+import { GameIconGlyph, GlyphPath } from '@/components/MapMarkers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { GAME_ICON_GLYPHS } from '@/lib/game-icon-glyphs'
@@ -46,19 +46,27 @@ const LEGEND_MARKER_PATHS: Record<'castle' | 'village', string> = {
 }
 
 /** Settlement glyph with owner fill, halo and casing — mirrors the map. */
-function LegendSettlement({ type }: { type: 'castle' | 'village' }) {
+function LegendSettlement({
+  type,
+  ruined = false,
+}: {
+  type: 'castle' | 'village'
+  ruined?: boolean
+}) {
   return (
     <svg className="size-3.5 shrink-0" viewBox="0 0 512 512" aria-hidden="true">
-      <path
+      <GlyphPath
         d={LEGEND_MARKER_PATHS[type]}
+        ruined={ruined}
         fill={MAP_PARCHMENT}
         stroke={MAP_PARCHMENT}
         strokeWidth={20}
         opacity={0.9}
       />
-      <path d={LEGEND_MARKER_PATHS[type]} fill={LEGEND_SAMPLE_OWNER} />
-      <path
+      <GlyphPath d={LEGEND_MARKER_PATHS[type]} ruined={ruined} fill={LEGEND_SAMPLE_OWNER} />
+      <GlyphPath
         d={LEGEND_MARKER_PATHS[type]}
+        ruined={ruined}
         fill="none"
         stroke={LEGEND_CASING}
         strokeWidth={8}
@@ -355,6 +363,10 @@ export function MapLegend({
           <div className="flex items-center gap-2">
             <LegendSettlement type="village" />
             <span>{t('legend.village')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LegendSettlement type="village" ruined />
+            <span>{t('legend.villageRuin')}</span>
           </div>
           <div className="flex items-center gap-2">
             <LegendSettlement type="castle" />

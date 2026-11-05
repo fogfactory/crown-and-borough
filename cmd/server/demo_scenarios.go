@@ -94,6 +94,10 @@ var demoScenarios = map[string]struct {
 		description: "autumn, an uncontrolled level-2 mill with 6 R of accumulated stock stands next to P1's capital, and a P1 army (with its noble) waits one step away: A <army> <mill> takes it, the army eats the stock, the mill feeds the capital, and the next winter pours the mill's conserved stock into the capital",
 		apply:       forgeMills,
 	},
+	"villages": {
+		description: "spring; the map's villages cycle through levels 0 (ruin), 1, 2 and 3",
+		apply:       forgeVillages,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -785,6 +789,25 @@ func forgeMills(state *models.GameState) error {
 	state.TerritoryStates[armyTerritoryID] = armyState
 	state.Nobles[p1[0]].LocationID = armyTerritoryID
 	fmt.Printf("demo mills: uncontrolled mill on %s (6 R) next to P1's capital %s; P1 army on %s\n", millID, capitalID, armyTerritoryID)
+	return nil
+}
+
+// forgeVillages gives the map's villages every level from 0 to 3, in state
+// order, to check how levels and ruins are drawn and described.
+func forgeVillages(state *models.GameState) error {
+	state.Season = models.SeasonSpring
+	next := 0
+	for index := range state.Infrastructures {
+		if state.Infrastructures[index].Type != models.InfraTypeVillage {
+			continue
+		}
+		state.Infrastructures[index].Level = next % 4
+		fmt.Printf("demo villages: village on %s at level %d\n", state.Infrastructures[index].TerritoryID, next%4)
+		next++
+	}
+	if next == 0 {
+		return fmt.Errorf("the base game has no village")
+	}
 	return nil
 }
 

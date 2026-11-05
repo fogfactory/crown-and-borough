@@ -107,6 +107,15 @@ func (i InfraType) IsValid() bool {
 	return false
 }
 
+// MinLevel is the lowest level an infrastructure of this type can have: a
+// village at level 0 is a ruin, every other type starts at level 1.
+func (i InfraType) MinLevel() int {
+	if i == InfraTypeVillage {
+		return 0
+	}
+	return 1
+}
+
 // NobleStatus describes whether a noble is free, held as a hostage, or locked
 // in a dungeon. Free and hostage nobles can emit a new order chain; a dungeon
 // noble cannot.

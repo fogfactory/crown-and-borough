@@ -192,7 +192,7 @@ func produceNeutralStocks(ctx *resolutionContext) {
 		var parts sourceProductionParts
 		switch {
 		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
-			parts = harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
+			parts = harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
 		case ctx.hasInfrastructure(territoryID, models.InfraTypeMill):
 			parts = millSelfProductionBreakdown(ctx, territoryID)
 		default:

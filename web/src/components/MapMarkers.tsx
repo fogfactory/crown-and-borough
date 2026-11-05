@@ -1,3 +1,4 @@
+import type { SVGProps } from 'react'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
@@ -17,6 +18,7 @@ import {
   SELECTION_HALO,
   SELECTION_STROKE,
 } from '@/lib/map-palette'
+import { isRuinedVillage, showsLevelBadge } from '@/lib/infrastructure'
 
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
@@ -57,6 +59,39 @@ const FORTIFICATION_WALL_GLYPH =
  * full width as a low course, and dy pushes the squashed copy's bottom back
  * down to the glyph's own bottom edge. */
 const FORTIFICATION_WALL_TRANSFORM = `translate(0 ${512 - 512 / 3}) scale(1 ${1 / 3})`
+
+/**
+ * Ruined village (level 0): the village glyph with its roofs torn off along
+ * a jagged break, and a few rubble stones at its foot. Both shapes live in
+ * the glyph's 512-unit space and take the same fill, halo or casing as the
+ * intact glyph, so the village reads as the same building, destroyed.
+ */
+const RUIN_CUT_PATH =
+  'M0 512V268L60 232 105 280 165 214 225 262 285 206 345 268 410 226 470 270 512 244V512z'
+const RUIN_RUBBLE_PATH =
+  'M70 500l22-26 28 8 10 22zM250 505l18-20 30 6 8 14zM380 500l24-24 26 10 6 14zM440 506l16-14 22 8 4 6z'
+const RUIN_CLIP_ID = 'village-ruin-clip'
+
+/** One layer (halo, fill or casing) of a marker glyph: the plain path, or,
+ * for a ruined village, the cut glyph plus its rubble. */
+export function GlyphPath({
+  d,
+  ruined,
+  ...pathProps
+}: { d: string; ruined: boolean } & SVGProps<SVGPathElement>) {
+  if (!ruined) return <path d={d} {...pathProps} />
+  return (
+    <g data-ruined-marker="true">
+      <clipPath id={RUIN_CLIP_ID}>
+        <path d={RUIN_CUT_PATH} />
+      </clipPath>
+      <g clipPath={`url(#${RUIN_CLIP_ID})`}>
+        <path d={d} {...pathProps} />
+      </g>
+      <path d={RUIN_RUBBLE_PATH} {...pathProps} />
+    </g>
+  )
+}
 
 const MARKER_CASING_COLOR = MAP_INK
 
@@ -106,7 +141,11 @@ export function InfrastructureMarker({
 }: InfrastructureMarkerProps) {
   const { t } = useLanguage()
   const fortified = infrastructure.type === 'village' && infrastructure.fortified === true
-  const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${t('app.level', { level: infrastructure.level })}${fortified ? ` · ${t('infrastructure.fortified')}` : ''}${isCapital ? ` · ${t('app.capital')}` : ''}`
+  const ruined = isRuinedVillage(infrastructure)
+  const levelLabel = ruined
+    ? t('infrastructure.ruined')
+    : t('app.level', { level: infrastructure.level })
+  const label = `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} · ${levelLabel}${fortified ? ` · ${t('infrastructure.fortified')}` : ''}${isCapital ? ` · ${t('app.capital')}` : ''}`
   const glyph = MARKER_GLYPHS[infrastructure.type]
   const fill = ownerColor ?? NEUTRAL_MARKER_FILL
 
@@ -130,8 +169,14 @@ export function InfrastructureMarker({
             strokeWidth="2"
           />
           <g transform="translate(-13 -13) scale(0.05078125)">
-            <path d={glyph} fill={MAP_PARCHMENT} />
-            <path d={glyph} fill="none" stroke={INTENT_OUTLINE_COLOR} strokeWidth={10} />
+            <GlyphPath d={glyph} ruined={ruined} fill={MAP_PARCHMENT} />
+            <GlyphPath
+              d={glyph}
+              ruined={ruined}
+              fill="none"
+              stroke={INTENT_OUTLINE_COLOR}
+              strokeWidth={10}
+            />
             {fortified && (
               <g transform={FORTIFICATION_WALL_TRANSFORM}>
                 <path d={FORTIFICATION_WALL_GLYPH} fill={MAP_PARCHMENT} />
@@ -148,10 +193,22 @@ export function InfrastructureMarker({
       ) : (
         <g transform="translate(-13 -13) scale(0.05078125)" data-fortified-marker={fortified || undefined}>
           {/* Paper halo keeps the glyph readable over the terrain symbols. */}
-          <path d={glyph} fill={MAP_HALO} stroke={MAP_HALO} strokeWidth={28} />
+          <GlyphPath
+            d={glyph}
+            ruined={ruined}
+            fill={MAP_HALO}
+            stroke={MAP_HALO}
+            strokeWidth={28}
+          />
           {/* Owner tincture fills the building, ink casing defines its shape. */}
-          <path d={glyph} fill={fill} />
-          <path d={glyph} fill="none" stroke={MARKER_CASING_COLOR} strokeWidth={8} />
+          <GlyphPath d={glyph} ruined={ruined} fill={fill} />
+          <GlyphPath
+            d={glyph}
+            ruined={ruined}
+            fill="none"
+            stroke={MARKER_CASING_COLOR}
+            strokeWidth={8}
+          />
           {fortified && (
             /* Fortification wall sits in front of the village glyph, along
                its bottom edge, same halo/fill/casing treatment, light grey
@@ -188,7 +245,7 @@ export function InfrastructureMarker({
           </g>
         </g>
       )}
-      {infrastructure.level > 1 && (
+      {showsLevelBadge(infrastructure) && (
         <text
           x="14"
           y="-9"

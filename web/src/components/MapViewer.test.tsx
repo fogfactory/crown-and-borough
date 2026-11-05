@@ -827,6 +827,33 @@ describe('MapViewer territorial overlays', () => {
     )
   })
 
+  it('shows the village level, and a ruin marker at level 0', () => {
+    const villageState = (level: number): StateData => ({
+      ...state,
+      territories: [
+        {
+          id: 'ROS',
+          owner: 'P1',
+          resources: 0,
+          army: null,
+          infrastructures: [{ type: 'village', level }],
+        },
+      ],
+    })
+    const badge = (level: number) =>
+      renderMap(map, villageState(level)).svg.querySelector('[data-infrastructure-level]')
+
+    expect(badge(0)).toBeNull()
+    expect(badge(1)?.textContent).toBe('1')
+    expect(badge(3)?.textContent).toBe('3')
+    expect(
+      renderMap(map, villageState(0)).svg.querySelector('[data-ruined-marker]'),
+    ).not.toBeNull()
+    expect(
+      renderMap(map, villageState(1)).svg.querySelector('[data-ruined-marker]'),
+    ).toBeNull()
+  })
+
   it('marks the capital castle with a crown', () => {
     const capitalState: StateData = {
       ...state,

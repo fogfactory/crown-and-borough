@@ -623,7 +623,7 @@ il rejoint la capitale par le château ou le village adjacent (section 8).
 
 À chaque saison d'action (jamais en hiver), chaque territoire que tu
 contrôles rapporte {{territory_income}} R, plus {{village_income}} R
-supplémentaire s'il porte un village. Ce revenu est crédité **en fin de
+supplémentaire par niveau du village qu'il porte. Ce revenu est crédité **en fin de
 tour**, avec le reste du ravitaillement, sur le contrôle territorial définitif
 du tour : un territoire capturé pendant le tour verse son revenu à son nouveau
 contrôleur, pas à celui du début de tour. Il ne circule pas par le réseau de
@@ -641,8 +641,13 @@ proche, sinon il est perdu — des territoires distincts peuvent donc alimenter
 des destinations différentes le même tour tant qu'aucune capitale n'existe.
 Une mauvaise récolte supprime ce revenu dans la région du territoire qui le
 produit ; une Bonne récolte le double, comme pour les rations de terrain. Un
-village **neutre** continue de produire {{village_income}} R par tour dans
-son propre stock, récupéré à sa capture.
+village **neutre** continue de produire {{village_income}} R par niveau et par
+tour dans son propre stock, récupéré à sa capture.
+
+Un village a un niveau de 0 à {{village_max_level}} ; ceux de départ sont de
+niveau 1. Un village de niveau 0 est en ruine : il ne produit rien, ni revenu
+supplémentaire une fois contrôlé, ni stock tant qu'il est neutre. Son stock
+reste plafonné comme celui de tout village, quel que soit son niveau.
 
 ### Stocks et famine
 
@@ -697,7 +702,7 @@ conditions de construction sont détaillés section 8.
 | Moulin | `N` R stockable par niveau, versés à une seule infrastructure adjacente du même contrôleur (château, sinon village, sinon lui-même) ; sans contrôleur, sur sa propre case |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement tant qu'il est ancré ou occupé ; inerte sinon |
 | Château | +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte ; ancre de ravitaillement ; verse le revenu territorial (section 7) ; devient une cité (+{{city_defense_bonus}}, sans cumul) sur la capitale d'un fief (section 8) |
-| Village | Ancre après capture, verse le revenu territorial une fois contrôlé (produit {{village_income}} R par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — comme le moulin, il ne devient jamais inerte) |
+| Village | Ancre après capture, verse le revenu territorial une fois contrôlé, majoré de {{village_income}} R par niveau (produit {{village_income}} R par niveau et par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — comme le moulin, il ne devient jamais inerte) |
 | Village fortifié | Identique au village (stock, production, revenu), et gagne en plus +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte (section 8) |
 
 ---

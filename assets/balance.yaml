@@ -11,7 +11,10 @@
 
 # Action-turn production and supply.
 territory_income: 1
+# R per village level; a village runs from level 0 (a ruin, produces
+# nothing) to village_max_level.
 village_income: 1
+village_max_level: 3
 supply_range: 3
 depot_range_bonus: 2
 cost_base: 2
