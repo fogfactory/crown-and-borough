@@ -909,13 +909,10 @@ function revoltOptions(
       }
     }
   }
-  return [...targets]
-    .sort()
-    .map((code) =>
-      starvingArmyAt(state, code)
-        ? { ...codeOption(code), note: t('orders.hint.revoltArmyShort') }
-        : codeOption(code),
-    )
+  return [...targets].sort().map((code) => ({
+    ...codeOption(code),
+    note: starvingArmyAt(state, code) ? t('orders.hint.revoltArmyShort') : undefined,
+  }))
 }
 
 /**
@@ -927,12 +924,15 @@ function starvingArmyAt(state: StateData, code: string) {
   return army?.starving && army.owner !== NEUTRAL_PLAYER_ID ? army : undefined
 }
 
-/** The target field of a card played with `P KIND TARGET`, with its hint and order comment. */
+/**
+ * The target field of a card played with `P KIND TARGET`, with its hint and
+ * order comment when they differ from the defaults (none, playSpecial).
+ */
 interface SpecialTargetField {
   label: string
   options: OrderFieldOption[]
-  hint: (target: string) => string | null
-  commentKey: (target: string) => MessageKey
+  hint?: (target: string) => string | null
+  commentKey?: (target: string) => MessageKey
 }
 
 function specialTargetField(
@@ -942,7 +942,6 @@ function specialTargetField(
   t: Translate,
   draft: string,
 ): SpecialTargetField {
-  const playComment = (): MessageKey => 'orders.comment.playSpecial'
   switch (kind) {
     case 'revolt':
       return {
@@ -959,8 +958,6 @@ function specialTargetField(
       return {
         label: t('orders.field.fief'),
         options: (state.fiefs ?? []).map((fief) => codeOption(fief.capital)),
-        hint: () => null,
-        commentKey: playComment,
       }
     default: {
       // Regions where the card cancels an announced calamity come first.
@@ -976,7 +973,6 @@ function specialTargetField(
           ...options.filter((option) => !option.label.includes(t('orders.hint.cancelsShort'))),
         ],
         hint: (seed) => cancelHint(kind, state, t, seed),
-        commentKey: playComment,
       }
     }
   }
@@ -1094,13 +1090,16 @@ export function SpecialCardOrders({
             label={t('orders.playSpecialCard', { card })}
             title={t('orders.playSpecialCard', { card })}
             disabled={used(kind, 'P') >= copies(kind)}
-            hint={(values) => target.hint(values.target)}
+            hint={(values) => target.hint?.(values.target) ?? null}
             fields={[{ key: 'target', label: target.label, options: target.options }]}
             buildOrder={(values) =>
               values.target
                 ? {
                     line: `P ${shortCode(kind)} ${values.target}`,
-                    comment: t(target.commentKey(values.target), { card, target: values.target }),
+                    comment: t(target.commentKey?.(values.target) ?? 'orders.comment.playSpecial', {
+                      card,
+                      target: values.target,
+                    }),
                   }
                 : null
             }

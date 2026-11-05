@@ -28,9 +28,6 @@ func (ctx *resolutionContext) starvingArmyAt(territoryID models.TerritoryID) *mo
 func resolveArmyRevolts(ctx *resolutionContext) {
 	for _, armyID := range sortedArmyMap(ctx.armyRevoltRolls) {
 		army := ctx.armiesByID[armyID]
-		if army == nil {
-			continue
-		}
 		total := ctx.armyRevoltRolls[armyID]
 		event := Event{
 			Type: EventTypeArmyRevolt, Phase: phaseForSeason(ctx.state.Season),
@@ -56,7 +53,6 @@ func (ctx *resolutionContext) neutralizeArmy(armyID models.ArmyID) {
 	ownerID, territoryID := army.OwnerID, army.TerritoryID
 	if army.ChainID != nil {
 		ctx.removeChain(*army.ChainID)
-		army = ctx.armiesByID[armyID]
 	}
 	army.OwnerID = models.NeutralPlayerID
 	army.Starving = false

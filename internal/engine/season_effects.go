@@ -409,9 +409,9 @@ func (ctx *resolutionContext) isRoyalTax(playerID models.PlayerID, order models.
 // applyRevolt consumes one revolt card on the target territory. On a starving
 // army it only adds its roll to the ones resolveArmyRevolts sums. Otherwise it
 // rolls for reinforcements and adds them to the common neutral army building
-// there, or defers the fight to the post-movement revolt pass while the territory is
-// held by a player army. A revolt whose famine has been canceled in the
-// meantime, and whose territory's fief was not taxed this turn or the
+// there, or defers the fight to the post-movement revolt pass while the
+// territory is held by a player army. A revolt whose famine has been canceled
+// in the meantime, and whose territory's fief was not taxed this turn or the
 // previous one either, is annulled with the card (titres.md "Taxe
 // seigneuriale").
 func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID, playerID models.PlayerID) {
