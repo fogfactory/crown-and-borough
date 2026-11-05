@@ -159,7 +159,7 @@ Le bâtard est une dignité permanente, attribuable à tout noble du joueur par
 une carte de dignité (ou par l'annulation papale d'un Claim, voir
 « Claims »). Elle se cumule avec toute autre dignité, quel que soit le sexe,
 l'état civil ou le statut du noble ; elle ne s'attribue qu'une fois au même
-noble (`noble_already_bastard`) et compte comme un titre dans le score.
+noble (`noble_already_bastard`) et ne rapporte aucun point de score.
 
 - **Plafond.** Chaque noble du joueur qui est bâtard relève `noble_limit` de 1
   (deux bâtards : +2), sans jamais dépasser `noble_limit_max`, même si le
