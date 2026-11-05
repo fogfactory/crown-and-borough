@@ -132,7 +132,7 @@ pas une alliance. `D N NNN CCC` joue une carte de dignité sur n'importe quel no
 ou à un adversaire (`noble_already_<dignité>`, `dignity_female_only`, `noble_married` pour une dignité Bloquée, `dignity_region_required`). Un ordre rejeté est
 signalé dans le rapport avec son motif ; toutes les conditions sont
 vérifiées avant de consommer la carte, donc un ordre rejeté ne la consomme
-pas. La dignité de bâtard compte comme un titre dans le score. Une carte
+pas. Une dignité ne rapporte aucun point de score. Une carte
 jouée reste suivie tant que son noble vit ; à la mort de ce noble, sa carte de
 noble sort du jeu et une nouvelle carte de noble du même sexe (prénom encore
 libre, aucune s'il n'en reste pas) rejoint la défausse, tandis qu'une carte de
@@ -921,8 +921,9 @@ joueurs.
 ### Score de titres
 
 Le score d'un joueur est son score de titres : chaque titre détenu rapporte
-1 point, quel que soit son rang (baronnie, comté, marquisat, duché, dignité, couronne ;
-aucun titre religieux ne compte), y compris un fief vacant tant qu'il n'est pas dissolu.
+1 point, quel que soit son rang (baronnie, comté, marquisat, duché, couronne,
+papauté), y compris un fief vacant tant qu'il n'est pas dissolu. Les dignités, ni
+l'évêché ni le cardinalat ne rapportent de point.
 Territoire, infrastructure, armée, noble et ressource ne rapportent rien par
 eux-mêmes.
 

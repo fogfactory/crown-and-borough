@@ -12,7 +12,7 @@ reference.
 
 ![The map and the command post in spring](/rules/en/overview.webp)
 
-- **You win with titles.** Each fief, the crown and each dignity is worth
+- **You win with titles.** Each fief, the crown and the papacy is worth
   1 influence point. Territories, armies and gold score nothing by
   themselves: they are how you found and hold fiefs.
 - **Reach the goal before the end.** The game stops as soon as a player, or
@@ -397,7 +397,7 @@ heir, from the oldest Claim to the most recent. A Claim is public.
 ### Dignities
 
 A dignity card is played with `D N NNN CCC` on any noble, yours or someone
-else's. Each dignity is worth **1 influence point**.
+else's. A dignity is worth no influence point: its value lies in its effects.
 
 - **The bastard** (`BAS`) is played on any noble. It raises your noble cap,
   closes the line of succession, cannot be king, and its marriage is not an
@@ -455,7 +455,8 @@ Otherwise the queen rules as regent and the throne is vacant.
 ![The Realm bookmark: pope, cardinals and bishops](/rules/en/realm.webp)
 
 The map is divided into **bishoprics**, the same regions as the calamities.
-Religious titles score **no points**, but they bring votes and powers.
+The **papacy** is worth **1 influence point**; bishops and cardinals score no
+points, but they bring votes and powers.
 
 ### Bishops
 
@@ -582,13 +583,14 @@ around in players' hands.
 
 **Influence.** Your influence score is the sum of:
 
-- your **titles**: 1 point per fief (vacant ones included), per dignity and
-  for the crown;
+- your **titles**: 1 point per fief (vacant ones included), 1 for the crown
+  and 1 for the papacy;
 - your **influence marriages**: the titles of each house allied to you by a
   secondary marriage;
 - your **head ally's** influence, if you have one.
 
-Religious titles, territories, armies and resources score nothing.
+Dignities, bishoprics, cardinalates, territories, armies and resources score
+nothing.
 
 **Goal.** It depends on the number of players, and is shown in the scores
 panel.

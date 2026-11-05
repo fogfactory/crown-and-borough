@@ -42,12 +42,26 @@ func crownHolder(state *models.GameState) (models.PlayerID, bool) {
 	return "", false
 }
 
+// popeHolder returns the player of the living pope.
+func popeHolder(state *models.GameState) (models.PlayerID, bool) {
+	if state.Pope == nil {
+		return "", false
+	}
+	for _, noble := range state.Nobles {
+		if noble.ID == *state.Pope {
+			return noble.OwnerID, true
+		}
+	}
+	return "", false
+}
+
 // ComputeScores calculates the public score for every player in the state,
 // per the title score (titres.md § Score de titres): each title held is
 // worth 1 point regardless of rank, replacing the former GDD §9 formula
 // (territories, infrastructure, armies, nobles). Title sources are
 // state.Fiefs — a fief still counts while vacant, until it is dissolved —,
-// the crown and the dignities of living nobles. Religious titles never score.
+// the crown and the papacy. Dignities and the other religious titles (bishop,
+// cardinal) never score.
 // Each source stays a self-contained pass over state.
 func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]ScoreBreakdown {
 	scores := make(map[models.PlayerID]ScoreBreakdown)
@@ -79,15 +93,13 @@ func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models
 		}
 	}
 
-	// Each dignity a living noble carries (the bastard, specs/succession.md
-	// § Bâtard) counts as a title.
-	for _, noble := range state.Nobles {
-		score, exists := scores[noble.OwnerID]
-		if !exists {
-			continue
+	// The papacy is one title, held by the pope's player; it stacks with the
+	// pope's fiefs.
+	if holder, papal := popeHolder(state); papal {
+		if score, exists := scores[holder]; exists {
+			score.Titles++
+			scores[holder] = score
 		}
-		score.Titles += len(noble.Dignities)
-		scores[noble.OwnerID] = score
 	}
 
 	applyMarriageBonuses(state, balance, scores)

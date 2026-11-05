@@ -12,7 +12,7 @@ foi.
 
 ![La carte et le poste de commandement au printemps](/rules/fr/overview.webp)
 
-- **On gagne avec des titres.** Chaque fief, la couronne et chaque dignité
+- **On gagne avec des titres.** Chaque fief, la couronne et la papauté
   rapportent 1 point d'influence. Les territoires, les armées et l'or ne
   rapportent rien par eux-mêmes : ils servent à fonder et à tenir des fiefs.
 - **Atteins l'objectif avant la fin.** La partie s'arrête dès qu'un joueur, ou
@@ -399,7 +399,8 @@ héritier vivant, du Claim le plus ancien au plus récent. Un Claim est public.
 ### Les dignités
 
 Une carte de dignité se joue avec `D N NNN CCC` sur n'importe quel noble, le
-tien ou un autre. Chaque dignité vaut **1 point d'influence**.
+tien ou un autre. Une dignité ne rapporte aucun point d'influence : elle vaut
+par ses effets.
 
 - **Le bâtard** (`BAS`) se joue sur tout noble. Il relève ton plafond de
   nobles, ferme la ligne de succession, ne peut pas être roi, et son mariage
@@ -458,8 +459,9 @@ couronne. Sinon, la reine assure la régence et le trône est vacant.
 ![Le marque-page Royaume : pape, cardinaux et évêques](/rules/fr/realm.webp)
 
 La carte est divisée en **évêchés**, les mêmes régions que celles des
-calamités. Les titres religieux ne rapportent **aucun point**, mais ils
-donnent des voix et des pouvoirs.
+calamités. La **papauté** vaut **1 point d'influence** ; les évêques et les
+cardinaux ne rapportent aucun point, mais ils donnent des voix et des
+pouvoirs.
 
 ### Évêques
 
@@ -589,14 +591,14 @@ circulent dans les mains.
 
 **Influence.** Ton score d'influence est la somme :
 
-- de tes **titres** : 1 point par fief (vacant compris), par dignité et pour
-  la couronne ;
+- de tes **titres** : 1 point par fief (vacant compris), 1 pour la couronne
+  et 1 pour la papauté ;
 - de tes **mariages d'influence** : les titres de chaque maison alliée par un
   mariage secondaire ;
 - de l'influence de ton **allié de tête**, si tu en as un.
 
-Les titres religieux, les territoires, les armées et les ressources ne
-rapportent rien.
+Les dignités, les évêchés, les cardinalats, les territoires, les armées et
+les ressources ne rapportent rien.
 
 **Objectif.** Il dépend du nombre de joueurs, et s'affiche dans le panneau des
 scores.

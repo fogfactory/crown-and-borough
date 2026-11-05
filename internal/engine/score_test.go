@@ -510,3 +510,32 @@ func TestComputeScoresCrownIsOneTitleStackedWithFiefs(t *testing.T) {
 		t.Fatalf("P2 titles = %d, want 0", scores["P2"].Titles)
 	}
 }
+
+func TestComputeScoresPapacyIsOneTitleStackedWithFiefs(t *testing.T) {
+	state := allianceState()
+	balance := allianceBalance()
+	pope := models.NobleID("N1")
+	state.Pope = &pope
+	scores := ComputeScores(state, balance)
+	if scores["P1"].Titles != 2 {
+		t.Fatalf("P1 titles with the pope holding a duchy = %d, want 2", scores["P1"].Titles)
+	}
+	if scores["P2"].Titles != 0 {
+		t.Fatalf("P2 titles = %d, want 0", scores["P2"].Titles)
+	}
+}
+
+func TestComputeScoresDignitiesScoreNothing(t *testing.T) {
+	state := allianceState()
+	balance := allianceBalance()
+	before := ComputeScores(state, balance)["P1"].Titles
+	for index := range state.Nobles {
+		if state.Nobles[index].ID == "N1" {
+			state.Nobles[index].Dignities = append(state.Nobles[index].Dignities,
+				models.DignityBastard, models.DignityCardinal)
+		}
+	}
+	if got := ComputeScores(state, balance)["P1"].Titles; got != before {
+		t.Fatalf("P1 titles with dignities = %d, want %d", got, before)
+	}
+}
