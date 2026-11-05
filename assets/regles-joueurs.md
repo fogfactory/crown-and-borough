@@ -1123,14 +1123,22 @@ confondus — peut faire naître de nouveaux villages : chaque tranche de
 ayant perdu du stock cet hiver sont classées par perte décroissante
 (trigramme croissant en cas d'égalité), et chaque fondation déclenchée part
 de la case suivante de ce classement, sans jamais la dégrader ni la priver de
-stock au-delà de la conservation normale. La fondation se place sur la case
-libre la plus proche de ce territoire d'origine, non adjacente à un village
-ou un château existant, en priorité dans un fief du joueur qui contrôle le
-territoire d'origine, sinon sous son contrôle, sinon n'importe où, y compris
-neutre ou chez un autre joueur ; à défaut de case valide à aucun niveau, un
-dépôt de vivres devient un village, ou sinon un moulin. Le village fondé
-appartient au contrôleur de la case d'arrivée, sans rapport nécessaire avec
-le joueur dont le territoire d'origine a déclenché la fondation.
+stock au-delà de la conservation normale. La fondation se résout dans
+cet ordre, la première issue possible s'appliquant :
+
+1. un village en ruine (niveau 0) est rénové au niveau 1 ;
+2. un nouveau village est fondé sur la case libre la plus proche, non
+   adjacente à un village ou un château existant ;
+3. un dépôt de vivres devient un village, ou sinon un moulin ;
+4. un village gagne un niveau, jusqu'au niveau {{village_max_level}}.
+
+Quand une étape a plusieurs candidats, on retient le plus proche du
+territoire d'origine, en priorité dans un fief du joueur qui contrôle ce
+territoire, sinon sous son contrôle, sinon n'importe où, y compris neutre ou
+chez un autre joueur ; à égalité de distance, le trigramme tranche. Le
+territoire d'origine lui-même est un candidat, à distance 0. Le village concerné appartient au
+contrôleur de la case cible, sans rapport nécessaire avec le joueur dont le
+territoire d'origine a déclenché la fondation.
 
 ---
 

@@ -258,6 +258,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
   prosperity_free: 'reports.reason.prosperity_free',
   prosperity_depot_upgraded: 'reports.reason.prosperity_depot_upgraded',
   prosperity_mill_upgraded: 'reports.reason.prosperity_mill_upgraded',
+  prosperity_renovated: 'reports.reason.prosperity_renovated',
+  prosperity_leveled_up: 'reports.reason.prosperity_leveled_up',
 }
 
 const RECEPTION_REASON_KEYS: Record<string, MessageKey> = {

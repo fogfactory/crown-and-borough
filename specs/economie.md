@@ -454,26 +454,36 @@ Règle retenue — **fondation par surplus** :
    `k`-ième fondation déclenchée part du `k`-ième territoire de ce
    classement. Un même territoire n'est jamais l'origine de plus d'une
    fondation le même hiver.
-4. Chaque fondation se place sur la case libre (sans infrastructure) la plus
-   proche de son territoire d'origine, **non adjacente à un village ou un
-   château existant**, en respectant l'ordre de priorité suivant : dans un
-   fief du joueur qui contrôle le territoire d'origine, sinon contrôlée par
-   ce joueur, sinon n'importe quelle case libre restante, y compris neutre
-   ou contrôlée par un autre joueur.
-5. Si aucune case ne satisfait la contrainte d'adjacence à aucun niveau de
-   priorité, une dégradation en cascade s'applique : un dépôt de vivres est
-   amélioré en village, à défaut un moulin est amélioré en village, sinon rien
-   ne se passe.
+4. Chaque fondation applique la première issue possible de la liste
+   suivante :
+   1. **rénovation** : un village de niveau 0 (en ruine) passe au niveau 1 ;
+   2. **fondation** : un nouveau village est créé sur la case libre (sans
+      infrastructure) la plus proche, **non adjacente à un village ou un
+      château existant** ;
+   3. **dégradation en cascade** : un dépôt de vivres est amélioré en village
+      (niveau 1), à défaut un moulin est amélioré en village ;
+   4. **montée de niveau** : un village de niveau inférieur à
+      `village_max_level` gagne un niveau.
+
+   Chaque issue cible le candidat le plus proche du territoire d'origine
+   (distance par frontières franchissables), selon l'ordre de priorité
+   suivant : dans un fief du joueur qui contrôle le territoire d'origine,
+   sinon contrôlé par ce joueur, sinon n'importe quel candidat restant, y
+   compris neutre ou contrôlé par un autre joueur. Seule la fondation (2)
+   est soumise à la contrainte de non-adjacence ; les égalités de distance
+   sont départagées par trigramme croissant ; le territoire d'origine lui-même
+   est un candidat à distance 0. Si aucune issue n'est possible, rien ne se passe.
 
 La contrainte de non-adjacence évite qu'un nouveau village apparaisse collé à
 une infrastructure existante ; elle s'applique à tous les niveaux de priorité
-de l'étape 4, pas seulement au dernier. Les fondations sont résolues dans
-l'ordre du classement de l'étape 3 : un village fondé par l'une devient une
-infrastructure existante pour les suivantes, aussi bien pour la contrainte de
-non-adjacence que pour la recherche de case libre.
+de la fondation, pas seulement au dernier. Les fondations sont résolues dans
+l'ordre du classement de l'étape 3 : un village fondé, rénové ou amélioré par
+l'une est visible des suivantes, aussi bien pour la contrainte de
+non-adjacence que pour la recherche de case libre ou de village à rénover.
 
-Le territoire d'origine n'est pas modifié par la fondation : ni dégradé, ni
-privé de son stock au-delà de la conservation normale.
+Le territoire d'origine n'est jamais dégradé par la fondation, ni privé de
+son stock au-delà de la conservation normale ; son propre village peut en
+revanche être rénové ou gagner un niveau, à distance 0.
 
 Le village fondé appartient au **contrôleur de la case** d'arrivée : le
 détenteur du fief, le contrôleur positionnel, ou personne si la case est
