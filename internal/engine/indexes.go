@@ -302,6 +302,13 @@ func (ctx *resolutionContext) hasCastle(territoryID models.TerritoryID) bool {
 	return ctx.hasInfrastructure(territoryID, models.InfraTypeCastle)
 }
 
+// hasLiveCastle reports whether territoryID carries a castle that is not a
+// ruin: only such a castle offers a defensive bonus or a refuge.
+func (ctx *resolutionContext) hasLiveCastle(territoryID models.TerritoryID) bool {
+	infrastructure := ctx.infrastructureAt(territoryID)
+	return infrastructure != nil && infrastructure.IsLiveCastle()
+}
+
 // hasFortifiedVillage reports whether territoryID carries a fortified
 // village (#193). Kept narrow and separate from hasCastle: a fortified
 // village must not block retreat destinations like a real castle
@@ -368,12 +375,7 @@ func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID mod
 		return
 	}
 	if infrastructure.Type == models.InfraTypeCastle {
-		for index := range ctx.state.Players {
-			player := &ctx.state.Players[index]
-			if player.CapitalCastleID != nil && *player.CapitalCastleID == infrastructureID {
-				player.CapitalCastleID = nil
-			}
-		}
+		ctx.clearCapitalCastle(infrastructureID)
 		// Losing a fief capital's castle dissolves the fief immediately,
 		// regardless of why the castle disappeared (titres.md).
 		ctx.dissolveFiefOnCapitalCastleLoss(infrastructure.TerritoryID)
@@ -394,6 +396,68 @@ func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID mod
 	}
 	ctx.state.TerritoryStates[infrastructure.TerritoryID] = state
 	ctx.rebuildIndexes()
+}
+
+// pillageInfrastructure degrades the infrastructure a pillage reaches instead
+// of destroying it: a mill loses a level (and disappears at level 1), a
+// fortified village loses its wall, a village loses a level (down to a level-0
+// ruin), a castle becomes a ruin and any other infrastructure disappears.
+// A castle or village that stops being a supply source hands its stock over
+// as loot, returned for the caller to credit; a castle that is the capital of
+// a fief stays one and keeps its stock. effect says what became of it.
+func (ctx *resolutionContext) pillageInfrastructure(infrastructureID models.InfraID) (looted int, effect PillageEffect) {
+	infrastructure := ctx.infrastructuresByID[infrastructureID]
+	if infrastructure == nil {
+		return 0, ""
+	}
+	switch infrastructure.Type {
+	case models.InfraTypeMill:
+		if infrastructure.Level > 1 {
+			infrastructure.Level--
+			return 0, PillageEffectDowngraded
+		}
+		ctx.removeInfrastructure(infrastructureID)
+		return 0, PillageEffectDestroyed
+	case models.InfraTypeVillage:
+		if infrastructure.Fortified {
+			infrastructure.Fortified = false
+			return 0, PillageEffectUnfortified
+		}
+		infrastructure.Level--
+		if infrastructure.Level > 0 {
+			return 0, PillageEffectDowngraded
+		}
+		return ctx.takeStock(infrastructure.TerritoryID), PillageEffectRuined
+	case models.InfraTypeCastle:
+		infrastructure.Ruined = true
+		if ctx.state.IsFiefCapital(infrastructure.TerritoryID) {
+			return 0, PillageEffectRuined
+		}
+		ctx.clearCapitalCastle(infrastructureID)
+		return ctx.takeStock(infrastructure.TerritoryID), PillageEffectRuined
+	}
+	ctx.removeInfrastructure(infrastructureID)
+	return 0, PillageEffectDestroyed
+}
+
+// clearCapitalCastle drops the capital designation of the castle from every
+// player.
+func (ctx *resolutionContext) clearCapitalCastle(infrastructureID models.InfraID) {
+	for index := range ctx.state.Players {
+		player := &ctx.state.Players[index]
+		if player.CapitalCastleID != nil && *player.CapitalCastleID == infrastructureID {
+			player.CapitalCastleID = nil
+		}
+	}
+}
+
+// takeStock empties the stock of territoryID and returns it.
+func (ctx *resolutionContext) takeStock(territoryID models.TerritoryID) int {
+	state := ctx.state.TerritoryStates[territoryID]
+	stock := state.Resources
+	state.Resources = 0
+	ctx.state.TerritoryStates[territoryID] = state
+	return stock
 }
 
 func (ctx *resolutionContext) allocateArmyID() models.ArmyID {

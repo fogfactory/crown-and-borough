@@ -134,8 +134,8 @@ func TestResolveSupplyRationsAndEvents(t *testing.T) {
 		if event.StockAfter != 0 {
 			t.Errorf("neutral supply event stock = %d, want 0 after auto-pillage", event.StockAfter)
 		}
-		if !hasFamineEvent(resolution.Events, "A1") || ctxInfrastructurePresent(resolution.State, "I1") {
-			t.Errorf("events/state = %#v/%#v, want famine and destroyed village", resolution.Events, resolution.State)
+		if !hasFamineEvent(resolution.Events, "A1") || !ctxInfrastructurePresent(resolution.State, "I1") || infrastructureLevel(resolution.State, "I1") != 0 {
+			t.Errorf("events/state = %#v/%#v, want famine and a village fallen to level 0", resolution.Events, resolution.State)
 		}
 	})
 
@@ -1295,6 +1295,15 @@ func hasFamineEvent(events []Event, armyID models.ArmyID) bool {
 	return false
 }
 
+func infrastructureLevel(state *models.GameState, infrastructureID models.InfraID) int {
+	for _, infrastructure := range state.Infrastructures {
+		if infrastructure.ID == infrastructureID {
+			return infrastructure.Level
+		}
+	}
+	return -1
+}
+
 func ctxInfrastructurePresent(state *models.GameState, infrastructureID models.InfraID) bool {
 	for _, infrastructure := range state.Infrastructures {
 		if infrastructure.ID == infrastructureID {
@@ -1562,11 +1571,10 @@ func TestResolveTransferFeedsRecipientTheSameTurn(t *testing.T) {
 	}
 }
 
-// TestResolveFaminePillageDissolvesFiefAndReleasesControl covers #208's
-// acceptance case: the auto-pillage a same-turn famine triggers can destroy a
-// fief capital's castle, dissolving the fief; the fief's other members lose
-// their only anchor along with it, so they end the turn uncontrolled.
-func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
+// TestResolveFaminePillageRuinsFiefCapitalAndKeepsFief covers the auto-pillage
+// a same-turn famine triggers on a fief capital's castle: the castle becomes a
+// ruin but stays the capital, so the fief and the control it anchors survive.
+func TestResolveFaminePillageRuinsFiefCapitalAndKeepsFief(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("CAP", "CAP", models.TerrainMountain, "MEM"),
@@ -1603,66 +1611,14 @@ func TestResolveFaminePillageDissolvesFiefAndReleasesControl(t *testing.T) {
 	if !famine.SavedByPillage || famine.InfrastructureType != models.InfraTypeCastle {
 		t.Fatalf("famine event = %#v, want the capital's castle auto-pillaged and A1 saved", famine)
 	}
-	if len(resolution.State.Fiefs) != 0 {
-		t.Errorf("fiefs = %#v, want F1 dissolved with its capital's castle", resolution.State.Fiefs)
+	if len(resolution.State.Fiefs) != 1 {
+		t.Errorf("fiefs = %#v, want F1 kept: a ruined castle stays its fief's capital", resolution.State.Fiefs)
 	}
-	if owner := controllerOf(resolution.State, "MEM"); owner != nil {
-		t.Errorf("MEM owner = %v, want nil: released with the fief that anchored it", owner)
+	if owner := controllerOf(resolution.State, "MEM"); owner == nil {
+		t.Errorf("MEM owner = nil, want it still held by the fief")
 	}
-	if owner := controllerOf(resolution.State, "OTH"); owner != nil {
-		t.Errorf("OTH owner = %v, want nil: released with the fief that anchored it", owner)
-	}
-}
-
-// TestResolveFaminePillageReportsMembersUnderTheControlTheTurnSettledOn checks
-// that a fief dissolved by a famine auto-pillage does not rewrite what the
-// same ravitaillement reports: the village of a former member produced under
-// its fief owner, so its production line names P1, and it is then reported as
-// abandoned once the dissolution leaves it without a controller.
-func TestResolveFaminePillageReportsMembersUnderTheControlTheTurnSettledOn(t *testing.T) {
-	state := testState(t,
-		[]models.Territory{
-			supplyTerritory("CAP", "CAP", models.TerrainMountain, "MEM"),
-			supplyTerritory("MEM", "MEM", models.TerrainPlain, "CAP", "OTH"),
-			supplyTerritory("OTH", "OTH", models.TerrainPlain, "MEM"),
-		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CAP", Size: 2, Starving: true}},
-	)
-	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
-	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "MEM"})
-	state.Fiefs = []models.Fief{{
-		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "CAP",
-		Territories: []models.TerritoryID{"CAP", "MEM", "OTH"}, OwnerID: "P1",
-	}}
-	validateTestState(t, state)
-
-	balance := testBalance()
-	balance.TerritoryIncome = 0
-	balance.VillageIncome = 0
-	resolution, err := Resolve(state, balance)
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	if len(resolution.State.Fiefs) != 0 {
-		t.Fatalf("fiefs = %#v, want F1 dissolved with its capital's castle (test setup drifted)", resolution.State.Fiefs)
-	}
-	var production *Event
-	for index, event := range resolution.Events {
-		if event.Type == EventTypeProduction && event.TerritoryID == "MEM" {
-			production = &resolution.Events[index]
-		}
-	}
-	if production == nil || production.OwnerID != "P1" {
-		t.Errorf("MEM production event = %#v, want it reported under its fief owner P1", production)
-	}
-	var abandoned []Event
-	for _, event := range eventsOfType(resolution.Events, EventTypeControlChanged) {
-		if event.Reason == "abandoned" {
-			abandoned = append(abandoned, event)
-		}
-	}
-	if len(abandoned) != 1 || abandoned[0].TerritoryID != "MEM" || abandoned[0].PreviousOwnerID != "P1" || abandoned[0].Phase != 5 {
-		t.Errorf("abandoned events = %#v, want exactly MEM released from P1 (OTH carries nothing)", abandoned)
+	if owner := controllerOf(resolution.State, "OTH"); owner == nil {
+		t.Errorf("OTH owner = nil, want it still held by the fief")
 	}
 }
 

@@ -179,9 +179,10 @@ La production des moulins suit le même timing de fin de tour que le revenu
 territorial et la famine ([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) :
 elle se calcule sur le contrôle et l'occupation définitifs du tour, avec les
 mêmes calamités météo (mauvais temps, Beau temps). L'algorithme de production
-et de destination d'un moulin lui-même n'en est pas modifié. Un moulin détruit
-par un ordre de pillage (`T P`) pendant la résolution des mouvements ne
-produit rien ce tour-là : la destruction précède le calcul de fin de tour.
+et de destination d'un moulin lui-même n'en est pas modifié. Un moulin pillé
+par un ordre de pillage (`P`) pendant la résolution des mouvements produit
+dès ce tour-là selon son niveau après pillage (rien s'il a disparu) : le
+pillage précède le calcul de fin de tour.
 
 Un moulin de niveau `N` produit `N` R (`2N` sous le Beau temps, 0 sous le
 mauvais temps) et verse sa production à **une seule** infrastructure, dans cet
@@ -223,9 +224,9 @@ l'hiver), qui le rapatrie vers la capitale avec son propre stock, sous ses
 plafonds habituels. Le stock reste sur le moulin lorsque celui-ci est isolé,
 lorsque le moulin ou cette infrastructure est occupé contre son contrôleur,
 lorsque le joueur n'a pas de capitale, ou lorsque le moulin n'a pas de
-contrôleur. Une destruction du moulin par pillage (`T P`) fait disparaître
-son infrastructure : le stock reste sur la case comme une cache ordinaire,
-perdue en fin d'hiver comme tout stock hors château, village, moulin ou dépôt.
+contrôleur. Lorsqu'un pillage fait disparaître un moulin de niveau 1, le stock reste sur la
+case comme une cache ordinaire, perdue en fin d'hiver comme tout stock hors
+château, village, moulin ou dépôt.
 
 ### Construction contre amélioration
 
@@ -277,6 +278,12 @@ fief dont il deviendrait capitale en rapporterait, et il ne peut justement
 pas être désigné capitale par `E C` (qui exige un château) ni être la
 capitale d'un fief (`T F`, qui exige également un château). Un `C C` sur un
 village déjà fortifié est rejeté sans prélèvement.
+
+Un pillage (`P`) d'un village fortifié détruit sa muraille sans lui faire
+perdre de niveau ; le village redevient un village ordinaire, qu'un nouveau
+`C C` peut fortifier de nouveau. Un pillage d'un village non fortifié lui
+fait perdre un niveau, et un village de niveau 0 est en ruine et ne peut pas
+être pillé (GDD §7, « Pillage et ruines »).
 
 ## Densité des villages
 

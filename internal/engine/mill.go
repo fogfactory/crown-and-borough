@@ -108,7 +108,7 @@ func millRecipientIn(ctx *resolutionContext, millID models.TerritoryID, view con
 	neighbors := ctx.sortedNeighbors(millID)
 	for _, infraType := range []models.InfraType{models.InfraTypeCastle, models.InfraTypeVillage} {
 		for _, neighborID := range neighbors {
-			if ctx.hasInfrastructure(neighborID, infraType) && controlledBy(view, millOwner, neighborID) {
+			if ctx.hasInfrastructure(neighborID, infraType) && ctx.hasActiveSettlement(neighborID) && controlledBy(view, millOwner, neighborID) {
 				return neighborID
 			}
 		}

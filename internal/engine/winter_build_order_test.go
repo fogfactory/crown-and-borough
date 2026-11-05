@@ -72,3 +72,37 @@ func TestBuildOrderRejectsOccupiedTerritory(t *testing.T) {
 		t.Errorf("stock = %d, want unchanged 10 (no prelevement)", got)
 	}
 }
+
+// TestBuildOrderRebuildsARuinedCastle verifies that C C on a ruined castle
+// lifts the ruin in place and charges the castle cost.
+func TestBuildOrderRebuildsARuinedCastle(t *testing.T) {
+	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I0", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA", Ruined: true})
+	setTerritoryResources(state, "AAA", 10)
+	ctx := newResolutionContext(state, testBalance())
+	buildOrder{order: models.WinterOrder{ID: "O1", TerritoryID: "AAA", InfraType: models.InfraTypeCastle}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P1"})
+
+	infrastructure := ctx.infrastructureAt("AAA")
+	if infrastructure == nil || infrastructure.ID != "I0" || infrastructure.Ruined {
+		t.Fatalf("infrastructure = %#v, events = %#v, want castle I0 rebuilt", infrastructure, ctx.events)
+	}
+	if got := ctx.state.TerritoryStates["AAA"].Resources; got != 10-testBalance().Costs.Castle {
+		t.Errorf("stock = %d, want %d after paying the castle cost", got, 10-testBalance().Costs.Castle)
+	}
+}
+
+// TestElectCapitalRejectsARuinedCastle verifies that a ruin cannot be elected
+// capital.
+func TestElectCapitalRejectsARuinedCastle(t *testing.T) {
+	state := winterTestState(t, []models.Territory{territory("AAA", "AAA")}, nil)
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I0", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA", Ruined: true})
+	ctx := newResolutionContext(state, testBalance())
+	electCapitalOrder{order: models.WinterOrder{ID: "O1", TerritoryID: "AAA"}}.Apply(&ExecutionContext{resolution: ctx, playerID: "P1"})
+
+	rejected := eventsOfType(ctx.events, EventTypeRejected)
+	if len(rejected) != 1 || rejected[0].Reason != "capital_castle_ruined" {
+		t.Fatalf("rejected events = %#v, want capital_castle_ruined", rejected)
+	}
+}

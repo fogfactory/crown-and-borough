@@ -214,6 +214,8 @@ type InfraView struct {
 	Type      models.InfraType `json:"type"`
 	Level     int              `json:"level"`
 	Fortified bool             `json:"fortified,omitempty"`
+	// Ruined marks a pillaged castle or a level-0 village.
+	Ruined bool `json:"ruined,omitempty"`
 }
 
 // NobleView contains the visible identity, code, status, owner, and location
@@ -499,6 +501,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 					Type:      infrastructure.Type,
 					Level:     infrastructure.Level,
 					Fortified: infrastructure.Fortified,
+					Ruined:    infrastructure.IsRuined(),
 				})
 			}
 		}

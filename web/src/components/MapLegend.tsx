@@ -52,7 +52,7 @@ function LegendSettlement({
   const ruinClipId = useRuinClipId(ruined)
   return (
     <svg className="size-3.5 shrink-0" viewBox="0 0 512 512" aria-hidden="true">
-      <RuinClipPath id={ruinClipId} />
+      <RuinClipPath id={ruinClipId} kind={type} />
       <GlyphPath
         d={MARKER_GLYPHS[type]}
         ruinClipId={ruinClipId}
@@ -61,7 +61,11 @@ function LegendSettlement({
         strokeWidth={20}
         opacity={0.9}
       />
-      <GlyphPath d={MARKER_GLYPHS[type]} ruinClipId={ruinClipId} fill={LEGEND_SAMPLE_OWNER} />
+      <GlyphPath
+        d={MARKER_GLYPHS[type]}
+        ruinClipId={ruinClipId}
+        fill={LEGEND_SAMPLE_OWNER}
+      />
       <GlyphPath
         d={MARKER_GLYPHS[type]}
         ruinClipId={ruinClipId}
@@ -369,6 +373,10 @@ export function MapLegend({
           <div className="flex items-center gap-2">
             <LegendSettlement type="castle" />
             <span>{t('legend.castle')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LegendSettlement type="castle" ruined />
+            <span>{t('legend.castleRuin')}</span>
           </div>
           <div className="flex items-center gap-2">
             <LegendControl />

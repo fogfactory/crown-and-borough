@@ -1220,6 +1220,20 @@ func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.
 	})
 }
 
+// pillageReason is the order outcome reason of a pillage: "pillaged" when the
+// infrastructure disappeared, a specific one when it was only degraded.
+func pillageReason(effect PillageEffect) string {
+	switch effect {
+	case PillageEffectDowngraded:
+		return "pillaged_downgraded"
+	case PillageEffectUnfortified:
+		return "pillaged_unfortified"
+	case PillageEffectRuined:
+		return "pillaged_ruined"
+	}
+	return "pillaged"
+}
+
 func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.Army) {
 	state := ctx.state.TerritoryStates[army.TerritoryID]
 	if state.Infrastructures == nil {
@@ -1232,16 +1246,19 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 		record.invalidate("unknown_infrastructure")
 		return
 	}
+	if !infrastructure.IsPillageable() {
+		record.invalidate("ruined_infrastructure")
+		return
+	}
 	infrastructureType := infrastructure.Type
-	ctx.removeInfrastructure(infrastructureID)
-	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID, ctx.controllerAtStart)
-	if creditTerritoryID != "" {
-		creditState := ctx.state.TerritoryStates[creditTerritoryID]
-		creditState.Resources += ctx.balance.PillageBonus
-		ctx.state.TerritoryStates[creditTerritoryID] = creditState
+	looted, effect := ctx.pillageInfrastructure(infrastructureID)
+	credit := ctx.balance.PillageBonus + looted
+	creditTerritoryID := ctx.creditNearestSettlement(army.TerritoryID, army.OwnerID, ctx.controllerAtStart, credit)
+	if creditTerritoryID == "" {
+		credit = 0
 	}
 	record.outcome = OutcomeSuccess
-	record.reason = "pillaged"
+	record.reason = pillageReason(effect)
 	ctx.events = append(ctx.events, Event{
 		Type:               EventTypePillage,
 		Phase:              4,
@@ -1249,22 +1266,30 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 		TerritoryID:        army.TerritoryID,
 		InfrastructureID:   infrastructureID,
 		InfrastructureType: infrastructureType,
-		ResourceCredit:     ctx.creditAmount(creditTerritoryID),
+		PillageEffect:      effect,
+		ResourceCredit:     credit,
 		CreditTerritoryID:  creditTerritoryID,
 		Outcome:            OutcomeSuccess,
 	})
 }
 
-func (ctx *resolutionContext) creditAmount(territoryID models.TerritoryID) int {
-	if territoryID == "" {
-		return 0
+// creditNearestSettlement adds amount to the stock of the controlled
+// settlement closest to startID and returns it, or "" when the owner has none
+// (nothing is credited then).
+func (ctx *resolutionContext) creditNearestSettlement(startID models.TerritoryID, ownerID models.PlayerID, view controlView, amount int) models.TerritoryID {
+	creditTerritoryID := ctx.closestControlledSettlement(startID, ownerID, view)
+	if creditTerritoryID == "" {
+		return ""
 	}
-	return ctx.balance.PillageBonus
+	creditState := ctx.state.TerritoryStates[creditTerritoryID]
+	creditState.Resources += amount
+	ctx.state.TerritoryStates[creditTerritoryID] = creditState
+	return creditTerritoryID
 }
 
 func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID, view controlView) models.TerritoryID {
 	return ctx.closestControlledTerritory(startID, ownerID, view, func(candidateID models.TerritoryID) bool {
-		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle) || ctx.hasInfrastructure(candidateID, models.InfraTypeVillage)
+		return ctx.hasActiveSettlement(candidateID)
 	})
 }
 
@@ -1323,7 +1348,7 @@ func (ctx *resolutionContext) distanceToClosestControlledSettlement(startID mode
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
-		if controlledBy(ctx.controllerAtStart, ownerID, item.territoryID) && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+		if controlledBy(ctx.controllerAtStart, ownerID, item.territoryID) && ctx.hasActiveSettlement(item.territoryID) {
 			return item.distance
 		}
 		for _, neighborID := range ctx.sortedNeighbors(item.territoryID) {
@@ -1373,7 +1398,9 @@ func (ctx *resolutionContext) classifyRetreatDestinations(displaced *dislodgedAr
 		// castle anchored to anyone (fief or capital) still blocks a retreat
 		// there, but an unanchored, unoccupied castle is inert, like the
 		// absence of one (#215).
-		castleBlocks := ctx.hasCastle(territoryID) && ctx.territoryAnchored(territoryID)
+		// A ruined castle only keeps blocking as the capital of a fief.
+		castleBlocks := ctx.hasCastle(territoryID) && ctx.territoryAnchored(territoryID) &&
+			(ctx.hasLiveCastle(territoryID) || ctx.fiefByCapital(territoryID) != nil)
 		if !castleBlocks && !ctx.attackedTerritories[territoryID] {
 			buckets.emptyOther = append(buckets.emptyOther, territoryID)
 		}

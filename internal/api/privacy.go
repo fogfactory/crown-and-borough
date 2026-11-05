@@ -732,7 +732,7 @@ func hostHolder(state *models.GameState, noble models.Noble) models.PlayerID {
 
 func inCastle(state *models.GameState, territoryID models.TerritoryID) bool {
 	for _, infrastructure := range state.Infrastructures {
-		if infrastructure.TerritoryID == territoryID && infrastructure.Type == models.InfraTypeCastle {
+		if infrastructure.TerritoryID == territoryID && infrastructure.IsLiveCastle() {
 			return true
 		}
 	}

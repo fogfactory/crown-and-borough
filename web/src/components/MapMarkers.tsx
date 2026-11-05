@@ -2,7 +2,10 @@ import { useId, type SVGProps } from 'react'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type { WinterIntention } from '@/lib/winter-overlay'
-import { GAME_ICON_GLYPHS, type GameIconGlyph as GameIconGlyphSpec } from '@/lib/game-icon-glyphs'
+import {
+  GAME_ICON_GLYPHS,
+  type GameIconGlyph as GameIconGlyphSpec,
+} from '@/lib/game-icon-glyphs'
 import { NoblePawn } from '@/components/MapHeraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
 import type { Infrastructure, Noble, Point } from '@/types'
@@ -18,8 +21,7 @@ import {
   SELECTION_HALO,
   SELECTION_STROKE,
 } from '@/lib/map-palette'
-import { isRuinedVillage, showsLevelBadge } from '@/lib/infrastructure'
-
+import { isRuined, showsLevelBadge } from '@/lib/infrastructure'
 
 // Map marker artwork from game-icons.net (CC BY 3.0, icons by Delapouite):
 // https://game-icons.net/1x1/delapouite/castle.html
@@ -71,6 +73,19 @@ const RUIN_CUT_PATH =
 const RUIN_RUBBLE_PATH =
   'M70 500l22-26 28 8 10 22zM250 505l18-20 30 6 8 14zM380 500l24-24 26 10 6 14zM440 506l16-14 22 8 4 6z'
 
+/**
+ * Ruined castle: towers and keep broken off at three different heights, the
+ * spire gone, with the same rubble at its foot.
+ */
+const CASTLE_RUIN_CUT_PATH =
+  'M0 512V285L45 262 90 300 150 275 190 215 235 238 280 205 330 232 365 300 400 385 450 360 512 395V512z'
+
+type RuinKind = 'castle' | 'village'
+
+function ruinCutPath(kind: RuinKind): string {
+  return kind === 'castle' ? CASTLE_RUIN_CUT_PATH : RUIN_CUT_PATH
+}
+
 /** Clip id for a ruined marker, undefined for an intact one. Each marker
  * needs its own id: a shared one would resolve to the first copy in the
  * document, which may sit in a hidden svg and drop the clip. */
@@ -80,11 +95,11 @@ export function useRuinClipId(ruined: boolean): string | undefined {
 }
 
 /** The roof-cutting clip, rendered once per ruined marker. */
-export function RuinClipPath({ id }: { id: string | undefined }) {
+export function RuinClipPath({ id, kind }: { id: string | undefined; kind: RuinKind }) {
   if (!id) return null
   return (
     <clipPath id={id}>
-      <path d={RUIN_CUT_PATH} />
+      <path d={ruinCutPath(kind)} />
     </clipPath>
   )
 }
@@ -155,8 +170,9 @@ export function InfrastructureMarker({
 }: InfrastructureMarkerProps) {
   const { t } = useLanguage()
   const fortified = infrastructure.type === 'village' && infrastructure.fortified === true
-  const ruined = isRuinedVillage(infrastructure)
+  const ruined = isRuined(infrastructure)
   const ruinClipId = useRuinClipId(ruined)
+  const ruinKind: RuinKind = infrastructure.type === 'castle' ? 'castle' : 'village'
   const levelLabel = ruined
     ? t('infrastructure.ruined')
     : t('app.level', { level: infrastructure.level })
@@ -184,7 +200,7 @@ export function InfrastructureMarker({
             strokeWidth="2"
           />
           <g transform="translate(-13 -13) scale(0.05078125)">
-            <RuinClipPath id={ruinClipId} />
+            <RuinClipPath id={ruinClipId} kind={ruinKind} />
             <GlyphPath d={glyph} ruinClipId={ruinClipId} fill={MAP_PARCHMENT} />
             <GlyphPath
               d={glyph}
@@ -207,8 +223,11 @@ export function InfrastructureMarker({
           </g>
         </>
       ) : (
-        <g transform="translate(-13 -13) scale(0.05078125)" data-fortified-marker={fortified || undefined}>
-          <RuinClipPath id={ruinClipId} />
+        <g
+          transform="translate(-13 -13) scale(0.05078125)"
+          data-fortified-marker={fortified || undefined}
+        >
+          <RuinClipPath id={ruinClipId} kind={ruinKind} />
           {/* Paper halo keeps the glyph readable over the terrain symbols. */}
           <GlyphPath
             d={glyph}

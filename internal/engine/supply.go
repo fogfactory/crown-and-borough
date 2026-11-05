@@ -40,7 +40,7 @@ type famineCandidate struct {
 // army. resolveFamine applies it and the famine forecast reads it.
 func (ctx *resolutionContext) pillageOutcome(candidate famineCandidate) (*models.Infrastructure, int) {
 	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
-	if infrastructure == nil {
+	if infrastructure == nil || !infrastructure.IsPillageable() {
 		return nil, 0
 	}
 	return infrastructure, ctx.balance.PillageBonus - (candidate.demand - candidate.received)
@@ -349,7 +349,7 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 			// side may draw from it (titres.md, economie.md#portée-de-ravitaillement).
 			continue
 		}
-		isSettlement := ctx.hasSettlement(territoryID)
+		isSettlement := ctx.hasActiveSettlement(territoryID)
 		selfSuppliedMill := !isSettlement && ctx.isSelfSuppliedMill(territoryID)
 		if !isSettlement && !selfSuppliedMill && state.Resources == 0 {
 			continue
@@ -745,18 +745,15 @@ func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 	if infrastructure, gain := ctx.pillageOutcome(candidate); infrastructure != nil {
 		event.InfrastructureID = infrastructure.ID
 		event.InfrastructureType = infrastructure.Type
-		ctx.removeInfrastructure(infrastructure.ID)
-		if gain >= 0 {
-			event.SavedByPillage = true
-			if gain > 0 {
-				creditTerritoryID := ctx.closestControlledSettlement(candidate.army.TerritoryID, candidate.army.OwnerID, ctx.controllerSettled)
-				if creditTerritoryID != "" {
-					creditState := ctx.state.TerritoryStates[creditTerritoryID]
-					creditState.Resources += gain
-					ctx.state.TerritoryStates[creditTerritoryID] = creditState
-					event.ResourceCredit = gain
-					event.CreditTerritoryID = creditTerritoryID
-				}
+		looted, effect := ctx.pillageInfrastructure(infrastructure.ID)
+		event.PillageEffect = effect
+		event.SavedByPillage = gain >= 0
+		// The stock a ruined source hands over is loot on top of the bonus,
+		// credited whether or not the pillage saved the army.
+		if credit := max(gain, 0) + looted; credit > 0 {
+			if creditTerritoryID := ctx.creditNearestSettlement(candidate.army.TerritoryID, candidate.army.OwnerID, ctx.controllerSettled, credit); creditTerritoryID != "" {
+				event.ResourceCredit = credit
+				event.CreditTerritoryID = creditTerritoryID
 			}
 		}
 	}
@@ -927,6 +924,13 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 func (ctx *resolutionContext) hasSettlement(territoryID models.TerritoryID) bool {
 	infrastructure := ctx.infrastructureAt(territoryID)
 	return infrastructure != nil && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage)
+}
+
+// hasActiveSettlement is hasSettlement for a castle or village that still
+// works as a supply source: a ruin is inert unless it is a fief capital.
+func (ctx *resolutionContext) hasActiveSettlement(territoryID models.TerritoryID) bool {
+	infrastructure := ctx.infrastructureAt(territoryID)
+	return infrastructure != nil && ctx.state.IsActiveSettlement(*infrastructure)
 }
 
 // isControlledDepot reports whether territoryID carries a supply depot

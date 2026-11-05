@@ -234,12 +234,12 @@ func (ctx *resolutionContext) territoryIncomeDestination(ownerID models.PlayerID
 		return capitalTerritoryID
 	}
 	if castleID := ctx.closestControlledTerritory(territoryID, ownerID, ctx.controllerNow, func(candidateID models.TerritoryID) bool {
-		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle)
+		return ctx.hasInfrastructure(candidateID, models.InfraTypeCastle) && ctx.hasActiveSettlement(candidateID)
 	}); castleID != "" {
 		return castleID
 	}
 	return ctx.closestControlledTerritory(territoryID, ownerID, ctx.controllerNow, func(candidateID models.TerritoryID) bool {
-		return ctx.hasInfrastructure(candidateID, models.InfraTypeVillage)
+		return ctx.hasInfrastructure(candidateID, models.InfraTypeVillage) && ctx.hasActiveSettlement(candidateID)
 	})
 }
 

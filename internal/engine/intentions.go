@@ -229,8 +229,10 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 		// Supports are computed from the stored order once every intention
 		// is known; a hold has nothing to enumerate.
 	case models.OrderTypePillage:
-		if ctx.state.TerritoryStates[army.TerritoryID].Infrastructures == nil {
+		if infrastructure := ctx.infrastructureAt(army.TerritoryID); infrastructure == nil {
 			record.invalidate("no_infrastructure")
+		} else if !infrastructure.IsPillageable() {
+			record.invalidate("ruined_infrastructure")
 		}
 	case models.OrderTypeTransfer:
 		targetID := order.TargetIDs[0]

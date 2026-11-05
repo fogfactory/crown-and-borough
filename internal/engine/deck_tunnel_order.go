@@ -119,7 +119,7 @@ func (ctx *resolutionContext) tunnelRefuge(playerID models.PlayerID) (models.Ter
 		}
 	}
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		if ctx.hasCastle(territoryID) && ctx.tunnelRefugeUsable(playerID, territoryID) {
+		if ctx.hasLiveCastle(territoryID) && ctx.tunnelRefugeUsable(playerID, territoryID) {
 			return territoryID, true
 		}
 	}

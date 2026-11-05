@@ -128,7 +128,7 @@ func nextFiefID(fiefs []models.Fief) models.FiefID {
 // otherwise: an empty castle or fortified village outside every fief and
 // capital is inert, like an unanchored supply depot (#215, #193).
 func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID) int {
-	if !ctx.hasCastle(territoryID) && !ctx.hasFortifiedVillage(territoryID) {
+	if !ctx.hasLiveCastle(territoryID) && !ctx.hasFortifiedVillage(territoryID) {
 		return 0
 	}
 	if ctx.fiefByCapital(territoryID) != nil {

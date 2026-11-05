@@ -97,6 +97,33 @@ func (order buildOrder) Apply(ctx *ExecutionContext) {
 			})
 			return
 		}
+		if existing.Type == models.InfraTypeCastle && existing.Ruined && winterOrder.InfraType == models.InfraTypeCastle {
+			// C C on a ruined castle rebuilds it in place at the normal
+			// castle cost.
+			rebuildCost, exists := infrastructureCost(resolution.balance.Costs, models.InfraTypeCastle)
+			if !exists {
+				resolution.rejectWinterOrder(playerID, winterOrder, "invalid_infrastructure")
+				return
+			}
+			spent, paid := resolution.payWinterCost(playerID, winterOrder.TerritoryID, rebuildCost)
+			if !paid {
+				resolution.rejectWinterOrder(playerID, winterOrder, "insufficient_resources")
+				return
+			}
+			existing.Ruined = false
+			resolution.events = append(resolution.events, Event{
+				Type:               EventTypeBuild,
+				Phase:              winterPhase,
+				OwnerID:            playerID,
+				OrderID:            winterOrder.ID,
+				TerritoryID:        winterOrder.TerritoryID,
+				InfrastructureID:   existing.ID,
+				InfrastructureType: existing.Type,
+				Level:              existing.Level,
+				ResourceSpent:      spent,
+			})
+			return
+		}
 		resolution.rejectWinterOrder(playerID, winterOrder, "structure_present")
 		return
 	}

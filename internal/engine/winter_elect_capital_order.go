@@ -24,6 +24,10 @@ func (order electCapitalOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "capital_requires_controlled_castle")
 		return
 	}
+	if infrastructure.Ruined {
+		resolution.rejectWinterOrder(playerID, winterOrder, "capital_castle_ruined")
+		return
+	}
 	resolution.setCapital(playerID, infrastructure.ID)
 	resolution.events = append(resolution.events, Event{
 		Type:               EventTypeCapitalElected,

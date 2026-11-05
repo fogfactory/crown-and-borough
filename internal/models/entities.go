@@ -203,6 +203,66 @@ type Infrastructure struct {
 	Level       int         `json:"level"` // >= 1 (>= 0 for a village); production is per level (GDD §7)
 	TerritoryID TerritoryID `json:"territory"`
 	Fortified   bool        `json:"fortified,omitempty"`
+	// Ruined only ever applies to a castle: a pillaged castle stays on its
+	// tile as a ruin that offers no defense and can no longer be pillaged. A
+	// village is a ruin at level 0 and needs no flag.
+	Ruined bool `json:"ruined,omitempty"`
+}
+
+// IsRuined reports whether the infrastructure is a ruin: a pillaged castle,
+// or a village that fell to level 0. A ruin can no longer be pillaged.
+func (i Infrastructure) IsRuined() bool {
+	switch i.Type {
+	case InfraTypeCastle:
+		return i.Ruined
+	case InfraTypeVillage:
+		return i.Level == 0
+	}
+	return false
+}
+
+// IsLiveCastle reports whether the infrastructure is a castle that is not in
+// ruins: only such a castle offers a defensive bonus or a refuge.
+func (i Infrastructure) IsLiveCastle() bool {
+	return i.Type == InfraTypeCastle && !i.Ruined
+}
+
+// IsPillageable reports whether a pillage can still degrade the
+// infrastructure: a ruin has nothing left to take, except a fortified village
+// whose wall can still be destroyed.
+func (i Infrastructure) IsPillageable() bool {
+	if i.Type == InfraTypeVillage && i.Fortified {
+		return true
+	}
+	return !i.IsRuined()
+}
+
+// IsFiefCapital reports whether territoryID is the capital of one of the
+// fiefs.
+func (g *GameState) IsFiefCapital(territoryID TerritoryID) bool {
+	if g == nil {
+		return false
+	}
+	for _, fief := range g.Fiefs {
+		if fief.CapitalTerritoryID == territoryID {
+			return true
+		}
+	}
+	return false
+}
+
+// IsActiveSettlement reports whether the infrastructure is a castle or a
+// village that still serves as a supply source and holds a usable stock: a
+// ruined castle or village is inert, except a castle that is the capital of a
+// fief.
+func (g *GameState) IsActiveSettlement(infrastructure Infrastructure) bool {
+	switch infrastructure.Type {
+	case InfraTypeCastle:
+		return !infrastructure.Ruined || g.IsFiefCapital(infrastructure.TerritoryID)
+	case InfraTypeVillage:
+		return infrastructure.Level > 0
+	}
+	return false
 }
 
 // TerritoryState is the dynamic layer attached to a single territory: its

@@ -854,6 +854,23 @@ describe('MapViewer territorial overlays', () => {
     ).toBeNull()
   })
 
+  it('draws a pillaged castle as a ruin', () => {
+    const ruinedCastle = (ruined: boolean): StateData => ({
+      ...state,
+      territories: state.territories.map((territory, index) =>
+        index === 0
+          ? { ...territory, infrastructures: [{ type: 'castle', level: 1, ruined }] }
+          : territory,
+      ),
+    })
+    expect(
+      renderMap(map, ruinedCastle(true)).svg.querySelector('[data-ruined-marker]'),
+    ).not.toBeNull()
+    expect(
+      renderMap(map, ruinedCastle(false)).svg.querySelector('[data-ruined-marker]'),
+    ).toBeNull()
+  })
+
   it('marks the capital castle with a crown', () => {
     const capitalState: StateData = {
       ...state,

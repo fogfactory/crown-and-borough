@@ -582,7 +582,7 @@ func TestProjectStateExposesVillageLevelZero(t *testing.T) {
 		if territory.ID != "FOU" {
 			continue
 		}
-		want := []InfraView{{Type: models.InfraTypeVillage, Level: 0}}
+		want := []InfraView{{Type: models.InfraTypeVillage, Level: 0, Ruined: true}}
 		if !reflect.DeepEqual(territory.Infrastructures, want) {
 			t.Fatalf("FOU infrastructures = %#v, want %#v", territory.Infrastructures, want)
 		}

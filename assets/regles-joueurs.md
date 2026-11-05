@@ -333,9 +333,10 @@ si l'armée soutenante est délogée.
 surtout utile pour occuper une ligne de chaîne en attendant, notamment en
 boucle (`(H XXX)`).
 
-`P XXX` : détruit l'infrastructure de la case occupée ; un bonus de pillage
+`P XXX` : pille l'infrastructure de la case occupée, qui est dégradée plutôt
+que détruite (section 7, « Pillage et ruines ») ; un bonus de pillage
 ({{pillage_bonus}} R) est crédité à la source alliée la plus proche, et peut
-réduire une famine (section 7).
+réduire une famine (section 7). Une ruine ne peut pas être pillée.
 
 ### Dispersion (`D`)
 
@@ -435,7 +436,8 @@ même chaîne — il n'existe pas d'ordres mixtes au sein d'une armée.
   (voir l'auto-capture, section 5) ; un château vide qui n'est ni membre d'un
   fief ni capitale d'un joueur est **inerte** et n'apporte aucun bonus (voir
   « Fiefs », section 8) ; le château d'une capitale de fief est une **cité**
-  et apporte **+{{city_defense_bonus}}** à la place ;
+  et apporte **+{{city_defense_bonus}}** à la place ; un château **en ruine**
+  n'apporte aucun bonus, même comme capitale de fief (section 7) ;
 - la plus haute force **strictement unique** l'emporte ; une égalité au
   sommet produit un **statu quo**, y compris sur une case vide ;
 - on ne déloge jamais sa propre armée : une attaque sur une case tenue par
@@ -490,8 +492,10 @@ exclue. Un château **ancré** — membre d'un fief ou capitale d'un joueur, mê
 neutre ou ennemi pour le retraité — défend contre une retraite et n'est
 jamais une destination valide ; un château vide **inerte** (ni fief, ni
 capitale, ni armée) redevient en revanche une destination valide de deuxième
-priorité, comme l'absence de château. Deux armées qui doivent reculer sur la
-même case vide sans alternative sont détruites. L'ordre de traitement des
+priorité, comme l'absence de château ; un château en ruine ne défend contre
+une retraite que s'il est la capitale d'un fief, sinon il est inerte. Deux
+armées qui doivent reculer sur la même case vide sans alternative sont
+détruites. L'ordre de traitement des
 armées en retraite suit le trigramme croissant de leur case d'origine.
 
 La prise de contrôle d'un territoire suit l'armée qui s'y arrête, mais son
@@ -689,9 +693,9 @@ Son statut n'est recalculé qu'à la prochaine résolution de ravitaillement, en
 fin de ce tour suivant. Si elle a atteint une source suffisante entre-temps,
 elle redevient valide dès ce tour. Si elle est encore en déficit à ce
 moment-là, alors qu'elle est déjà affamée, elle **pille automatiquement**
-l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
-diminué de sa demande résiduelle, peut la sortir du déficit. Si le pillage est
-insuffisant ou impossible, elle **perd autant de troupes qu'il en faut pour
+l'infrastructure de sa case, si elle en occupe une qui n'est pas en ruine :
+le bonus de pillage, diminué de sa demande résiduelle, peut la sortir du
+déficit. Si le pillage est insuffisant ou impossible, elle **perd autant de troupes qu'il en faut pour
 revenir à `s`** et n'est alors plus affamée. Si `s = 0`, elle **disparaît** :
 ses nobles **meurent avec elle** (personne ne peut les capturer) et sa case
 garde son contrôleur.
@@ -718,9 +722,32 @@ conditions de construction sont détaillés section 8.
 |---|---|
 | Moulin | `N` R stockable par niveau, versés à une seule infrastructure adjacente du même contrôleur (château, sinon village, sinon lui-même) ; sans contrôleur, sur sa propre case |
 | Dépôt de vivres | +{{depot_range_bonus}} cases de portée de ravitaillement tant qu'il est ancré ou occupé ; inerte sinon |
-| Château | +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte ; ancre de ravitaillement ; verse le revenu territorial (section 7) ; devient une cité (+{{city_defense_bonus}}, sans cumul) sur la capitale d'un fief (section 8) |
-| Village | Ancre après capture, verse le revenu territorial une fois contrôlé, majoré de {{village_income}} R par niveau (produit {{village_income}} R par niveau et par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — comme le moulin, il ne devient jamais inerte) |
+| Château | +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte ; ancre de ravitaillement ; verse le revenu territorial (section 7) ; devient une cité (+{{city_defense_bonus}}, sans cumul) sur la capitale d'un fief (section 8) ; en ruine, plus aucune défense |
+| Village | Ancre après capture, verse le revenu territorial une fois contrôlé, majoré de {{village_income}} R par niveau (produit {{village_income}} R par niveau et par tour dans son propre stock tant qu'il est neutre, jamais tenu ou tout juste abandonné — comme le moulin, il ne devient jamais inerte) ; un village de niveau 0 est en ruine et ne produit rien |
 | Village fortifié | Identique au village (stock, production, revenu), et gagne en plus +{{castle_defense_bonus}} défense tant qu'il reste ancré ou occupé, sinon inerte (section 8) |
+
+### Pillage et ruines
+
+Un pillage (`P`) dégrade l'infrastructure de la case au lieu de la détruire :
+
+| Infrastructure pillée | Effet |
+|---|---|
+| Moulin | Perd 1 niveau ; un moulin de niveau 1 disparaît |
+| Village fortifié | Sa muraille est détruite, sans perte de niveau |
+| Village non fortifié | Perd 1 niveau ; à 0, il est **en ruine** |
+| Château | Il est **en ruine** |
+| Dépôt de vivres | Il disparaît |
+
+Une **ruine** (château en ruine, village de niveau 0) ne peut pas être
+pillée. Elle n'est pas une source de ravitaillement, ne reçoit ni revenu
+territorial ni production de moulin, et un château en ruine n'apporte aucune
+défense, ne peut devenir ni capitale d'un fief ni capitale de joueur, mais
+`C C` le reconstruit sur place au coût d'un château. Une exception : le
+château en ruine qui est la capitale d'un fief reste la capitale (le fief
+n'est pas dissous, ta capitale non plus), reste une source de ravitaillement
+et un point d'ancrage pour les retraites, sans valeur défensive. Le stock d'un
+château ou d'un village qui cesse d'être une source s'ajoute au butin : il est
+crédité, avec le bonus de pillage, à la source alliée la plus proche.
 
 ---
 
@@ -1022,9 +1049,11 @@ automatiquement** au premier noble de ta ligne de succession, même s'il est
 otage ou prisonnier, avec un avertissement dans le rapport te signalant de
 reprendre la main la fois suivante ; sans aucun noble vivant, il reste
 simplement vacant — il n'est jamais dissous faute d'attribution. Si le château de la
-capitale est détruit (pillage, y compris le pillage automatique de famine),
-le fief est dissous **immédiatement**, quelle que soit la saison : c'est la
-seule cause de dissolution d'un fief. La capture du titulaire (otage ou
+capitale est pillé (pillage, y compris le pillage automatique de famine), il
+tombe en ruine mais reste la capitale du fief, qui n'est pas dissous : il perd
+alors toute valeur défensive, reste une source de ravitaillement et un point
+d'ancrage pour les retraites, et `C C` le reconstruit. Un château en ruine ne
+peut pas devenir la capitale d'un nouveau fief. La capture du titulaire (otage ou
 donjon) n'a, elle, aucun effet sur le fief.
 
 ### Vocabulaire des ressources
