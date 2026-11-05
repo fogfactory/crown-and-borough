@@ -588,8 +588,8 @@ the capital through the adjacent castle or village (section 8).
 ### Territory Income
 
 Each action season (never in winter), every territory you control yields
-{{territory_income}} R, plus {{village_income}} R more if it carries a
-village. This income is credited **at the end of the turn**, with the rest of
+{{territory_income}} R, plus {{village_income}} R more per level of the
+village it carries. This income is credited **at the end of the turn**, with the rest of
 supply, on the turn's final territorial control: a territory captured during
 the turn credits its new controller, not the one from the start of the turn.
 It never travels through the supply network and can never be intercepted,
@@ -607,7 +607,12 @@ distinct territories can therefore feed different destinations the same turn
 while no capital exists. A bad harvest suppresses this income in the region
 of the territory producing it; an abundant harvest doubles it, exactly like
 terrain rations. A **neutral** village keeps producing {{village_income}} R
-per turn into its own stock, recovered on capture.
+per level per turn into its own stock, recovered on capture.
+
+A village has a level from 0 to {{village_max_level}}; starting villages are
+level 1. A level-0 village is a ruin: it produces nothing, neither extra
+income once controlled nor stock while neutral. Its stock stays capped like
+any village's, whatever its level.
 
 ### Stocks and Famine
 
@@ -675,7 +680,7 @@ conditions are detailed in section 8.
 | Mill | `N` stockable R per level, credited to a single adjacent infrastructure under the same control (castle, else village, else itself); with no controller, on its own territory |
 | Supply depot | +{{depot_range_bonus}} territories of supply range while anchored or occupied; inert otherwise |
 | Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
-| Village | Supply anchor after capture, receives territory income once controlled (produces {{village_income}} R per turn into its own stock while neutral, never held, or just abandoned — like the mill, it never goes inert) |
+| Village | Supply anchor after capture, receives territory income once controlled, plus {{village_income}} R per level (produces {{village_income}} R per level per turn into its own stock while neutral, never held, or just abandoned — like the mill, it never goes inert) |
 | Fortified village | Identical to a village (stock, production, income), and additionally gains +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise (section 8) |
 
 ---

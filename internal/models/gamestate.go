@@ -503,8 +503,8 @@ func (g *GameState) Validate() error {
 		if !in.Type.IsValid() {
 			return fmt.Errorf("models: infrastructure %q: invalid type %q", in.ID, in.Type)
 		}
-		if in.Level < 1 {
-			return fmt.Errorf("models: infrastructure %q: level must be >= 1, got %d", in.ID, in.Level)
+		if minimumLevel := in.Type.MinLevel(); in.Level < minimumLevel {
+			return fmt.Errorf("models: infrastructure %q: level must be >= %d, got %d", in.ID, minimumLevel, in.Level)
 		}
 		if terrs[in.TerritoryID] == nil {
 			return fmt.Errorf("models: infrastructure %q: unknown territory %q", in.ID, in.TerritoryID)

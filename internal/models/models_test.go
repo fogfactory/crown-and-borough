@@ -788,3 +788,15 @@ func TestNewGameStateJSONEmptyCollections(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateVillageLevelZero(t *testing.T) {
+	state := validState()
+	state.Infrastructures[0] = models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 0, TerritoryID: "ROS"}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want a level-0 village to be valid", err)
+	}
+	state.Infrastructures[0].Level = -1
+	if err := state.Validate(); err == nil {
+		t.Fatal("Validate() = nil, want a negative village level rejected")
+	}
+}

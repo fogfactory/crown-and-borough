@@ -283,7 +283,7 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 		infrastructure := models.Infrastructure{
 			ID:          models.InfraID(fmt.Sprintf("I%d", nextInfrastructureID)),
 			Type:        models.InfraTypeVillage,
-			Level:       1,
+			Level:       models.InfraTypeVillage.StartingLevel(),
 			TerritoryID: territoryID,
 		}
 		nextInfrastructureID++

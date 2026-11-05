@@ -109,7 +109,8 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 
 - À chaque tour d'action (printemps, été, automne ; jamais en hiver), chaque
   territoire contrôlé rapporte `territory_income` R (1), plus
-  `village_income` R (1) s'il porte un village.
+  `village_income` R (1) par niveau du village qu'il porte (un village de
+  niveau 0 ne rapporte rien de plus que le territoire).
 - Le revenu est crédité en **fin de tour**, avec le reste du ravitaillement
   ([#208](https://github.com/fogfactory/crown-and-borough/issues/208)), sur le
   contrôle territorial définitif du tour : un territoire capturé pendant le
@@ -139,8 +140,8 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
   distincts ; la règle de destination unique d'un moulin est précisée par
   [#195](https://github.com/fogfactory/crown-and-borough/issues/195)
   ci-dessous.
-- Un village **neutre** continue de produire `village_income` R par tour dans
-  son propre stock, récupéré à sa capture, qu'il n'ait jamais été tenu ou qu'il
+- Un village **neutre** continue de produire `village_income` R par niveau et
+  par tour dans son propre stock, récupéré à sa capture, qu'il n'ait jamais été tenu ou qu'il
   vienne d'être abandonné faute d'ancrage
   ([#215](https://github.com/fogfactory/crown-and-borough/issues/215)), comme
   un moulin sans contrôleur (voir « Moulins » ci-dessous).
@@ -150,10 +151,10 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 | Source | Bénéficiaire par défaut | Avec taxe |
 |---|---|---|
 | Territoire d'un fief, sans village | 1 R → capitale du fief | Seigneur : 2 R → capitale du fief. Roi (si le seigneur ne taxe pas ce tour) : +1 R → capitale du roi, 1 R de base reste au fief |
-| Territoire d'un fief, avec village | 2 R → capitale du fief (1 territoire + 1 village) | Seigneur : 4 R → capitale du fief. Roi (si non taxé localement) : +2 R → capitale du roi, 2 R de base restent au fief |
+| Territoire d'un fief, avec village de niveau `L` | `1 + L` R → capitale du fief (1 territoire + `L` pour le village) | Seigneur : `2 × (1 + L)` R → capitale du fief. Roi (si non taxé localement) : +`1 + L` R → capitale du roi, `1 + L` R de base restent au fief |
 | Territoire contrôlé hors fief, sans village | 1 R → capitale du joueur | — (pas de taxe hors fief) |
-| Territoire contrôlé hors fief, avec village | 2 R → capitale du joueur | — |
-| Village neutre | 1 R → son propre stock | — |
+| Territoire contrôlé hors fief, avec village de niveau `L` | `1 + L` R → capitale du joueur | — |
+| Village neutre de niveau `L` | `L` R → son propre stock | — |
 | Moulin sans contrôleur (niveau `N`) | `N` R → son propre stock | Dîme : `N` R → capitale du joueur qui a joué la dîme |
 | Rente royale | 1 R par fief constitué, créé (non prélevé), → capitale du joueur du roi ; la reine reçoit la moitié arrondie au supérieur → capitale de son joueur | — ([politique.md](politique.md#rente)) |
 | Moulin (niveau `N`) | `N` R → château adjacent du même contrôleur, sinon village adjacent du même contrôleur, sinon reste sur le moulin | Dîme (carte Impôts jouée par un évêque ou un cardinal sur l'évêché, par le pape sur tous les évêchés) : `N` R → capitale du joueur qui a joué la dîme, au lieu du village/château adjacent |
@@ -248,6 +249,18 @@ dans cet ordre :
 
 Le stock d'un moulin fait ainsi exception à la règle selon laquelle seuls les
 châteaux et villages paient les investissements d'hiver.
+
+## Niveaux de village
+
+Un village a un niveau de 0 à `village_max_level` (3). Il produit
+`village_income` R par niveau : un village de niveau 3 rapporte trois fois ce
+que rapporte un village de niveau 1, comme un moulin de niveau `N` produit
+`N` R. Les villages générés à la création de la partie, comme ceux fondés par
+la prospérité, sont de niveau 1. Un village de niveau 0 est en ruine : il ne
+produit rien, ni revenu territorial supplémentaire ni stock neutre, mais reste
+un village pour le reste des règles (stock plafonné à `village_stock_cap` R en
+fin d'hiver, ancrage, fortification). Le niveau du village ne change pas ce
+plafond de stock.
 
 ## Village fortifié
 

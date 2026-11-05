@@ -95,6 +95,7 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 	values := map[string]string{
 		"territory_income":                            stringValue(balance.TerritoryIncome),
 		"village_income":                              stringValue(balance.VillageIncome),
+		"village_max_level":                           stringValue(balance.VillageMaxLevel),
 		"supply_range":                                stringValue(balance.SupplyRange),
 		"depot_range_bonus":                           stringValue(balance.DepotRangeBonus),
 		"cost_base":                                   stringValue(balance.CostBase),

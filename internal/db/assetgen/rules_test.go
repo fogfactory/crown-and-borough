@@ -111,7 +111,7 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	for _, placeholder := range []string{
 		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
-		"{{territory_income}}", "{{village_income}}",
+		"{{territory_income}}", "{{village_income}}", "{{village_max_level}}",
 		"{{costs.mill_levels.0}}", "{{costs.mill_levels.1}}", "{{costs.mill_levels.2}}",
 	} {
 		if strings.Contains(string(document), placeholder) {
@@ -128,7 +128,7 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	for _, placeholder := range []string{
 		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
-		"{{territory_income}}", "{{village_income}}",
+		"{{territory_income}}", "{{village_income}}", "{{village_max_level}}",
 		"{{costs.mill_levels.0}}", "{{costs.mill_levels.1}}", "{{costs.mill_levels.2}}",
 	} {
 		if strings.Contains(string(english), placeholder) {

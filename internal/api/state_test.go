@@ -571,3 +571,29 @@ func TestProjectStateWinterAidsNextTitleFollowsRelaxedLine(t *testing.T) {
 		})
 	}
 }
+
+// TestProjectStateExposesVillageLevelZero checks that a level-0 village keeps
+// its level in state.json: the front reads it to mark the village as a ruin.
+func TestProjectStateExposesVillageLevelZero(t *testing.T) {
+	state := projectTestState()
+	state.Infrastructures[1].Level = 0
+	view := projectState(state, assetgen.Balance{})
+	for _, territory := range view.Territories {
+		if territory.ID != "FOU" {
+			continue
+		}
+		want := []InfraView{{Type: models.InfraTypeVillage, Level: 0}}
+		if !reflect.DeepEqual(territory.Infrastructures, want) {
+			t.Fatalf("FOU infrastructures = %#v, want %#v", territory.Infrastructures, want)
+		}
+		document, err := json.Marshal(territory.Infrastructures[0])
+		if err != nil {
+			t.Fatalf("Marshal: %v", err)
+		}
+		if !strings.Contains(string(document), `"level":0`) {
+			t.Fatalf("infrastructure JSON = %s, want an explicit level 0", document)
+		}
+		return
+	}
+	t.Fatal("FOU territory missing from the projected state")
+}

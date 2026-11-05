@@ -5,6 +5,7 @@ import { ArmyIcon, ControlShieldIcon } from '@/components/ArmsIcons'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { formatOrderLabel } from '@/lib/order-label'
+import { isRuinedVillage } from '@/lib/infrastructure'
 import { formatCardLabel } from '@/lib/card-hand'
 import { CodeTag, NobleRef, TerritoryRef } from '@/components/MapLinks'
 import { resolveArmsByOwner } from '@/lib/heraldry'
@@ -488,7 +489,11 @@ export function SelectedTerritoryDetails({
               {selectedState.infrastructures
                 .map(
                   (infrastructure) =>
-                    `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])} ${infrastructure.level}`,
+                    `${t(INFRASTRUCTURE_LABEL_KEYS[infrastructure.type])}${
+                      isRuinedVillage(infrastructure)
+                        ? ` · ${t('infrastructure.ruined')}`
+                        : ` ${infrastructure.level}`
+                    }`,
                 )
                 .join(' · ')}
             </dd>

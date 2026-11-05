@@ -37,6 +37,7 @@ ration_terrain:
   swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
+village_max_level: 3
 castle_stock_cap: 2
 prosperity_loss_threshold: 10
 costs:

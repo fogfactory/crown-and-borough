@@ -443,7 +443,7 @@ Une case ne porte qu'une seule infrastructure.
 C'est le territoire contrôlé, et non l'infrastructure bâtie, qui produit la
 ressource `R` stockable : chaque saison d'action (jamais en hiver), chaque
 territoire contrôlé rapporte `territory_income` R, plus `village_income` R
-s'il porte un village (voir `assets/balance.yaml`). Ce revenu est crédité en
+par niveau du village qu'il porte (voir `assets/balance.yaml`). Ce revenu est crédité en
 fin de tour, avec le reste du ravitaillement (section 5), sur le contrôle
 final du tour : un territoire capturé pendant le tour verse son revenu à son
 nouveau contrôleur, pas à celui du début de tour. Un territoire membre d'un
@@ -458,8 +458,11 @@ revenu dans la région du territoire qui le produit ; la Récolte abondante le
 double, comme pour les rations.
 
 Un village est une infrastructure rare et neutre à la génération ; il ne
-peut pas être construit. Neutre, il produit `village_income` R par tour dans
-son propre stock, qu'un joueur ne peut utiliser qu'après sa capture. Contrôlé,
+peut pas être construit. Il a un niveau de 0 à `village_max_level` (3) ; les
+villages générés sont de niveau 1, et un village de niveau 0 est en ruine :
+il ne produit rien. Neutre, un village produit `village_income` R par niveau
+et par tour dans son propre stock, qu'un joueur ne peut utiliser qu'après sa
+capture. Contrôlé,
 il ne produit plus rien localement : son revenu suit la règle ci-dessus. Un
 château construit sur un village le remplace et conserve le stock de la case.
 
@@ -820,7 +823,7 @@ de tous ses membres au conquérant en une seule fois.
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même ; un moulin sans contrôleur produit toujours sur sa propre case, comme un village neutre (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement, seulement lorsqu'il est ancré ou occupé (voir ci-dessus) ; inerte sinon | 3 |
 | Château | Aucune | +1 défense tant qu'il reste ancré ou occupé (voir ci-dessus), sinon inerte ; verse le revenu territorial (§3) lorsqu'il est contrôlé ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) | 10 |
-| Village | Généré neutre, non constructible | Verse le revenu territorial une fois contrôlé ; produit `village_income` R par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (comme le moulin, il ne devient jamais inerte) | — |
+| Village | Généré neutre, non constructible ; niveau de 0 à `village_max_level` (3), niveau 1 à la génération | Verse le revenu territorial, majoré de `village_income` R par niveau, une fois contrôlé ; produit `village_income` R par niveau et par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (comme le moulin, il ne devient jamais inerte) ; un village de niveau 0 ne produit rien | — |
 
 Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
 sur sa propre case ; cette case devient alors elle-même une source de

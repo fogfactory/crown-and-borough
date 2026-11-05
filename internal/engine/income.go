@@ -68,7 +68,7 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 				continue
 			}
 			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
-			parts := territoryIncomeParts(ctx, territoryID, hasVillage)
+			parts := territoryIncomeParts(ctx, territoryID)
 			fief := ctx.territoryFief(ownerID, territoryID)
 			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID {
 				// Seigneurial tax doubles the fief's territorial income,
@@ -181,15 +181,12 @@ func (ctx *resolutionContext) destinationStock(destinationID models.TerritoryID)
 }
 
 // territoryIncomeParts computes the harvest-adjusted income of one controlled
-// territory: territory_income, plus village_income when it carries a
-// village. Bad harvest suppresses it, good harvest doubles it, in the
+// territory: territory_income, plus village_income per level of the village
+// it carries (nothing for a level-0 village). Bad harvest suppresses it, good harvest doubles it, in the
 // territory's own region - the same rule harvest cards apply to any other
 // source's base production.
-func territoryIncomeParts(ctx *resolutionContext, territoryID models.TerritoryID, hasVillage bool) sourceProductionParts {
-	base := ctx.balance.TerritoryIncome
-	if hasVillage {
-		base += ctx.balance.VillageIncome
-	}
+func territoryIncomeParts(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
+	base := ctx.balance.TerritoryIncome + ctx.villageProduction(territoryID)
 	return harvestAdjustedParts(ctx, territoryID, base)
 }
 

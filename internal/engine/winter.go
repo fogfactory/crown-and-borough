@@ -383,7 +383,7 @@ func (ctx *resolutionContext) addWinterInfrastructure(infrastructureType models.
 	infrastructure := models.Infrastructure{
 		ID:          nextInfrastructureID(ctx.state.Infrastructures),
 		Type:        infrastructureType,
-		Level:       1,
+		Level:       infrastructureType.StartingLevel(),
 		TerritoryID: territoryID,
 	}
 	ctx.state.Infrastructures = append(ctx.state.Infrastructures, infrastructure)

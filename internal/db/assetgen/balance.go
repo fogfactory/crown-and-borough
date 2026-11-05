@@ -16,6 +16,7 @@ import (
 type Balance struct {
 	TerritoryIncome         int                    `json:"territory_income" yaml:"territory_income"`
 	VillageIncome           int                    `json:"village_income" yaml:"village_income"`
+	VillageMaxLevel         int                    `json:"village_max_level" yaml:"village_max_level"`
 	SupplyRange             int                    `json:"supply_range" yaml:"supply_range"`
 	DepotRangeBonus         int                    `json:"depot_range_bonus" yaml:"depot_range_bonus"`
 	CostBase                int                    `json:"cost_base" yaml:"cost_base"`
@@ -176,6 +177,7 @@ type Costs struct {
 type rawBalance struct {
 	TerritoryIncome         *int              `yaml:"territory_income"`
 	VillageIncome           *int              `yaml:"village_income"`
+	VillageMaxLevel         *int              `yaml:"village_max_level"`
 	SupplyRange             *int              `yaml:"supply_range"`
 	DepotRangeBonus         *int              `yaml:"depot_range_bonus"`
 	CostBase                *int              `yaml:"cost_base"`
@@ -337,6 +339,10 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	villageMaxLevel, err := requiredPositiveInt(path, "village_max_level", raw.VillageMaxLevel)
+	if err != nil {
+		return Balance{}, err
+	}
 	supplyRange, err := requiredNonNegativeInt(path, "supply_range", raw.SupplyRange)
 	if err != nil {
 		return Balance{}, err
@@ -445,6 +451,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	return Balance{
 		TerritoryIncome:         territoryIncome,
 		VillageIncome:           villageIncome,
+		VillageMaxLevel:         villageMaxLevel,
 		SupplyRange:             supplyRange,
 		DepotRangeBonus:         depotRangeBonus,
 		CostBase:                costBase,

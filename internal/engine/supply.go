@@ -210,10 +210,15 @@ func produceNeutralStocks(ctx *resolutionContext) {
 		var parts sourceProductionParts
 		switch {
 		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
-			parts = harvestAdjustedParts(ctx, territoryID, ctx.balance.VillageIncome)
+			parts = harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
 		case ctx.hasInfrastructure(territoryID, models.InfraTypeMill):
 			parts = millSelfProductionBreakdown(ctx, territoryID)
 		default:
+			continue
+		}
+		if parts.total() == 0 && parts.suppressed == 0 {
+			// Nothing produced and nothing suppressed (a ruined, level-0
+			// village): the territory is no source this turn.
 			continue
 		}
 		state := ctx.state.TerritoryStates[territoryID]

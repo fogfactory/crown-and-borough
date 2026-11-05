@@ -138,6 +138,31 @@ describe('SelectedTerritoryDetails', () => {
     ).toBeInTheDocument()
   })
 
+  it('describes a level-0 village as in ruins and a leveled one by its level', () => {
+    const renderVillage = (level: number) =>
+      render(
+        <SelectedTerritoryDetails
+          state={state}
+          selectedTerritory={map.territories[0]}
+          selectedState={{
+            ...state.territories[0],
+            army: null,
+            infrastructures: [{ type: 'village', level }],
+          }}
+          selectedSupplyLine={null}
+          sourceTerritory={null}
+          supplyLoading={false}
+          supplyError={null}
+        />,
+      )
+
+    const ruined = renderVillage(0)
+    expect(screen.getByText('Village · In ruins')).toBeInTheDocument()
+    ruined.unmount()
+    renderVillage(2)
+    expect(screen.getByText('Village 2')).toBeInTheDocument()
+  })
+
   it('renders nobles, complete army details, supply, and infrastructure using preferred names', () => {
     render(
       <SelectedTerritoryDetails
