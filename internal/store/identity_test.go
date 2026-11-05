@@ -200,3 +200,31 @@ func TestMemoryStorePropagatesProfileRenamesToGameViews(t *testing.T) {
 		t.Fatalf("renamed player = slot %q/state %q", snapshot.Players[0].Name, snapshot.State.Players[0].Name)
 	}
 }
+
+func TestMemoryProfileStoreUpdatesReleaseNotesPreferences(t *testing.T) {
+	profiles := NewMemoryProfileStore()
+	ctx := context.Background()
+	version, hide := "1.4.0", true
+	if _, err := profiles.UpdateReleaseNotes(ctx, "ghost", ReleaseNotesUpdate{LastSeenVersion: &version}); !errors.Is(err, ErrProfileNotFound) {
+		t.Fatalf("unknown profile err = %v", err)
+	}
+	if _, err := profiles.EnsureProfile(ctx, Actor{ID: "alice", Email: "alice@example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := profiles.UpdateReleaseNotes(ctx, "alice", ReleaseNotesUpdate{}); !errors.Is(err, ErrInvalidReleaseNotes) {
+		t.Fatalf("empty update err = %v", err)
+	}
+	bad := "dev"
+	if _, err := profiles.UpdateReleaseNotes(ctx, "alice", ReleaseNotesUpdate{LastSeenVersion: &bad}); !errors.Is(err, ErrInvalidReleaseNotes) {
+		t.Fatalf("invalid version err = %v", err)
+	}
+	profile, err := profiles.UpdateReleaseNotes(ctx, "alice", ReleaseNotesUpdate{LastSeenVersion: &version, HideReleaseNotes: &hide})
+	if err != nil || profile.LastSeenVersion != "1.4.0" || !profile.HideReleaseNotes {
+		t.Fatalf("update = %+v, %v", profile, err)
+	}
+	show := false
+	profile, err = profiles.UpdateReleaseNotes(ctx, "alice", ReleaseNotesUpdate{HideReleaseNotes: &show})
+	if err != nil || profile.LastSeenVersion != "1.4.0" || profile.HideReleaseNotes {
+		t.Fatalf("partial update = %+v, %v", profile, err)
+	}
+}

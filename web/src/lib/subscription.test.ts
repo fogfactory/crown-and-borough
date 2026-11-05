@@ -41,6 +41,7 @@ vi.mock('firebase/firestore', () => ({
 
 import {
   normalizeGameSummary,
+  normalizeStateData,
   useGameListSubscription,
   useGameSubscription,
 } from '@/lib/subscription'
@@ -59,6 +60,45 @@ const state = {
 }
 
 describe('Firestore game subscriptions', () => {
+  it('forwards every projected state field, winter aids and titles included', () => {
+    const winterAids = {
+      excommunicable: [],
+      liftable: [],
+      buyableCardinals: [],
+      cardinalCost: 4,
+      inquirers: [],
+      inquiryCosts: {},
+      trialJudges: [],
+      fiefSites: [
+        {
+          territories: ['AAA', 'BBB', 'CCC'],
+          castles: ['AAA'],
+          edges: [
+            { from: 'AAA', to: 'BBB' },
+            { from: 'BBB', to: 'CCC' },
+          ],
+        },
+      ],
+      fiefCostPerTerritory: 2,
+      rituals: [],
+    }
+    const fiefs = [{ capital: 'AAA', title: 'barony', territories: ['AAA', 'BBB', 'CCC'], owner: 'P1' }]
+    const normalized = normalizeStateData({
+      ...state,
+      season: 'winter',
+      winterAids,
+      fiefs,
+      king: 'KNG',
+      pope: 'POP',
+      cardinals: ['CAR'],
+      victory: 'malformed',
+    })
+    expect(normalized).toMatchObject({ season: 'winter', winterAids, fiefs, king: 'KNG', pope: 'POP', cardinals: ['CAR'] })
+    // Fields with a type check still get it: a malformed one is dropped or defaulted.
+    expect(normalized).not.toHaveProperty('victory')
+    expect(normalized?.specialHand).toEqual([])
+  })
+
   it('normalizes the public summary without exposing raw document concerns to the UI', () => {
     expect(
       normalizeGameSummary(
@@ -91,6 +131,7 @@ describe('Firestore game subscriptions', () => {
           color: '#a84632',
           actorId: 'alice-uid',
           submitted: true,
+          required: true,
         },
       ],
       turn: 2,
@@ -99,6 +140,29 @@ describe('Firestore game subscriptions', () => {
       scores: {},
       revision: 4,
     })
+  })
+
+  it('marks a player absent from requiredUids as having nothing to submit', () => {
+    const summary = normalizeGameSummary(
+      {
+        id: 'game-1',
+        players: [
+          { id: 'P1', name: 'Alice', color: '#a84632', actorId: 'alice-uid' },
+          { id: 'P2', name: 'Bob', color: '#2d5f9e', actorId: 'bob-uid' },
+        ],
+        submittedUids: [],
+        requiredUids: ['alice-uid'],
+        revision: 1,
+        turn: 3,
+        season: 'summer',
+        status: 'playing',
+      },
+      'game-1',
+    )
+    expect(summary.players).toEqual([
+      expect.objectContaining({ id: 'P1', required: true }),
+      expect.objectContaining({ id: 'P2', required: false }),
+    ])
   })
 
   it('subscribes to the public summary and only the current UID private view', async () => {

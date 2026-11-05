@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -124,4 +125,79 @@ func requestAuthenticated(t *testing.T, handler http.Handler, method, path, body
 	request.Header.Set("Content-Type", "application/json")
 	handler.ServeHTTP(recorder, request)
 	return recorder
+}
+
+func newReleaseNotesTestMux(t *testing.T) http.Handler {
+	t.Helper()
+	profiles := store.NewMemoryProfileStore()
+	resolve := BearerActorResolver(func(token string) (store.Actor, error) {
+		if token != "alice-token" {
+			return store.Actor{}, ErrUnauthorized
+		}
+		return store.Actor{ID: "alice-uid", Email: "alice@example.com"}, nil
+	})
+	mux := http.NewServeMux()
+	mux.Handle("/api/auth/", NewAuthHandler(profiles, resolve))
+	return mux
+}
+
+func TestReleaseNotesPreferencesUpdate(t *testing.T) {
+	mux := newReleaseNotesTestMux(t)
+	const path = "/api/auth/me/release-notes"
+
+	if response := requestAuthenticated(t, mux, http.MethodPut, path, `{"lastSeenVersion":"1.2.0"}`, ""); response.Code != http.StatusUnauthorized {
+		t.Fatalf("without bearer = %d", response.Code)
+	}
+	if response := requestAuthenticated(t, mux, http.MethodGet, path, "", "alice-token"); response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET = %d", response.Code)
+	}
+	for _, body := range []string{`{}`, `{"lastSeenVersion":"dev"}`, `{"lastSeenVersion":""}`, `{"unknown":1}`, `not json`} {
+		if response := requestAuthenticated(t, mux, http.MethodPut, path, body, "alice-token"); response.Code != http.StatusBadRequest {
+			t.Fatalf("body %q = %d: %s", body, response.Code, response.Body.String())
+		}
+	}
+
+	var decoded profileResponse
+	response := requestAuthenticated(t, mux, http.MethodPut, path, `{"lastSeenVersion":"1.2.0"}`, "alice-token")
+	if response.Code != http.StatusOK {
+		t.Fatalf("update version = %d: %s", response.Code, response.Body.String())
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Player.LastSeenVersion != "1.2.0" || decoded.Player.HideReleaseNotes {
+		t.Fatalf("after version update: %+v", decoded.Player)
+	}
+
+	response = requestAuthenticated(t, mux, http.MethodPut, path, `{"hideReleaseNotes":true}`, "alice-token")
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil || response.Code != http.StatusOK {
+		t.Fatalf("update hide = %d: %s", response.Code, response.Body.String())
+	}
+	if decoded.Player.LastSeenVersion != "1.2.0" || !decoded.Player.HideReleaseNotes {
+		t.Fatalf("hide update must keep the version: %+v", decoded.Player)
+	}
+
+	response = requestAuthenticated(t, mux, http.MethodGet, "/api/auth/me", "", "alice-token")
+	if !strings.Contains(response.Body.String(), `"lastSeenVersion":"1.2.0"`) || !strings.Contains(response.Body.String(), `"hideReleaseNotes":true`) {
+		t.Fatalf("profile does not expose preferences: %s", response.Body.String())
+	}
+}
+
+// The web client (ProfileData in web/src/types.ts) relies on these exact keys.
+func TestProfileContractKeys(t *testing.T) {
+	mux := newReleaseNotesTestMux(t)
+	response := requestAuthenticated(t, mux, http.MethodGet, "/api/auth/me", "", "alice-token")
+	var decoded struct {
+		Player map[string]any `json:"player"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"uid": "alice-uid", "email": "alice@example.com", "displayName": "",
+		"lastSeenVersion": "", "hideReleaseNotes": false,
+	}
+	if !reflect.DeepEqual(decoded.Player, want) {
+		t.Fatalf("profile contract = %#v, want %#v", decoded.Player, want)
+	}
 }

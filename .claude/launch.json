@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hotseat",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["run-hotseat"],
+      "port": 8080
+    },
+    {
+      "name": "demo",
+      "runtimeExecutable": "scripts/demo.sh",
+      "runtimeArgs": ["winter", "--fg"],
+      "port": 8080
+    },
+    {
+      "name": "demo-action",
+      "runtimeExecutable": "scripts/demo.sh",
+      "runtimeArgs": ["action", "--fg"],
+      "port": 8080
+    }
+  ]
+}

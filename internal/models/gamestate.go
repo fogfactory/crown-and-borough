@@ -34,21 +34,50 @@ type PrivacyMeta struct {
 // (GDD §2). TerritoryStates holds exactly one entry per territory (enforced by
 // Validate), so the engine never looks up a missing state.
 type GameState struct {
-	ID              string                         `json:"id"`
-	Seed            string                         `json:"seed"`
-	Turn            int                            `json:"turn"`
-	Season          Season                         `json:"season"`
-	YearCount       int                            `json:"yearCount"`
-	Players         []Player                       `json:"players"`
-	Territories     []Territory                    `json:"territories"`
-	Nobles          []Noble                        `json:"nobles"`
-	Armies          []Army                         `json:"armies"`
-	Chains          []Chain                        `json:"chains"`
-	Privacy         *PrivacyMeta                   `json:"privacy,omitempty"`
-	NextChainID     int                            `json:"nextChainId"`
-	NextArmyID      int                            `json:"nextArmyId"`
-	Infrastructures []Infrastructure               `json:"infrastructures"`
-	TerritoryStates map[TerritoryID]TerritoryState `json:"territoryStates"`
+	ID                  string                         `json:"id"`
+	Seed                string                         `json:"seed"`
+	Turn                int                            `json:"turn"`
+	Season              Season                         `json:"season"`
+	YearCount           int                            `json:"yearCount"`
+	Players             []Player                       `json:"players"`
+	Territories         []Territory                    `json:"territories"`
+	Nobles              []Noble                        `json:"nobles"`
+	RemovedNobles       []RemovedNoble                 `json:"removedNobles"`
+	Armies              []Army                         `json:"armies"`
+	Chains              []Chain                        `json:"chains"`
+	Privacy             *PrivacyMeta                   `json:"privacy,omitempty"`
+	NextChainID         int                            `json:"nextChainId"`
+	NextArmyID          int                            `json:"nextArmyId"`
+	Infrastructures     []Infrastructure               `json:"infrastructures"`
+	TerritoryStates     map[TerritoryID]TerritoryState `json:"territoryStates"`
+	Regions             []Region                       `json:"regions"`
+	SpecialDeck         *SpecialDeck                   `json:"specialDeck,omitempty"`
+	NobleDeck           *NobleDeck                     `json:"nobleDeck,omitempty"`
+	Auguries            map[int]YearAugury             `json:"auguries"`
+	ActiveRegionEffects []ActiveRegionEffect           `json:"activeRegionEffects"`
+	Fiefs               []Fief                         `json:"fiefs,omitempty"`
+	TaxedFiefs          []TaxedFief                    `json:"taxedFiefs,omitempty"`
+	TithedRegions       []TithedRegion                 `json:"tithedRegions,omitempty"`
+	TrialRevoltWindows  []TrialRevoltWindow            `json:"trialRevoltWindows,omitempty"`
+	Marriages           []Marriage                     `json:"marriages,omitempty"`
+	Claims              []Claim                        `json:"claims,omitempty"`
+	// Inquiries is the ledger of the inquiries conducted so far, one record per
+	// player and target noble (see InquiryRecord).
+	Inquiries     []InquiryRecord `json:"inquiries,omitempty"`
+	ExpiredClaims []ExpiredClaim  `json:"expiredClaims,omitempty"`
+	// Bishops, Cardinals, Pope and Excommunications hold the religious titles
+	// (specs/religieux.md). Bishoprics are the Regions.
+	Bishops          []Bishop          `json:"bishops,omitempty"`
+	Cardinals        []NobleID         `json:"cardinals,omitempty"`
+	Pope             *NobleID          `json:"pope,omitempty"`
+	Excommunications []Excommunication `json:"excommunications,omitempty"`
+	// King is the noble who holds the crown, nil while the throne is vacant
+	// (specs/politique.md § Roi).
+	King *NobleID `json:"king,omitempty"`
+	// Queen is the noble who holds the queen's title: the spouse of the king,
+	// or the widow of a dead king while no married king is in place (dowager
+	// queen), see RefreshQueen (specs/politique.md § Reine et régente).
+	Queen *NobleID `json:"queen,omitempty"`
 }
 
 // NewGameState returns a fresh empty state at turn 1, spring of year 1, with
@@ -56,22 +85,30 @@ type GameState struct {
 // {} rather than null.
 func NewGameState() *GameState {
 	return &GameState{
-		Turn:        1,
-		Season:      SeasonForTurn(1),
-		YearCount:   DefaultGameYears,
-		Players:     []Player{},
-		Territories: []Territory{},
-		Nobles:      []Noble{},
-		Armies:      []Army{},
-		Chains:      []Chain{},
+		Turn:          1,
+		Season:        SeasonForTurn(1),
+		YearCount:     DefaultGameYears,
+		Players:       []Player{},
+		Territories:   []Territory{},
+		Nobles:        []Noble{},
+		RemovedNobles: []RemovedNoble{},
+		Armies:        []Army{},
+		Chains:        []Chain{},
 		Privacy: &PrivacyMeta{
 			ChainKnowledge:      map[PlayerID]map[ChainID]ChainSnapshot{},
 			CombatParticipation: map[PlayerID]map[string]bool{},
 		},
-		NextChainID:     1,
-		NextArmyID:      1,
-		Infrastructures: []Infrastructure{},
-		TerritoryStates: map[TerritoryID]TerritoryState{},
+		NextChainID:         1,
+		NextArmyID:          1,
+		Infrastructures:     []Infrastructure{},
+		TerritoryStates:     map[TerritoryID]TerritoryState{},
+		Regions:             []Region{},
+		Auguries:            map[int]YearAugury{},
+		ActiveRegionEffects: []ActiveRegionEffect{},
+		// Fiefs and TaxedFiefs are left nil: unlike the collections above,
+		// they are tagged omitempty (no fief exists in most games, and no
+		// seigneurial tax has been played) so a round-tripped state must stay
+		// nil rather than an empty non-nil slice.
 	}
 }
 
@@ -178,8 +215,11 @@ func (g *GameState) Validate() error {
 		if _, dup := armies[army.ID]; dup {
 			return fmt.Errorf("models: army %q: duplicate id", army.ID)
 		}
-		if !players[army.OwnerID] {
+		if army.OwnerID != NeutralPlayerID && !players[army.OwnerID] {
 			return fmt.Errorf("models: army %q: unknown owner %q", army.ID, army.OwnerID)
+		}
+		if army.OwnerID == NeutralPlayerID && army.ChainID != nil {
+			return fmt.Errorf("models: army %q: neutral army cannot have a chain", army.ID)
 		}
 		if terrs[army.TerritoryID] == nil {
 			return fmt.Errorf("models: army %q: unknown territory %q", army.ID, army.TerritoryID)
@@ -219,6 +259,15 @@ func (g *GameState) Validate() error {
 			return fmt.Errorf("models: noble %q: duplicate code %q (already used by %q)", n.ID, n.Code, prev)
 		}
 		nobleCodes[n.Code] = n.ID
+		if n.SecretCode != "" {
+			if prev, dup := nobleCodes[n.SecretCode]; dup {
+				return fmt.Errorf("models: noble %q: duplicate secret code %q (already used by %q)", n.ID, n.SecretCode, prev)
+			}
+			nobleCodes[n.SecretCode] = n.ID
+		}
+		if !n.Sex.IsValid() {
+			return fmt.Errorf("models: noble %q: invalid sex %q", n.ID, n.Sex)
+		}
 		if !players[n.OwnerID] {
 			return fmt.Errorf("models: noble %q: unknown owner %q", n.ID, n.OwnerID)
 		}
@@ -231,8 +280,78 @@ func (g *GameState) Validate() error {
 		if n.LastEmissionTurn < 0 || n.LastEmissionTurn > g.Turn {
 			return fmt.Errorf("models: noble %q: last emission turn %d must be between 0 and %d", n.ID, n.LastEmissionTurn, g.Turn)
 		}
+		if err := validateNobleDignities(*n); err != nil {
+			return err
+		}
 		nobles[n.ID] = true
 		nobleOwners[n.ID] = n.OwnerID
+	}
+
+	// 6b. Removed nobles: the lineage of nobles who permanently left play.
+	// Their id and code stay reserved forever (engine.nextNobleID, and the
+	// noble deck never offers a code again once its card is played), so both
+	// must still be checked for
+	// collision here against the live nobles above and each other.
+	removedNobles := make(map[NobleID]bool, len(g.RemovedNobles))
+	for i := range g.RemovedNobles {
+		r := &g.RemovedNobles[i]
+		if r.ID == "" || removedNobles[r.ID] {
+			return fmt.Errorf("models: removed noble %q: duplicate or empty id", r.ID)
+		}
+		if nobles[r.ID] {
+			return fmt.Errorf("models: removed noble %q: still exists", r.ID)
+		}
+		if !isCode(r.Code, 3) {
+			return fmt.Errorf("models: removed noble %q: invalid code %q (want exactly 3 uppercase letters)", r.ID, r.Code)
+		}
+		if prev, dup := nobleCodes[r.Code]; dup {
+			return fmt.Errorf("models: removed noble %q: duplicate code %q (already used by %q)", r.ID, r.Code, prev)
+		}
+		nobleCodes[r.Code] = r.ID
+		if !r.Sex.IsValid() {
+			return fmt.Errorf("models: removed noble %q: invalid sex %q", r.ID, r.Sex)
+		}
+		if !players[r.OwnerID] {
+			return fmt.Errorf("models: removed noble %q: unknown owner %q", r.ID, r.OwnerID)
+		}
+		if !r.Cause.IsValid() {
+			return fmt.Errorf("models: removed noble %q: invalid death cause %q", r.ID, r.Cause)
+		}
+		if r.Commissioner != "" && r.Cause != DeathCauseAssassination {
+			return fmt.Errorf("models: removed noble %q: commissioner %q on a death by %q", r.ID, r.Commissioner, r.Cause)
+		}
+		if r.InquiryCost < 0 {
+			return fmt.Errorf("models: removed noble %q: negative inquiry cost %d", r.ID, r.InquiryCost)
+		}
+		if r.Author != "" && (r.Commissioner == "" || !players[r.Author]) {
+			return fmt.Errorf("models: removed noble %q: invalid assassination author %q", r.ID, r.Author)
+		}
+		if r.Turn < 0 || r.Turn > g.Turn {
+			return fmt.Errorf("models: removed noble %q: turn %d must be between 0 and %d", r.ID, r.Turn, g.Turn)
+		}
+		removedNobles[r.ID] = true
+	}
+
+	for _, r := range g.RemovedNobles {
+		if r.Commissioner != "" && !nobles[r.Commissioner] && !removedNobles[r.Commissioner] {
+			return fmt.Errorf("models: removed noble %q: unknown commissioner %q", r.ID, r.Commissioner)
+		}
+	}
+	for _, record := range g.Inquiries {
+		if !players[record.Player] || (!nobles[record.Noble] && !removedNobles[record.Noble]) {
+			return fmt.Errorf("models: inquiry record (%q, %q): unknown player or noble", record.Player, record.Noble)
+		}
+	}
+
+	// 6c. Marriages: concluded between a living or removed noble of each of two
+	// distinct players, of different sex, and at most one marriage per noble.
+	if err := g.validateMarriages(nobles, removedNobles); err != nil {
+		return err
+	}
+
+	// 6d. Claims: each heir claims at most one living noble of another player.
+	if err := g.validateClaims(nobles, removedNobles); err != nil {
+		return err
 	}
 
 	// 7. Chains: unique ids, valid references and complete stored orders. The
@@ -248,13 +367,16 @@ func (g *GameState) Validate() error {
 		if _, duplicate := chains[chain.ID]; duplicate {
 			return fmt.Errorf("models: chain %q: duplicate id", chain.ID)
 		}
-		if !nobles[chain.NobleID] {
+		if !nobles[chain.NobleID] && !removedNobles[chain.NobleID] {
 			return fmt.Errorf("models: chain %q: unknown noble %q", chain.ID, chain.NobleID)
 		}
 		if armies[chain.ArmyID] == nil {
 			return fmt.Errorf("models: chain %q: unknown army %q", chain.ID, chain.ArmyID)
 		}
-		if nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
+		if armies[chain.ArmyID].OwnerID == NeutralPlayerID {
+			return fmt.Errorf("models: chain %q: neutral army cannot have a chain", chain.ID)
+		}
+		if nobleOwners[chain.NobleID] != "" && nobleOwners[chain.NobleID] != armies[chain.ArmyID].OwnerID {
 			return fmt.Errorf("models: chain %q: noble %q does not own army %q", chain.ID, chain.NobleID, chain.ArmyID)
 		}
 		if len(chain.Orders) == 0 {
@@ -367,8 +489,8 @@ func (g *GameState) Validate() error {
 	}
 
 	// 8. Infrastructures: unique ids, valid type, level >= 1, existing
-	// territory, presence in the territory state's infrastructure list.
-	// Infrastructures have no owner: they belong to their tile (GDD §3).
+	// territory, and the territory state points back at it. Infrastructures
+	// have no owner: they belong to their tile (GDD §3).
 	infras := make(map[InfraID]*Infrastructure, len(g.Infrastructures))
 	for i := range g.Infrastructures {
 		in := &g.Infrastructures[i]
@@ -381,8 +503,11 @@ func (g *GameState) Validate() error {
 		if !in.Type.IsValid() {
 			return fmt.Errorf("models: infrastructure %q: invalid type %q", in.ID, in.Type)
 		}
-		if in.Level < 1 {
-			return fmt.Errorf("models: infrastructure %q: level must be >= 1, got %d", in.ID, in.Level)
+		if minimumLevel := in.Type.MinLevel(); in.Level < minimumLevel {
+			return fmt.Errorf("models: infrastructure %q: level must be >= %d, got %d", in.ID, minimumLevel, in.Level)
+		}
+		if in.Ruined && in.Type != InfraTypeCastle {
+			return fmt.Errorf("models: infrastructure %q: only a castle can be ruined, got %q", in.ID, in.Type)
 		}
 		if terrs[in.TerritoryID] == nil {
 			return fmt.Errorf("models: infrastructure %q: unknown territory %q", in.ID, in.TerritoryID)
@@ -391,7 +516,7 @@ func (g *GameState) Validate() error {
 		if !ok {
 			return fmt.Errorf("models: infrastructure %q: missing TerritoryState for territory %q", in.ID, in.TerritoryID)
 		}
-		if !slices.Contains(st.Infrastructures, in.ID) {
+		if st.Infrastructures == nil || *st.Infrastructures != in.ID {
 			return fmt.Errorf("models: infrastructure %q: territory %q does not list it in its infrastructures", in.ID, in.TerritoryID)
 		}
 		infras[in.ID] = in
@@ -409,7 +534,7 @@ func (g *GameState) Validate() error {
 		}
 	}
 
-	// 9. Territory states: exact coverage, valid owners, and a valid army
+	// 9. Territory states: exact coverage and a valid army
 	// pointer whose territory agrees with the map key. At most one
 	// infrastructure is allowed per territory (GDD §3), and resources are
 	// non-negative.
@@ -420,9 +545,6 @@ func (g *GameState) Validate() error {
 		if st.Resources < 0 {
 			return fmt.Errorf("models: territoryState %q: negative resources %d", id, st.Resources)
 		}
-		if st.OwnerID != nil && !players[*st.OwnerID] {
-			return fmt.Errorf("models: territoryState %q: unknown owner %q", id, *st.OwnerID)
-		}
 		if st.Army != nil {
 			army := armies[*st.Army]
 			if army == nil {
@@ -432,10 +554,8 @@ func (g *GameState) Validate() error {
 				return fmt.Errorf("models: territoryState %q: army %q is stationed in territory %q", id, *st.Army, army.TerritoryID)
 			}
 		}
-		if len(st.Infrastructures) > 1 {
-			return fmt.Errorf("models: territoryState %q: multiple infrastructures (want at most one per territory)", id)
-		}
-		for _, iid := range st.Infrastructures {
+		if st.Infrastructures != nil {
+			iid := *st.Infrastructures
 			in := infras[iid]
 			if in == nil {
 				return fmt.Errorf("models: territoryState %q: unknown infrastructure %q", id, iid)
@@ -479,10 +599,85 @@ func (g *GameState) Validate() error {
 			continue
 		}
 		infrastructure := infras[*player.CapitalCastleID]
-		state := g.TerritoryStates[infrastructure.TerritoryID]
-		if state.OwnerID == nil || *state.OwnerID != player.ID {
+		if fiefOwner, inFief := g.FiefOwnerAt(infrastructure.TerritoryID); inFief && fiefOwner != player.ID {
 			return fmt.Errorf("models: player %q: capital castle %q is not controlled by its owner", player.ID, *player.CapitalCastleID)
 		}
+	}
+	// 10. Fiefs: unique id, a valid title (annexation never changes it), the capital first
+	// in a territory group without duplicates or overlap with another fief, a
+	// known owner, and an optional holder noble owned by the same player. A
+	// castle on the capital is NOT required here:
+	// losing it dissolves the fief immediately (see engine), so a state
+	// observed mid-resolution never needs one structurally.
+	fiefIDs := make(map[FiefID]bool, len(g.Fiefs))
+	fiefTerritories := make(map[TerritoryID]FiefID, len(g.Territories))
+	for i := range g.Fiefs {
+		fief := &g.Fiefs[i]
+		if fief.ID == "" {
+			return fmt.Errorf("models: fief: empty id")
+		}
+		if fiefIDs[fief.ID] {
+			return fmt.Errorf("models: fief %q: duplicate id", fief.ID)
+		}
+		fiefIDs[fief.ID] = true
+		if len(fief.Territories) < FiefMinTerritories {
+			return fmt.Errorf("models: fief %q: must have at least %d territories, got %d", fief.ID, FiefMinTerritories, len(fief.Territories))
+		}
+		if !fief.Title.IsValid() {
+			return fmt.Errorf("models: fief %q: invalid title %q", fief.ID, fief.Title)
+		}
+		if len(fief.Territories) == 0 || fief.Territories[0] != fief.CapitalTerritoryID {
+			return fmt.Errorf("models: fief %q: first territory must be the capital %q", fief.ID, fief.CapitalTerritoryID)
+		}
+		seen := make(map[TerritoryID]bool, len(fief.Territories))
+		for _, territoryID := range fief.Territories {
+			if terrs[territoryID] == nil {
+				return fmt.Errorf("models: fief %q: unknown territory %q", fief.ID, territoryID)
+			}
+			if seen[territoryID] {
+				return fmt.Errorf("models: fief %q: duplicate territory %q", fief.ID, territoryID)
+			}
+			seen[territoryID] = true
+			if otherFief, exists := fiefTerritories[territoryID]; exists {
+				return fmt.Errorf("models: fief %q: territory %q already belongs to fief %q", fief.ID, territoryID, otherFief)
+			}
+			fiefTerritories[territoryID] = fief.ID
+		}
+		if !players[fief.OwnerID] {
+			return fmt.Errorf("models: fief %q: unknown owner %q", fief.ID, fief.OwnerID)
+		}
+		if fief.HolderNobleID != nil {
+			if !nobles[*fief.HolderNobleID] {
+				return fmt.Errorf("models: fief %q: unknown holder noble %q", fief.ID, *fief.HolderNobleID)
+			}
+			if nobleOwners[*fief.HolderNobleID] != fief.OwnerID {
+				return fmt.Errorf("models: fief %q: holder noble %q belongs to %q, not owner %q", fief.ID, *fief.HolderNobleID, nobleOwners[*fief.HolderNobleID], fief.OwnerID)
+			}
+			if fief.Crown {
+				return fmt.Errorf("models: fief %q: crown fief held by noble %q", fief.ID, *fief.HolderNobleID)
+			}
+		}
+	}
+	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
+		return err
+	}
+	if err := validateNobleDeck(g.NobleDeck, players, nobleCodes, g.Nobles, g.Claims); err != nil {
+		return err
+	}
+	if err := g.validateReligion(nobles); err != nil {
+		return err
+	}
+	if err := validateActiveRegionEffects(g.ActiveRegionEffects, g.Regions); err != nil {
+		return err
+	}
+	if err := validateTaxedFiefs(g.TaxedFiefs, fiefIDs); err != nil {
+		return err
+	}
+	if err := validateTithedRegions(g.TithedRegions, g.Regions); err != nil {
+		return err
+	}
+	if err := validateTrialRevoltWindows(g.TrialRevoltWindows, g.Regions); err != nil {
+		return err
 	}
 	if err := validatePrivacy(g.Privacy, players); err != nil {
 		return err

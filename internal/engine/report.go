@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -11,17 +12,29 @@ import (
 // internal handoff for the hotseat session and is intentionally excluded from
 // JSON: the API returns the projected state as a separate document.
 type TurnReport struct {
-	Header     ReportHeader      `json:"header"`
-	Players    []PlayerReport    `json:"players"`
-	Receptions []ReceptionReport `json:"receptions"`
-	Supply     []SupplyReport    `json:"supply"`
-	Famines    []FamineReport    `json:"famines"`
-	Combats    []CombatReport    `json:"combats"`
-	Orders     []OrderReport     `json:"orders"`
-	Moves      []MoveReport      `json:"moves"`
-	Nobles     []NobleReport     `json:"nobles"`
-	Winter     *WinterReport     `json:"winter,omitempty"`
-	State      *models.GameState `json:"-"`
+	Header        ReportHeader         `json:"header"`
+	Players       []PlayerReport       `json:"players"`
+	Receptions    []ReceptionReport    `json:"receptions"`
+	Income        []IncomeReport       `json:"income"`
+	Mills         []MillReport         `json:"mills"`
+	Production    []ProductionReport   `json:"production"`
+	Consumption   []ConsumptionReport  `json:"consumption"`
+	Combats       []CombatReport       `json:"combats"`
+	Orders        []OrderReport        `json:"orders"`
+	Moves         []MoveReport         `json:"moves"`
+	Nobles        []NobleReport        `json:"nobles"`
+	SeasonEffects []SeasonEffectReport `json:"seasonEffects"`
+	Rumors        []RumorReport        `json:"rumors"`
+	Cards         []CardReport         `json:"cards"`
+	Announcements []AnnouncementReport `json:"announcements"`
+	Augury        *AuguryReport        `json:"augury,omitempty"`
+	Winter        *WinterReport        `json:"winter,omitempty"`
+	Fiefs         []FiefReport         `json:"fiefs"`
+	Marriages     []MarriageReport     `json:"marriages"`
+	// Elections are the public results of the winter elections: candidates
+	// and total voices, never the individual ballots.
+	Elections []ElectionResult  `json:"elections"`
+	State     *models.GameState `json:"-"`
 }
 
 // ReportHeader identifies the season described by the report, before the
@@ -71,28 +84,93 @@ type InfrastructureReport struct {
 	Territory models.TerritoryID `json:"territory"`
 }
 
-type SupplyReport struct {
-	Source        models.TerritoryID         `json:"source"`
-	Owner         models.PlayerID            `json:"owner"`
-	Production    int                        `json:"production"`
-	Demand        int                        `json:"demand"`
-	Rations       map[models.TerritoryID]int `json:"rations"`
-	StockConsumed int                        `json:"stockConsumed"`
-	StockAfter    int                        `json:"stockAfter"`
+// IncomeReport is one player's territory income credited to one (destination,
+// fief) pair this turn: territories and villages counted, the
+// harvest-adjusted amounts, and where it landed. Destination is empty and
+// Lost is true when the player controlled no capital, castle, or village to
+// receive it; several destinations can appear for the same player the same
+// turn in that case, since each territory then picks its own closest
+// fallback. Fief is the trigram of the fief's capital (equal to Destination
+// for that line) and Title its rank, both empty when the territories in this
+// line are not part of a fief: a fief whose capital happens to also be the
+// player's own capital still gets its own line, distinct from the player's
+// non-fief income to the same Destination.
+type IncomeReport struct {
+	Owner       models.PlayerID    `json:"owner"`
+	Destination models.TerritoryID `json:"destination,omitempty"`
+	Fief        models.TerritoryID `json:"fief,omitempty"`
+	Title       models.FiefTitle   `json:"title,omitempty"`
+	Territories int                `json:"territories"`
+	Villages    int                `json:"villages"`
+	Base        int                `json:"base"`
+	Bonus       int                `json:"bonus,omitempty"`
+	Suppressed  int                `json:"suppressed,omitempty"`
+	Credited    int                `json:"credited"`
+	StockAfter  int                `json:"stockAfter,omitempty"`
+	Lost        bool               `json:"lost,omitempty"`
+	// Source tells a royal flow apart from territory income: "royal_tax" (the
+	// supplement of the king's tax), "royal_rent_king" or "royal_rent_queen".
+	// Taxed is, for a royal tax supplement, the capital of the taxed fief.
+	Source string             `json:"source,omitempty"`
+	Taxed  models.TerritoryID `json:"taxed,omitempty"`
 }
 
-type FamineReport struct {
-	Army               models.ArmyID      `json:"army"`
-	Owner              models.PlayerID    `json:"owner"`
-	Territory          models.TerritoryID `json:"territory"`
-	Source             models.TerritoryID `json:"source"`
-	Troops             int                `json:"troops"`
-	TroopsLost         int                `json:"troopsLost,omitempty"`
-	SavedByPillage     bool               `json:"savedByPillage"`
-	Infrastructure     models.InfraID     `json:"infrastructure,omitempty"`
-	InfrastructureType models.InfraType   `json:"infrastructureType,omitempty"`
-	ResourceCredit     int                `json:"resourceCredit,omitempty"`
-	CreditTerritory    models.TerritoryID `json:"creditTerritory,omitempty"`
+// MillReport is one mill's harvest-and-weather-adjusted production and its
+// single beneficiary this turn (see #195): the adjacent castle or village
+// under the mill's own control, or the mill's own territory when none
+// qualifies. Suppressed is the production lost to bad weather instead.
+type MillReport struct {
+	Territory   models.TerritoryID `json:"territory"`
+	Owner       models.PlayerID    `json:"owner,omitempty"`
+	Level       int                `json:"level"`
+	Destination models.TerritoryID `json:"destination"`
+	Production  int                `json:"production"`
+	Bonus       int                `json:"bonus,omitempty"`
+	Suppressed  int                `json:"suppressed,omitempty"`
+}
+
+// ProductionReport is the per-territory supply ledger: local ration
+// production, stockable source production, and the resulting stock movement.
+type ProductionReport struct {
+	Territory            models.TerritoryID         `json:"territory"`
+	Region               models.TerritoryID         `json:"region,omitempty"`
+	Owner                models.PlayerID            `json:"owner,omitempty"`
+	TerrainRations       int                        `json:"terrainRations"`
+	BonusRations         int                        `json:"bonusRations,omitempty"`
+	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
+	BaseProduction       int                        `json:"baseProduction,omitempty"`
+	MillProduction       int                        `json:"millProduction,omitempty"`
+	BonusProduction      int                        `json:"bonusProduction,omitempty"`
+	SuppressedProduction int                        `json:"suppressedProduction,omitempty"`
+	Produced             int                        `json:"produced"`
+	SentToRations        map[models.TerritoryID]int `json:"sentToRations,omitempty"`
+	StockBefore          int                        `json:"stockBefore,omitempty"`
+	StockConsumed        int                        `json:"stockConsumed,omitempty"`
+	StockAfter           int                        `json:"stockAfter,omitempty"`
+}
+
+// ConsumptionReport is the per-army supply line: what the army demanded, where
+// its rations came from, and the famine effects when the demand was not met.
+type ConsumptionReport struct {
+	Army                  models.ArmyID      `json:"army"`
+	Owner                 models.PlayerID    `json:"owner"`
+	Territory             models.TerritoryID `json:"territory"`
+	Source                models.TerritoryID `json:"source,omitempty"`
+	Size                  int                `json:"size"`
+	Demand                int                `json:"demand"`
+	ReceivedLocal         int                `json:"receivedLocal"`
+	ReceivedTransfer      int                `json:"receivedTransfer"`
+	TotalReceived         int                `json:"totalReceived"`
+	Missing               int                `json:"missing"`
+	Famine                bool               `json:"famine,omitempty"`
+	Warned                bool               `json:"warned,omitempty"`
+	SavedByPillage        bool               `json:"savedByPillage,omitempty"`
+	TroopsLost            int                `json:"troopsLost,omitempty"`
+	SuppliedStrength      int                `json:"suppliedStrength,omitempty"`
+	Destroyed             bool               `json:"destroyed,omitempty"`
+	PillageInfrastructure models.InfraType   `json:"pillageInfrastructure,omitempty"`
+	ResourceCredit        int                `json:"resourceCredit,omitempty"`
+	CreditTerritory       models.TerritoryID `json:"creditTerritory,omitempty"`
 }
 
 type CombatReport struct {
@@ -115,6 +193,7 @@ type OrderReport struct {
 	Order            models.OrderID                            `json:"order"`
 	Owner            models.PlayerID                           `json:"owner"`
 	Noble            models.NobleCode                          `json:"noble"`
+	NobleName        string                                    `json:"nobleName,omitempty"`
 	Type             models.OrderType                          `json:"type"`
 	Amount           int                                       `json:"amount,omitempty"`
 	Source           models.TerritoryID                        `json:"source"`
@@ -173,25 +252,147 @@ type NobleReport struct {
 type WinterReport struct {
 	Investments []WinterInvestmentReport `json:"investments"`
 	Stocks      []WinterStockReport      `json:"stocks"`
+	Cards       []CardReport             `json:"cards"`
+	Rumors      []RumorReport            `json:"rumors"`
+}
+
+type AuguryReport struct {
+	Year       int                    `json:"year"`
+	Capacities map[models.Season]int  `json:"capacities"`
+	Calamities []AuguryCalamityReport `json:"calamities"`
+}
+
+type AuguryCalamityReport struct {
+	Kind   models.CardKind    `json:"kind"`
+	Season models.Season      `json:"season"`
+	Region models.TerritoryID `json:"region"`
+	Ritual bool               `json:"ritual,omitempty"`
+}
+
+type CardReport struct {
+	EventType EventType          `json:"eventType"`
+	Kind      models.CardKind    `json:"kind"`
+	Player    models.PlayerID    `json:"player,omitempty"`
+	Region    models.TerritoryID `json:"region,omitempty"`
+	Season    models.Season      `json:"season,omitempty"`
+	Outcome   Outcome            `json:"outcome"`
+	Reason    string             `json:"reason,omitempty"`
+	Ritual    bool               `json:"ritual,omitempty"`
+	// Noble, NobleName, Commissioner and CommissionerName name the victim and
+	// the commissioner of a played assassination card; the projection keeps
+	// them (and the entry itself) for the card's player only.
+	Noble            models.NobleCode `json:"noble,omitempty"`
+	NobleName        string           `json:"nobleName,omitempty"`
+	Commissioner     models.NobleCode `json:"commissioner,omitempty"`
+	CommissionerName string           `json:"commissionerName,omitempty"`
+}
+
+type SeasonEffectReport struct {
+	Kind           EventType          `json:"kind"`
+	CardKind       models.CardKind    `json:"cardKind,omitempty"`
+	Region         models.TerritoryID `json:"region,omitempty"`
+	Season         models.Season      `json:"season,omitempty"`
+	Owner          models.PlayerID    `json:"owner,omitempty"`
+	Army           models.ArmyID      `json:"army,omitempty"`
+	Noble          models.NobleCode   `json:"noble,omitempty"`
+	NobleName      string             `json:"nobleName,omitempty"`
+	Territory      models.TerritoryID `json:"territory,omitempty"`
+	Target         models.TerritoryID `json:"target,omitempty"`
+	Troops         int                `json:"troops,omitempty"`
+	SizeBefore     int                `json:"sizeBefore,omitempty"`
+	SizeAfter      int                `json:"sizeAfter,omitempty"`
+	ProductionLost int                `json:"productionLost,omitempty"`
+	RationsLost    int                `json:"rationsLost,omitempty"`
+	Reason         string             `json:"reason,omitempty"`
+	Cost           int                `json:"cost,omitempty"`
+	// Holder is the player whose army held the noble that a tunnel card freed
+	// (Target is where it was held, Territory where it reappeared): only that
+	// player and the card's owner see the escape (api.projectReport).
+	Holder models.PlayerID `json:"holder,omitempty"`
+	// VictimOwner, Commissioner and CommissionerName describe an assassination:
+	// the owner of the victim (Noble), and the noble who commissioned the
+	// killing, whom only the card's owner may see
+	// (api.visibleSeasonEffects). Owner is the player who played the card.
+	VictimOwner      models.PlayerID  `json:"victimOwner,omitempty"`
+	Commissioner     models.NobleCode `json:"commissioner,omitempty"`
+	CommissionerName string           `json:"commissionerName,omitempty"`
+	// Dignity is the dignity a trial revealed on the executed lady.
+	Dignity models.Dignity `json:"dignity,omitempty"`
+	// Fief is the title (e.g. "Baronnie") of the fief the effect applies to,
+	// set only for the seigneurial tax card: Territory already carries the
+	// fief's capital for that card.
+	Fief models.FiefTitle `json:"fief,omitempty"`
+}
+
+type RumorReport struct {
+	Kind  models.CardKind `json:"kind"`
+	Key   string          `json:"key"`
+	Level int             `json:"level,omitempty"`
 }
 
 type WinterInvestmentReport struct {
-	Kind           EventType           `json:"kind"`
-	Player         models.PlayerID     `json:"player"`
-	Outcome        Outcome             `json:"outcome"`
-	Cost           int                 `json:"cost"`
-	Source         models.TerritoryID  `json:"source,omitempty"`
-	Target         models.TerritoryID  `json:"target,omitempty"`
-	Amount         int                 `json:"amount,omitempty"`
-	Territory      models.TerritoryID  `json:"territory,omitempty"`
-	Infrastructure models.InfraID      `json:"infrastructure,omitempty"`
-	Type           models.InfraType    `json:"type,omitempty"`
-	Level          int                 `json:"level,omitempty"`
-	Noble          models.NobleID      `json:"noble,omitempty"`
-	NobleCode      models.NobleCode    `json:"nobleCode,omitempty"`
-	NobleName      string              `json:"nobleName,omitempty"`
-	Reason         string              `json:"reason,omitempty"`
-	Order          *models.WinterOrder `json:"order,omitempty"`
+	Kind           EventType            `json:"kind"`
+	Player         models.PlayerID      `json:"player"`
+	Outcome        Outcome              `json:"outcome"`
+	Cost           int                  `json:"cost"`
+	Source         models.TerritoryID   `json:"source,omitempty"`
+	Target         models.TerritoryID   `json:"target,omitempty"`
+	Amount         int                  `json:"amount,omitempty"`
+	Territory      models.TerritoryID   `json:"territory,omitempty"`
+	Infrastructure models.InfraID       `json:"infrastructure,omitempty"`
+	Type           models.InfraType     `json:"type,omitempty"`
+	Level          int                  `json:"level,omitempty"`
+	Noble          models.NobleID       `json:"noble,omitempty"`
+	NobleCode      models.NobleCode     `json:"nobleCode,omitempty"`
+	NobleName      string               `json:"nobleName,omitempty"`
+	Title          models.FiefTitle     `json:"title,omitempty"`
+	Territories    []models.TerritoryID `json:"territories,omitempty"`
+	Reason         string               `json:"reason,omitempty"`
+	Dignity        models.Dignity       `json:"dignity,omitempty"`
+	// ClaimTarget and ClaimTargetName identify the noble an EventTypeClaim
+	// heir claims the titles of.
+	ClaimTarget     models.NobleCode    `json:"claimTarget,omitempty"`
+	ClaimTargetName string              `json:"claimTargetName,omitempty"`
+	Order           *models.WinterOrder `json:"order,omitempty"`
+}
+
+// MarriageReport announces one marriage concluded this winter, or a failed
+// negotiation (Outcome failure: the Noble's owner proposed, the Spouse's owner
+// did not answer in kind), see specs/succession.md § Conclusion d'un mariage.
+// It is public: every viewer receives it, as an announcement or a rumor.
+type MarriageReport struct {
+	Outcome     Outcome          `json:"outcome"`
+	Noble       models.NobleID   `json:"noble"`
+	NobleCode   models.NobleCode `json:"nobleCode"`
+	NobleName   string           `json:"nobleName"`
+	Owner       models.PlayerID  `json:"owner"`
+	Spouse      models.NobleID   `json:"spouse"`
+	SpouseCode  models.NobleCode `json:"spouseCode"`
+	SpouseName  string           `json:"spouseName"`
+	SpouseOwner models.PlayerID  `json:"spouseOwner"`
+}
+
+// FiefReport is one fief lifecycle change outside its constitution or
+// attribution (those, plus the default attribution of a still-vacant fief at
+// the end of winter, are recorded in Winter.Investments alongside the other
+// investment orders): a conquered fief transferred to a new owner, a fief
+// left vacant by the death of its titleholder, a fief dissolved for losing
+// its capital's castle, or a non-capital member newly occupied by an army
+// (including a NEUTRAL revolt) whose owner differs from the fief's. For that
+// last kind, Territory is the occupied member (distinct from Capital, which
+// still identifies the fief) and Occupant is the occupying army's owner.
+type FiefReport struct {
+	Kind          EventType            `json:"kind"`
+	Owner         models.PlayerID      `json:"owner"`
+	PreviousOwner models.PlayerID      `json:"previousOwner,omitempty"`
+	Capital       models.TerritoryID   `json:"capital"`
+	Title         models.FiefTitle     `json:"title"`
+	Territories   []models.TerritoryID `json:"territories"`
+	Territory     models.TerritoryID   `json:"territory,omitempty"`
+	Occupant      models.PlayerID      `json:"occupant,omitempty"`
+	Noble         models.NobleID       `json:"noble,omitempty"`
+	NobleName     string               `json:"nobleName,omitempty"`
+	Reason        string               `json:"reason,omitempty"`
 }
 
 type WinterStockReport struct {
@@ -204,24 +405,57 @@ type WinterStockReport struct {
 // BuildTurnReport converts value-only engine events into the typed report
 // consumed by the API and frontend. It does not inspect resolution internals.
 func BuildTurnReport(before, after *models.GameState, events []Event, receptions []ReceptionReport) TurnReport {
+	return BuildTurnReportWithHandLimit(before, after, events, receptions, 4)
+}
+
+func BuildTurnReportWithHandLimit(before, after *models.GameState, events []Event, receptions []ReceptionReport, handLimit int) TurnReport {
+	return BuildTurnReportWithBalance(before, after, events, receptions, handLimit, assetgen.Balance{})
+}
+
+// BuildTurnReportWithBalance is BuildTurnReportWithHandLimit with the balance
+// needed to score marriage bonuses in the player reports.
+func BuildTurnReportWithBalance(before, after *models.GameState, events []Event, receptions []ReceptionReport, handLimit int, balance assetgen.Balance) TurnReport {
 	report := TurnReport{
-		Players:    []PlayerReport{},
-		Receptions: []ReceptionReport{},
-		Supply:     []SupplyReport{},
-		Famines:    []FamineReport{},
-		Combats:    []CombatReport{},
-		Orders:     []OrderReport{},
-		Moves:      []MoveReport{},
-		Nobles:     []NobleReport{},
+		Players:       []PlayerReport{},
+		Receptions:    []ReceptionReport{},
+		Income:        []IncomeReport{},
+		Mills:         []MillReport{},
+		Production:    []ProductionReport{},
+		Consumption:   []ConsumptionReport{},
+		Combats:       []CombatReport{},
+		Orders:        []OrderReport{},
+		Moves:         []MoveReport{},
+		Nobles:        []NobleReport{},
+		SeasonEffects: []SeasonEffectReport{},
+		Rumors:        []RumorReport{},
+		Cards:         []CardReport{},
+		Announcements: []AnnouncementReport{},
+		Fiefs:         []FiefReport{},
+		Marriages:     []MarriageReport{},
+		Elections:     []ElectionResult{},
 	}
 	report.Receptions = append(report.Receptions, receptions...)
 	if before != nil {
 		report.Header = ReportHeader{Year: before.Year(), Season: before.Season, Turn: before.Turn}
 		if before.Season == models.SeasonWinter {
-			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}}
+			report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 		}
 	}
-	report.Players = buildPlayerReports(before, after)
+	report.Players = buildPlayerReports(before, after, balance)
+	if before != nil && after != nil {
+		report.Announcements = PendingAnnouncements(after, report.Header.Year, report.Header.Season, false)
+	}
+	if after != nil {
+		for _, event := range currentHandRumorEvents(after, handLimit) {
+			report.Rumors = append(report.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
+		}
+		if augury, exists := after.Auguries[after.Year()]; exists && augury.Revealed {
+			report.Augury = &AuguryReport{Year: augury.Year, Capacities: copySeasonCapacities(augury.Capacities), Calamities: []AuguryCalamityReport{}}
+			for _, calamity := range augury.Calamities {
+				report.Augury.Calamities = append(report.Augury.Calamities, AuguryCalamityReport{Kind: calamity.Kind, Season: calamity.Season, Region: calamity.RegionSeed, Ritual: calamity.Ritual})
+			}
+		}
+	}
 
 	armiesByID := make(map[models.ArmyID]models.Army)
 	chainsByID := make(map[models.ChainID]models.Chain)
@@ -252,20 +486,71 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			progressions[eventKey(event.ChainID, event.OrderID)] = event
 		}
 	}
+	consumptionByArmy := make(map[models.ArmyID]*ConsumptionReport)
 	for _, event := range events {
 		switch event.Type {
-		case EventTypeSupply:
-			report.Supply = append(report.Supply, SupplyReport{
-				Source: event.SourceID, Owner: event.OwnerID, Production: event.Production,
-				Demand: event.Demand, Rations: cloneRationMap(event.Rations), StockConsumed: event.StockConsumed,
-				StockAfter: event.StockAfter,
+		case EventTypeIncome:
+			income := IncomeReport{
+				Owner: event.OwnerID, Destination: event.DestinationID,
+				Territories: event.TerritoryCount, Villages: event.VillageCount,
+				Base: event.BaseProduction, Bonus: event.BonusProduction,
+				Suppressed: event.SuppressedProduction, Credited: event.Production,
+				StockAfter: event.StockAfter, Lost: event.Lost, Source: event.Reason, Taxed: event.TerritoryID,
+			}
+			if event.FiefID != "" {
+				income.Fief = event.DestinationID
+				income.Title = event.FiefTitle
+			}
+			report.Income = append(report.Income, income)
+		case EventTypeMillProduction:
+			report.Mills = append(report.Mills, MillReport{
+				Territory: event.TerritoryID, Owner: event.OwnerID, Level: event.Level,
+				Destination: event.DestinationID, Production: event.Production,
+				Bonus: event.BonusProduction, Suppressed: event.SuppressedProduction,
 			})
+		case EventTypeProduction:
+			report.Production = append(report.Production, ProductionReport{
+				Territory: event.TerritoryID, Region: event.RegionSeed, Owner: event.OwnerID,
+				TerrainRations: event.TerrainRations,
+				BonusRations:   event.BonusRations, SuppressedRations: event.SuppressedRations,
+				BaseProduction: event.BaseProduction, MillProduction: event.MillProduction,
+				BonusProduction: event.BonusProduction, SuppressedProduction: event.SuppressedProduction,
+				Produced: event.Production, SentToRations: event.SentRations,
+				StockBefore:   event.StockBefore,
+				StockConsumed: event.StockConsumed, StockAfter: event.StockAfter,
+			})
+		case EventTypeConsumption:
+			missing := max(0, event.Demand-event.ReceivedLocal-event.ReceivedTransfer)
+			consumptionByArmy[event.ArmyID] = &ConsumptionReport{
+				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID,
+				Source: event.SourceID,
+				Size:   event.Troops, Demand: event.Demand,
+				ReceivedLocal: event.ReceivedLocal, ReceivedTransfer: event.ReceivedTransfer,
+				TotalReceived:         event.ReceivedLocal + event.ReceivedTransfer,
+				Missing:               missing,
+				Famine:                missing > 0,
+				Warned:                event.Warned,
+				SavedByPillage:        event.SavedByPillage,
+				TroopsLost:            event.TroopsLost,
+				SuppliedStrength:      event.SuppliedStrength,
+				Destroyed:             event.Destroyed,
+				PillageInfrastructure: event.InfrastructureType,
+				ResourceCredit:        event.ResourceCredit,
+				CreditTerritory:       event.CreditTerritoryID,
+			}
 		case EventTypeFamine:
-			report.Famines = append(report.Famines, FamineReport{
-				Army: event.ArmyID, Owner: event.OwnerID, Territory: event.TerritoryID, Source: event.SourceID,
-				Troops: event.Troops, TroopsLost: event.TroopsLost, SavedByPillage: event.SavedByPillage,
-				Infrastructure: event.InfrastructureID, InfrastructureType: event.InfrastructureType,
-				ResourceCredit: event.ResourceCredit, CreditTerritory: event.CreditTerritoryID,
+			// Player famines are merged into their consumption line; neutral
+			// armies are not part of the consumption ledger and surface here.
+			if event.OwnerID == models.NeutralPlayerID {
+				report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+					Kind: event.Type, Region: event.RegionSeed, Territory: event.TerritoryID,
+					SizeBefore: event.Troops, SizeAfter: event.Troops - event.TroopsLost,
+				})
+			}
+		case EventTypeCardCanceled:
+			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed,
+				Territory: event.TerritoryID, Season: event.Season,
 			})
 		case EventTypeCombat:
 			contenders := append([]CombatContender{}, event.Contenders...)
@@ -290,6 +575,7 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 			if chain, exists := chainsByID[event.ChainID]; exists {
 				if noble, nobleExists := noblesByID[chain.NobleID]; nobleExists {
 					entry.Noble = models.NobleCode(noble.Code)
+					entry.NobleName = before.NobleDisplayName(noble)
 				}
 				for _, order := range chain.Orders {
 					if order.ID != event.OrderID {
@@ -350,10 +636,10 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				ResourceAmount: event.ResourceAmount, Partial: event.Partial, CreditTerritory: event.CreditTerritoryID,
 				PreviousOwner: event.PreviousOwnerID, Owner: event.OwnerID,
 			})
-		case EventTypeNobleMovement, EventTypeCapture, EventTypeLiberation:
+		case EventTypeNobleMovement, EventTypeCapture, EventTypeNobleTransfer:
 			noble := afterNobles[event.NobleID]
 			report.Nobles = append(report.Nobles, NobleReport{
-				Kind: event.Type, Noble: event.NobleID, Code: models.NobleCode(noble.Code), Name: noble.Name,
+				Kind: event.Type, Noble: event.NobleID, Code: models.NobleCode(noble.Code), Name: after.NobleDisplayName(noble),
 				Owner: noble.OwnerID, Army: event.ArmyID, Territory: event.TerritoryID,
 				Source: event.SourceID, Destination: event.DestinationID, PreviousStatus: event.PreviousStatus,
 				Status: event.Status, Captor: event.CaptorPlayerID,
@@ -367,17 +653,48 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 					Order: &orderCopy,
 				})
 			}
-			if event.Type == EventTypeLiberation && report.Winter != nil {
+			if event.Type == EventTypeNobleTransfer && report.Winter != nil && event.WinterOrder != nil {
+				orderCopy := *event.WinterOrder
 				report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
 					Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeSuccess, Territory: event.TerritoryID,
 					Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
-					Cost: event.ResourceSpent,
+					Cost: event.ResourceSpent, Order: &orderCopy,
 				})
 			}
-		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade,
-			EventTypeRejected, EventTypeCapitalElected:
+
+		case EventTypeRumor:
 			if report.Winter == nil {
-				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}}
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Rumors = append(report.Winter.Rumors, RumorReport{Kind: event.CardKind, Key: event.RumorKey, Level: event.RumorLevel})
+		case EventTypeCalamityScheduled, EventTypeDeckDiscard, EventTypeDeckOrderPlayed, EventTypeDeckRestore:
+			card := CardReport{EventType: event.Type, Kind: event.CardKind, Player: event.OwnerID, Region: event.RegionSeed, Season: event.Season, Outcome: OutcomeSuccess, Ritual: event.Ritual,
+				Noble: event.NobleCode, NobleName: event.NobleName, Commissioner: event.CommissionerCode, CommissionerName: event.CommissionerName}
+			report.Cards = append(report.Cards, card)
+			if event.Phase == winterPhase {
+				if report.Winter == nil {
+					report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+				}
+				report.Winter.Cards = append(report.Winter.Cards, card)
+			}
+		case EventTypeCalamityApplied, EventTypeCalamityCanceled, EventTypeBonusEffect, EventTypeNeutralArmy, EventTypeArmyRevolt, EventTypeRevoltAppeased, EventTypePlagueDeath, EventTypePlagueSurvived, EventTypeBadWeatherBlocked, EventTypeFamineLoss, EventTypeBadWeatherLoss, EventTypeTrial, EventTypeTunnel, EventTypeAmbush, EventTypeAssassination, EventTypeJustice, EventTypeAssassinationRevealed, EventTypeEonUnmasked, EventTypeDignityRevealed, EventTypeExcommunication, EventTypeExcommunicationLifted:
+			report.SeasonEffects = append(report.SeasonEffects, SeasonEffectReport{
+				Kind: event.Type, CardKind: event.CardKind, Region: event.RegionSeed, Season: event.Season,
+				Owner: event.OwnerID, Army: event.ArmyID, Noble: event.NobleCode, NobleName: event.NobleName,
+				Territory: event.TerritoryID, Target: event.TargetID, Troops: event.Troops, SizeBefore: event.SizeBefore,
+				SizeAfter: event.SizeAfter, ProductionLost: event.Production, RationsLost: event.RationsLost,
+				Reason: event.Reason, Dignity: event.Dignity, Fief: event.FiefTitle, Cost: event.Cost,
+				Holder: event.CaptorPlayerID, VictimOwner: event.PreviousOwnerID,
+				Commissioner: event.CommissionerCode, CommissionerName: event.CommissionerName,
+			})
+			if event.Type == EventTypeAssassination {
+				// The public rumor tells that a killing took place, never who ordered it.
+				report.Rumors = append(report.Rumors, RumorReport{Kind: models.CardKindAssassination, Key: "rumor.assassination.killing"})
+			}
+		case EventTypeWinterStock, EventTypeRecruit, EventTypeBuild, EventTypeUpgrade, EventTypeFortify,
+			EventTypeRejected, EventTypeRitual, EventTypeCapitalElected, EventTypeNobleDraw, EventTypeNobleDiscard, EventTypeDignity, EventTypeClaim, EventTypeCardinalPurchase, EventTypeInquiry, EventTypeTrialFiled, EventTypeFiefFounded, EventTypeFiefAssigned, EventTypeFiefAnnexed, EventTypeFiefRankChanged, EventTypeFiefAutoAssigned, EventTypeRoyalAccord, EventTypeFiefGranted:
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
 			if event.Type == EventTypeWinterStock {
 				report.Winter.Stocks = append(report.Winter.Stocks, WinterStockReport{
@@ -395,7 +712,15 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				Cost:           event.ResourceSpent,
 				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
 				Level: event.Level, Noble: event.NobleID, NobleCode: event.NobleCode,
-				NobleName: event.NobleName, Reason: event.Reason,
+				NobleName:   event.NobleName,
+				Title:       event.FiefTitle,
+				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
+				Reason:      event.Reason,
+				Dignity:     event.Dignity,
+			}
+			if event.Type == EventTypeClaim {
+				investment.ClaimTarget = event.SpouseNobleCode
+				investment.ClaimTargetName = event.SpouseNobleName
 			}
 			if event.Type == EventTypeRejected {
 				investment.Outcome = OutcomeFailure
@@ -406,6 +731,61 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				investment.Order = &order
 			}
 			report.Winter.Investments = append(report.Winter.Investments, investment)
+		case EventTypeProsperityFounded:
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
+				Kind: EventTypeProsperityFounded, Player: event.OwnerID, Outcome: OutcomeSuccess,
+				Source: event.SourceID, Target: event.DestinationID,
+				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
+				Reason: event.Reason,
+			})
+		case EventTypeFiefConquered, EventTypeFiefVacated, EventTypeFiefDissolved:
+			report.Fiefs = append(report.Fiefs, FiefReport{
+				Kind: event.Type, Owner: event.OwnerID, PreviousOwner: event.PreviousOwnerID,
+				Capital: event.TerritoryID, Title: event.FiefTitle,
+				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
+				Noble:       event.NobleID, NobleName: event.NobleName, Reason: event.Reason,
+			})
+		case EventTypeMarriageRefused:
+			// The player who did not order the marriage sees it refused; every
+			// other player only gets the failed negotiation as a rumor.
+			report.Marriages = append(report.Marriages, MarriageReport{
+				Outcome: OutcomeFailure,
+				Noble:   event.SpouseNobleID, NobleCode: event.SpouseNobleCode, NobleName: event.SpouseNobleName, Owner: event.SpouseOwnerID,
+				Spouse: event.NobleID, SpouseCode: event.NobleCode, SpouseName: event.NobleName, SpouseOwner: event.OwnerID,
+			})
+			if report.Winter == nil {
+				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
+			}
+			report.Winter.Investments = append(report.Winter.Investments, WinterInvestmentReport{
+				Kind: event.Type, Player: event.OwnerID, Outcome: OutcomeFailure,
+				Noble: event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName,
+				Reason: "marriage_refused",
+			})
+		case EventTypeElectionResult:
+			if event.Election != nil {
+				report.Elections = append(report.Elections, *event.Election)
+			}
+		case EventTypeMarriageDissolved:
+			report.Marriages = append(report.Marriages, MarriageReport{
+				Outcome: OutcomeDissolved,
+				Noble:   event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName, Owner: event.OwnerID,
+				Spouse: event.SpouseNobleID, SpouseCode: event.SpouseNobleCode, SpouseName: event.SpouseNobleName, SpouseOwner: event.SpouseOwnerID,
+			})
+		case EventTypeMarriage:
+			report.Marriages = append(report.Marriages, MarriageReport{
+				Outcome: OutcomeSuccess,
+				Noble:   event.NobleID, NobleCode: event.NobleCode, NobleName: event.NobleName, Owner: event.OwnerID,
+				Spouse: event.SpouseNobleID, SpouseCode: event.SpouseNobleCode, SpouseName: event.SpouseNobleName, SpouseOwner: event.SpouseOwnerID,
+			})
+		case EventTypeFiefMemberOccupied:
+			report.Fiefs = append(report.Fiefs, FiefReport{
+				Kind: event.Type, Owner: event.OwnerID, Occupant: event.CaptorPlayerID,
+				Capital: event.DestinationID, Title: event.FiefTitle,
+				Territory: event.TerritoryID,
+			})
 		case EventTypeChainProgression:
 			if index, exists := orderIndexes[eventKey(event.ChainID, event.OrderID)]; exists {
 				report.Orders[index].Progression = event.Progression
@@ -413,6 +793,14 @@ func BuildTurnReport(before, after *models.GameState, events []Event, receptions
 				report.Orders[index].IndexAfter = event.IndexAfter
 			}
 		}
+	}
+	armyIDs := make([]models.ArmyID, 0, len(consumptionByArmy))
+	for armyID := range consumptionByArmy {
+		armyIDs = append(armyIDs, armyID)
+	}
+	sortArmyIDs(armyIDs)
+	for _, armyID := range armyIDs {
+		report.Consumption = append(report.Consumption, *consumptionByArmy[armyID])
 	}
 	return report
 }
@@ -423,7 +811,7 @@ func BuildReport(before, after *models.GameState, events []Event, receptions []R
 	return BuildTurnReport(before, after, events, receptions)
 }
 
-func buildPlayerReports(before, after *models.GameState) []PlayerReport {
+func buildPlayerReports(before, after *models.GameState, balance assetgen.Balance) []PlayerReport {
 	players := []models.Player{}
 	if after != nil {
 		players = append(players, after.Players...)
@@ -431,8 +819,8 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 		players = append(players, before.Players...)
 	}
 	reports := make([]PlayerReport, 0, len(players))
-	beforeScores := ComputeScores(before)
-	afterScores := ComputeScores(after)
+	beforeScores := ComputeScores(before, balance)
+	afterScores := ComputeScores(after, balance)
 	for _, player := range players {
 		report := PlayerReport{
 			ID:              player.ID,
@@ -446,6 +834,7 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 		report.ResourcesBefore, report.ControlledBefore = playerTerritoryTotals(before, player.ID)
 		report.ResourcesAfter, report.ControlledAfter = playerTerritoryTotals(after, player.ID)
 		if after != nil {
+			afterControllers := after.TerritoryControllers()
 			for _, army := range after.Armies {
 				if army.OwnerID == player.ID {
 					report.Armies = append(report.Armies, ArmyReport{ID: army.ID, Owner: army.OwnerID, Territory: army.TerritoryID, Size: army.Size})
@@ -453,11 +842,11 @@ func buildPlayerReports(before, after *models.GameState) []PlayerReport {
 			}
 			for _, noble := range after.Nobles {
 				if noble.OwnerID == player.ID {
-					report.Nobles = append(report.Nobles, NobleReport{Noble: noble.ID, Code: models.NobleCode(noble.Code), Name: noble.Name, Owner: noble.OwnerID, Territory: noble.LocationID, Status: noble.Status})
+					report.Nobles = append(report.Nobles, NobleReport{Noble: noble.ID, Code: models.NobleCode(noble.Code), Name: after.NobleDisplayName(noble), Owner: noble.OwnerID, Territory: noble.LocationID, Status: noble.Status})
 				}
 			}
 			for _, infrastructure := range after.Infrastructures {
-				if state := after.TerritoryStates[infrastructure.TerritoryID]; state.OwnerID != nil && *state.OwnerID == player.ID {
+				if afterControllers[infrastructure.TerritoryID] == player.ID {
 					report.Infrastructures = append(report.Infrastructures, InfrastructureReport{ID: infrastructure.ID, Type: infrastructure.Type, Level: infrastructure.Level, Territory: infrastructure.TerritoryID})
 				}
 			}
@@ -476,9 +865,10 @@ func playerTerritoryTotals(state *models.GameState, playerID models.PlayerID) (i
 	}
 	resources := 0
 	controlled := 0
+	controllers := state.TerritoryControllers()
 	for _, territory := range state.Territories {
 		territoryState := state.TerritoryStates[territory.ID]
-		if territoryState.OwnerID == nil || *territoryState.OwnerID != playerID {
+		if controller, isControlled := controllers[territory.ID]; !isControlled || controller != playerID {
 			continue
 		}
 		controlled++

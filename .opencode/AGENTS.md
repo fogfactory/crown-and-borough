@@ -2,20 +2,28 @@
 
 Instructions pour les agents travaillant sur ce dépôt.
 
+Tu dois utiliser ask_user dès qu'une décision non triviale, pouvant impacter l'architecture ou le game design doit être prise.
+
 ## Contexte projet
 
 Jeu de stratégie asynchrone par tours sur carte (MVP). Backend Go monolithique,
 front React/Vite/TypeScript. Toute la conception vit dans `specs/` :
 
 - `specs/gdd.md` — règles du jeu (la source de vérité du gameplay)
+- `assets/regles-joueurs.md` / `assets/regles-joueurs.en.md` — règles
+  diffusées aux joueurs dans l'application (FR/EN), dérivées du GDD mais
+  rédigées pour un lecteur qui découvre le jeu
 - `specs/architecture.md` — stack, structure du repo, contrats map.json/state.json
 - `specs/roadmap.md` — état de la v1 et évolutions suivies par issues GitHub
+- `specs/charte-graphique.md` — identité visuelle, rendu de la carte et
+  ergonomie du front (refonte livrée en sept phases)
 - `specs/prompts/` — prompts online `p3.x` conservés temporairement comme
   matériau de travail ; les prompts livrés ou abandonnés ont été supprimés
 
 Avant d'implémenter une règle de jeu, lire le GDD. Avant de toucher la stack
-ou les contrats d'API, lire l'architecture. Toute décision de conception
-nouvelle ou modifiée doit être reportée dans les specs correspondantes.
+ou les contrats d'API, lire l'architecture. Avant de modifier l'interface,
+lire la charte graphique. Toute décision de conception nouvelle ou modifiée
+doit être reportée dans les specs correspondantes.
 
 ## Workflow Git
 
@@ -59,6 +67,32 @@ seront remplacés par des issues au fur et à mesure de leur réalisation.
 À la clôture d'une issue, vérifier les critères d'acceptation, les tests et les
 spécifications, puis mettre à jour `specs/roadmap.md` si le périmètre produit
 change.
+
+## Rédiger les règles du jeu
+
+`specs/gdd.md` et les règles joueurs (`assets/regles-joueurs.md`,
+`assets/regles-joueurs.en.md`) ne décrivent que l'état actuel des règles
+livrées. Quand une fonctionnalité change une règle déjà décrite dans ces
+documents, réécrire entièrement le passage concerné — dans les deux langues
+pour les règles joueurs — plutôt que d'ajouter une phrase qui compare au
+comportement précédent. Bannir « X ne fait plus ça », « désormais », « no
+longer », « now instead of » et toute formulation équivalente : un joueur qui
+découvre la règle n'a aucune idée de ce qu'il y avait « avant », et la phrase
+devient absurde dès qu'elle est relue sans le contexte du changement.
+L'historique d'une décision a sa place dans le message de commit, l'issue
+GitHub, ou une note « À trancher » du fichier thématique concerné — jamais
+dans le texte de règle final.
+
+Les fichiers thématiques de `specs/` pour des règles pas encore livrées
+(`titres.md`, `economie.md`, etc.) font exception : leur rôle est justement de
+proposer un changement, donc comparer explicitement à l'état actuel (tableau
+« actuel / proposé », référence à la section de `gdd.md` remplacée) y est
+attendu. Cette comparaison doit disparaître au moment de l'implémentation :
+seule la règle finale, à l'état de l'art, est reportée dans `gdd.md` et les
+règles joueurs.
+
+Après toute modification des règles joueurs, relire `regles-joueurs.md` et
+`regles-joueurs.en.md` en vis-à-vis pour vérifier qu'ils restent alignés.
 
 ## Conventions de code
 

@@ -1,10 +1,11 @@
 # Architecture : Crown & Borough v1 et MVP online
 
-Cette architecture décrit le cœur v1 livré et les contrats figés du MVP online :
-un serveur Go avec un moteur pur, une API HTTP et un front React. La session
-hotseat actuelle reste en mémoire et sert au développement. Le MVP hébergé
-ajoutera plusieurs parties, Firebase Authentication, les vues privées et la
-restauration via Firestore, sans modifier le moteur pour gérer l'hébergement.
+Cette architecture décrit le cœur v1 et le MVP online livrés : un serveur Go
+avec un moteur pur, une API HTTP et un front React servi par le même binaire.
+Le MVP hébergé gère plusieurs parties, Firebase Authentication, les vues
+privées et la restauration via Firestore, sans que le moteur dépende de
+l'hébergement. La session hotseat en mémoire reste disponible pour le
+développement local.
 
 ## 1. Vue d'ensemble
 
@@ -40,9 +41,10 @@ Les assets `communes.csv`, `prenoms.csv` et `balance.yaml` restent locaux au
 conteneur et sont chargés par le serveur ; ils ne constituent pas la
 persistance de l'état d'une partie.
 
-La session actuelle contient une seule partie en mémoire. Chaque joueur
-soumet séparément ses ordres avec son identifiant. La résolution intervient
-quand tous les joueurs ont soumis, ou lorsqu'un client utilise `force`.
+Le hotseat local utilise la même API de parties que le mode en ligne, servie
+par le store mémoire en mode de développement : chaque joueur soumet ses
+ordres sous son identité de développement et la résolution intervient quand
+tous les joueurs attendus ont soumis, ou lorsque l'hôte la force (section 5).
 
 ## 2. Stack technique
 
@@ -73,9 +75,11 @@ scénarios de combat, la logistique, l'hiver, les rapports et les handlers HTTP.
 - Firebase Web SDK pour le lien de connexion par email et les listeners
   `onSnapshot` des projections autorisées.
 
-Le front est lancé séparément en développement avec le proxy Vite. Le serveur
-Go v1 expose l'API de partie ; l'intégration d'un bundle frontend dans le
-conteneur et le déploiement public restent à traiter.
+Le bundle Vite est embarqué dans le binaire Go (`web/embed.go`) et servi sur
+la même origine que l'API, en hotseat comme en ligne. `make web-dev` reste
+disponible pour itérer sur le front seul, avec le proxy Vite vers un serveur Go
+lancé séparément. Le déploiement public passe par Cloud Run et Firebase
+Hosting, déclenché par un tag `v*` (voir `docs/deploy-cloudrun.md`).
 
 ## 3. Organisation du dépôt
 
@@ -95,10 +99,13 @@ conteneur et le déploiement public restent à traiter.
 │   │   ├── mapgen/         # génération géométrique et graphe
 │   │   └── orders/         # parsing et validation des ordres
 │   ├── models/            # modèles et invariants métier
-│   └── store/             # interfaces mémoire et adaptateur Firestore online
+│   ├── store/             # interfaces mémoire et adaptateur Firestore online
+│   └── turn/              # cycle d'un tour partagé par le hotseat et les stores
 ├── web/
+│   ├── embed.go            # embarque dist/ dans le binaire Go
+│   ├── handler.go          # sert la SPA sur la même origine que l'API
 │   ├── src/                # application React et tests front
-│   └── dist/               # sortie Vite locale quand elle est générée
+│   └── dist/               # sortie Vite, générée par `make web-build`
 ├── Dockerfile
 └── Makefile
 ```
@@ -127,20 +134,36 @@ La carte est statique pour une partie et commune à tous les clients :
       "adjacencies": ["BOI"],
       "impassable": ["FOU"]
     }
+  ],
+  "regions": [
+    {
+      "id": "ROS",
+      "name": "Rosemont",
+      "seed": "ROS",
+      "territories": ["ROS", "BOI"]
+    }
   ]
 }
 ```
 
+- `regions[].name` est le nom de l'évêché : la commune de son chef-lieu ;
 - `points` décrit le polygone SVG ;
 - `adjacencies` contient les frontières géométriques franchissables ;
 - `impassable` contient les frontières géométriques infranchissables ;
 - les deux listes sont triées, symétriques et disjointes ;
-- `village` décrit le point de génération ; l'état courant des infrastructures
-  est porté par `state.json`.
+- `village` décrit le point de génération, aussi bien pour un chef-lieu que
+  pour le village dédié d'un territoire de départ : les deux sont des
+  infrastructures identiques dans `map.json` et `state.json` ; seul
+  `regions[].seed` identifie le chef-lieu qui seed une région. L'état courant
+  des infrastructures est porté par `state.json`.
 
 La génération utilise `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4`
-territoires supplémentaires dédiés aux `joueurs + 1` villages. Le serveur de
-partie sert la carte courante après `POST /api/game`.
+territoires supplémentaires, pour un total de `2 x joueurs + 1` villages
+(un village dédié par territoire de départ, plus `joueurs + 1` chefs-lieux).
+Les territoires de départ eux-mêmes ne sont pas publiés dans `map.json` ; ils
+restent internes au moteur, qui reste la seule source de vérité pour leur
+choix (voir [`gdd.md`](gdd.md#joueurs-départ-et-élimination)). Chaque partie
+sert sa carte via `GET /api/games/{id}/map`.
 
 ### `state.json`
 
@@ -154,8 +177,14 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
     {
       "id": "P1",
       "name": "Joueur 1",
-      "color": "#a84632",
-      "capitalTerritory": "ROS"
+      "color": "#b3322b",
+      "arms": { "field": "gules", "metal": "or", "charge": "bend" },
+      "capitalTerritory": "ROS",
+      "projectedIncome": 6,
+      "projectedMillIncome": 2,
+      "projectedRoyalRent": 3,
+      "projectedConsumption": 4,
+      "armiesAtRisk": [{ "territoryId": "MOR", "size": 2, "deficit": 1 }]
     }
   ],
   "territories": [
@@ -163,6 +192,10 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "id": "ROS",
       "owner": "P1",
       "resources": 4,
+      "projectedIncome": 6,
+      "incomeDestination": "ROS",
+      "millProduction": 2,
+      "millDestination": "ROS",
       "army": {
         "owner": "P1",
         "size": 2,
@@ -192,9 +225,97 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
       "location": "ROS",
       "status": "free"
     }
-  ]
+  ],
+  "fiefs": [
+    {
+      "capital": "ROS",
+      "title": "barony",
+      "territories": ["ROS", "BOI", "BRU"],
+      "owner": "P1",
+      "holder": "HUG",
+      "projectedIncome": 3
+    }
+  ],
+  "bishoprics": [
+    { "region": "ROS", "name": "Rosemont", "territories": ["ROS", "BOI"], "bishop": "HUG" }
+  ],
+  "cardinals": ["HUG"],
+  "pope": "HUG",
+  "excommunicated": [{ "noble": "ADE", "reason": "papal", "turn": 8 }]
 }
 ```
+
+Les titres religieux sont publics. `bishoprics` liste tous les évêchés (les
+régions de la carte) ; `bishop` est absent quand l'évêché est vacant.
+`cardinals` et `pope` désignent des nobles par leur code ; `excommunicated`
+donne la raison (`ex_officio` ou `papal`). Un noble titré porte aussi `religiousTitle` (`bishop`, `cardinal` ou `pope`,
+le plus haut). Un noble au cachot ou excommunié ne vote pas et n'exerce pas
+ses titres ; le cachot se lit sur `status`, l'excommunication dans
+`excommunicated`.
+
+`projectedIncome` est le revenu territorial (`territory_income` +
+`village_income` éventuel) que rapporterait ce joueur ou ce territoire au
+prochain tour d'action, en ignorant les cartes calamité déjà tirées ce tour
+pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver. Le revenu
+réel est crédité en fin de tour, sur le contrôle territorial définitif
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) ; cette
+projection reste délibérément statique : elle porte sur le contrôle actuel,
+tel qu'il serait **si aucune armée ne bougeait d'ici la résolution**, sans
+anticiper l'effet des ordres en cours de rédaction sur les captures de
+territoire.
+`incomeDestination` est le territoire qui recevra ce revenu (la capitale du
+joueur, à défaut le château contrôlé le plus proche, à défaut le village
+contrôlé le plus proche) ; il est absent si le revenu est perdu faute de
+destination. `projectedMillIncome` est la somme de la production que
+recevront les propres installations de ce joueur (ses châteaux, villages et
+moulins isolés) au même tour ; distincte de `projectedIncome` car un moulin ne
+passe pas par la capitale et, depuis
+[#195](https://github.com/fogfactory/crown-and-borough/issues/195), ne
+crédite plus qu'une seule destination (voir la section Moulins) ; il vaut `0`
+en hiver.
+
+`projectedRoyalRent` est la rente ([politique.md](politique.md#rente)) que ce
+joueur recevrait en fin de tour comme joueur du roi (1 R par fief constitué)
+ou de la reine (la moitié, arrondie au supérieur), créditée à sa capitale ; le
+champ est absent quand il vaut `0`. Les projections du serveur ignorent les
+cartes Impôts en cours de rédaction : l'interface ajoute elle-même l'effet des
+taxes (seigneuriale, royale) et des dîmes rédigées au « Revenu prévu » du
+joueur.
+
+`millProduction` et `millDestination` ne sont présents que sur la case d'un
+moulin : `millProduction` est sa production projetée (harmonisée avec la
+météo, en ignorant les cartes calamité ou bonus déjà tirées ce tour), et
+`millDestination` le territoire qui la recevra (le château adjacent du même
+contrôleur, sinon le village adjacent du même contrôleur, sinon le moulin
+lui-même). `millDestination` est donc identique à `id` lorsque le moulin est
+isolé.
+
+Une entrée d'`infrastructures` ne porte `fortified: true` que sur un village
+fortifié par `C C` (economie.md#village-fortifié) ; le champ est absent
+partout ailleurs.
+
+`projectedConsumption` est la somme des rations effectivement tirées du stock
+ou du réseau de ravitaillement sur les positions **actuelles** des armées (une
+armée pleinement nourrie localement, ou qui finirait affamée, compte pour `0`,
+pas pour son coût total), avec les mêmes garanties que `projectedIncome`
+(récolte normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en
+hiver, saison sans ravitaillement. `armiesAtRisk` liste les armées qui
+seraient effectivement affamées si rien ne change avant la résolution : le
+calcul rejoue la même allocation que la résolution réelle
+(`assignSupply`/`allocateSupply`) sur un état jetable, y compris le partage contesté d'une même source entre plusieurs
+armées du joueur — ce n'est pas une heuristique par armée isolée. `deficit`
+est le manque de rations qui reste sans réponse, pas un nombre de troupes qui
+mourraient (une famine réelle coûte toujours exactement 1 troupe). Cette
+projection reste une estimation statique, explicitement présentée au joueur
+comme valable **si les armées ne bougent pas** : elle suppose toujours une
+récolte normale (les cartes calamité déjà tirées mais pas encore révélées ne
+la modifient jamais), et elle ne rejoue pas les mouvements, combats ni
+transferts du brouillon d'ordres en cours de rédaction, alors que le
+ravitaillement réel se résout après eux, en fin de tour
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) — un
+calcul hypothétique post-mouvement resterait à la fois plus juste et nettement
+plus complexe à produire avant soumission, et n'est pas couvert ici.
+`armiesAtRisk` est absent quand aucune armée n'est concernée.
 
 `army` vaut `null` lorsqu'aucune armée n'occupe la case. Dans une armée, `chain`
 vaut `null` lorsqu'aucune chaîne n'est active. Une chaîne existante dont le
@@ -206,11 +327,34 @@ territoriaux.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 
-La session hotseat conserve une projection globale lorsqu'aucun joueur n'est
-fourni, mais le front utilise `GET /api/state?player=P1` pour demander la vue
-filtrée du joueur sélectionné. La politique de divulgation est la suivante :
+`color` est la teinture héraldique du siège et `arms` ses armoiries générées
+à la création de la partie ([charte-graphique.md](charte-graphique.md#joueurs)) :
+`field` vaut `gules`, `azure`, `vert`, `purpure`, `sable`, `tenne`, `celeste`
+ou `murrey` ; `metal` vaut `or` ou `argent` ; `charge` vaut `bend`, `fess`,
+`chevron`, `cross`, `saltire`, `pale`, `chief` ou `bordure`. Le champ est
+absent pour une partie créée sans armoiries : l'interface dessine alors un
+champ plein de la couleur du joueur.
+
+`fiefs` liste les fiefs constitués (voir [titres.md](titres.md)). Un fief est
+adressé par sa capitale (`capital`) ; **aucun identifiant interne** n'est
+exposé — l'ID de fief reste un détail d'implémentation du moteur, utile pour
+l'unicité et le corpus de test. `territories` liste le groupe dans l'ordre de
+constitution, capitale en premier. `holder` est le code du noble titulaire, ou
+absent lorsque le fief est vacant. `crown` vaut `true` pour un fief de la
+couronne (vacant, revenu à la couronne, voir [politique.md](politique.md)).
+`projectedIncome` somme le revenu
+territorial prévisionnel (`engine.ForecastTerritoryIncome`) de tous les
+membres du fief, capitale comprise : la projection du fief lui-même, distincte
+de celle de la seule case capitale.
+
+`GET /api/games/{id}/state` renvoie la vue filtrée du joueur connecté ; le
+hotseat demande celle du joueur sélectionné avec `?player=P1` en mode de
+développement. La politique de divulgation est la suivante :
 
 - la carte et les valeurs dynamiques chiffrées restent communes ;
+- `handLimit` est la limite de main partagée (`special_orders.hand_limit`), commune à `specialHand` et `nobleHand` (cartes de noble et de dignité), et publique ;
+- `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
+- `nobleHand` contient uniquement les cartes du deck de nobles de la main du joueur courant (`id`, `kind` `noble` ou `dignity`, `code`, et selon le kind `name` et `sex` ou `dignity`) ; `nobleDeckSize` est le nombre de cartes restant dans la pioche et `nobleDiscardSize` le nombre de cartes de la défausse, publics ; l'ordre de la pioche et les mains des autres joueurs restent absents. Chaque noble de `nobles` expose ses `dignities` (par exemple `bastard`), publiques ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
   par un noble qu'il détient comme otage, tant que la chaîne reste compatible
   avec la progression de l'armée ;
@@ -289,40 +433,15 @@ valide dans le header Bearer. Les tokens ne sont pas stockés par l'application.
 | Méthode | Route | Comportement |
 |---|---|---|
 | `GET` | `/healthz` | Vérifie que le serveur répond. |
-| `GET` | `/api/map` | Renvoie la carte de la session courante. |
-| `GET` | `/api/state` | Renvoie l'état projeté global ; `?player=P1` active la vue privée hotseat. |
-| `GET` | `/api/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement sélectionnée. |
-| `GET` | `/api/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`, y compris les blocages. |
-| `POST` | `/api/game` | Remplace la session par une nouvelle partie en mémoire. |
-| `POST` | `/api/orders` | Enregistre la soumission d'un joueur et résout si tous ont soumis. |
-| `POST` | `/api/reset` | Recrée la partie initiale configurée au démarrage. |
+| `GET` | `/api/version` | Renvoie la version de l'application. |
+| `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |
 
-`POST /api/game` accepte une seed et une liste de joueurs. Les joueurs peuvent
-être des objets `{id,name,color}`, des noms ou un nombre. Le moteur refuse les
-parties hors de la plage 2–16 joueurs.
-
-`POST /api/orders` accepte :
-
-```json
-{
-  "player": "P1",
-  "chains": [
-    { "player": "P1", "noble": "HUG", "text": "HUG\nROS A BOI" }
-  ],
-  "winter": [],
-  "force": false
-}
-```
-
-Une soumission remplace la soumission précédente du même joueur pour le tour.
-Tant que des joueurs manquent, la réponse contient `status: "pending"`, les
-listes `submitted` et `remaining`, ainsi que l'état courant. Lorsque le tour
-est résolu, la réponse contient `status: "resolved"`, le rapport et le nouvel
-état. `force: true` permet de résoudre avec les soumissions déjà présentes.
-
-Le serveur v1 ne fournit pas encore d'identité fiable : `player` est une
-identité de développement déclarée par le client. Ces routes et le paramètre
-`?player=` ne font pas partie de l'API publique authentifiée.
+En mode de développement (`ONLINE_DEV_MODE=true`), l'identité du joueur n'est
+pas authentifiée : l'API de parties accepte `?player=P1` ou l'en-tête
+`X-Dev-Player`, et `P1` par défaut. Le store mémoire crée au démarrage une
+partie hotseat décrite par `SEED` et `PLAYERS` (2 à 16 joueurs, 4 par défaut),
+dont `P1` est l'hôte : il peut forcer la résolution. Le hotseat du navigateur
+utilise uniquement cette API ; il n'existe plus de routes hotseat dédiées.
 
 ### Contrat MVP hébergé
 
@@ -333,8 +452,11 @@ global lorsqu'une autre partie est déjà active.
 
 | Méthode | Route | Contrat |
 |---|---|---|
-| `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur. |
+| `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur : `uid`, `email`, `displayName`, `lastSeenVersion` (vide avant la première fermeture de la fenêtre) et `hideReleaseNotes`. |
 | `PUT` | `/api/auth/me` | Crée ou met à jour le nom affiché validé du profil courant. |
+| `PUT` | `/api/auth/me/release-notes` | Met à jour les préférences de notes de version du profil courant. Corps : `lastSeenVersion` (SemVer, dernière version dont le joueur a vu les notes) et/ou `hideReleaseNotes` (ne plus afficher la fenêtre) ; au moins un champ, les champs absents sont conservés ; `400` sinon. Renvoie le profil. Le texte des notes ne passe pas par ce serveur : le navigateur le lit dans l'API publique des releases GitHub. |
+| `GET` | `/api/bugs` | Authentifié. Renvoie `{ "enabled": bool }` : `false` tant que ni la GitHub App (`GITHUB_BUG_APP_*`) ni `GITHUB_BUG_TOKEN` ne sont configurés. |
+| `POST` | `/api/bugs` | Authentifié. Corps (256 Kio max) : `title` (≤ 120 car.), `description` (≤ 4000 car.), `gameId` (optionnel) et `context` (capture du navigateur : version, user agent, page, derniers appels API sans en-têtes ni corps ; aucun état de jeu). Le serveur lit lui-même la projection de `gameId` visible par le joueur (celle de `GET /api/games/{id}/state`) et la range, masquée, dans la collection Firestore privée `bugReports` (hors de `games`, lecture et écriture réservées au backend), sous un identifiant lisible `<partie>-t<tour>-<joueur>-<suffixe aléatoire>`  ; l'issue ne cite que le suffixe aléatoire `ref` (l'identifiant complet nomme la partie et le joueur), ou `Game view: unavailable` si le joueur n'est pas membre de la partie, jamais la vue elle-même. Le document est créé sans jamais écraser un rapport existant (suffixe aléatoire de 48 bits), supprimé si GitHub refuse l'issue, puis complété par `issueUrl` seul. Il porte aussi `ref`, `gameId`, `turn`, `playerId`, `uid`, `title` et `createdAt` et se retrouve dans la console par `ref` ou `issueUrl` ; il se supprime librement depuis la console. En développement sans Firestore, la collection est en mémoire. Les clés, jetons et paramètres d'URL sensibles sont masqués à toute profondeur. Crée une issue **publique** GitHub (label `bug`) au nom de la GitHub App installée sur le dépôt (JWT RS256 échangé contre un jeton d'installation d'une heure, mis en cache ; `GITHUB_BUG_TOKEN` sert de repli en local) ; le corps est tronqué sous la limite GitHub. `503 bug_reports_disabled` sans jeton, `429` au-delà de 3 signalements par 10 min et par joueur (30 par heure au total), `502` si GitHub refuse. Renvoie `201 { "url" }`. |
 | `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. |
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
@@ -342,11 +464,13 @@ global lorsqu'une autre partie est déjà active.
 | `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. |
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
-| `GET` | `/api/games/{id}/supply?territory=ROS` | Calcule la ligne ou la zone de ravitaillement demandée. |
+| `GET` | `/api/games/{id}/supply?territory=ROS&special=…` | Calcule la ligne ou la zone de ravitaillement demandée, après les calamités de la saison (peste, famine, mauvais temps) et les cartes du brouillon `special` du joueur connecté (Beau temps, Bonne récolte ; la Révolte est ignorée pour ne pas révéler son tirage). La ligne détaille `terrainProduction`, `famineRations` et `bonusRations`. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
-| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant ; résout automatiquement lorsque tous les joueurs vivants ont soumis. Un hôte observateur ne peut pas soumettre. Le corps ne contient aucun identifiant joueur. |
+| `POST` | `/api/games/{id}/orders` | Remplace la soumission du joueur courant (`chains`, `winter`, `special`) ; résout automatiquement lorsque tous les joueurs attendus ont soumis : un joueur éliminé n'est jamais attendu et, en saison d'action, un joueur sans noble libre ou otage non plus. Un hôte observateur ne peut pas soumettre. Le corps ne contient aucun identifiant joueur. |
+| `POST` | `/api/games/{id}/orders/preview` | Résolution à blanc du brouillon du joueur courant, sans rien enregistrer : erreurs (syntaxe, adjacence, réception ; chacune porte sa `source` — `chain`, `winter` ou `special` —, son noble pour une chaîne et sa ligne dans le texte soumis), ordres parsés de chaque chaîne, issue simulée de chaque ligne d'hiver et coût d'hiver. Le client l'appelle pendant la saisie et ne réimplémente aucune règle d'ordre. |
+| `POST` | `/api/games/{id}/victory/simulate` | Simulation de victoire sur un état hypothétique, sans rien enregistrer. Corps : `actions`, liste ordonnée appliquée à une copie de l'état — `kill` (`noble`), `marry` / `divorce` (`noble`, `other`), `claim` (`noble` héritier, `other` cible : prétention posée, honorée à la mort de la cible), `rank` (`fief`, capitale du fief : +1 rang comme un ordre `T R`, sans coût, sous réserve de la ligne de succession), `crown` (`noble` couronné, remplace le roi en place), `dethrone` (trône vacant, roi toujours en vie : hypothèse sans équivalent en jeu, puisque le mandat est viager et qu'un roi capturé garde la couronne). La tête active, le poids d'alliance et le score sont relus sur l'état projeté. Un décès retire le noble (mariage rompu, dignités perdues), transmet ses fiefs à l'héritier vivant d'une prétention, sinon les laisse vacants. Réponse : `current` et `projected` (par joueur : score, seuil et mode, statut `major`/`minor`/`failure`/`ongoing`, points manquants) et `state`, l'état projeté servi comme `state.json`, que la vue Lignée affiche telle quelle. Action impossible : `422`. |
 | `GET` | `/api/games/{id}/my-submission` | Renvoie la dernière soumission du tour courant pour le joueur connecté (chaînes et hiver) pour réhydrater les formulaires après refresh. |
-| `GET` | `/api/games/{id}/submitted-orders` | Renvoie les ordres déjà soumis du tour courant à l'hôte observateur uniquement, afin d'afficher la couche d'intentions ; les joueurs ne peuvent pas lire les ordres des autres. |
+| `GET` | `/api/games/{id}/submitted-orders` | Renvoie les ordres déjà soumis du tour courant à l'hôte observateur uniquement, avec leur résolution à blanc (`preview`), afin d'afficher la couche d'intentions ; les joueurs ne peuvent pas lire les ordres des autres. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté, ou complet pour l'hôte observateur. |
@@ -371,6 +495,13 @@ d'un hôte qui ne joue pas. Le document observateur ne contient qu'un pointeur
 vers le dernier rapport ; le rapport complet reste servi par REST. Les règles
 refusent les documents canoniques, les soumissions, les rapports non filtrés et
 les écritures clientes.
+Ces projections étant le contrat lu par le front, l'état projeté et les
+rapports ne contiennent jamais de tableau directement imbriqué dans un tableau,
+que Firestore refuse : une paire s'écrit en objet, par exemple les frontières
+d'un site de fief `winterAids.fiefSites[].edges` en `{ "from": "AAA", "to":
+"BBB" }` avec `from` < `to`. L'encodeur du store rejette un tel tableau avant
+l'écriture. Seule la carte, stockée en chaîne JSON (`mapJson`) dans le document
+canonique, garde ses polygones en tableaux de points.
 Les listeners remplacent le polling régulier ; les routes REST restent la
 source des commandes, des rapports et le fallback d'initialisation ou de
 reconnexion. Un hôte observateur est aussi ajouté à `memberUids` pour pouvoir
@@ -386,22 +517,131 @@ Les modèles métier sont dans `internal/models`. Ils valident notamment :
 - la symétrie du graphe et l'existence des références ;
 - une seule armée et une seule infrastructure par territoire ;
 - la cohérence entre les index de `GameState` et les entités ;
-- la saison calculée à partir du tour absolu.
+- la saison calculée à partir du tour absolu ;
+- que la capitale d'un joueur, lorsqu'elle est désignée, porte bien un
+  château et ne se trouve pas dans le fief d'un autre joueur ; en revanche,
+  `Validate` n'exige **pas** qu'un territoire hors fief et hors capitale porte
+  une armée : le contrôle est dérivé (voir ci-dessous), jamais stocké ni
+  imposé au chargement d'une partie existante ;
+- pour chaque fief : un identifiant unique, un titre cohérent avec la taille
+  du groupe (`FiefTitleForSize`), une capitale en tête du groupe, aucun
+  territoire partagé avec un autre fief, un propriétaire connu (qui contrôle
+  **tous** les membres du groupe par construction : le contrôle est transitif
+  dans un fief, voir [titres.md](titres.md)), et un titulaire
+  optionnel qui appartient à ce même propriétaire. Un château sur la capitale
+  n'est **pas** exigé structurellement : sa perte dissout le fief immédiatement
+  côté moteur plutôt que de laisser un état transitoire invalide.
 
 `ResolveTurn` choisit la résolution d'action ou d'hiver selon la saison, avance
-le calendrier et renvoie un `TurnReport`. Le rapport contient des sections
+le calendrier et renvoie un `TurnReport`. La soumission `special` est indépendante
+des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
+validés et consommés avant les phases militaires ; leurs effets sont agrégés par
+région avant l'énumération des intentions. `Resolve` enchaîne ensuite les
+intentions, les soutiens, les combats, les déplacements, les retraites, les
+jonctions, les dispersions, les transferts de ressources et la progression des
+chaînes, met à jour le contrôle territorial, puis résout le ravitaillement de
+fin de tour (revenu territorial, moulins, rations, famine) sur les positions et
+le contrôle ainsi obtenus, territoires tout juste capturés compris
+([#208](https://github.com/fogfactory/crown-and-borough/issues/208)). Une
+armée en déficit à cette étape est marquée affamée : elle se défend à une force plafonnée à sa valeur ravitaillée moins un,
+sans bonus de noble, et ne peut ni attaquer, ni soutenir, ni émettre de transfert pendant
+tout le tour suivant, jusqu'à sa prochaine évaluation (voir
+[`ravitaillement.md`](ravitaillement.md)). Le rapport contient des sections
 typées pour les joueurs, ordres, combats, mouvements, ravitaillement, famine,
-nobles et investissements d'hiver. Le moteur ne dépend ni du HTTP ni du rendu
-front.
+nobles, rumeurs publiques et investissements d'hiver.
+La constitution et l'attribution d'un fief (`T F`/`T A`), ainsi que
+l'attribution par défaut d'un fief encore vacant en fin d'hiver, apparaissent
+parmi les investissements d'hiver ; une section `fiefs` dédiée couvre la
+conquête, la vacance, la dissolution et l'occupation d'un membre non-capitale
+d'un fief, y compris hors hiver (voir [titres.md](titres.md)). Le moteur ne
+dépend ni du HTTP ni du rendu front.
 
-La réception des chaînes est immédiate et atomique. La validation statique
-conserve volontairement la non-adjacence jusqu'à l'exécution : un ordre
-non-adjacent casse la chaîne à l'endroit où il est rencontré, sans annuler les
-ordres précédents.
+Le contrôle territorial n'est pas stocké : `TerritoryState` ne porte aucun
+propriétaire. Il est dérivé à la demande, tel que défini par
+[titres.md](titres.md#contrôle-et-occupation) : le propriétaire du fief dont le
+territoire est membre, sinon le joueur dont la capitale s'y trouve, sinon le
+propriétaire de l'armée stationnée. Une armée neutre (révolte) occupe sans
+jamais contrôler. Le contrôle hors fief et hors capitale est donc **éphémère**
+par construction : il ne survit qu'à la présence continue d'une armée du
+contrôleur
+([#215](https://github.com/fogfactory/crown-and-borough/issues/215)). Le champ
+`owner` de `state.json` est un contrat public : la projection
+(`internal/api`) le calcule au vol avec `GameState.TerritoryController`, comme
+les scores et les rapports (`GameState.TerritoryControllers`).
+
+Le lien commanditaire ↔ victime d'un assassinat est une donnée privée de
+`state.json` : `nobles[].commissioned` et `deceased[].commissioner` /
+`deceased[].commissioned` ne sont renseignés que pour les joueurs qui le
+connaissent (auteur, enquêteurs ; spectateur : tous ; le propriétaire de la victime ne le connaît pas d'office),
+calculés par la projection à partir de `RemovedNoble.Commissioner` / `Author` et
+du registre `GameState.Inquiries` (voir `specs/ordres-speciaux.md` § Assassinat).
+
+Dans une résolution, le moteur lit le contrôle à deux moments, qui ne sont pas
+interchangeables puisque les armées bougent et que les fiefs peuvent se
+dissoudre pendant le tour : `controllerAtStart` est l'instantané du contrôle
+laissé par la résolution précédente, figé à la création du contexte, lu par
+tout ce qui précède la passe de contrôle de la phase 5 (intentions, combats,
+mouvements, retraites, crédit de pillage) et par tout l'hiver ; `controllerNow`
+dérive le contrôle des fiefs, capitales et armées courants, et sert au
+ravitaillement de fin de tour. La passe de contrôle de la phase 5 part du
+contrôle initial, en déduit les prises de contrôle (capitale désignée effacée,
+fief transféré) et publie un `control_changed` de raison `abandoned` pour
+chaque territoire à infrastructure qui n'a plus de contrôleur à la fin du
+tour ou de l'hiver.
+
+La réception des chaînes est immédiate et atomique. La validation est en une
+seule couche : `orders.ValidateChain` porte toutes les règles statiques
+(forme, références, adjacence, jonction en dernier, affectations de nobles…)
+et `ResolveTurn` refuse la soumission sur la moindre de ces erreurs, avec sa
+ligne source. `AssignChain` ne vérifie plus que les conditions de réception
+(noble apte, armée présente et possédée), et l'exécution que les conditions
+du monde (position, infrastructure, contrôle, route, nobles présents).
+`Resolve` revérifie en préalable que les chaînes stockées passent la
+validation statique, et refuse un état qui ne la passe pas.
 
 Plusieurs chaînes ciblant la même armée au même tour constituent une réception
 concurrente : elles sont toutes rejetées avant la résolution et aucune nouvelle
 chaîne n'est attachée à cette armée. Une chaîne déjà portée reste inchangée.
+
+L'adjudication des attaques, jonctions et dispersions (`adjudicator.go`) est
+un graphe de décisions booléennes : une attaque atteint sa destination, une
+jonction ou une dispersion vide son origine, une armée restée en place est
+délogée. Chaque décision est une fonction pure des autres ; l'équation de
+mouvement et les forces (attaque, maintien, défense, prévention) suivent
+« The Math of Adjudication » de Lucas Kruijswijk, référence des Diplomacy
+Adjudicator Test Cases, avec les forces de Crown & Borough (§5 du GDD). Avant
+que ce graphe ne soit construit, toute jonction ou dispersion dont l'origine
+est la cible d'une attaque, quel qu'en soit l'auteur et quelle qu'en soit
+l'issue, est annulée (`cancelAttackedOriginPeaceful`) : son armée reste sur
+place comme si elle tenait, et `applyContestOutcomes` en rapporte la raison
+(`attacked_origin`) une fois les délogements connus, pour ne pas écraser un
+délogement par cette raison. Cette règle générale élimine toute dépendance
+d'un combat envers un départ pacifique, ce qui ne laisse plus que les cycles
+d'attaques (rotation, jonction croisant une attaque) que les jonctions et
+dispersions restantes évaluent par les règles pacifiques existantes, sur le
+groupe d'ordres pacifiques qui partagent leurs territoires, en lisant les
+combats à travers ces décisions. Le graphe statique des dépendances est
+découpé en composantes fortement connexes (Tarjan), résolues dans l'ordre
+topologique. Un cycle est résolu par recherche en profondeur : chaque ordre,
+dans un ordre fixe, réussit dès qu'une résolution cohérente le permet, ce qui
+généralise le mouvement circulaire de Diplomacy. Un cycle sans résolution
+cohérente ne devrait donc plus survenir, la règle ci-dessus ayant retiré
+toute dépendance d'origine ; le statu quo des attaques (`statusQuo`) reste
+néanmoins en place comme filet de sécurité bon marché, au cas où un cas
+échapperait à la règle. La résolution termine toujours, sans plafond
+d'itérations.
+
+Le corpus `internal/engine/testdata/adjudication_corpus.golden` fige le
+résultat complet de deux tours consécutifs sur 10 000 plateaux aléatoires ;
+les graines où l'adjudicateur actuel diffère volontairement de l'ancien point
+fixe itératif sont listées avec leur motif dans
+`adjudication_corpus.divergences`.
+
+Les ordres exécutables du moteur sont séparés des DTO parsés et persistés. Les
+ordres de cartes sont construits par un registre `CardDefinition` indexé par
+`CardKind`. Leur `Apply` consomme la première carte correspondante dans la main,
+puis enregistre une intention ; l’agrégation des intentions intervient ensuite
+pour préserver la simultanéité.
 
 ## 7. Format des ordres
 
@@ -421,49 +661,76 @@ P BRI
 BRI D BRI ATL NOR
 ```
 
-Les ordres d'hiver v1 comprennent `R N`, `R T`, `C M`, `C C`, `C D`, `E C`,
-`O N`, `P N`, `L N` et `G XXX YYY N`. Les infrastructures absentes du modèle v1
-ne possèdent ni symbole de parser ni coût dans `balance.yaml`.
+Les ordres d'hiver v1 comprennent `A N`, `T N` (piocher une carte du deck de nobles), `R N CCC XXX` (jouer la carte de noble `CCC` de la main pour recruter sur `XXX`), `C N HHH CCC` (consomme une carte de prétention `CLM` ; prétention de l'héritier `HHH` sur `CCC`, type `claim`, événement `claim`, état `claims`, tour de pose `placedTurn` des nobles), `D N NNN CCC` (jouer la carte de dignité `CCC` sur le noble `NNN`), `D C CCC` (défausser la carte de noble ou de dignité `CCC` de la main de nobles, type `discard_noble_card`, événement public `noble_discard` sans nom de carte ; le code à trois lettres le distingue de `D C KIND`), `R T`, `C M`, `C C`, `C D`, `E C`,
+`O N`, `P N`, `H N`, `G XXX YYY N`, `T F NNN XXX YYY ZZZ …` (constituer un
+fief) et `T A NNN XXX` (attribuer un fief vacant), `M N XXX YYY` (marier deux nobles de
+deux joueurs, ordre symétrique), les ordres religieux de [religieux.md](religieux.md) (`K E NNN BBB` / `K P NNN` candidature, `V E NNN BBB` / `V P NNN` vote, `X E NNN` excommunication, `X L NNN` levée, `J HHH NNN` procès à deux cardinaux, `Q HHH NNN` enquête ; le premier ordre valide d'un joueur est retenu par élection), avec `D C KIND` pour les
+défausses de cartes bonus.
+Une soumission `special` séparée contient les ordres jouables du deck : `P KIND TER`
+au printemps, en été et en automne. En hiver, la main est reconstituée
+automatiquement après les ordres d'hiver et les défausses : elle pioche
+`special_orders.draw_orders_limit` cartes au plus, moins une si le joueur a
+pioché une carte de noble (`T N`) cet hiver, sans dépasser les places libres de
+la main partagée (`hand_limit` moins les cartes d'ordres spéciaux, de noble et
+de dignité détenues) ; il n'existe pas d'ordre de pioche spécial. `T N` est
+rejeté (`hand_limit_reached`) quand la main partagée est pleine. Aucun de ces ordres n'exige de noble et ils ne sont jamais intégrés à la
+grammaire des chaînes de nobles. Les infrastructures absentes du modèle v1 ne
+possèdent ni symbole de parser ni coût dans `balance.yaml`.
+
+Le deck de nobles est une donnée persistée de l'état de partie, `nobleDeck`
+(`cards`, `drawPile`, `discard`, `hands` par joueur, `played`, `reshuffles`,
+`namePool`), absente de la vue `state.json` hors `nobleHand`, `nobleDeckSize`
+et `nobleDiscardSize` ci-dessus. Il est généré à la
+création de la partie à partir de la seed, une fois les nobles de départ
+tirés : `joueurs × (noble_limit_max + 1)` cartes, réduit pour que chaque carte
+de noble reçoive un nom libre de `prenoms.csv`, réparties à parts égales entre
+les sexes, dont `max(1, taille / max(joueurs − 1, 4))` cartes de dignité
+(bâtard, code `BAS`). Une carte jouée passe dans `played`, liée au noble sur lequel elle
+agit (`{card, noble}`), tant que celui-ci vit. À la mort du noble, sa carte de
+noble sort de `cards` et une nouvelle carte de noble du même sexe, prise dans
+`namePool` (les prénoms que ni une carte, ni un noble, ni un noble mort
+n'utilisent), rejoint `discard` ; une carte de dignité y retourne, de même que
+lorsqu'un effet retire la dignité (helper unique `removeDignity`). Quand la
+pioche est vide, `discard` est mélangé dans `drawPile` avec une graine dérivée
+de la seed de partie et du compteur `reshuffles`, qu'il incrémente. Les dignités d'un noble sont persistées dans son
+champ `dignities`, et leurs effets déclarés dans une seule table du modèle
+(`models.dignityEffects`, interrogée par le plafond de nobles, la ligne de
+succession, l'éligibilité aux titres, la capture et le ciblage `is_bastard`).
 
 ## 8. Assets et balance
 
 Les assets sont chargés au démarrage et validés avant de créer la session :
 
 - `communes.csv` fournit les noms, codes et affinités de terrain ;
-- `prenoms.csv` fournit les noms et codes de nobles ;
+- `prenoms.csv` fournit les noms, codes et sexes (`male` ou `female`) de nobles ; les nobles de départ et les cartes de noble du deck de nobles y puisent, et le noble recruté hérite du nom, du trigramme et du sexe de sa carte ;
 - `balance.yaml` fournit les coûts, productions, portées, rations, bonus de
-  défense, bonus de commandement noble et valeurs de départ utilisés par le
-  moteur.
+  défense, bonus de commandement noble, valeurs de départ et paramètres du
+  deck d’ordres spéciaux utilisés par le moteur.
 
 Les paramètres numériques ne doivent pas être recopiés dans les handlers ou
 le front. Le moteur reçoit une `assetgen.Balance` déjà chargée.
 
 ## 9. Évolutions d'infrastructure
 
-Les fonctionnalités suivantes ne font pas partie de la session v1 en mémoire
-et sont suivies par l'issue online :
-
-- identifiant territorial unique fondé sur le trigramme (contrat figé par O1,
-  implémentation O2) ;
-- filtre serveur des vues par joueur ;
-- gestion de plusieurs parties, Firebase Authentication et les invitations ;
-- persistance Firestore avec projections publiques et privées ;
-- bundle frontend servi par le serveur et déploiement public.
+Les fonctionnalités suivies par l'issue online sont livrées : identifiant
+territorial fondé sur le trigramme, filtre serveur des vues par joueur,
+plusieurs parties avec Firebase Authentication et invitations, persistance
+Firestore avec projections publiques et privées, bundle frontend servi par le
+serveur et déploiement public.
 
 Un brouillard de guerre général pourra éventuellement réintroduire des
 infrastructures de vision dédiées. Cela constituera une extension de règles et
 un contrat de vue distinct, pas une modification silencieuse du cœur v1.
 
-## 10. Cible online MVP
+## 10. MVP online
 
-Le déploiement online cible plusieurs parties de deux à huit joueurs.
+Le déploiement online gère plusieurs parties de deux à huit joueurs.
 L'identifiant de partie est conservé dans les routes `/api/games/{id}` et la
 liste est filtrée par membership.
 
 Le serveur porte l'identité du joueur à partir d'un ID token Firebase porté en
 Bearer. Le paramètre `player` peut exister dans un mode de test local, mais il
-n'est jamais utilisé par l'API publique authentifiée. Les endpoints hotseat sont
-désactivés dans le déploiement public.
+n'est jamais utilisé par l'API publique authentifiée.
 
 La projection serveur conserve les informations dynamiques publiques mais
 filtre les chaînes et les combats selon le joueur. La connaissance des chaînes
@@ -484,8 +751,9 @@ est configuré plus tard avec plusieurs instances.
 Firebase Authentication gère l'identité et la session client par lien email.
 Le profil `players/{uid}` et les memberships survivent aux redémarrages, mais
 les ID tokens ne sont pas copiés dans Firestore. Le frontend utilise
-`onSnapshot` uniquement sur `games/{id}` et `games/{id}/views/{uid}` après
-authentification ; les commandes passent par l'API Go.
+`onSnapshot` uniquement sur `games/{id}`, `games/{id}/views/{uid}` et, pour un
+hôte observateur, `games/{id}/observer/{uid}` après authentification ; les
+commandes passent par l'API Go.
 
 Cloud Run est la cible unique du MVP, avec `min-instances=0` et une limite
 initiale d'instances pour maîtriser le coût. Aucun volume GCS FUSE, Persistent

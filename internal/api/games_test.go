@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -436,6 +438,32 @@ func createGameHTTP(t *testing.T, handler http.Handler, actor, body string) game
 	return game
 }
 
+func TestPlayerSlotViewMarksPlayersWithNothingToSubmitAsNotRequired(t *testing.T) {
+	state := &models.GameState{
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1"}, {ID: "P2"}},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", Size: 1},
+			{ID: "A2", OwnerID: "P2", Size: 1},
+		},
+		Nobles: []models.Noble{
+			{ID: "N1", Sex: models.SexMale, OwnerID: "P1", Status: models.NobleStatusFree},
+			{ID: "N2", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusDungeon},
+		},
+	}
+	snapshot := store.GameSnapshot{
+		State: state,
+		Players: []store.PlayerSlot{
+			{ID: "P1", Name: "One"},
+			{ID: "P2", Name: "Two"},
+		},
+	}
+	views := makePlayerSlotViews(snapshot)
+	if len(views) != 2 || !views[0].Required || views[1].Required {
+		t.Fatalf("views = %#v, want P1 required and P2 not (dungeoned noble, nothing else to submit)", views)
+	}
+}
+
 func requestGames(t *testing.T, handler http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	return requestGamesWithHeaders(t, handler, method, path, body, nil)
@@ -450,4 +478,32 @@ func requestGamesWithHeaders(t *testing.T, handler http.Handler, method, path, b
 	}
 	handler.ServeHTTP(recorder, request)
 	return recorder
+}
+
+func TestGamesHandlerPlayerStateLabelsTheView(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: DevActorResolver("P1")})
+	game := createGameHTTP(t, handler, "P1", `{"name":"labelled game","players":6}`)
+
+	view, err := handler.PlayerState(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
+	if err != nil {
+		t.Fatalf("player state: %v", err)
+	}
+	if view.GameName != "labelled game" || view.PlayerID == "" || view.PlayerName == "" || view.Turn < 1 {
+		t.Fatalf("labels = %+v", view)
+	}
+	raw, err := json.Marshal(view.View)
+	if err != nil {
+		t.Fatalf("encode view: %v", err)
+	}
+	if len(raw) > bugGameViewMaxBytes {
+		t.Fatalf("a fresh 6-player view is %d bytes, over the stored limit", len(raw))
+	}
+	if _, err := handler.PlayerState(context.Background(), store.Actor{ID: "intruder", Development: true}, game.ID); !errors.Is(err, store.ErrNotMember) {
+		t.Fatalf("outsider = %v, want ErrNotMember", err)
+	}
+	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/state?player=intruder", "")
+	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), `"actor is not a member of this game"`) {
+		t.Fatalf("outsider state = %d %s", response.Code, response.Body.String())
+	}
 }

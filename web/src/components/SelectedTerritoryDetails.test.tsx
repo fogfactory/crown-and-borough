@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import type { MapData, StateData, SupplyLine, TransferLine } from '@/types'
+import { withText } from '@/test/text'
 
 const map: MapData = {
   territories: [
@@ -35,6 +36,7 @@ const map: MapData = {
       impassable: [],
     },
   ],
+  regions: [{ id: 'ROS', seed: 'ROS', territories: ['ROS'] }],
 }
 
 const state: StateData = {
@@ -90,7 +92,7 @@ const armySupply: SupplyLine = {
   armyOwner: 'P2',
   armySize: 4,
   terrainProduction: 3,
-  localProduction: 5,
+  localProduction: 3,
   rations: 5,
   totalDemand: 8,
   demand: 3,
@@ -113,12 +115,61 @@ const transferLine: TransferLine = {
 }
 
 describe('SelectedTerritoryDetails', () => {
+  it('breaks the local production down with famine and regional bonus rations', () => {
+    render(
+      <SelectedTerritoryDetails
+        state={state}
+        selectedTerritory={map.territories[0]}
+        selectedState={state.territories[0]}
+        selectedSupplyLine={{
+          ...armySupply,
+          famineRations: 1,
+          bonusRations: 1,
+          localProduction: 3,
+        }}
+        sourceTerritory={map.territories[1]}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(
+      screen.getByText(/\(Plain 3 − bad harvest 1 \+ regional bonus 1\)/),
+    ).toBeInTheDocument()
+  })
+
+  it('describes a level-0 village as in ruins and a leveled one by its level', () => {
+    const renderVillage = (level: number) =>
+      render(
+        <SelectedTerritoryDetails
+          state={state}
+          selectedTerritory={map.territories[0]}
+          selectedState={{
+            ...state.territories[0],
+            army: null,
+            infrastructures: [{ type: 'village', level, ruined: level === 0 }],
+          }}
+          selectedSupplyLine={null}
+          sourceTerritory={null}
+          supplyLoading={false}
+          supplyError={null}
+        />,
+      )
+
+    const ruined = renderVillage(0)
+    expect(screen.getByText('Village · In ruins')).toBeInTheDocument()
+    ruined.unmount()
+    renderVillage(2)
+    expect(screen.getByText('Village 2')).toBeInTheDocument()
+  })
+
   it('renders nobles, complete army details, supply, and infrastructure using preferred names', () => {
     render(
       <SelectedTerritoryDetails
         state={state}
         selectedTerritory={map.territories[0]}
         selectedState={state.territories[0]}
+        selectedRegion={map.regions?.[0]}
         preferredPlayers={[
           { id: 'P1', name: 'Alice' },
           { id: 'P2', name: 'Bob' },
@@ -131,36 +182,60 @@ describe('SelectedTerritoryDetails', () => {
     )
 
     expect(screen.getByText('Capital of Alice')).toBeInTheDocument()
-    expect(screen.getByText('Plain')).toBeInTheDocument()
+    expect(screen.getByText(/^Plain · /)).toBeInTheDocument()
+    expect(screen.getByText('Region')).toBeInTheDocument()
+    expect(screen.getByText('regional seat / card target: ROS')).toBeInTheDocument()
     expect(screen.getAllByText('Bob').length).toBeGreaterThan(0)
-    expect(screen.getByText('4 troops')).toBeInTheDocument()
+    expect(screen.getByText(/4 troops/)).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
-    expect(screen.getByText(/BRU · Brisecote/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/Brisecote \(BRU\)/))).toBeInTheDocument()
     expect(screen.getByText('Distance: 2 territories')).toBeInTheDocument()
     expect(screen.getByText('Local production')).toBeInTheDocument()
     expect(screen.getByText('Demand')).toBeInTheDocument()
     expect(screen.getByText('To cover')).toBeInTheDocument()
-    expect(screen.getByText(/Plain 3 \+ Castle 2/)).toBeInTheDocument()
+    expect(screen.getByText(/\(Plain 3\)/)).toBeInTheDocument()
     expect(screen.getByText('Demand').nextElementSibling).toHaveTextContent('8')
     const toCover = screen.getByText('To cover').nextElementSibling
     expect(toCover).toHaveTextContent('3')
-    expect(toCover).toHaveClass('text-[#8d321e]')
-    expect(screen.getByText('Castle')).toBeInTheDocument()
-    expect(screen.getByText('Capital', { exact: true })).toBeInTheDocument()
+    expect(toCover).toHaveClass('text-vermilion-700')
+    expect(screen.getByText(/^Castle \d/)).toBeInTheDocument()
 
-    const noblesSection = screen.getByText('Nobles present').closest('div')
-    if (!noblesSection) throw new Error('nobles section did not render')
-    const nobleItems = Array.from(noblesSection.querySelectorAll('li'))
-    expect(
-      nobleItems.some((item) => item.textContent?.includes('JEA · Jean de Rosemont')),
-    ).toBe(true)
-    expect(
-      nobleItems.some((item) => item.textContent?.includes('ROB · Robert de Rosemont')),
-    ).toBe(true)
-    expect(within(noblesSection).getAllByText('Owner')).toHaveLength(2)
-    expect(within(noblesSection).getByText('Bob')).toBeInTheDocument()
-    expect(within(noblesSection).getByText('held by Bob')).toBeInTheDocument()
-    expect(within(noblesSection).queryByText('P2')).not.toBeInTheDocument()
+    // Nobles present show as pawns; each opens its detail in a popover.
+    expect(screen.getByRole('button', { name: 'Jean de Rosemont (JEA)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Robert de Rosemont (ROB)' }))
+    const detail = screen.getByRole('dialog')
+    expect(within(detail).getByText('Owner')).toBeInTheDocument()
+    expect(detail).toHaveTextContent('Bob')
+    expect(within(detail).getByText('held by Bob')).toBeInTheDocument()
+    expect(within(detail).queryByText('P2')).not.toBeInTheDocument()
+  })
+
+  it('links a commissioner to its victim in the command post only when the state carries it', () => {
+    const withLink: StateData = {
+      ...state,
+      nobles: [{ ...state.nobles[0], commissioned: ['VIC'] }, state.nobles[1]],
+      deceased: [{ code: 'VIC', name: 'Victor', owner: 'P1', cause: 'assassination', turn: 1 }],
+    }
+    const renderWith = (current: StateData) =>
+      render(
+        <SelectedTerritoryDetails
+          state={current}
+          selectedTerritory={map.territories[0]}
+          selectedState={current.territories[0]}
+          selectedSupplyLine={null}
+          sourceTerritory={null}
+          supplyLoading={false}
+          supplyError={null}
+        />,
+      )
+    const { unmount } = renderWith(withLink)
+    fireEvent.click(screen.getByRole('button', { name: /\(JEA\)/ }))
+    expect(screen.getByText('Commissioned the killing of')).toBeInTheDocument()
+    expect(screen.getByTestId('assassination-victim')).toHaveTextContent('Victor (VIC)')
+    unmount()
+    renderWith(state)
+    fireEvent.click(screen.getByRole('button', { name: /\(JEA\)/ }))
+    expect(screen.queryByText('Commissioned the killing of')).not.toBeInTheDocument()
   })
 
   it('renders the supply zone for an army-less territory', () => {
@@ -183,7 +258,7 @@ describe('SelectedTerritoryDetails', () => {
       territory: 'ROS',
       armySize: 0,
       terrainProduction: 3,
-      localProduction: 5,
+      localProduction: 3,
       rations: 0,
       totalDemand: 0,
       demand: 0,
@@ -207,7 +282,7 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.getByText('Supply zone')).toBeInTheDocument()
     expect(screen.getByText('2 territories reachable.')).toBeInTheDocument()
-    expect(screen.getByText('Village')).toBeInTheDocument()
+    expect(screen.getByText(/^Village \d/)).toBeInTheDocument()
     expect(
       screen.queryByText('There is no supply phase in winter.'),
     ).not.toBeInTheDocument()
@@ -239,7 +314,7 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The transfer route is reachable.',
     )
-    expect(screen.getByText('ROS · Rosemont -> BRU · Brisecote')).toBeInTheDocument()
+    expect(screen.getByText(withText('Rosemont (ROS) -> Brisecote (BRU)'))).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Destination' }), {
       target: { value: 'ROS' },
@@ -269,7 +344,36 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The supply path is blocked by an enemy army.',
     )
-    expect(screen.queryByText(/ROS · Rosemont -> BRU/)).not.toBeInTheDocument()
+    expect(screen.queryByText(withText(/Rosemont \(ROS\) -> Brisecote/))).not.toBeInTheDocument()
+  })
+
+  it('renders active effects for the selected region', () => {
+    const effectState: StateData = {
+      ...state,
+      activeRegionEffects: [
+        { kind: 'fair_weather', regionSeed: 'ROS', season: 'spring', year: 1 },
+        { kind: 'famine', regionSeed: 'ROS', season: 'spring', year: 1 },
+      ],
+    }
+    render(
+      <SelectedTerritoryDetails
+        state={effectState}
+        selectedTerritory={map.territories[0]}
+        selectedState={effectState.territories[0]}
+        selectedRegion={map.regions?.[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Active regional effects')).toBeInTheDocument()
+    expect(screen.getByText('Fair weather (FW)')).toBeInTheDocument()
+    expect(screen.getByText('Bad harvest (BH)')).toBeInTheDocument()
+
+    const badHarvestLabel = screen.getByText('Bad harvest (BH)')
+    expect(badHarvestLabel).toHaveClass('font-bold')
   })
 
   it('renders the hidden-chain message without exposing its order stack', () => {
@@ -308,5 +412,190 @@ describe('SelectedTerritoryDetails', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('There is no supply phase in winter.')).toBeInTheDocument()
     expect(screen.queryByText('Order stack')).not.toBeInTheDocument()
+  })
+
+  it('shows the projected territory income and its destination', () => {
+    const incomeState: StateData = {
+      ...state,
+      territories: [
+        { ...state.territories[0], projectedIncome: 2, incomeDestination: 'BRU' },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={incomeState}
+        selectedTerritory={map.territories[0]}
+        selectedState={incomeState.territories[0]}
+        mapTerritories={map.territories}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    // Resources and income share one line.
+    expect(document.querySelector('[data-territory-income]')).toHaveTextContent(
+      /^\d+ R · \+2 R \/ turn → Brisecote \(BRU\)$/,
+    )
+  })
+
+  it('shows the territory income as lost when it has no destination', () => {
+    const lostState: StateData = {
+      ...state,
+      territories: [
+        { ...state.territories[0], projectedIncome: 1, incomeDestination: undefined },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={lostState}
+        selectedTerritory={map.territories[0]}
+        selectedState={lostState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(
+      screen.getByText('Income lost: no capital, castle, or village to receive it'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the city badge and fief titulaire on a fief capital', () => {
+    const fiefState: StateData = {
+      ...state,
+      fiefs: [
+        {
+          capital: 'ROS',
+          title: 'barony',
+          territories: ['ROS', 'BRU'],
+          owner: 'P2',
+          holder: 'JEA',
+        },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={fiefState}
+        selectedTerritory={map.territories[0]}
+        selectedState={fiefState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText(/City \(\+2 defense\)/)).toBeInTheDocument()
+    expect(screen.getByText(withText('Barony of ROS'))).toBeInTheDocument()
+    expect(screen.getAllByText(withText('Jean de Rosemont (JEA)')).length).toBeGreaterThan(0)
+  })
+
+  it('shows the projected fief income next to the titulaire', () => {
+    const fiefState: StateData = {
+      ...state,
+      fiefs: [
+        {
+          capital: 'ROS',
+          title: 'barony',
+          territories: ['ROS', 'BRU'],
+          owner: 'P2',
+          holder: 'JEA',
+          projectedIncome: 5,
+        },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={fiefState}
+        selectedTerritory={map.territories[0]}
+        selectedState={fiefState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText('Fief projected income')).toBeInTheDocument()
+    expect(screen.getByText('+5 R per action turn')).toBeInTheDocument()
+  })
+
+  it('shows an occupied badge when an enemy army sits on a controlled territory', () => {
+    const occupiedState: StateData = {
+      ...state,
+      territories: [
+        {
+          ...state.territories[0],
+          owner: 'P1',
+          army: { owner: 'P2', size: 4, chain: null },
+        },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={occupiedState}
+        selectedTerritory={map.territories[0]}
+        selectedState={occupiedState.territories[0]}
+        preferredPlayers={[
+          { id: 'P1', name: 'Alice' },
+          { id: 'P2', name: 'Bob' },
+        ]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.getByText(/Occupied by Bob/)).toBeInTheDocument()
+  })
+
+  it('omits the occupied badge when the controller owns the army present', () => {
+    render(
+      <SelectedTerritoryDetails
+        state={state}
+        selectedTerritory={map.territories[0]}
+        selectedState={state.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.queryByText(/Occupied by/)).not.toBeInTheDocument()
+  })
+
+  it('shows a vacant fief titulaire without a badge on a non-capital territory', () => {
+    const fiefState: StateData = {
+      ...state,
+      fiefs: [
+        { capital: 'BRU', title: 'barony', territories: ['BRU', 'ROS'], owner: 'P2' },
+      ],
+    }
+
+    render(
+      <SelectedTerritoryDetails
+        state={fiefState}
+        selectedTerritory={map.territories[0]}
+        selectedState={fiefState.territories[0]}
+        selectedSupplyLine={null}
+        sourceTerritory={null}
+        supplyLoading={false}
+        supplyError={null}
+      />,
+    )
+
+    expect(screen.queryByText('City (+2 defense)')).not.toBeInTheDocument()
+    expect(screen.getByText('Vacant')).toBeInTheDocument()
   })
 })

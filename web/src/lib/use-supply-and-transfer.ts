@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { hasSupplySource } from '@/lib/supply'
 import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import type {
+  Order,
   PlayerId,
   StateData,
   SupplyLine,
@@ -16,9 +17,15 @@ export interface UseSupplyAndTransferOptions {
   selectedId: string | null
   state: StateData | null
   selectedState: TerritoryState | null | undefined
-  chainDrafts: Record<string, string>
+  /** Drafted orders per noble code, as parsed by the server preview. */
+  draftOrders: Record<string, Order[]>
   /** Player whose drafts are shown; transfer targets require owning the army. */
   ownerId: PlayerId | null
+  /**
+   * Drafted special orders of that player, so the supply projection reflects
+   * the cards they intend to play this turn.
+   */
+  specialDraft?: string
   /** Resource root for the supply endpoint ('/api' hotseat, '/api/games/{id}' online). */
   basePath?: string
   /**
@@ -63,8 +70,9 @@ export function useSupplyAndTransfer({
   selectedId,
   state,
   selectedState,
-  chainDrafts,
+  draftOrders,
   ownerId,
+  specialDraft = '',
   basePath = '/api',
   fetcher,
   networkErrorMessage,
@@ -83,9 +91,9 @@ export function useSupplyAndTransfer({
   const transferTargets = useMemo(
     () =>
       selectedState?.army?.owner === ownerId
-        ? transferTargetsForTerritory(chainDrafts, selectedId)
+        ? transferTargetsForTerritory(draftOrders, selectedId)
         : [],
-    [chainDrafts, ownerId, selectedId, selectedState?.army?.owner],
+    [draftOrders, ownerId, selectedId, selectedState?.army?.owner],
   )
   const transferTarget = transferTargets.includes(selectedTransferTarget ?? '')
     ? selectedTransferTarget
@@ -106,10 +114,9 @@ export function useSupplyAndTransfer({
     const controller = new AbortController()
     setSupplyLoading(true)
     setSupplyError(null)
-    fetcher<SupplyLine>(
-      `${basePath}/supply?territory=${encodeURIComponent(selectedId)}`,
-      controller.signal,
-    )
+    const query = new URLSearchParams({ territory: selectedId })
+    if (specialDraft.trim() !== '') query.set('special', specialDraft)
+    fetcher<SupplyLine>(`${basePath}/supply?${query.toString()}`, controller.signal)
       .then((line) => {
         if (!controller.signal.aborted) setSupplyLine(line)
       })
@@ -134,6 +141,7 @@ export function useSupplyAndTransfer({
     onAuthError,
     selectedId,
     selectedState,
+    specialDraft,
     state,
   ])
 

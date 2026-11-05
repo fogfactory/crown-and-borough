@@ -1,0 +1,379 @@
+# Dames et pouvoir féminin
+
+**Milestone lié :** [Succession & Couronnement](https://github.com/fogfactory/crown-and-borough/milestone/24)
+
+**Dépend de :** [Succession](succession.md) pour le sexe des nobles et la
+ligne de succession, [Titres & Victoire](titres.md) pour le score,
+[Religieux](religieux.md) pour le mécanisme de nomination réutilisé par les
+dignités, et [Ordres spéciaux](ordres-speciaux.md) pour le deck de cartes.
+
+## Principe
+
+Le GDD réserve l'épiscopat, le cardinalat, la papauté et la royauté aux
+nobles masculins (voir [succession.md § Sexe des nobles](succession.md#sexe-des-nobles)).
+Ce document ajoute aux seigneurs femmes un intérêt de jeu propre, en
+complément — jamais en remplacement — du rôle de pièce de mariage déjà
+couvert par [succession.md](succession.md). Deux axes, jouables
+indépendamment :
+
+- **réseau et influence de cour** : un pouvoir informel, disponible à toute
+  dame sans condition, qui agit sur l'information et les élections sans
+  jamais détenir elle-même un titre religieux ou royal ;
+- **dignités** : un même mécanisme d'attribution en cours de partie, par
+  carte de dignité du deck de nobles, couvre aussi bien les
+  dignités ecclésiastiques masculines déjà décrites dans
+  [religieux.md](religieux.md#cardinaux-et-pape) (évêque, cardinal, pape) que
+  les dignités introduites ici, dans l'esprit de la carte « D'Arc » de
+  *Fief* — ouvertes aux nobles femmes, à qui la voie ecclésiastique et
+  royale reste fermée (voir [succession.md § Sexe des nobles](succession.md#sexe-des-nobles)).
+
+> Distinction avec le deck de nobles : [succession.md § Deck de nobles](succession.md#deck-de-nobles)
+> peut aussi recruter des personnages féminins nommés avec un trait fixe dès
+> le recrutement. Une dignité est différente : elle s'attribue en cours de
+> partie à une dame déjà recrutée, quelle qu'elle soit (recrutée anonyme ou
+> personnage), exactement comme un noble déjà recruté devient cardinal par
+> nomination plutôt qu'en naissant cardinal. Les deux mécanismes coexistent
+> sans se substituer l'un à l'autre. L'archétype « femme savante »
+> (guérisseuse, astrologue, herboriste) n'existe que par l'attribution d'une
+> dignité, jamais comme trait natif au recrutement.
+
+## Réseau et influence de cour
+
+Une dame (noble féminin libre, non otage ni au cachot) confère à son joueur
+un bonus d'influence tant qu'elle est positionnée à la cour d'un lieu
+stratégique — capitale, cité ou lieu de résidence d'un titre religieux ou
+royal — sans y commander d'armée. Pistes à trancher dans l'issue de
+milestone :
+
+- **connaissance étendue** : une dame présente sur le territoire d'un titre
+  (évêché, seigneurie, royaume) donne à son propriétaire une chance
+  d'apercevoir les chaînes connues des autres joueurs actifs sur ce même
+  territoire, en plus des règles de divulgation du GDD §4 ;
+- **poids électoral indirect** : une dame ne vote pas aux élections d'évêque,
+  de pape ou de roi (réservées aux détenteurs de titres masculins), mais peut
+  jouer une carte d'influence qui déplace un vote non engagé vers son
+  candidat, sans jamais dépasser le nombre de voix effectivement disponibles ;
+- **négociation de mariage** : une dame présente au moment de la conclusion
+  d'un mariage peut améliorer d'un cran le poids d'alliance du couple (voir
+  [succession.md § Poids d'alliance](succession.md#poids-dalliance)), une
+  seule fois par mariage.
+
+Ces effets sont cumulables entre dames d'un même joueur, mais chaque dame ne
+peut exercer qu'un rôle de cour à la fois (elle ne peut pas être simultanément
+en négociation de mariage et en poste d'influence électorale).
+
+## Dignités
+
+Ce chantier introduit un ensemble de dignités nommées, plus fourni et plus
+varié que la carte unique « D'Arc » de *Fief*, attribuables à une dame par
+une carte de dignité du deck de nobles — le même mécanisme que la carte de
+cardinal (voir [religieux.md § Cardinaux et pape](religieux.md#cardinaux-et-pape)),
+sans qu'un terme distinct les cantonne à part des dignités ecclésiastiques :
+les deux relèvent de la même catégorie de jeu, seule leur porte d'entrée
+diffère (l'une close aux femmes, l'autre ouverte aux nobles des deux sexes
+mais close à qui est déjà titulaire de l'autre voie). Contrairement à un
+titre séculier, une dignité ne se rachète pas : elle se mérite en jeu.
+
+Chaque dignité précise si sa titulaire peut se marier **après** la
+nomination (**Libre**) ou non (**Bloqué**). Une dignité **Bloquée** ne peut
+pas être posée sur une dame mariée, comme un homme marié ne peut devenir
+évêque ; une dignité **Libre** peut l'être, à l'exception de l'Éon, qui exige
+une dame non mariée.
+
+Chaque dignité est **permanente** (pas de durée, pas de défausse) et confère
+un bonus fixe et/ou une action réservée. **Les bonus ne s'appliquent que
+tant que la dame n'est pas prisonnière.** Otage (volontaire) et prisonnier
+sont deux statuts distincts : une dame otage conserve ses bonus.
+
+Une dame envoyée en otage volontaire (voir [succession.md § Transfert de noble et otage volontaire](succession.md#transfert-de-noble-et-otage-volontaire))
+transfère le bonus de sa dignité au joueur qui la détient tant qu'elle reste
+otage, qu'elle en soit propriétaire d'origine ou non — un instrument
+diplomatique à part entière, distinct d'une capture de guerre. Le
+propriétaire d'origine conserve aussi le bonus (voir la Châtelaine).
+
+Le [bâtard](succession.md#bâtard) est une dignité de même nature, ouverte à
+tout noble et cumulable avec les autres.
+
+Une dignité compte comme n'importe quel titre dans le score (voir
+[titres.md § Score de titres](titres.md#score-de-titres)).
+
+### Dignités cachées
+
+Le noble est déjà joué (donc visible, avec son sexe) au moment où la dignité
+lui est attribuée : seule la **dignité** peut être cachée, jamais la dame
+elle-même. Une dignité cachée est jouée face cachée ; les autres joueurs
+voient une dame, sans savoir si elle en porte une ni laquelle. Elle est
+**révélée** par une enquête (voir [Pouvoirs requis ailleurs](#pouvoirs-requis-ailleurs))
+ou par les conditions propres à chaque dignité.
+
+### Liste des dignités
+
+Une dame porte au plus **une dignité visible et une dignité cachée** : la
+carte d'une seconde dignité de la même catégorie est rejetée
+(`dignity_exclusive`), y compris quand la dignité cachée a été révélée. La
+bâtardise, qui n'est pas une dignité de dame, et le cardinalat se cumulent avec
+elles. Une dignité cachée ne se joue que sur une dame de son propriétaire
+(`dignity_hidden_own_only`, rejet testé avant tout autre) : l'ordre ne permet
+pas de sonder les dignités cachées des autres joueurs.
+
+| Dignité | Visibilité | Mariage après nomination | Excommunication si révélée |
+|---|---|---|---|
+| D'Arc | publique | Bloqué | non |
+| Châtelaine | publique | Libre | non |
+| Abbesse | publique | Bloqué | non |
+| Herboriste | publique | Bloqué | non |
+| Astrologue | publique | Libre | non |
+| Chevalier d'Éon | cachée | Libre (avec une femme) | **oui, d'office** |
+| Correspondante | cachée | Libre | non |
+| Espionne | cachée | Libre | non |
+| Empoisonneuse | cachée | Libre | non |
+| Sorcière | cachée | Libre | **oui, d'office** |
+
+#### D'Arc
+
+Passif : `+1` à la force de toute armée qu'elle commande, cumulable avec le
+bonus de commandement noble de `+1` (soit `+2` au total). Aucun ordre
+réservé. Son nom d'Arc remplace le nom de famille de la dame dans ses titres
+habituels (« Dame Mahaut d'Arc », « Baronne Mahaut d'Arc »).
+
+#### Châtelaine
+
+Passif : si elle est libre ou otage, et dans un château, elle connaît **tous
+les ordres donnés sur le fief** où elle se trouve, y compris ceux qui
+ciblent des armées adverses. Angle mort : une armée venue de l'extérieur du
+fief qui y entre **sans modifier sa chaîne d'ordres** ne lui est pas
+révélée.
+
+Otage : ses bonus vont à la fois à son propriétaire d'origine et au joueur
+qui la détient.
+
+> Abandonné : l'ordre réservé qui aurait permis de partager volontairement
+> ces informations avec le propriétaire du fief, s'il est différent, n'est
+> pas retenu. Seul le passif ci-dessus (`SeesFiefOrders`) est livré.
+
+#### Abbesse
+
+L'évêché de l'abbaye est **choisi à la pose** de la dignité et définitif.
+
+- `+1` voix aux élections d'évêque de cet évêché (la voix de l'abbaye, pas
+  celle de la dame : les élections restent réservées aux titres masculins) ;
+- elle peut **calmer les révoltes** comme un évêque (détail à définir avec
+  les pouvoirs d'évêque, voir [religieux.md](religieux.md)) ;
+- tant qu'elle se trouve dans son évêché, elle connaît **toutes les chaînes
+  d'ordres démarrées** dans cet évêché, même si elles se poursuivent
+  ailleurs.
+
+Elle est la seule dame que le [procès direct](#procès) ne peut pas
+viser : elle ne peut être jugée qu'après excommunication.
+
+#### Herboriste
+
+Passif : les troupes et nobles qui l'accompagnent, sur sa case et les cases
+adjacentes, sont **immunisés à la peste**. Les armées de son propre
+territoire (même case) consomment **2 ressources de moins par tour**, avec un
+minimum de 0. Aucun ordre réservé. Archétype de la « sorcière » du jeu.
+
+#### Astrologue
+
+Passif : à l'hiver, son joueur voit les **3 prochaines calamités** (toutes celles de l'année
+suivante, à trois calamités par an au maximum). L'information est
+privée à son joueur. Plusieurs astrologues dans une partie ne s'influencent
+pas. Si elle est prisonnière ou morte, la vision cesse ; si elle est
+otage, le joueur qui la détient en profite aussi (voir la Châtelaine).
+
+#### Chevalier d'Éon [cachée]
+
+Cette dignité ne peut pas être jouée sur une noble mariée. À la pose, le nom
+de la noble est **masculinisé silencieusement**, sans rumeur : le joueur
+dispose dès lors d'un noble homme avec toutes ses prérogatives — évêque,
+cardinal, pape, et même roi s'il est titré. Il se marie comme un homme,
+donc avec une femme.
+
+Il est **démasqué** si :
+
+- il est capturé lors d'une manœuvre militaire (pas envoyé en otage) ;
+- il est fait prisonnier ;
+- il est marié et qu'un Claim est joué contre lui : le seigneur visé par le
+  Claim devient bâtard, l'Éon est révélé, l'union est annulée et le Claim
+  est perdu ;
+- il est ciblé par une enquête.
+
+Un Éon démasqué est **excommunié d'office** et perd les titres devenus
+incompatibles, qui deviennent vacants. Son excommunication ouvre droit au
+procès (voir [Procès](#procès)).
+
+#### Correspondante [cachée]
+
+Passif : elle voit tous les ordres donnés par le joueur chez qui elle est
+hébergée en otage, sauf si elle est prisonnière. Une enquête peut la cibler.
+Révélée, elle conserve ses bonus et n'est pas excommuniée.
+
+#### Espionne [cachée]
+
+Passif : si elle est hébergée en otage chez un joueur, son propriétaire voit
+la **main complète** de ce joueur (cartes d'événements et de personnages).
+
+Révélée par une enquête ou une capture, elle conserve ses bonus et n'est pas
+excommuniée ; la règle générale du procès s'applique à elle.
+
+> Abandonné : l'ordre réservé « Infiltrer », qui aurait permis de consulter
+> à distance la main d'un joueur simplement présent dans le même évêché
+> qu'elle, n'est pas retenu. Seul le passif ci-dessus (`SeesHostHand`,
+> otage uniquement) est livré.
+
+#### Empoisonneuse [cachée]
+
+Passif : toute armée présente dans l'évêché de l'Empoisonneuse, hors celles de
+son propriétaire (alliés compris), consomme **+1 ressource par tour**. Les
+joueurs concernés voient leur consommation augmenter **sans autre
+précision**. C'est le miroir de l'Herboriste.
+
+Révélée par une enquête ou une capture, elle conserve ses bonus et n'est pas
+excommuniée ; la règle générale du procès s'applique à elle.
+
+#### Sorcière [cachée]
+
+Sa magie est dangereuse : elle ne protège pas de la peste. Elle se pratique
+par un **rituel** d'hiver, un seul par hiver, que son propriétaire commande
+tant qu'elle n'est pas au donjon :
+
+- `S R NNN CAL` : la Sorcière `NNN` **appelle une calamité** (`PE` peste, `MT`
+  mauvais temps, `FA` famine). Si une calamité de ce type est tirée pour
+  l'année suivante, elle frappe la **région où se trouve la Sorcière** ; sinon
+  le rituel échoue. La saison reste tirée au hasard ;
+- `S R NNN N` : la Sorcière `NNN` **fixe la saison** de l'année suivante
+  (`1` printemps, `2` été, `3` automne). La première calamité tirée cet hiver
+  prend cette saison et frappe la **région où se trouve la Sorcière**. Le type
+  de la calamité reste celui du tirage. Si la saison n'est pas libre, le
+  rituel échoue.
+
+Les deux effets s'excluent : un rituel appelle une calamité ou fixe une
+saison, jamais les deux. L'ordre est privé ; l'issue (réussite ou échec) n'est
+rapportée qu'à son propriétaire. Une calamité déviée est annoncée aux autres
+joueurs avec une formulation légèrement inhabituelle (« de curieux
+présages »), sans autre précision. Le rituel est résolu à la fin de l'hiver,
+lors du tirage des calamités de l'année suivante ; il ne dévie jamais une
+calamité déjà programmée ([hiver.md](hiver.md#ordre-de-résolution)).
+
+Révélée, elle est **excommuniée d'office**.
+
+### Statut d'implémentation (#259)
+
+Livrées : toutes les dignités et leurs passifs, ainsi que le démasquage de
+l'Éon par capture militaire, emprisonnement et Claim contre une Éon mariée.
+Abandonnés (voir les notes « Abandonné » ci-dessus) : l'ordre d'hiver de la
+Châtelaine et l'ordre « Infiltrer » de l'Espionne — seuls leurs passifs
+respectifs sont livrés. Le démasquage par enquête (`Q HHH NNN`, voir
+[religieux.md § Enquête](religieux.md#enquête)) est livré pour toutes les
+dignités cachées, avec l'excommunication d'office de l'Éon et de la Sorcière. La voix d'élection et le calme des
+révoltes de l'Abbesse sont livrés.
+
+Précisions retenues :
+
+- les évêchés sont les régions du jeu ; l'Abbesse se pose avec le village
+  seed de sa région (`D N NNN ABB TER`) ;
+- otage = capturé en combat (statut `hostage`), quelle que soit la
+  provenance ; prisonnière = au `dungeon`. Une dame otage conserve ses bonus
+  et son geôlier en profite aussi ; les dames cachées Correspondante et
+  Espionne n'agissent que lorsqu'elles sont otages ;
+- l'Astrologue voit les **3 prochaines cartes calamité de la pioche** des
+  ordres spéciaux, en hiver, à son seul joueur, et en raye une seule avec
+  `V C NNN I`, une fois par hiver ; les cartes rayées vont à la défausse
+  et les calamités suivantes les remplacent ;
+- l'Éon remplace la dame par un noble homme au prénom et au code tirés des
+  prénoms inutilisés ; l'identité de la dame (code, prénom, sexe) n'est connue
+  que de son propriétaire ;
+- le geôlier d'une otage profite des bonus passifs, jamais des ordres : seul
+  le propriétaire de l'Astrologue peut rayer des calamités ;
+- la Châtelaine ne voit que les chaînes émises ce tour : une armée qui entre
+  dans le fief sans modifier sa chaîne reste cachée ;
+- l'Herboriste réduit la demande de ravitaillement de l'armée de son
+  bénéficiaire sur sa case ; l'Empoisonneuse augmente de 1 celle des armées d'un
+  autre propriétaire dans sa région (les alliances n'existent pas encore).
+
+## Procès
+
+Un procès **tue** sa cible. Il fait écho, sans jamais recourir à une
+mécanique surnaturelle, à la persécution historique des femmes savantes :
+action risquée, aux conséquences politiques visibles.
+
+### Qui peut être jugée
+
+**Procès direct** : une dame peut être jugée et exécutée si elle remplit
+ces trois conditions :
+
+- elle porte une dignité de dame, **publique ou cachée** (le procès révèle une
+  dignité cachée) ;
+- elle n'est **pas mariée** ;
+- elle n'est pas l'Abbesse.
+
+**Commanditaire d'assassinat** : un noble qui a commandité au moins un
+assassinat ([ordres-speciaux.md § Assassinat](ordres-speciaux.md#assassinat))
+peut être jugé et exécuté, quels que soient son sexe, son statut marital, ses
+dignités, et même s'il n'est pas excommunié. Le Roi échappe toujours au procès.
+La victime de l'assassinat n'entre pas en compte. L'exécution d'un commanditaire
+n'ouvre **pas** de fenêtre de révolte, et ne révèle aucune dignité, même si la
+cible remplirait aussi les conditions du procès direct ou serait excommuniée : le
+motif de commanditaire prime.
+
+**Tous les autres personnages** (hommes, dames sans dignité, dames mariées,
+Abbesse) doivent d'abord être **excommuniés** par le pape pour être jugés. Le
+mariage est donc une protection pour les dignités qui le permettent
+(Châtelaine, Astrologue, Correspondante, Espionne).
+
+### Déclenchement
+
+Le procès n'existe qu'en hiver : **deux cardinaux distincts d'accord** déposent
+chacun `J HHH NNN` (`HHH` : le cardinal qui porte le procès, `NNN` : la cible ;
+voir [religieux.md § Procès à deux cardinaux](religieux.md#procès-à-deux-cardinaux))
+le même hiver ; le pape seul ne suffit jamais, et les deux cardinaux peuvent
+appartenir au même joueur. Le deck des ordres spéciaux ne contient pas de
+carte de procès ; la carte [Justice](ordres-speciaux.md#justice) vise
+spécifiquement les commanditaires d'assassinat.
+
+### Jugement et conséquences
+
+Le procès est jugé en dernier, à l'étape 9 de l'hiver. L'ordre précis par
+rapport aux excommunications, enquêtes, mariages et élections du même hiver est
+fixé par [hiver.md](hiver.md#ordre-de-résolution) : un noble excommunié ou
+démasqué cet hiver est jugeable, une dame mariée cet hiver ne l'est plus.
+
+Si la cible remplit les conditions du procès direct, ou si elle est
+excommuniée, elle est exécutée et sa dignité éventuelle, cachée ou non, est
+révélée à tous : elle quitte le jeu définitivement (cause « exécution » dans la
+lignée) et ses fiefs, prétentions et cartes sont réglés comme pour toute mort.
+Cette exécution ouvre l'opportunité de jouer une **carte révolte** (les armées
+`NEUTRAL` de révolte du GDD, § Cartes bonus et calamités) sur tout territoire
+de la région (évêché) où se trouvait la cible, pendant la saison d'action
+suivante.
+
+Un procès dont la cible n'est pas éligible au moment du jugement (déjà
+exécutée par un autre procès, mariée entre-temps, Abbesse, sans dignité, etc.)
+est non fondé : il ne se passe rien.
+
+### Statut d'implémentation
+
+Livré : le procès direct, le procès sur un noble excommunié et le
+déclenchement par deux cardinaux (`J HHH NNN`,
+[hiver.md](hiver.md#ordre-de-résolution) étapes 3 et 9). Une dignité cachée ne
+protège pas du procès direct : elle est révélée par l'exécution.
+
+Livré aussi (#415) : le procès d'un commanditaire d'assassinat, qui lit le
+registre des commanditaires de la carte Assassinat. Le Roi y échappe toujours ; il
+n'ouvre pas de fenêtre de révolte et ne révèle aucune dignité.
+
+## Pouvoirs requis ailleurs
+
+Ces dignités dépendent de pouvoirs à spécifier dans
+[religieux.md](religieux.md) et sur l'issue du pape :
+
+- **Excommunication** : ordre d'hiver du pape, seul habilité (1 par hiver,
+  1 excommunié à la fois par joueur adverse, levable). Un évêque ou cardinal
+  excommunié perd son titre définitivement ; l'excommunié ne vote pas et n'est
+  pas candidat. Les excommunications d'office ne comptent pas dans la limite et
+  ne sont pas levables.
+- **Dissolution de mariage** : le pape peut dissoudre un mariage à la demande
+  d'un des époux, sans retirer les Claims éventuels.
+- **Enquête** (`Q HHH NNN`, coût proportionnel au titre de la cible, voir religieux.md § Enquête) : ordre de cardinal ou de pape, qui cible un noble ou une dame
+  et révèle une dignité cachée (Éon, Correspondante, Espionne, Empoisonneuse, Sorcière).
+- **Calme des révoltes** : pouvoir d'évêque, partagé avec l'Abbesse.

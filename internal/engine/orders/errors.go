@@ -27,6 +27,10 @@ const (
 	ParseCodeUnclosedParenthesis = "unclosed_parenthesis"
 	// ParseCodeInvalidAmount identifies a missing, malformed, or non-positive resource amount.
 	ParseCodeInvalidAmount = "invalid_amount"
+	// ParseCodeSpecialKind identifies an unknown or non-playable card kind.
+	ParseCodeSpecialKind = "special_kind"
+	// ParseCodeSpecialRegion identifies an unknown region seed.
+	ParseCodeSpecialRegion = "special_region"
 )
 
 var (
@@ -66,7 +70,9 @@ const ValidationCodeNotAdjacent = "not_adjacent"
 // ValidationError describes an intrinsic chain validation error. OrderID is
 // empty only when the error applies to the chain header rather than one order.
 type ValidationError struct {
-	OrderID     models.OrderID
+	OrderID models.OrderID
+	// Line is the source line of the order, when it was just parsed.
+	Line        int
 	Code        string
 	Message     string
 	MessageKey  string `json:"-"`

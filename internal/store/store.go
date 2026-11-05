@@ -8,11 +8,13 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/turn"
 )
 
 type GameID string
@@ -29,17 +31,30 @@ type Actor struct {
 // PlayerProfile is the application-owned part of a Firebase identity. UID and
 // Email come from the verified token; DisplayName is the only mutable field.
 type PlayerProfile struct {
-	UID         string    `json:"uid"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"displayName"`
-	CreatedAt   time.Time `json:"-"`
-	UpdatedAt   time.Time `json:"-"`
+	UID         string `json:"uid"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	// LastSeenVersion is the last deployed version whose release notes the
+	// player has acknowledged; empty until the first acknowledgement.
+	LastSeenVersion string `json:"lastSeenVersion"`
+	// HideReleaseNotes opts the player out of the release notes dialog.
+	HideReleaseNotes bool      `json:"hideReleaseNotes"`
+	CreatedAt        time.Time `json:"-"`
+	UpdatedAt        time.Time `json:"-"`
+}
+
+// ReleaseNotesUpdate carries the release notes preferences to change; nil
+// fields are left untouched.
+type ReleaseNotesUpdate struct {
+	LastSeenVersion  *string
+	HideReleaseNotes *bool
 }
 
 type ProfileStore interface {
 	GetProfile(context.Context, string) (PlayerProfile, error)
 	EnsureProfile(context.Context, Actor) (PlayerProfile, error)
 	UpdateProfile(context.Context, string, string) (PlayerProfile, error)
+	UpdateReleaseNotes(context.Context, string, ReleaseNotesUpdate) (PlayerProfile, error)
 }
 
 type Invitation struct {
@@ -76,6 +91,38 @@ type MembershipStore interface {
 	ListActorMemberships(context.Context, string) ([]Membership, error)
 }
 
+// BugReportCollection is the Firestore collection holding bug reports, apart
+// from the games.
+const BugReportCollection = "bugReports"
+
+// BugReport is the private part of a player's bug report: their own game view,
+// kept out of the public GitHub issue, which only cites Ref.
+type BugReport struct {
+	// ID is human readable: <game>-t<turn>-<player>-<ref>.
+	ID string
+	// Ref is the opaque random suffix of ID, the only part the public issue
+	// shows (the rest names the game and the player).
+	Ref      string
+	GameID   GameID
+	Turn     int
+	PlayerID models.PlayerID
+	UID      string
+	Title    string
+	IssueURL string
+	// GameView is the masked JSON projection of the game the player sees.
+	GameView  string
+	CreatedAt time.Time
+}
+
+// BugReportStore keeps bug reports in a collection of their own, apart from
+// the games, so maintainers can read and delete them freely.
+type BugReportStore interface {
+	// CreateBugReport fails if the ID is taken; it never overwrites a report.
+	CreateBugReport(context.Context, BugReport) error
+	SetBugReportIssue(ctx context.Context, id, issueURL string) error
+	DeleteBugReport(ctx context.Context, id string) error
+}
+
 type Status string
 
 const (
@@ -107,6 +154,7 @@ type CreateRequest struct {
 type SubmitRequest struct {
 	Chains           []engine.ChainSubmission  `json:"chains"`
 	Winter           []engine.WinterSubmission `json:"winter"`
+	Special          []engine.DeckSubmission   `json:"special"`
 	Force            bool                      `json:"force,omitempty"`
 	ExpectedRevision Revision                  `json:"revision,omitempty"`
 }
@@ -163,11 +211,56 @@ type PlayerSubmission struct {
 	Orders    engine.OrdersInput `json:"orders"`
 }
 
-// PrivacyTracker is called while a game is exclusively locked, immediately
-// after the engine has produced the next state and report. It is an injection
-// point for server-side privacy metadata; the engine itself never needs to
-// know about viewers.
-type PrivacyTracker func(before, after *models.GameState, input engine.OrdersInput, report engine.TurnReport)
+// PrivacyTracker is called while a game is exclusively locked. See
+// turn.PrivacyTracker.
+type PrivacyTracker = turn.PrivacyTracker
+
+// IsAssignedActor reports whether a slot's ActorID names a real member.
+// Development stores use "slot:" placeholders for slots nobody claimed yet.
+func IsAssignedActor(actorID string) bool {
+	return actorID != "" && !strings.HasPrefix(actorID, "slot:")
+}
+
+// PlayerForActor returns the player slot claimed by actor. A development actor
+// may also address an unclaimed slot by its player ID.
+func PlayerForActor(players []PlayerSlot, actor Actor) (models.PlayerID, bool) {
+	actorID := strings.TrimSpace(actor.ID)
+	if actorID == "" {
+		return "", false
+	}
+	for _, player := range players {
+		if player.ActorID == actorID && IsAssignedActor(player.ActorID) {
+			return player.ID, true
+		}
+		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
+			return player.ID, true
+		}
+	}
+	return "", false
+}
+
+// IsSpectator reports whether actor is the observer host of a game.
+func IsSpectator(spectatorUID string, actor Actor) bool {
+	spectatorUID = strings.TrimSpace(spectatorUID)
+	return spectatorUID != "" && spectatorUID == strings.TrimSpace(actor.ID)
+}
+
+// PlayerFor returns the player slot claimed by actor in this game.
+func (s GameSnapshot) PlayerFor(actor Actor) (models.PlayerID, bool) {
+	return PlayerForActor(s.Players, actor)
+}
+
+// ViewerFor returns the identity used to project this game for actor: its
+// player ID, or models.SpectatorViewer for the observer host.
+func (s GameSnapshot) ViewerFor(actor Actor) (models.PlayerID, bool) {
+	if playerID, ok := s.PlayerFor(actor); ok {
+		return playerID, true
+	}
+	if IsSpectator(s.SpectatorUID, actor) {
+		return models.SpectatorViewer, true
+	}
+	return "", false
+}
 
 type GameStore interface {
 	Create(context.Context, Actor, CreateRequest) (GameSnapshot, error)
@@ -175,7 +268,7 @@ type GameStore interface {
 	Get(context.Context, Actor, GameID) (GameSnapshot, error)
 	Map(context.Context, Actor, GameID) (mapgen.MapData, error)
 	State(context.Context, Actor, GameID) (GameSnapshot, error)
-	Supply(context.Context, Actor, GameID, models.TerritoryID) (engine.SupplyLine, error)
+	Supply(context.Context, Actor, GameID, models.TerritoryID, string) (engine.SupplyLine, error)
 	Submit(context.Context, Actor, GameID, SubmitRequest) (SubmitResult, error)
 	Resolve(context.Context, Actor, GameID) (SubmitResult, error)
 	Reports(context.Context, Actor, GameID) ([]ReportRecord, error)
@@ -210,22 +303,23 @@ type RevisionedGameStore interface {
 }
 
 var (
-	ErrUnknownGame        = errors.New("store: unknown game")
-	ErrNotMember          = errors.New("store: actor is not a member of this game")
-	ErrNotCreator         = errors.New("store: actor is not the game creator")
-	ErrInvalidPlayers     = errors.New("store: player count must be between two and eight")
-	ErrGameFull           = errors.New("store: game has no free slots")
-	ErrGameFinished       = errors.New("store: game is finished")
-	ErrEliminated         = errors.New("store: eliminated player cannot submit")
-	ErrRevisionConflict   = errors.New("store: revision conflict")
-	ErrInvalidReport      = errors.New("store: invalid report index")
-	ErrProfileNotFound    = errors.New("store: profile not found")
-	ErrProfileRequired    = errors.New("store: a completed player profile is required")
-	ErrInvalidDisplayName = errors.New("store: invalid display name")
-	ErrInvalidInvitation  = errors.New("store: invalid invitation")
-	ErrInvitationInactive = errors.New("store: invitation is inactive")
-	ErrSpectator          = errors.New("store: spectator host cannot join a player slot")
-	ErrInvalidYears       = errors.New("store: year count must be between one and fifty")
+	ErrUnknownGame         = errors.New("store: unknown game")
+	ErrNotMember           = errors.New("store: actor is not a member of this game")
+	ErrNotCreator          = errors.New("store: actor is not the game creator")
+	ErrInvalidPlayers      = errors.New("store: player count must be between two and eight")
+	ErrGameFull            = errors.New("store: game has no free slots")
+	ErrGameFinished        = errors.New("store: game is finished")
+	ErrEliminated          = errors.New("store: eliminated player cannot submit")
+	ErrRevisionConflict    = errors.New("store: revision conflict")
+	ErrInvalidReport       = errors.New("store: invalid report index")
+	ErrProfileNotFound     = errors.New("store: profile not found")
+	ErrProfileRequired     = errors.New("store: a completed player profile is required")
+	ErrInvalidDisplayName  = errors.New("store: invalid display name")
+	ErrInvalidReleaseNotes = errors.New("store: invalid release notes update")
+	ErrInvalidInvitation   = errors.New("store: invalid invitation")
+	ErrInvitationInactive  = errors.New("store: invitation is inactive")
+	ErrSpectator           = errors.New("store: spectator host cannot join a player slot")
+	ErrInvalidYears        = errors.New("store: year count must be between one and fifty")
 )
 
 func normalizeYearCount(value int) (int, error) {

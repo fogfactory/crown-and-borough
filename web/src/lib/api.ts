@@ -1,3 +1,5 @@
+import { recordApiCall } from '@/lib/bug-report'
+
 export interface TokenProvider {
   getIdToken: () => Promise<string | null>
 }
@@ -25,6 +27,19 @@ function isJsonResponse(response: Response): boolean {
   return response.headers.get('content-type')?.includes('application/json') ?? false
 }
 
+/** fetch that also logs the call (method, path, status) for bug reports. */
+async function recordedFetch(path: string, init: RequestInit): Promise<Response> {
+  const method = init.method ?? 'GET'
+  try {
+    const response = await fetch(path, init)
+    recordApiCall(method, path, response.status)
+    return response
+  } catch (failure) {
+    recordApiCall(method, path, 0)
+    throw failure
+  }
+}
+
 export async function apiRequest<T>(
   tokenProvider: TokenProvider,
   path: string,
@@ -41,7 +56,7 @@ export async function apiRequest<T>(
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(path, { ...init, headers })
+  const response = await recordedFetch(path, { ...init, headers })
   const payload = isJsonResponse(response)
     ? ((await response.json().catch(() => null)) as unknown)
     : await response.text()
@@ -68,7 +83,7 @@ export async function apiTextRequest(
     throw new ApiError(401, 'unauthorized', 'an authenticated actor is required')
   }
 
-  const response = await fetch(path, {
+  const response = await recordedFetch(path, {
     headers: { Authorization: `Bearer ${token}` },
   })
   const text = await response.text()

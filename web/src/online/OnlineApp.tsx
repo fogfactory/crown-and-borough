@@ -12,17 +12,22 @@ import {
 } from 'react-router-dom'
 
 import { AuthProvider, useAuth } from '@/auth/AuthProvider'
-import { BrandMark } from '@/components/BrandMark'
+import { ReleaseNotesDialog } from '@/components/ReleaseNotesDialog'
+import { Seal } from '@/components/Seal'
+import { Alert } from '@/components/ui/alert'
 import { FinishPage, ProfilePage, SignInPage } from '@/online/AuthPages'
 import { GamePage } from '@/online/GamePage'
 import { HomePage } from '@/online/HomePage'
 import { JoinPage } from '@/online/JoinPage'
 import { InfoPage, type InfoPageKind } from '@/components/InfoPage'
+import { BugReportButton } from '@/components/BugReportDialog'
+import { GithubLink } from '@/components/GithubLink'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { VersionBadge } from '@/components/VersionBadge'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { firebaseConfigured } from '@/lib/firebase'
+import { useIsDesktop } from '@/lib/use-media-query'
 
 function OnlineHeader() {
   const { profile, signOut } = useAuth()
@@ -35,15 +40,15 @@ function OnlineHeader() {
   }
 
   return (
-    <header className="z-30 shrink-0 border-b border-[#b7a786]/60 bg-[#fffaf0]/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:sticky lg:top-0">
+    <header className="z-30 shrink-0 border-b border-line/60 bg-paper-50/95 px-3 py-2 shadow-sm backdrop-blur-sm sm:px-6 lg:sticky lg:top-0">
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-2 sm:gap-4">
         <Link to="/" className="flex items-center gap-2.5" aria-label="Crown & Borough">
-          <BrandMark className="size-9 sm:size-11" />
+          <Seal className="size-9 sm:size-11" />
           <span>
-            <span className="block font-serif text-base font-semibold tracking-tight sm:text-xl">
+            <span className="block font-display text-base font-semibold tracking-tight sm:text-xl">
               Crown &amp; Borough
             </span>
-            <span className="hidden text-[10px] uppercase tracking-[0.18em] text-[#806f57] min-[420px]:block">
+            <span className="hidden text-2xs label-caps text-ink-500 min-[420px]:block">
               {t('app.tagline')}
             </span>
             <VersionBadge />
@@ -54,7 +59,7 @@ function OnlineHeader() {
             <NavLink
               to="/rules"
               className={({ isActive }) =>
-                `rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${isActive ? 'bg-[#f3ead9] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:bg-[#f3ead9] hover:text-[#30291f]'}`
+                `rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${isActive ? 'bg-paper-100 text-brass-700 shadow-sm' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-900'}`
               }
             >
               {t('nav.rules')}
@@ -62,7 +67,7 @@ function OnlineHeader() {
             <NavLink
               to="/faq"
               className={({ isActive }) =>
-                `rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${isActive ? 'bg-[#f3ead9] text-[#a84632] shadow-sm' : 'text-[#806f57] hover:bg-[#f3ead9] hover:text-[#30291f]'}`
+                `rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${isActive ? 'bg-paper-100 text-brass-700 shadow-sm' : 'text-ink-500 hover:bg-paper-100 hover:text-ink-900'}`
               }
             >
               {t('nav.faq')}
@@ -71,12 +76,14 @@ function OnlineHeader() {
           {profile && (
             <Link
               to="/profile"
-              className="max-w-32 truncate rounded-md px-2 py-1 text-sm font-medium text-[#594b3c] underline-offset-4 hover:text-[#a84632] hover:underline sm:max-w-none"
+              className="max-w-32 truncate rounded-md px-2 py-1 text-sm font-medium text-ink-700 underline-offset-4 hover:text-brass-700 hover:underline sm:max-w-none"
             >
               {profile.displayName || profile.email}
             </Link>
           )}
           <LanguageSwitcher />
+          <BugReportButton />
+          <GithubLink />
           <Button
             type="button"
             variant="outline"
@@ -95,18 +102,22 @@ export function OnlineFrame({ children }: { children: ReactNode }) {
   const { language } = useLanguage()
   const location = useLocation()
   const isGame = /^\/games\//.test(location.pathname)
+  const desktop = useIsDesktop()
   return (
     <div
       lang={language}
-      className={`flex flex-col bg-[#efe7d8] text-[#30291f] ${
+      className={`flex flex-col bg-paper-200 text-ink-900 ${
         isGame ? 'h-dvh overflow-hidden' : 'min-h-dvh'
       }`}
     >
-      <OnlineHeader />
+      {/* On phones a game keeps a single bar: its own (charte § Téléphone). */}
+      {(!isGame || desktop) && <OnlineHeader />}
       <main
-        className={`mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6 ${
-          isGame ? 'overflow-hidden' : ''
-        }`}
+        className={
+          isGame
+            ? 'flex w-full min-h-0 flex-1 flex-col overflow-hidden'
+            : 'mx-auto flex w-full min-h-0 max-w-[1500px] flex-1 flex-col p-3 sm:p-4 lg:p-6'
+        }
       >
         {children}
       </main>
@@ -121,8 +132,8 @@ function RequireAuth() {
 
   if (status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#efe7d8] px-6 text-center">
-        <p className="font-serif text-lg italic text-[#806f57]">
+      <div className="flex min-h-screen items-center justify-center bg-paper-200 px-6 text-center">
+        <p className="font-display text-lg italic text-ink-500">
           {authError ?? t('online.loading')}
         </p>
       </div>
@@ -142,7 +153,7 @@ function RequireProfile() {
   if (profileLoading) {
     return (
       <OnlineFrame>
-        <p className="py-20 text-center font-serif text-lg italic text-[#806f57]">
+        <p className="py-20 text-center font-display text-lg italic text-ink-500">
           Loading profile...
         </p>
       </OnlineFrame>
@@ -151,12 +162,9 @@ function RequireProfile() {
   if (profileError && !profile) {
     return (
       <OnlineFrame>
-        <p
-          role="alert"
-          className="mx-auto max-w-xl rounded-lg bg-[#f8e5dd] p-4 text-[#8d321e]"
-        >
+        <Alert role="alert" className="mx-auto max-w-xl">
           {profileError}
-        </p>
+        </Alert>
       </OnlineFrame>
     )
   }
@@ -164,7 +172,12 @@ function RequireProfile() {
     const redirect = `${location.pathname}${location.search}`
     return <Navigate to={`/profile?redirect=${encodeURIComponent(redirect)}`} replace />
   }
-  return <Outlet />
+  return (
+    <>
+      <Outlet />
+      <ReleaseNotesDialog />
+    </>
+  )
 }
 
 function ProfileRoute() {
@@ -177,7 +190,7 @@ function ProfileRoute() {
 
 function SignInRoute() {
   return (
-    <div className="min-h-screen bg-[#efe7d8] px-4 py-8 text-[#30291f] sm:px-6 sm:py-16">
+    <div className="min-h-screen bg-paper-200 px-4 py-8 text-ink-900 sm:px-6 sm:py-16">
       <SignInPage />
     </div>
   )
@@ -185,7 +198,7 @@ function SignInRoute() {
 
 function FinishRoute() {
   return (
-    <div className="min-h-screen bg-[#efe7d8] px-4 py-8 text-[#30291f] sm:px-6 sm:py-16">
+    <div className="min-h-screen bg-paper-200 px-4 py-8 text-ink-900 sm:px-6 sm:py-16">
       <FinishPage />
     </div>
   )
@@ -246,10 +259,12 @@ export function OnlineApp() {
   const { t } = useLanguage()
   if (!firebaseConfigured) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#efe7d8] px-6 text-center text-[#30291f]">
+      <div className="flex min-h-screen items-center justify-center bg-paper-200 px-6 text-center text-ink-900">
         <div className="max-w-md space-y-3">
-          <h1 className="font-serif text-3xl font-semibold">{t('online.configTitle')}</h1>
-          <p className="text-sm text-[#806f57]">{t('online.configDescription')}</p>
+          <h1 className="font-display text-3xl font-semibold">
+            {t('online.configTitle')}
+          </h1>
+          <p className="text-sm text-ink-500">{t('online.configDescription')}</p>
         </div>
       </div>
     )

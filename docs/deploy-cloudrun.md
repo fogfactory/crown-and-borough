@@ -518,6 +518,9 @@ workflow has no service-account key secret and must not be given one.
 | `VITE_FIREBASE_APP_ID`         | Firebase Web `appId`                                      |
 | `PUBLIC_APP_URL`               | Optional complete HTTPS origin, usually the Cloud Run URL |
 | `PUBLIC_HOSTING_URL`           | `https://crown-and-borough.web.app`                       |
+| `BUG_APP_ID`                   | Optional GitHub App ID of the bug reporter                |
+| `BUG_APP_INSTALLATION_ID`      | Optional installation ID of that App on this repository   |
+| `GCP_BUG_APP_KEY_SECRET`       | Optional Secret Manager secret holding the App private key |
 
 With GitHub CLI, the variables can be set without writing any credential file:
 
@@ -541,6 +544,42 @@ gh variable set VITE_FIREBASE_APP_ID --repo "$GITHUB_REPOSITORY" --body "replace
 gh variable set PUBLIC_APP_URL --repo "$GITHUB_REPOSITORY" --body "$PUBLIC_APP_URL"
 gh variable set PUBLIC_HOSTING_URL --repo "$GITHUB_REPOSITORY" --body "https://crown-and-borough.web.app"
 ```
+
+### Bug report token
+
+The player's game view attached to a report is stored in the Firestore
+collection `bugReports` (backend-only, denied to clients by `firestore.rules`),
+never on GitHub: the issue only cites the report's random `ref`. Filter the
+collection on `ref` or `issueUrl` to find it; reports are plain documents that
+can be deleted from the console once triaged.
+
+The in-game bug report dialog files public issues through `POST /api/bugs`,
+as a GitHub App installed on this repository with the single permission
+*Issues: read and write*. The server signs a short-lived JWT with the App
+private key and exchanges it for a one-hour installation token. The private
+key is a secret: keep it in Secret Manager, never in a repository variable or
+file. The App ID and installation ID are not secret.
+
+```bash
+# Store the downloaded private key, grant the runtime access, then delete the file.
+gcloud secrets create github-bug-app-key --project "$PROJECT_ID" --data-file=PATH/TO/KEY.pem
+gcloud secrets add-iam-policy-binding github-bug-app-key --project "$PROJECT_ID" \
+  --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor
+shred -u PATH/TO/KEY.pem
+
+gh variable set GCP_BUG_APP_KEY_SECRET --repo "$GITHUB_REPOSITORY" --body github-bug-app-key
+gh variable set BUG_APP_ID --repo "$GITHUB_REPOSITORY" --body "$BUG_APP_ID"
+gh variable set BUG_APP_INSTALLATION_ID --repo "$GITHUB_REPOSITORY" --body "$BUG_APP_INSTALLATION_ID"
+```
+
+The deployment mounts the key as `GITHUB_BUG_APP_PRIVATE_KEY` and passes the two
+identifiers as `GITHUB_BUG_APP_ID` and `GITHUB_BUG_APP_INSTALLATION_ID`. When
+any of the three variables is empty nothing is set, `GET /api/bugs` reports
+`{"enabled": false}` and the dialog greys out "Send" (the "Fill in on GitHub"
+path keeps working). Rotate the key by generating a new one on the App page and
+adding a version of the secret (`gcloud secrets versions add`), then redeploy.
+Locally, set the three `GITHUB_BUG_APP_*` variables, or `GITHUB_BUG_TOKEN` with
+a personal fine-grained token, in the shell that starts the server.
 
 Replace every `replace-me` value before starting a deployment. Check the final
 names, without printing their values, with:
@@ -634,6 +673,42 @@ files and Admin/private-key environment variables. The final scratch image is
 expected to contain only the Go binary, public game assets, and CA certificates.
 Firebase Web configuration is public build configuration; Admin credentials are
 provided to the Go SDK through Cloud Run Application Default Credentials.
+
+## Vulnerability Scanning And Dependency Updates
+
+Trivy scans the built container image twice, independently of source-level
+`go.mod`/`package-lock.json` review:
+
+- in `ci.yml`, against the image built from the pull request's sources, so a
+  vulnerable dependency fails CI before merge;
+- in `deploy-cloudrun.yml`, against the exact digest-pinned image that
+  `build-and-push` just pushed to Artifact Registry, before `deploy-cloudrun`
+  is allowed to run. This catches vulnerabilities disclosed between merge and
+  release tag, and scans the artifact that is actually promoted rather than a
+  freshly rebuilt approximation of it.
+
+Policy: any `CRITICAL` or `HIGH` severity finding with an available fix fails
+the workflow (`ignore-unfixed: true`, `exit-code: 1`). Findings without a
+published fix do not block the build, since failing on them would only be
+actionable by pinning to an unreleased patch; they remain visible in the
+Trivy output. There is no `.trivyignore` in the repository; an exception
+needs a comment explaining why the finding does not apply here.
+
+Dependabot (`.github/dependabot.yml`) opens weekly version-update pull
+requests for the four ecosystems the image depends on: `gomod` (root),
+`npm` (`web/`), `github-actions` (root, grouped into one pull request), and
+`docker` (the `Dockerfile`'s `node:22-alpine` and `golang:1.26-alpine` base
+images). Each pull request runs the full CI suite, including the Trivy scan
+above, before it can be merged. A base image bump is still worth a manual
+look at the final `scratch` stage: only the Go binary, `assets`, and the CA
+bundle are copied out of the `build` stage (see `Dockerfile`), so most base
+image changes only affect build-time tooling, not what ships.
+
+Dependabot version updates are separate from GitHub's Dependabot alerts and
+security updates, which are a repository setting (Settings → Code security)
+rather than a file in this repository; both must stay enabled for the
+`gomod` and `npm` ecosystems to get expedited security-only pull requests
+alongside the weekly version updates configured here.
 
 ## Costs, Quotas, And Logs
 

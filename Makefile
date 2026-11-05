@@ -8,7 +8,7 @@ EMULATOR_UI_PORT ?= 4000
 SMOKE_PORT ?= 18080
 APP_VERSION ?= dev
 
-.PHONY: build build-hotseat run run-dev run-hotseat run-online test test-firestore compose-up compose-up-frontend compose-down compose-logs vet clean web-deps web-build web-build-hotseat web-dev image image-run image-stop image-smoke check-web-env
+.PHONY: build build-hotseat run run-dev run-hotseat run-demo run-online test test-firestore compose-up compose-up-frontend compose-down compose-logs vet clean web-deps web-build web-build-hotseat web-dev image image-run image-stop image-smoke check-web-env
 
 build: web-build
 	go build -ldflags="-X main.version=$(APP_VERSION)" -o bin/server ./cmd/server
@@ -23,6 +23,10 @@ build-hotseat: web-build-hotseat
 
 run-hotseat: build-hotseat
 	ONLINE_DEV_MODE=true ./bin/server
+
+# Forged game state for trying a feature: make run-demo SCENARIO=winter|action
+run-demo:
+	./scripts/demo.sh $(or $(SCENARIO),winter) --fg
 
 run-online: check-web-env web-build
 	@SERVER_PORT="$(SERVER_PORT)" FIRESTORE_PORT="$(FIRESTORE_PORT)" AUTH_PORT="$(AUTH_PORT)" EMULATOR_UI_PORT="$(EMULATOR_UI_PORT)" \

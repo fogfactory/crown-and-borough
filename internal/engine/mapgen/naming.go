@@ -2,7 +2,6 @@ package mapgen
 
 import (
 	"fmt"
-	"math"
 	"math/rand/v2"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -68,76 +67,6 @@ func isCommuneTerrain(value string) bool {
 		}
 	}
 	return false
-}
-
-// assignVillages spreads count neutral villages over the map, maximizing the
-// minimum distance between them (greedy max-min): the first village is drawn
-// seeded at random, then each next village is the site whose distance to its
-// nearest already-placed village is the largest. When villageSitesFrom is
-// non-zero, only that suffix of the map is eligible. Ties break on the lowest
-// site index for determinism.
-func assignVillages(rng *rand.Rand, terrain []models.Terrain, centroids [][2]float64, count, villageSitesFrom int) ([]bool, error) {
-	n := len(terrain)
-	if count < 1 || count > n {
-		return nil, fmt.Errorf("mapgen: cannot place %d villages on %d sites", count, n)
-	}
-	if len(centroids) != n {
-		return nil, fmt.Errorf("mapgen: internal village input length mismatch")
-	}
-	if villageSitesFrom < 0 || (villageSitesFrom != 0 && villageSitesFrom >= n) {
-		return nil, fmt.Errorf("mapgen: village site start %d is outside site range [0, %d)", villageSitesFrom, n)
-	}
-
-	eligible := make([]int, 0, n-villageSitesFrom)
-	for site := 0; site < n; site++ {
-		if !terrain[site].IsValid() {
-			return nil, fmt.Errorf("mapgen: invalid terrain %q on site %d", terrain[site], site)
-		}
-		if villageSitesFrom > 0 && site < villageSitesFrom {
-			continue
-		}
-		eligible = append(eligible, site)
-	}
-	if count > len(eligible) {
-		return nil, fmt.Errorf("mapgen: need at least %d eligible sites for villages, have %d", count, len(eligible))
-	}
-
-	selected := make([]bool, n)
-	first := eligible[rng.IntN(len(eligible))]
-	selected[first] = true
-	chosen := []int{first}
-
-	for len(chosen) < count {
-		bestSite := -1
-		bestDistance := -1.0
-		for _, site := range eligible {
-			if selected[site] {
-				continue
-			}
-			nearest := squaredDistanceToChosen(centroids, site, chosen)
-			if bestSite == -1 || nearest > bestDistance ||
-				(nearest == bestDistance && site < bestSite) {
-				bestSite = site
-				bestDistance = nearest
-			}
-		}
-		selected[bestSite] = true
-		chosen = append(chosen, bestSite)
-	}
-	return selected, nil
-}
-
-// squaredDistanceToChosen returns the squared centroid distance from site to
-// its nearest already-chosen village site.
-func squaredDistanceToChosen(centroids [][2]float64, site int, chosen []int) float64 {
-	nearest := math.Inf(1)
-	for _, other := range chosen {
-		distance := centroidDistanceSquared(centroids, site, other)
-		if distance < nearest {
-			nearest = distance
-		}
-	}
-	return nearest
 }
 
 // nameTerritories assigns each territory a distinct commune. It first ensures

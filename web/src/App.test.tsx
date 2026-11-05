@@ -1,8 +1,21 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@/lib/firebase', () => ({
+  firebaseConfigured: false,
+}))
+
 import App from '@/App'
-import type { MapData, StateData, SupplyLine, TransferLine, TurnReport } from '@/types'
+import { withText } from '@/test/text'
+import { stubPhoneViewport } from '@/test/viewport'
+import type {
+  MapData,
+  OrdersPreview,
+  StateData,
+  SupplyLine,
+  TransferLine,
+  TurnReport,
+} from '@/types'
 
 const map: MapData = {
   territories: [
@@ -97,8 +110,8 @@ const resolvedReport: TurnReport = {
   header: { year: 1, season: 'spring', turn: 1 },
   players: [],
   receptions: [],
-  supply: [],
-  famines: [],
+  production: [],
+  consumption: [],
   combats: [],
   orders: [],
   moves: [],
@@ -135,13 +148,35 @@ const transferLine: TransferLine = {
 
 const rulesDocument = '# Règles du jeu\n\nLes ordres sont résolus simultanément.\n'
 
+const GAME_ID = 'hotseat-1'
+const GAME_PATH = `/api/games/${GAME_ID}`
+
+type FetchImpl = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+
+/**
+ * Serves the hotseat game list with a single game, then delegates every other
+ * request to impl.
+ */
+function hotseatFetch(impl: FetchImpl) {
+  return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/api/games?player=P1' && init?.method !== 'POST') {
+      return Promise.resolve({
+        ok: true,
+        json: async () => [{ id: GAME_ID }],
+      } as Response)
+    }
+    return impl(input, init)
+  })
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
+  window.localStorage.clear()
 })
 
 describe('App command/report tabs', () => {
   it('opens the full rules and FAQ pages from the hotseat header', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -152,7 +187,7 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
 
     fireEvent.click(screen.getByRole('button', { name: /^Règles$/ }))
     expect(
@@ -166,12 +201,12 @@ describe('App command/report tabs', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/Quel est l’effet des moulins/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /^Partie$/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Carte$/ }))
     expect(await screen.findByRole('tablist')).toBeInTheDocument()
   })
 
   it('requests a server-filtered state when the hotseat player changes', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -181,14 +216,14 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Joueur actif' }))
     fireEvent.click(await screen.findByRole('option', { name: /P2 · Two/ }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/state?player=P2',
+        `${GAME_PATH}/state?player=P2`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -224,11 +259,30 @@ describe('App command/report tabs', () => {
           : territory,
       ),
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const winterPreview: OrdersPreview = {
+      errors: [],
+      chains: [],
+      winter: [
+        {
+          line: 1,
+          status: 'applied',
+          type: 'build',
+          territory: 'ROS',
+          infrastructure: 'castle',
+        },
+      ],
+      winterCost: { spent: 10, available: 3 },
+    }
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
-        json: async () => (url.includes('/map') ? map : winterState),
+        json: async () =>
+          url.includes('/orders/preview')
+            ? winterPreview
+            : url.includes('/map')
+              ? map
+              : winterState,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -237,6 +291,19 @@ describe('App command/report tabs', () => {
     const textarea = await screen.findByLabelText('Winter orders for P1')
     fireEvent.change(textarea, { target: { value: 'C C ROS' } })
 
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${GAME_PATH}/orders/preview?player=P1&lang=en`,
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            chains: [],
+            winter: [{ lines: 'C C ROS' }],
+            special: [],
+          }),
+        }),
+      )
+    })
     await waitFor(() => {
       const actionOverlay = container.querySelector('g[aria-label="Intentions overlay"]')
       const winterOverlay = container.querySelector('[data-winter-orders-overlay="true"]')
@@ -264,7 +331,7 @@ describe('App command/report tabs', () => {
         state.territories[1],
       ],
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -286,12 +353,12 @@ describe('App command/report tabs', () => {
     })
     fireEvent.keyDown(firstTerritory, { key: 'Enter', code: 'Enter' })
 
-    expect(await screen.findByText('Capitale de One')).toBeInTheDocument()
-    expect(screen.getByText('Capitale', { exact: true })).toBeInTheDocument()
+    expect(await screen.findByText(/Capitale de One/)).toBeInTheDocument()
   })
 
-  it('keeps selection and drafts while switching between tabs', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+  it('opens on the map with a tab bar and a one-line header on phones', async () => {
+    stubPhoneViewport()
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -303,14 +370,63 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { container } = render(<App initialLanguage="fr" />)
-    const commandTab = await screen.findByRole('tab', { name: /Poste de commandement/ })
-    fireEvent.keyDown(commandTab, { key: 'ArrowRight' })
+    expect(await screen.findByText('Printemps 1001 · 1/40')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Carte' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    // The active player and the navigation move to the menu.
+    expect(screen.queryByRole('combobox', { name: 'Joueur actif' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Partie' })).toHaveClass('size-11')
+
+    // A tapped territory opens its card over the map, which closes again.
+    const territory = await waitFor(() => {
+      const element = container.querySelector('[data-territory-id="ROS"]')
+      if (!element) throw new Error('territory did not render')
+      return element
+    })
+    fireEvent.keyDown(territory, { key: 'Enter', code: 'Enter' })
+    const card = container.querySelector('[data-map-overlay]') as HTMLElement
+    expect(await within(card).findByText('Nobles présents')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer la fiche du territoire' }))
+    expect(container.querySelector('[data-map-overlay]')).toBeNull()
+    expect(territory).toHaveAttribute('aria-pressed', 'false')
+
+    // The orders share the screen with the map.
+    fireEvent.click(screen.getByRole('tab', { name: 'Ordres' }))
+    expect(container.querySelector('section[data-map-size]')).toHaveAttribute(
+      'data-map-size',
+      'split',
+    )
+    expect(screen.getByRole('button', { name: 'Sceller les ordres' })).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    expect(
+      await screen.findByRole('combobox', { name: 'Joueur actif' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps selection and drafts while switching between tabs', async () => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({
+        ok: true,
+        json: async () =>
+          url.includes('/map') ? map : url.includes('/supply') ? supplyLine : state,
+        text: async () => rulesDocument,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { container } = render(<App initialLanguage="fr" />)
+    const ordersTab = await screen.findByRole('tab', { name: /Ordres/ })
+    fireEvent.keyDown(ordersTab, { key: 'ArrowRight' })
     expect(screen.getByRole('tab', { name: /Rapport/ })).toHaveAttribute(
       'aria-selected',
       'true',
     )
     fireEvent.keyDown(screen.getByRole('tab', { name: /Rapport/ }), { key: 'ArrowLeft' })
-    expect(commandTab).toHaveAttribute('aria-selected', 'true')
+    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
 
     const firstTerritory = await waitFor(() => {
       const territory = container.querySelector('[data-territory-id="ROS"]')
@@ -323,63 +439,84 @@ describe('App command/report tabs', () => {
     expect(
       screen.getByRole('button', { name: 'Afficher la légende' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('JEA · Jean de Rosemont')).toBeInTheDocument()
+    // The pawn's tooltip on the map names the noble too.
+    expect(screen.getAllByText('Jean de Rosemont (JEA)')).not.toHaveLength(0)
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
-    expect(screen.getByText('Otage')).toBeInTheDocument()
-    const noblesSection = screen.getByText('Nobles présents').closest('div')
-    if (!noblesSection) {
-      throw new Error('nobles section did not render')
-    }
-    expect(within(noblesSection).getAllByText('Propriétaire')).toHaveLength(3)
-    expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
-    expect(within(noblesSection).getAllByText('One')).toHaveLength(1)
-    expect(within(noblesSection).getAllByText('Two')).toHaveLength(2)
-    expect(within(noblesSection).getByText('invité par One')).toBeInTheDocument()
-    expect(within(noblesSection).getByText('emprisonné par One')).toBeInTheDocument()
-    expect(within(noblesSection).queryByText('—')).not.toBeInTheDocument()
-    expect(within(noblesSection).getAllByText('Détenteur')).toHaveLength(2)
-    expect(screen.getAllByLabelText('Couleur de One')).toHaveLength(2)
-    expect(screen.getAllByLabelText('Couleur de Two')).toHaveLength(2)
+    // The cartouche shows the nobles present as pawns; a pawn opens its detail.
+    const cartouche = document.querySelector('[data-territory-cartouche="ROS"]') as HTMLElement
+    expect(cartouche.querySelectorAll('[data-noble-chip]')).toHaveLength(3)
+    fireEvent.click(within(cartouche).getByRole('button', { name: /\(BOB\)/ }))
+    expect(await screen.findByText('Otage')).toBeInTheDocument()
+    expect(screen.getByText('invité par One')).toBeInTheDocument()
+    expect(screen.getByText('Propriétaire')).toBeInTheDocument()
+    fireEvent.click(within(cartouche).getByRole('button', { name: /\(KAR\)/ }))
+    expect(await screen.findByText('emprisonné par One')).toBeInTheDocument()
     expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
+    // The army line names the current order; the details keep the stack.
     expect(
-      screen.getByText('(H ROS)', { selector: 'span' }).closest('li'),
+      screen
+        .getAllByText('(H ROS)', { selector: 'span' })
+        .map((span) => span.closest('li'))
+        .find(Boolean),
     ).toHaveAttribute('aria-current', 'step')
     expect(await screen.findByText(/Source :/)).toBeInTheDocument()
-    expect(screen.getByText(/ROS · Rosemont/)).toBeInTheDocument()
+    expect(screen.getAllByText(withText(/^Rosemont \(ROS\)$/)).length).toBeGreaterThan(0)
 
     const draft = screen.getByLabelText('Chaîne de JEA')
     fireEvent.change(draft, { target: { value: 'ROS A BRU' } })
     fireEvent.click(screen.getByRole('tab', { name: /Rapport/ }))
     expect(screen.getByText('Aucun rapport disponible')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Aide-mémoire des ordres' }))
     expect(screen.getByRole('tab', { name: /Règles/ })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(
-      await screen.findByText('Les ordres sont résolus simultanément.'),
-    ).toBeInTheDocument()
+    // findByText is the assertion: the rules panel may re-render its
+    // markdown right after, detaching the node it returned.
+    await screen.findByText('Les ordres sont résolus simultanément.')
 
-    fireEvent.click(screen.getByRole('tab', { name: /Poste de commandement/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Ordres/ }))
     expect(screen.getByLabelText('Chaîne de JEA')).toHaveValue('ROS A BRU')
-    expect(screen.getByText('Rosemont')).toBeInTheDocument()
+    // The selected territory's card is still open (the map writes the name too):
+    // `BRU`, typed without a space or a line break after it, is not followed yet.
+    expect(screen.getByRole('heading', { name: 'Rosemont (ROS)' })).toBeInTheDocument()
   })
 
   it('requests a transfer overlay for a drafted action transfer', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const transferPreview: OrdersPreview = {
+      errors: [],
+      chains: [
+        {
+          noble: 'JEA',
+          orders: [
+            {
+              type: 'transfer',
+              position: 'ROS',
+              targets: ['BRU'],
+              amount: 1,
+              liaison: 'single',
+            },
+          ],
+        },
+      ],
+      winter: [],
+    }
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
         json: async () =>
-          url.includes('target=')
-            ? transferLine
-            : url.includes('/map')
-              ? map
-              : url.includes('/supply')
-                ? supplyLine
-                : state,
+          url.includes('/orders/preview')
+            ? transferPreview
+            : url.includes('target=')
+              ? transferLine
+              : url.includes('/map')
+                ? map
+                : url.includes('/supply')
+                  ? supplyLine
+                  : state,
       } as Response)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -399,7 +536,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/supply?territory=ROS&target=BRU',
+        `${GAME_PATH}/supply?territory=ROS&target=BRU&player=P1`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -410,7 +547,7 @@ describe('App command/report tabs', () => {
   })
 
   it('opens the report tab after a resolved submission', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
@@ -419,7 +556,10 @@ describe('App command/report tabs', () => {
             status: 'resolved',
             submitted: [],
             remaining: [],
-            report: resolvedReport,
+            report: {
+              ...resolvedReport,
+              combats: [{ territory: 'ROS', visibility: 'general', summary: '—' }],
+            },
             state,
           }),
         } as Response)
@@ -435,7 +575,7 @@ describe('App command/report tabs', () => {
 
     render(<App initialLanguage="fr" />)
     await screen.findByLabelText('Chaîne de JEA')
-    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sceller les ordres' }))
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: /Rapport/ })).toHaveAttribute(
@@ -447,6 +587,21 @@ describe('App command/report tabs', () => {
     await waitFor(() => {
       expect(screen.queryByText('Nouveau')).not.toBeInTheDocument()
     })
+
+    // A territory named in the report is a link: hovering lights it on the
+    // map, following it selects it there.
+    const link = within(screen.getByRole('tabpanel', { name: 'Rapport' }))
+      .getAllByRole('button')
+      .find((button) => button.dataset.mapLink === 'ROS') as HTMLElement
+    expect(link).toHaveTextContent('Rosemont (ROS)')
+    fireEvent.mouseEnter(link)
+    expect(document.querySelector('[data-highlighted-territory="ROS"]')).not.toBeNull()
+    fireEvent.click(link)
+    expect(document.querySelector('[data-territory-id="ROS"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(document.querySelector('[data-highlighted-territory]')).toBeNull()
   })
 
   it('renders a resolved private response containing combat and order details', async () => {
@@ -499,7 +654,7 @@ describe('App command/report tabs', () => {
         },
       ],
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
@@ -521,16 +676,17 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App initialLanguage="en" />)
-    await screen.findByText('Turn 1 · Spring')
-    fireEvent.click(screen.getByRole('button', { name: 'Resolve' }))
+    await screen.findByText('Spring 1001 · turn 1 of 40')
+    fireEvent.click(screen.getByRole('button', { name: 'Game' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resolve' }))
 
     expect(await screen.findByText('Turn report 1')).toBeInTheDocument()
-    expect(screen.getByText('Forces')).toBeInTheDocument()
+    expect(screen.getByText(/^Forces :/)).toBeInTheDocument()
     expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows order validation errors above the order rules shortcut', async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+  it('shows order validation errors next to the seal button', async () => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
@@ -551,19 +707,16 @@ describe('App command/report tabs', () => {
 
     render(<App initialLanguage="fr" />)
     await screen.findByLabelText('Chaîne de JEA')
-    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sceller les ordres' }))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Ligne 2 : ordre invalide')
 
-    const rulesShortcut = screen.getByRole('button', {
-      name: 'Aide-mémoire des ordres',
-    })
+    const footer = alert.closest('[data-drawer-footer]')
+    expect(footer).not.toBeNull()
     expect(
-      Boolean(
-        alert.compareDocumentPosition(rulesShortcut) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ).toBe(true)
+      within(footer as HTMLElement).getByRole('button', { name: 'Sceller les ordres' }),
+    ).toBeInTheDocument()
   })
 
   it('loads the reachable zone when a controlled source is selected', async () => {
@@ -584,7 +737,7 @@ describe('App command/report tabs', () => {
       armyOwner: 'P1',
       armySize: 0,
       terrainProduction: 2,
-      localProduction: 4,
+      localProduction: 2,
       rations: 0,
       totalDemand: 0,
       demand: 0,
@@ -594,7 +747,7 @@ describe('App command/report tabs', () => {
       reachable: ['ROS', 'BRU'],
       selfSupplied: false,
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL) => {
       const url = String(input)
       return Promise.resolve({
         ok: true,
@@ -615,7 +768,7 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/supply?territory=BRU',
+        `${GAME_PATH}/supply?territory=BRU&player=P1`,
         expect.objectContaining({ signal: expect.anything() }),
       )
     })
@@ -699,12 +852,18 @@ describe('App command/report tabs', () => {
       ],
       nobles: [],
     }
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (init?.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ map: newMap, state: newState }),
+          json: async () => ({ id: 'hotseat-2' }),
+        } as Response)
+      }
+      if (url.startsWith('/api/games/hotseat-2/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => (url.includes('/map') ? newMap : newState),
         } as Response)
       }
       return Promise.resolve({
@@ -717,9 +876,10 @@ describe('App command/report tabs', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { container } = render(<App initialLanguage="fr" />)
-    await screen.findByText('Tour 1 · Printemps')
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
 
-    const newGameButton = screen.getByRole('button', { name: 'Nouvelle partie' })
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    const newGameButton = await screen.findByRole('button', { name: 'Nouvelle partie' })
     expect(newGameButton).toBeDisabled()
 
     fireEvent.change(screen.getByLabelText('Graine'), {
@@ -734,15 +894,116 @@ describe('App command/report tabs', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/game',
+        '/api/games?player=P1&lang=fr',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ seed: 'nouvelle-graine', players: 6, years: 10 }),
+          body: JSON.stringify({
+            name: 'Hotseat',
+            seed: 'nouvelle-graine',
+            players: 6,
+            years: 10,
+          }),
         }),
       )
     })
     await waitFor(() => {
       expect(container.querySelectorAll('[data-territory-id]')).toHaveLength(3)
     })
+  })
+
+  it('forces the resolution as the host and reloads the selected player view', async () => {
+    const fetchMock = hotseatFetch((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (init?.method === 'POST' && url.includes('/orders')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            status: 'pending',
+            submitted: ['P2'],
+            remaining: ['P1'],
+            state,
+          }),
+        } as Response)
+      }
+      if (init?.method === 'POST' && url.includes('/resolve')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            status: 'resolved',
+            submitted: ['P2'],
+            remaining: [],
+            state,
+          }),
+        } as Response)
+      }
+      if (url.includes('/reports/0')) {
+        return Promise.resolve({ ok: true, json: async () => resolvedReport } as Response)
+      }
+      if (url.includes('/reports')) {
+        return Promise.resolve({ ok: true, json: async () => [{ index: 0 }] } as Response)
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => (url.includes('/map') ? map : state),
+        text: async () => rulesDocument,
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App initialLanguage="fr" />)
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
+    fireEvent.click(screen.getByRole('combobox', { name: 'Joueur actif' }))
+    fireEvent.click(await screen.findByRole('option', { name: /P2 · Two/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Résoudre' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${GAME_PATH}/resolve?player=P1&lang=fr`,
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+    expect(fetchMock).toHaveBeenCalledWith(`${GAME_PATH}/reports/0?player=P2`)
+    expect(await screen.findByText('Rapport du tour 1')).toBeInTheDocument()
+  })
+
+  it('reopens the remembered game and falls back to the first listed game', async () => {
+    const serve = (games: string[]) =>
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url === '/api/games?player=P1') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => games.map((id) => ({ id })),
+          } as Response)
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => (url.includes('/map') ? map : state),
+          text: async () => rulesDocument,
+        } as Response)
+      })
+
+    window.localStorage.setItem('cb.hotseatGame', 'second')
+    const remembered = serve(['first', 'second'])
+    vi.stubGlobal('fetch', remembered)
+    const { unmount } = render(<App initialLanguage="fr" />)
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
+    expect(remembered).toHaveBeenCalledWith(
+      '/api/games/second/map?player=P1',
+      expect.anything(),
+    )
+    unmount()
+
+    window.localStorage.setItem('cb.hotseatGame', 'gone')
+    const fallback = serve(['first'])
+    vi.stubGlobal('fetch', fallback)
+    render(<App initialLanguage="fr" />)
+    await screen.findByText('Printemps 1001 · tour 1 sur 40')
+    expect(fallback).toHaveBeenCalledWith(
+      '/api/games/first/map?player=P1',
+      expect.anything(),
+    )
+    expect(window.localStorage.getItem('cb.hotseatGame')).toBe('first')
   })
 })

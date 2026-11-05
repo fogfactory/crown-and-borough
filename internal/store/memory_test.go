@@ -281,10 +281,15 @@ func TestMemoryStoreTreatsEliminatedPlayersAsSubmittedAndSetsWinner(t *testing.T
 		t.Fatal("P2 has no starting capital")
 	}
 	for territoryID, territory := range game.state.TerritoryStates {
-		if territory.OwnerID != nil && *territory.OwnerID == "P2" {
-			territory.OwnerID = nil
-			territory.Army = nil
-			game.state.TerritoryStates[territoryID] = territory
+		if territory.Army == nil {
+			continue
+		}
+		for _, army := range game.state.Armies {
+			if army.ID == *territory.Army && army.OwnerID == "P2" {
+				territory.Army = nil
+				game.state.TerritoryStates[territoryID] = territory
+				break
+			}
 		}
 	}
 	armies := game.state.Armies[:0]
@@ -298,7 +303,7 @@ func TestMemoryStoreTreatsEliminatedPlayersAsSubmittedAndSetsWinner(t *testing.T
 		game.mu.Unlock()
 		t.Fatalf("eliminated fixture is invalid: %v", err)
 	}
-	game.updateStatusLocked()
+	game.updateStatusLocked(assetgen.Balance{})
 	status, winner := game.status, game.winner
 	game.mu.Unlock()
 
@@ -347,7 +352,9 @@ func TestMemoryStoreFinishesAtConfiguredYearLimitAndExposesScores(t *testing.T) 
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if created.YearCount != 1 || len(created.Scores) != 2 || created.Scores["P1"].Total == 0 {
+	// A fresh game starts with no fiefs declared yet, so the title score is
+	// 0 for every player until one is created.
+	if created.YearCount != 1 || len(created.Scores) != 2 || created.Scores["P1"].Total != 0 {
 		t.Fatalf("initial duration/scores = years %d scores %#v", created.YearCount, created.Scores)
 	}
 
@@ -372,8 +379,12 @@ func TestMemoryStoreFinishesAtConfiguredYearLimitAndExposesScores(t *testing.T) 
 	if err != nil {
 		t.Fatalf("final state: %v", err)
 	}
-	if final.Status != StatusFinished || final.Winner != nil || final.State.Turn != 5 || final.YearCount != 1 {
-		t.Fatalf("final snapshot = status %s winner %v turn %d years %d, want finished/tie/5/1", final.Status, final.Winner, final.State.Turn, final.YearCount)
+	// Winner is seed-dependent (terrain-driven famine can break a tie between
+	// two players who never issued an order); tie-breaking itself is covered
+	// by dedicated engine score tests, so this test only checks that the
+	// store correctly reports the game as finished at the configured limit.
+	if final.Status != StatusFinished || final.State.Turn != 5 || final.YearCount != 1 {
+		t.Fatalf("final snapshot = status %s turn %d years %d, want finished/5/1", final.Status, final.State.Turn, final.YearCount)
 	}
 	if _, err := gameStore.Submit(context.Background(), Actor{ID: "P1"}, created.ID, SubmitRequest{}); !errors.Is(err, ErrGameFinished) {
 		t.Fatalf("post-finish submit error = %v, want game finished", err)
@@ -531,4 +542,105 @@ func newTestStore(t *testing.T) *MemoryStore {
 
 func isUUIDv4(value string) bool {
 	return len(value) == 36 && value[14] == '4' && (value[19] == '8' || value[19] == '9' || value[19] == 'a' || value[19] == 'b')
+}
+
+func TestMemoryStoreMySubmissionKeepsSpecialOrders(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "my-submission-special",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	game, err := gameStore.game(created.ID)
+	if err != nil {
+		t.Fatalf("lookup game: %v", err)
+	}
+	game.mu.Lock()
+	game.submissions["P1"] = engine.OrdersInput{Special: []engine.DeckSubmission{{Player: "P1", Text: "P BH ROS"}}}
+	game.mu.Unlock()
+
+	submission, err := gameStore.MySubmission(context.Background(), Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("MySubmission: %v", err)
+	}
+	if len(submission.Orders.Special) != 1 || submission.Orders.Special[0].Text != "P BH ROS" {
+		t.Fatalf("MySubmission special = %#v, want the stored special order", submission.Orders.Special)
+	}
+}
+
+func TestMemoryStoreSupplyProjectsDraftedSpecialOrders(t *testing.T) {
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(context.Background(), Actor{ID: "P1"}, CreateRequest{
+		Seed:    "supply-special-draft",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	game, err := gameStore.game(created.ID)
+	if err != nil {
+		t.Fatalf("lookup game: %v", err)
+	}
+	game.mu.Lock()
+	state := game.state
+	var army models.Army
+	for _, candidate := range state.Armies {
+		if candidate.OwnerID == "P1" {
+			army = candidate
+			break
+		}
+	}
+	var regionSeed models.TerritoryID
+	for _, region := range state.Regions {
+		for _, territoryID := range region.Territories {
+			if territoryID == army.TerritoryID {
+				regionSeed = region.Seed
+			}
+		}
+	}
+	// Force the army's territory onto plain terrain: mountain has zero base
+	// ration production, which would make the famine penalty invisible below
+	// regardless of the map generated for this seed.
+	for index, territory := range state.Territories {
+		if territory.ID == army.TerritoryID {
+			state.Territories[index].Terrain = models.TerrainPlain
+			break
+		}
+	}
+	year := state.Year()
+	state.SpecialDeck.Cards = append(state.SpecialDeck.Cards,
+		models.SpecialCard{ID: "TEST-FAMINE", Kind: models.CardKindFamine},
+		models.SpecialCard{ID: "TEST-HARVEST", Kind: models.CardKindAbundantHarvest},
+	)
+	state.SpecialDeck.Hands["P1"] = append(state.SpecialDeck.Hands["P1"], "TEST-HARVEST")
+	augury := state.Auguries[year]
+	augury.Year = year
+	augury.Capacities = map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1}
+	augury.Calamities = []models.Calamity{{CardID: "TEST-FAMINE", Kind: models.CardKindFamine, Season: state.Season, Year: year, RegionSeed: regionSeed}}
+	state.Auguries[year] = augury
+	game.mu.Unlock()
+
+	withoutCard, err := gameStore.Supply(context.Background(), Actor{ID: "P1"}, created.ID, army.TerritoryID, "")
+	if err != nil {
+		t.Fatalf("Supply without draft: %v", err)
+	}
+	if withoutCard.FamineRations == 0 {
+		t.Fatalf("supply without draft = %#v, want the famine penalty", withoutCard)
+	}
+	withCard, err := gameStore.Supply(context.Background(), Actor{ID: "P1"}, created.ID, army.TerritoryID, "P RA "+string(regionSeed))
+	if err != nil {
+		t.Fatalf("Supply with draft: %v", err)
+	}
+	if withCard.FamineRations != 0 || withCard.LocalProduction != withoutCard.LocalProduction+withoutCard.FamineRations {
+		t.Fatalf("supply with abundant harvest = %#v, want the famine canceled (without: %#v)", withCard, withoutCard)
+	}
+	otherPlayer, err := gameStore.Supply(context.Background(), Actor{ID: "P2"}, created.ID, army.TerritoryID, "P RA "+string(regionSeed))
+	if err != nil {
+		t.Fatalf("Supply for P2: %v", err)
+	}
+	if otherPlayer.FamineRations == 0 {
+		t.Fatalf("supply for P2 = %#v, want P1's card not playable by P2", otherPlayer)
+	}
 }

@@ -1,0 +1,286 @@
+package engine
+
+import (
+	"fmt"
+	"sort"
+
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/models"
+)
+
+type CardDefinition interface {
+	Kind() models.CardKind
+	CanPlay(*ExecutionContext, models.DeckOrder) (bool, string)
+	NewOrder(models.PlayerID, models.DeckOrder) ExecutableOrder
+}
+
+var cardDefinitions = map[models.CardKind]CardDefinition{
+	models.CardKindFairWeather:     fairWeatherCardDefinition{},
+	models.CardKindAbundantHarvest: abundantHarvestCardDefinition{},
+	models.CardKindRevolt:          revoltCardDefinition{},
+	models.CardKindSeigneurialTax:  seigneurialTaxCardDefinition{},
+	models.CardKindTunnel:          tunnelCardDefinition{},
+	models.CardKindAmbush:          ambushCardDefinition{},
+	models.CardKindAssassination:   assassinationCardDefinition{},
+	models.CardKindJustice:         justiceCardDefinition{},
+}
+
+type deckOrderIntent struct {
+	playerID models.PlayerID
+	order    models.DeckOrder
+}
+
+func newExecutableDeckOrder(playerID models.PlayerID, order models.DeckOrder) ExecutableOrder {
+	if order.Type.IsAppeasement() {
+		return appeaseOrder{playerID: playerID, order: order}
+	}
+	definition := cardDefinitions[order.Kind]
+	if definition == nil || order.Type != models.DeckOrderTypePlay {
+		return nil
+	}
+	return definition.NewOrder(playerID, order)
+}
+
+func validateActionDeckOrders(game *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) error {
+	players := make(map[models.PlayerID]bool, len(game.Players))
+	for _, player := range game.Players {
+		players[player.ID] = true
+	}
+	hands := make(map[models.PlayerID][]models.SpecialCardID)
+	if game.SpecialDeck != nil {
+		for playerID, hand := range game.SpecialDeck.Hands {
+			hands[playerID] = append([]models.SpecialCardID(nil), hand...)
+		}
+	}
+	validationContext := newResolutionContext(game, balance)
+	markPendingTaxWindowFiefs(validationContext, deckOrders)
+	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
+		if !players[playerID] {
+			return fmt.Errorf("engine: resolve: unknown player %q", playerID)
+		}
+		for _, order := range deckOrders[playerID] {
+			if order.Type.IsAppeasement() {
+				// Plays no card; an illegal one is rejected alone when applied
+				// (appeaseOrder.Apply), never by failing the whole turn.
+				continue
+			}
+			if order.Type != models.DeckOrderTypePlay {
+				return fmt.Errorf("engine: resolve: deck order %q is not valid in an action season", order.Type)
+			}
+			definition := cardDefinitions[order.Kind]
+			if definition == nil {
+				return fmt.Errorf("engine: resolve: invalid deck kind %q", order.Kind)
+			}
+			if playable, reason := definition.CanPlay(&ExecutionContext{resolution: validationContext, playerID: playerID, season: game.Season}, order); !playable {
+				return fmt.Errorf("engine: resolve: deck order %q rejected: %s", order.Kind, reason)
+			}
+			index := -1
+			for handIndex, cardID := range hands[playerID] {
+				if cardKind(game.SpecialDeck, cardID) == order.Kind {
+					index = handIndex
+					break
+				}
+			}
+			if index < 0 {
+				return fmt.Errorf("engine: resolve: player %q has no card of kind %q", playerID, order.Kind)
+			}
+			hands[playerID] = append(hands[playerID][:index], hands[playerID][index+1:]...)
+		}
+	}
+	return nil
+}
+
+func sortedDeckPlayerIDs(deckOrders map[models.PlayerID][]models.DeckOrder) []models.PlayerID {
+	playerIDs := make([]models.PlayerID, 0, len(deckOrders))
+	for playerID := range deckOrders {
+		playerIDs = append(playerIDs, playerID)
+	}
+	sort.Slice(playerIDs, func(i, j int) bool { return playerIDs[i] < playerIDs[j] })
+	return playerIDs
+}
+
+// markPendingTaxWindowFiefs flags, on ctx, every fief targeted by a
+// seigneurial tax order in this same deck order batch. A revolt targeting
+// one of those fiefs must not be rejected: resolveSeasonEffects applies the
+// tax before the revolt (deck_seigneurial_tax_order.go), so the combination
+// is legal even though neither card has actually been applied yet when
+// resolveDeckOrders checks each order's CanPlay.
+func markPendingTaxWindowFiefs(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	for _, playerOrders := range deckOrders {
+		for _, order := range playerOrders {
+			if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax {
+				continue
+			}
+			if ctx.isTitheOrder(order) {
+				for _, seed := range ctx.titheSeeds(order) {
+					ctx.pendingTitheRegions[seed] = true
+				}
+			} else if fief := ctx.fiefByCapital(order.TargetTerritoryID); fief != nil {
+				ctx.pendingTaxWindowFiefs[fief.ID] = true
+			}
+		}
+	}
+}
+
+// deckOrderRank orders the event cards played the same turn: Tunnel, then
+// Assassination, then Justice (specs/ordres-speciaux.md § Cartes d'événement). Every other
+// card keeps its submission order, ahead of them.
+func deckOrderRank(order models.DeckOrder) int {
+	if order.Type == models.DeckOrderTypePlay && order.Kind == models.CardKindAssassination {
+		return 1
+	}
+	if order.Type == models.DeckOrderTypePlay && order.Kind == models.CardKindJustice {
+		return 2
+	}
+	return 0
+}
+
+func resolveDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	type playedOrder struct {
+		playerID models.PlayerID
+		order    models.DeckOrder
+	}
+	var queue []playedOrder
+	for _, playerID := range sortedDeckPlayerIDs(deckOrders) {
+		for _, order := range deckOrders[playerID] {
+			queue = append(queue, playedOrder{playerID: playerID, order: order})
+		}
+	}
+	sort.SliceStable(queue, func(i, j int) bool { return deckOrderRank(queue[i].order) < deckOrderRank(queue[j].order) })
+	for _, played := range queue {
+		executable := newExecutableDeckOrder(played.playerID, played.order)
+		if executable == nil {
+			ctx.rejectDeckOrderReason(played.playerID, played.order, "invalid_deck_order")
+			continue
+		}
+		executable.Apply(&ExecutionContext{resolution: ctx, playerID: played.playerID, season: ctx.state.Season})
+	}
+}
+
+// applyDeckCardOrder consumes the played card and records the play. It reports
+// false, after rejecting the order, when the player holds no such card.
+func (ctx *resolutionContext) applyDeckCardOrder(playerID models.PlayerID, order models.DeckOrder) bool {
+	if !ctx.consumeDeckCardForPlay(playerID, order.Kind) {
+		ctx.rejectDeckOrder(playerID, order)
+		return false
+	}
+	regionSeed := order.RegionSeed
+	if order.Kind == models.CardKindRevolt || order.Kind == models.CardKindSeigneurialTax {
+		regionSeed = order.TargetTerritoryID
+	}
+	ctx.deckIntents = append(ctx.deckIntents, deckOrderIntent{playerID: playerID, order: order})
+	played := Event{Type: EventTypeDeckOrderPlayed, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardKind: order.Kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year()}
+	if order.Kind == models.CardKindJustice {
+		if target := ctx.noblesByID[order.TargetNobleID]; target != nil {
+			played.NobleCode, played.NobleName = models.NobleCode(target.Code), ctx.state.NobleDisplayName(*target)
+		}
+	}
+	if order.Kind == models.CardKindAssassination {
+		// The author reads the victim and the commissioner in the report.
+		if victim := ctx.noblesByID[order.TargetNobleID]; victim != nil {
+			played.NobleCode, played.NobleName = models.NobleCode(victim.Code), ctx.state.NobleDisplayName(*victim)
+		}
+		if commissioner := ctx.noblesByID[order.CommissionerNobleID]; commissioner != nil {
+			played.CommissionerCode, played.CommissionerName = models.NobleCode(commissioner.Code), ctx.state.NobleDisplayName(*commissioner)
+		}
+	}
+	ctx.events = append(ctx.events, played)
+	return true
+}
+
+func phaseForSeason(season models.Season) int {
+	if season == models.SeasonWinter {
+		return winterPhase
+	}
+	return 0
+}
+
+func (ctx *resolutionContext) consumeDeckCard(playerID models.PlayerID, kind models.CardKind) bool {
+	return ctx.consumeDeckCardWithEvent(playerID, kind, true)
+}
+
+func (ctx *resolutionContext) consumeDeckCardForPlay(playerID models.PlayerID, kind models.CardKind) bool {
+	return ctx.consumeDeckCardWithEvent(playerID, kind, false)
+}
+
+// restoreDeckCard returns one card of the given kind from the discard pile to
+// the player's hand, undoing the consumption of a canceled play.
+func (ctx *resolutionContext) restoreDeckCard(playerID models.PlayerID, kind models.CardKind) bool {
+	if ctx.state.SpecialDeck == nil {
+		return false
+	}
+	for index, cardID := range ctx.state.SpecialDeck.Discard {
+		for _, card := range ctx.state.SpecialDeck.Cards {
+			if card.ID != cardID || card.Kind != kind {
+				continue
+			}
+			ctx.state.SpecialDeck.Discard = append(
+				ctx.state.SpecialDeck.Discard[:index],
+				ctx.state.SpecialDeck.Discard[index+1:]...,
+			)
+			ctx.state.SpecialDeck.Hands[playerID] = append(
+				ctx.state.SpecialDeck.Hands[playerID],
+				cardID,
+			)
+			ctx.events = append(ctx.events, Event{
+				Type:     EventTypeDeckRestore,
+				Phase:    phaseForSeason(ctx.state.Season),
+				OwnerID:  playerID,
+				CardID:   cardID,
+				CardKind: kind,
+				Season:   ctx.state.Season,
+				Year:     ctx.state.Year(),
+			})
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *resolutionContext) consumeDeckCardWithEvent(playerID models.PlayerID, kind models.CardKind, emitDiscard bool) bool {
+	if ctx.state.SpecialDeck == nil {
+		return false
+	}
+	hand := ctx.state.SpecialDeck.Hands[playerID]
+	for index, cardID := range hand {
+		for _, card := range ctx.state.SpecialDeck.Cards {
+			if card.ID != cardID || card.Kind != kind {
+				continue
+			}
+			ctx.state.SpecialDeck.Hands[playerID] = append(hand[:index], hand[index+1:]...)
+			ctx.state.SpecialDeck.Discard = append(ctx.state.SpecialDeck.Discard, cardID)
+			if emitDiscard {
+				ctx.events = append(ctx.events, Event{Type: EventTypeDeckDiscard, Phase: phaseForSeason(ctx.state.Season), OwnerID: playerID, CardID: cardID, CardKind: kind, Season: ctx.state.Season, Year: ctx.state.Year()})
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *resolutionContext) hasActiveCalamity(regionSeed models.TerritoryID, kind models.CardKind) bool {
+	augury, exists := ctx.state.Auguries[ctx.state.Year()]
+	if !exists {
+		return false
+	}
+	for _, calamity := range augury.Calamities {
+		if calamity.Kind == kind && calamity.RegionSeed == regionSeed && calamity.Season == ctx.state.Season {
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *resolutionContext) rejectDeckOrder(playerID models.PlayerID, order models.DeckOrder) {
+	ctx.rejectDeckOrderReason(playerID, order, "no_card_for_kind")
+}
+
+func (ctx *resolutionContext) rejectDeckOrderReason(playerID models.PlayerID, order models.DeckOrder, reason string) {
+	ctx.events = append(ctx.events, Event{
+		Type:    EventTypeRejected,
+		Phase:   winterPhase,
+		OwnerID: playerID,
+		OrderID: order.ID,
+		Reason:  reason,
+	})
+}

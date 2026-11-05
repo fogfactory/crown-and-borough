@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import { getFirebaseServices } from '@/lib/firebase'
+import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
   GameSlot,
   GameSummary,
@@ -19,6 +20,7 @@ import type {
   Season,
   StateData,
 } from '@/types'
+import { DEFAULT_PLAYER_COLOR } from '@/lib/map-palette'
 
 export interface SubscriptionError {
   code: string
@@ -64,13 +66,7 @@ function scoreBreakdown(value: unknown): ScoreBreakdown {
   const source =
     typeof value === 'object' && value !== null ? (value as DocumentData) : {}
   return {
-    territories: numberValue(source.territories),
-    villages: numberValue(source.villages),
-    mills: numberValue(source.mills),
-    castles: numberValue(source.castles),
-    nobles: numberValue(source.nobles),
-    troops: numberValue(source.troops),
-    resources: numberValue(source.resources),
+    titles: numberValue(source.titles),
     total: numberValue(source.total),
   }
 }
@@ -104,6 +100,14 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
       ? data.submitted.filter((value): value is string => typeof value === 'string')
       : [],
   )
+  // requiredUids is absent on documents written before this field existed;
+  // treat that as "required" (the prior, safe default) rather than hiding a
+  // player who may genuinely still be awaited.
+  const requiredUIDs = Array.isArray(data.requiredUids)
+    ? new Set(
+        data.requiredUids.filter((value): value is string => typeof value === 'string'),
+      )
+    : null
   if (!Array.isArray(data.players)) return []
 
   return data.players.flatMap((value): GameSlot[] => {
@@ -117,12 +121,16 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
       {
         id,
         name: stringValue(player.name, id),
-        color: stringValue(player.color, '#b7a786'),
+        color: stringValue(player.color, DEFAULT_PLAYER_COLOR),
         actorId: currentActorId,
         submitted:
           player.submitted === true ||
           submittedUIDs.has(actorId ?? '') ||
           submittedPlayerIDs.has(id),
+        required:
+          typeof player.required === 'boolean'
+            ? player.required
+            : (requiredUIDs?.has(actorId ?? '') ?? true),
       },
     ]
   })
@@ -184,17 +192,32 @@ export function normalizeStateData(value: unknown): StateData | null {
   ) {
     return null
   }
+  // Every projected field is forwarded as the server sent it (winter aids,
+  // fiefs, titles, elections…); only the fields below get a type check or a
+  // default, so a field added to the projection reaches the UI without an
+  // entry here.
+  const { victory, ...projected } = state
   return {
+    ...projected,
     turn: state.turn,
     season: seasonValue(state.season),
     year: numberValue(state.year, Math.floor((state.turn - 1) / 4) + 1),
     yearCount: numberValue(state.yearCount, 10),
     scores: scoresFromData(state.scores),
+    ...(victory && typeof victory === 'object' ? { victory } : {}),
     finished: state.finished === true,
     winner: typeof state.winner === 'string' ? state.winner : null,
     players: state.players,
     territories: state.territories,
     nobles: state.nobles,
+    specialHand: Array.isArray(state.specialHand) ? state.specialHand : [],
+    nobleHand: Array.isArray(state.nobleHand) ? state.nobleHand : [],
+    nobleDeckSize: numberValue(state.nobleDeckSize, 0),
+    handLimit: numberValue(state.handLimit, DEFAULT_HAND_LIMIT),
+    activeRegionEffects: Array.isArray(state.activeRegionEffects)
+      ? state.activeRegionEffects
+      : [],
+    announcements: Array.isArray(state.announcements) ? state.announcements : [],
   }
 }
 

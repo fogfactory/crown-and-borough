@@ -36,6 +36,7 @@ const (
 	ErrorNobleNotOwned       = "error.noble_not_owned"
 	ErrorDuplicateEmission   = "error.duplicate_emission"
 	ErrorTransferPathBlocked = "error.transfer_path_blocked"
+	ErrorSupportNoAttack     = "error.support_no_attack"
 
 	ParseNoHeader                    = "error.parse.no_header"
 	ParseBadHeader                   = "error.parse.bad_header"
@@ -72,7 +73,45 @@ const (
 	WinterUnknownSubtype         = "error.winter.unknown_subtype"
 	WinterTransferShape          = "error.winter.transfer_shape"
 	WinterTransferAmount         = "error.winter.transfer_amount"
+	WinterFiefShape              = "error.winter.fief_shape"
+	WinterFiefFoundShape         = "error.winter.fief_found_shape"
+	WinterFiefAnnexShape         = "error.winter.fief_annex_shape"
+	WinterFiefRankShape          = "error.winter.fief_rank_shape"
+	WinterFiefAssignShape        = "error.winter.fief_assign_shape"
+	WinterRoyalShape             = "error.winter.royal_shape"
+	WinterRoyalAnnexShape        = "error.winter.royal_annex_shape"
+	WinterRoyalRankShape         = "error.winter.royal_rank_shape"
+	WinterRoyalFoundShape        = "error.winter.royal_found_shape"
+	WinterRoyalGrantShape        = "error.winter.royal_grant_shape"
+	WinterMarriageShape          = "error.winter.marriage_shape"
+	WinterTransferNobleShape     = "error.winter.transfer_noble_shape"
+	WinterNobleDrawShape         = "error.winter.noble_draw_shape"
+	WinterRecruitNobleShape      = "error.winter.recruit_noble_shape"
+	WinterDignityShape           = "error.winter.dignity_shape"
+	WinterCandidacyShape         = "error.winter.candidacy_shape"
+	WinterVoteShape              = "error.winter.vote_shape"
+	WinterExcommunicationShape   = "error.winter.excommunication_shape"
+	WinterRitualShape            = "error.winter.ritual_shape"
+	WinterBuyCardinalShape       = "error.winter.buy_cardinal_shape"
+	WinterInquiryShape           = "error.winter.inquiry_shape"
+	WinterTrialShape             = "error.winter.trial_shape"
+	WinterCalamityVetoShape      = "error.winter.calamity_veto_shape"
+	WinterClaimShape             = "error.winter.claim_shape"
+	WinterDiscardNobleShape      = "error.winter.discard_noble_shape"
 	WinterMillMaxLevelReached    = "mill_max_level_reached"
+	DeckOrderShape               = "error.special.order_shape"
+	DeckOrderKindUnknown         = "error.special.kind_unknown"
+	DeckOrderKindNotPlayable     = "error.special.kind_not_playable"
+	DeckOrderRegionUnknown       = "error.special.region_unknown"
+	DeckOrderNobleUnknown        = "error.special.noble_unknown"
+
+	AppeasementOutOfSeason      = "error.appeasement.out_of_season"
+	AppeasementNotYourCleric    = "error.appeasement.not_your_cleric"
+	AppeasementUnknownTerritory = "error.appeasement.unknown_territory"
+	AppeasementNotCleric        = "error.appeasement.not_cleric"
+	AppeasementNotOwnBishopric  = "error.appeasement.not_own_bishopric"
+	AppeasementNotOwnRegion     = "error.appeasement.not_own_region"
+	AppeasementAlreadyPlayed    = "error.appeasement.already_played"
 
 	ValidationUnknownNoble                 = "error.validation.unknown_noble"
 	ValidationEmptyChain                   = "error.validation.empty_chain"
@@ -96,6 +135,7 @@ const (
 	ValidationMultipleWildcards            = "error.validation.multiple_wildcards"
 	ValidationTransferAmount               = "error.validation.transfer_amount"
 	ValidationTransferShape                = "error.validation.transfer_shape"
+	ValidationTransferSamePosition         = "error.validation.transfer_same_position"
 	ValidationUnexpectedAmount             = "error.validation.unexpected_amount"
 
 	AssignmentGameNil          = "error.assignment.game_nil"
@@ -115,7 +155,7 @@ var supportedTags = []language.Tag{language.English, language.French}
 
 func init() {
 	register(ErrorChainsInWinter, "chains cannot be submitted during winter", "les chaînes ne peuvent pas être soumises pendant l'hiver")
-	register(ErrorWinterOutOfSeason, "winter orders can only be submitted during winter", "les ordres d'hiver ne peuvent être soumis qu'en hiver")
+	register(ErrorWinterOutOfSeason, "outside winter, only the card orders R N, C N and D N can be submitted", "hors de l'hiver, seuls les ordres de carte R N, C N et D N peuvent être soumis")
 	register(ErrorUnknownPlayer, "player %q does not exist", "le joueur %q n'existe pas")
 	register(ErrorPlayerRequired, "one player's orders must be submitted at a time", "les ordres d'un seul joueur doivent être soumis à la fois")
 	register(ErrorForeignChain, "chain %d belongs to player %q", "la chaîne %d appartient au joueur %q")
@@ -125,6 +165,7 @@ func init() {
 	register(ErrorNobleNotOwned, "noble %q belongs to player %q", "le noble %q appartient au joueur %q")
 	register(ErrorDuplicateEmission, "noble %q appears more than once", "le noble %q apparaît plusieurs fois")
 	register(ErrorTransferPathBlocked, "the transfer route from %q to %q is blocked", "la route de transfert de %q vers %q est bloquée")
+	register(ErrorSupportNoAttack, "the army on %q does not attack %q this turn: its support has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien n'a rien à soutenir")
 
 	register(ParseNoHeader, "an order chain requires a noble header", "une chaîne d'ordres doit commencer par un en-tête de noble")
 	register(ParseBadHeader, "the first content line must contain exactly one noble code", "la première ligne de contenu doit contenir exactement un code de noble")
@@ -162,6 +203,43 @@ func init() {
 	register(WinterTransferShape, "G requires a source, a destination, and an amount", "G exige une source, une destination et un montant")
 	register(WinterTransferAmount, "transfer amount %q must be a positive integer", "le montant du transfert %q doit être un entier positif")
 	register(WinterMillMaxLevelReached, "the mill has reached its maximum level", "le moulin a atteint son niveau maximal")
+	register(WinterFiefShape, "T requires a subtype (N, F, A, X or R)", "T exige un sous-type (N, F, A, X ou R)")
+	register(WinterFiefFoundShape, "T F requires a noble and at least 3 territory codes, the first being the capital", "T F exige un noble et au moins 3 codes de territoire, le premier étant la capitale")
+	register(WinterTransferNobleShape, "H N requires a noble code then a territory, and optionally O or P: H N NNN XXX [O|P]", "H N exige un code de noble puis un territoire, et en option O ou P : H N NNN XXX [O|P]")
+	register(WinterMarriageShape, "M N requires two distinct noble codes: your noble, then the one it marries", "M N exige deux codes de noble distincts : votre noble, puis celui qu'il épouse")
+	register(WinterRitualShape, "S R requires your Witch and either a calamity (PE, MT, FA) or a season (1 spring, 2 summer, 3 autumn): S R NNN MT, S R NNN 2", "S R exige votre Sorcière et soit une calamité (PE, MT, FA), soit une saison (1 printemps, 2 été, 3 automne) : S R NNN MT, S R NNN 2")
+	register(WinterExcommunicationShape, "X E requires the noble to excommunicate; X L the noble to reinstate; X D a spouse of the marriage to dissolve: X E NNN, X L NNN, X D NNN", "X E exige le noble à excommunier ; X L le noble à réintégrer ; X D un époux du mariage à dissoudre : X E NNN, X L NNN, X D NNN")
+	register(WinterInquiryShape, "Q requires your cardinal or pope and the investigated noble: Q HHH NNN", "Q exige votre cardinal ou pape puis le noble enquêté : Q HHH NNN")
+	register(WinterTrialShape, "J requires your cardinal then the noble put on trial: J HHH NNN", "J exige votre cardinal puis le noble jugé : J HHH NNN")
+	register(WinterBuyCardinalShape, "N C requires one of your bishops", "N C exige un de vos évêques")
+	register(WinterCandidacyShape, "K E requires your noble then the seed village of the bishopric; K P and K R require your noble", "K E exige votre noble puis le village seed de l'évêché ; K P et K R exigent votre noble")
+	register(WinterVoteShape, "V E requires the candidate then the seed village of the bishopric; V P and V R require the candidate", "V E exige le candidat puis le village seed de l'évêché ; V P et V R exigent le candidat")
+	register(WinterNobleDrawShape, "T N takes no argument", "T N ne prend aucun argument")
+	register(WinterRecruitNobleShape, "R N requires a noble card code and a castle or village code", "R N exige un code de carte de noble et un code de château ou village")
+	register(WinterDiscardNobleShape, "D C takes one card code from your noble hand (noble trigram or dignity code)", "D C prend un code de carte de votre main de nobles (trigramme de noble ou code de dignité)")
+	register(WinterClaimShape, "C N requires the code of one of your nobles (the heir) and the code of the noble whose titles it claims", "C N exige le code de l'un de vos nobles (l'héritier) et le code du noble dont il revendique les titres")
+	register(WinterDignityShape, "D N requires one of your noble codes and a dignity card code, then a region seed for an abbess", "D N exige un code de l'un de vos nobles et un code de carte de dignité, puis le village seed d'une région pour une abbesse")
+	register(WinterCalamityVetoShape, "V C requires one of your noble codes and one forecast position (1 to 3)", "V C exige un code de l'un de vos nobles et une position de la prévision (1 à 3)")
+	register(WinterFiefAnnexShape, "T X requires a noble, the fief capital code and the annexed territory code", "T X exige un noble, le code de la capitale du fief et le code du territoire annexé")
+	register(WinterFiefRankShape, "T R requires a noble and the fief capital code", "T R exige un noble et le code de la capitale du fief")
+	register(WinterFiefAssignShape, "T A requires a noble and one fief capital code", "T A exige un noble et un code de capitale de fief")
+	register(WinterRoyalShape, "W requires a subtype (X, R, F or G)", "W exige un sous-type (X, R, F ou G)")
+	register(WinterRoyalAnnexShape, "W X requires the king or regent, the fief capital code and the annexed territory code", "W X exige le roi ou la régente, le code de la capitale du fief et le code du territoire annexé")
+	register(WinterRoyalRankShape, "W R requires the king or regent and the fief capital code", "W R exige le roi ou la régente et le code de la capitale du fief")
+	register(WinterRoyalFoundShape, "W F requires the king or regent and the capital code of the fief being founded", "W F exige le roi ou la régente et le code de la capitale du fief constitué")
+	register(WinterRoyalGrantShape, "W G requires the king or regent, the crown fief capital code and the noble receiving it", "W G exige le roi ou la régente, le code de la capitale du fief de la couronne et le noble qui le reçoit")
+	register(DeckOrderShape, "a special order has an invalid shape", "la forme de l'ordre spécial est invalide")
+	register(DeckOrderKindUnknown, "unknown special card kind %q", "kind de carte spéciale inconnu : %q")
+	register(DeckOrderKindNotPlayable, "card kind %q cannot be used as a player order", "le kind %q ne peut pas être joué comme ordre de joueur")
+	register(DeckOrderNobleUnknown, "noble %q does not exist", "le noble %q n'existe pas")
+	register(AppeasementOutOfSeason, "a revolt appeasement cannot be played in winter", "l'apaisement de révolte ne se joue pas en hiver")
+	register(AppeasementNotYourCleric, "%q is not one of your nobles", "%q n'est pas l'un de vos nobles")
+	register(AppeasementUnknownTerritory, "territory %q does not belong to any region", "le territoire %q n'appartient à aucune région")
+	register(AppeasementNotCleric, "%q holds no active religious title (and is no abbess for the free rite)", "%q ne porte aucun titre religieux actif (ni n'est abbesse pour le rite gratuit)")
+	register(AppeasementNotOwnBishopric, "%q is a bishop and can only pay for appeasement in their own bishopric", "%q est évêque et ne peut payer l'apaisement que dans son propre évêché")
+	register(AppeasementNotOwnRegion, "%q can only perform the free rite in the region where they stand", "%q ne peut tenter le rite gratuit que dans la région où il se trouve")
+	register(AppeasementAlreadyPlayed, "%q already appeases a revolt this turn", "%q apaise déjà une révolte ce tour-ci")
+	register(DeckOrderRegionUnknown, "region seed %q does not exist", "le seed de région %q n'existe pas")
 
 	register(ValidationUnknownNoble, "noble %q does not exist", "le noble %q n'existe pas")
 	register(ValidationEmptyChain, "a chain must contain at least one order", "une chaîne doit contenir au moins un ordre")
@@ -185,6 +263,7 @@ func init() {
 	register(ValidationMultipleWildcards, "D accepts at most one remaining-nobles wildcard", "D accepte au plus un joker pour les nobles restants")
 	register(ValidationTransferAmount, "T requires a positive amount", "T exige un montant positif")
 	register(ValidationTransferShape, "T requires exactly one destination", "T exige exactement une destination")
+	register(ValidationTransferSamePosition, "T cannot target its own position", "T ne peut pas viser sa propre position")
 	register(ValidationUnexpectedAmount, "%s does not accept a resource amount", "%s n'accepte pas de montant de ressources")
 
 	register(AssignmentGameNil, "game state is nil", "l'état de partie est absent")

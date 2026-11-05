@@ -1,50 +1,76 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GameLayout } from '@/components/GameLayout'
+import { LanguageProvider } from '@/i18n/LanguageContext'
+import { stubPhoneViewport } from '@/test/viewport'
+
+const mapSection = (container: HTMLElement) =>
+  container.querySelector('section') as HTMLElement
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('GameLayout', () => {
-  it('renders the map and the sheet content without a nested main landmark', () => {
+  it('renders the map and the drawer without a nested main landmark', () => {
     const { container } = render(
       <GameLayout map={<p>Map body</p>}>
-        <p>Panel body</p>
+        <aside>Drawer body</aside>
       </GameLayout>,
     )
 
     expect(screen.getByText('Map body')).toBeInTheDocument()
-    expect(screen.getByText('Panel body')).toBeInTheDocument()
+    expect(screen.getByText('Drawer body')).toBeInTheDocument()
     expect(container.querySelectorAll('main')).toHaveLength(0)
+    expect(screen.queryByText(/public map/i)).toBeNull()
   })
 
-  it('lets the map section shrink so the sidebar never overflows horizontally', () => {
+  it('keeps the whole map on desktop, whatever the view', () => {
     const { container } = render(
-      <GameLayout map={<p>Map body</p>}>
-        <p>Panel body</p>
+      <GameLayout map={<p>Map body</p>} view="report">
+        <aside>Drawer body</aside>
       </GameLayout>,
     )
 
-    const section = container.querySelector('section')
-    expect(section?.className).toContain('min-w-0')
-    expect(section?.className).toContain('flex-1')
-    expect(section?.className).not.toContain('lg:flex-none')
+    expect(mapSection(container)).toHaveAttribute('data-map-size', 'full')
+    expect(mapSection(container)).toBeVisible()
   })
 
-  it('brings the sheet back to half when the focus signal increments', () => {
-    const { rerender } = render(
-      <GameLayout map={<p>Map body</p>} focusSignal={0}>
-        <p>Panel body</p>
+  it('sizes the map to the phone view: whole, split with the orders, or hidden', () => {
+    stubPhoneViewport()
+    const { container, rerender } = render(
+      <GameLayout map={<p>Map body</p>} view="map">
+        <aside>Drawer body</aside>
       </GameLayout>,
     )
-    const sheet = screen.getByTestId('panel-sheet')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Expand panel' }))
-    expect(sheet).toHaveAttribute('data-sheet-snap', 'full')
+    expect(mapSection(container)).toHaveAttribute('data-map-size', 'full')
 
     rerender(
-      <GameLayout map={<p>Map body</p>} focusSignal={1}>
-        <p>Panel body</p>
+      <GameLayout map={<p>Map body</p>} view="orders">
+        <aside>Drawer body</aside>
       </GameLayout>,
     )
-    expect(sheet).toHaveAttribute('data-sheet-snap', 'half')
+    expect(mapSection(container)).toHaveAttribute('data-map-size', 'split')
+    expect(mapSection(container).className).toContain('h-[40%]')
+
+    rerender(
+      <GameLayout map={<p>Map body</p>} view="realm">
+        <aside>Drawer body</aside>
+      </GameLayout>,
+    )
+    expect(mapSection(container)).not.toBeVisible()
+  })
+
+  it('lays a card over the map', () => {
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <GameLayout map={<p>Map body</p>} view="map" mapOverlay={<p>Rochevent</p>}>
+          <aside>Drawer body</aside>
+        </GameLayout>
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Rochevent').closest('[data-map-overlay]')).not.toBeNull()
   })
 })

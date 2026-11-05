@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
-	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
@@ -23,6 +22,15 @@ func ResolveWinter(
 	balance assetgen.Balance,
 	orders map[models.PlayerID][]models.WinterOrder,
 ) (Resolution, error) {
+	return ResolveWinterWithDeckOrders(game, balance, orders, nil)
+}
+
+func ResolveWinterWithDeckOrders(
+	game *models.GameState,
+	balance assetgen.Balance,
+	orders map[models.PlayerID][]models.WinterOrder,
+	deckOrders map[models.PlayerID][]models.DeckOrder,
+) (Resolution, error) {
 	if game == nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: nil game state")
 	}
@@ -35,7 +43,13 @@ func ResolveWinter(
 	if balance.WinterStockDivisor < 1 {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: winter stock divisor must be > 0")
 	}
+	if balance.ProsperityLossThreshold < 1 {
+		return Resolution{}, fmt.Errorf("engine: resolve winter: prosperity loss threshold must be > 0")
+	}
 	if err := validateWinterPlayers(game, orders); err != nil {
+		return Resolution{}, err
+	}
+	if err := validateDeckOrders(game, balance, deckOrders); err != nil {
 		return Resolution{}, err
 	}
 
@@ -43,14 +57,65 @@ func ResolveWinter(
 	ctx := newResolutionContext(state, balance)
 	stockBefore := winterStocks(ctx)
 	firstNameRNG := newWinterRNG(state.Seed, state.Turn)
+	// The winter resolves in the stages of specs/hiver.md. Stage 0 freezes the
+	// registry of open elections.
+	ctx.openWinterElections()
+	// Stage 1: papal sanctions, before every other order.
+	ctx.resolvePapalSanctions(orders)
+	// Stage 2a: royal orders, before the management orders that read them.
+	ctx.resolveRoyalOrders(orders, firstNameRNG)
+	// Stage 2: management orders, players by identifier then sheet order.
+	// Candidacies and votes are only recorded here, they resolve in stage 6.
 	for _, playerID := range sortedPlayerIDs(state.Players) {
 		for _, order := range orders[playerID] {
-			ctx.resolveWinterOrder(playerID, order, firstNameRNG)
+			if order.Type.IsRoyal() {
+				continue
+			}
+			executeWinterOrder(ctx, playerID, order, firstNameRNG)
 		}
 	}
+	// Stage 3: inquiries of cardinals and of the pope.
+	ctx.resolveInquiries(orders)
+	ctx.fileWinterTrials(orders)
+	// Stage 4: marriage dissolutions of the pope.
+	ctx.resolveDissolutions(orders)
+	ctx.state.RefreshQueen()
+	// Stage 5: marriages.
+	ctx.resolveMarriages()
+	ctx.state.RefreshQueen()
+	// Stage 6: elections, counted on one snapshot; stage 7: investiture.
+	ctx.resolveWinterElections()
+	ctx.investWinterTitles()
+	ctx.investPurchasedCardinals()
+	ctx.state.RefreshQueen()
+	// Assassination and justice cards are consumed before the hands are
+	// refilled; their death is applied at stage 9.
+	reserveWinterEventCards(ctx, deckOrders)
+	// Stage 8: end of winter (hands, vacant fiefs, stocks, prosperity).
+	resolveWinterDeckOrders(ctx, deckOrders)
+	// No calamity resolves in winter: the winter turn draws and schedules the
+	// following year's calamities but applies none.
+	ctx.resolveVacantFiefsAtWinterEnd()
+	// Prosperity measures conservation loss only, not stock spent or moved by
+	// winter/deck orders above: snapshot right before conservation runs, not
+	// stockBefore (captured pre-orders, used only by emitWinterStockEvents
+	// for the whole-turn stock report).
+	stockBeforeConservation := winterStocks(ctx)
 	ctx.conserveWinterStocks()
+	ctx.resolveProsperity(stockBeforeConservation)
+	// Mills pour into their castle or village first, so that settlement's
+	// repatriation carries the mill stock on to the capital.
+	ctx.pourMillStocks()
 	ctx.repatriateWinterStocks()
+	// Reported after repatriation: a capital replaced this same winter by E C
+	// still rapatriates its surplus above as the old capital before losing its
+	// anchor here (#215).
+	ctx.emitAbandonedControl(ctx.startControl)
 	ctx.emitWinterStockEvents(stockBefore)
+	// Stage 9: trials filed at stage 3, after everything else of the winter.
+	ctx.judgeWinterTrials()
+	// Still stage 9: assassinations, then justice, come after the trial verdicts.
+	ctx.resolveWinterEventCards()
 
 	if err := state.Validate(); err != nil {
 		return Resolution{}, fmt.Errorf("engine: resolve winter: invalid result: %w", err)
@@ -79,423 +144,24 @@ func validateWinterPlayers(game *models.GameState, orders map[models.PlayerID][]
 	return nil
 }
 
-func (ctx *resolutionContext) resolveWinterOrder(playerID models.PlayerID, order models.WinterOrder, firstNameRNG *rand.Rand) {
-	switch order.Type {
-	case models.WinterOrderTypeRecruitNoble:
-		ctx.resolveRecruitNoble(playerID, order, firstNameRNG)
-	case models.WinterOrderTypeRecruitTroop:
-		ctx.resolveRecruitTroop(playerID, order)
-	case models.WinterOrderTypeBuild:
-		ctx.resolveBuild(playerID, order)
-	case models.WinterOrderTypeElectCapital:
-		ctx.resolveElectCapital(playerID, order)
-	case models.WinterOrderTypeLiberateNoble:
-		ctx.resolveLiberateNoble(playerID, order)
-	case models.WinterOrderTypeHostage:
-		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusHostage)
-	case models.WinterOrderTypeDungeon:
-		ctx.resolveNobleStatusOrder(playerID, order, models.NobleStatusDungeon)
-	case models.WinterOrderTypeTransfer:
-		ctx.resolveWinterTransfer(playerID, order)
-	default:
-		ctx.rejectWinterOrder(playerID, order, "invalid_winter_order")
-	}
-}
-
-func (ctx *resolutionContext) resolveWinterTransfer(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.SourceID) || !ctx.territoryExists(order.TargetID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if order.SourceID == order.TargetID {
-		ctx.rejectWinterOrder(playerID, order, "transfer_same_territory")
-		return
-	}
-	if order.Amount < 1 {
-		ctx.rejectWinterOrder(playerID, order, "invalid_transfer_amount")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.SourceID) || !ctx.hasSettlement(order.SourceID) {
-		ctx.rejectWinterOrder(playerID, order, "transfer_source_not_settlement")
-		return
-	}
-	targetState := ctx.state.TerritoryStates[order.TargetID]
-	if targetState.OwnerID == nil || *targetState.OwnerID == playerID || !PlayerAlive(ctx.state, *targetState.OwnerID) || !ctx.hasSettlement(order.TargetID) {
-		ctx.rejectWinterOrder(playerID, order, "transfer_target_not_settlement")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.SourceID, order.Amount)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	targetState.Resources += order.Amount
-	ctx.state.TerritoryStates[order.TargetID] = targetState
-	orderCopy := order
-	ctx.events = append(ctx.events, Event{
-		Type:           EventTypeTransfer,
-		Phase:          winterPhase,
-		OwnerID:        playerID,
-		OrderID:        order.ID,
-		SourceID:       order.SourceID,
-		TargetID:       order.TargetID,
-		ResourceAmount: order.Amount,
-		ResourceSpent:  spent,
-		Outcome:        OutcomeSuccess,
-		WinterOrder:    &orderCopy,
-	})
-}
-
-func (ctx *resolutionContext) resolveRecruitNoble(playerID models.PlayerID, order models.WinterOrder, firstNameRNG *rand.Rand) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	if !ctx.hasSettlement(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "noble_requires_settlement")
-		return
-	}
-	army := ctx.currentArmyAt(order.TerritoryID)
-	if army == nil || army.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_requires_owned_army")
-		return
-	}
-	if !ctx.hasAvailableFirstName(ctx.balance.FirstNames) {
-		ctx.rejectWinterOrder(playerID, order, "no_available_first_name")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Noble)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	firstName := ctx.drawFirstName(firstNameRNG, ctx.balance.FirstNames)
-	territory := ctx.territoriesByID[order.TerritoryID]
-	noble := models.Noble{
-		ID:               nextNobleID(ctx.state.Nobles),
-		Code:             firstName.Code,
-		Name:             fmt.Sprintf("%s de %s", firstName.Name, territory.Name),
-		OwnerID:          playerID,
-		LocationID:       order.TerritoryID,
-		Status:           models.NobleStatusFree,
-		LastEmissionTurn: 0,
-	}
-	ctx.state.Nobles = append(ctx.state.Nobles, noble)
-	ctx.rebuildIndexes()
-	ctx.events = append(ctx.events, Event{
-		Type:          EventTypeRecruit,
-		Phase:         winterPhase,
-		OwnerID:       playerID,
-		OrderID:       order.ID,
-		TerritoryID:   order.TerritoryID,
-		NobleID:       noble.ID,
-		NobleCode:     models.NobleCode(noble.Code),
-		NobleName:     noble.Name,
-		ResourceSpent: spent,
-	})
-}
-
-func (ctx *resolutionContext) resolveRecruitTroop(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	army := ctx.currentArmyAt(order.TerritoryID)
-	if army != nil && army.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "territory_occupied_by_other_player")
-		return
-	}
-	if !ctx.hasEligibleTroopNoble(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "troop_requires_adjacent_noble")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, ctx.balance.Costs.Troop)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	if army != nil {
-		army.Size++
-		ctx.events = append(ctx.events, Event{
-			Type:          EventTypeRecruit,
-			Phase:         winterPhase,
-			OwnerID:       playerID,
-			OrderID:       order.ID,
-			TerritoryID:   order.TerritoryID,
-			ArmyID:        army.ID,
-			Troops:        1,
-			ResourceSpent: spent,
-		})
-		return
-	}
-	newArmy := models.Army{
-		ID:          ctx.allocateArmyID(),
-		OwnerID:     playerID,
-		TerritoryID: order.TerritoryID,
-		Size:        1,
-	}
-	ctx.state.Armies = append(ctx.state.Armies, newArmy)
-	armyID := newArmy.ID
-	state := ctx.state.TerritoryStates[order.TerritoryID]
-	state.Army = &armyID
-	ctx.state.TerritoryStates[order.TerritoryID] = state
-	ctx.rebuildIndexes()
-	ctx.events = append(ctx.events, Event{
-		Type:          EventTypeRecruit,
-		Phase:         winterPhase,
-		OwnerID:       playerID,
-		OrderID:       order.ID,
-		TerritoryID:   order.TerritoryID,
-		ArmyID:        newArmy.ID,
-		Troops:        1,
-		ResourceSpent: spent,
-	})
-}
-
-func (ctx *resolutionContext) hasEligibleTroopNoble(playerID models.PlayerID, targetID models.TerritoryID) bool {
-	for _, noble := range ctx.state.Nobles {
-		if noble.OwnerID != playerID || noble.Status != models.NobleStatusFree {
-			continue
-		}
-		if noble.LocationID == targetID || ctx.isAdjacent(noble.LocationID, targetID) {
-			return true
-		}
-	}
-	return false
-}
-
-func (ctx *resolutionContext) resolveBuild(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	if !isBuildableInfrastructure(order.InfraType) {
-		ctx.rejectWinterOrder(playerID, order, "invalid_infrastructure")
-		return
-	}
-	existing := ctx.infrastructureAt(order.TerritoryID)
-	upgradeCost := 0
-	if existing != nil && existing.Type == models.InfraTypeMill && order.InfraType == models.InfraTypeMill {
-		var exists bool
-		upgradeCost, exists = millCostForLevel(ctx.balance.Costs, existing.Level+1)
-		if !exists {
-			ctx.rejectWinterOrder(playerID, order, i18n.WinterMillMaxLevelReached)
-			return
-		}
-	}
-	if order.InfraType == models.InfraTypeMill && !ctx.millCanBeBuiltAt(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "mill_requires_productive_neighbor")
-		return
-	}
-	if existing != nil {
-		if existing.Type == models.InfraTypeMill && order.InfraType == models.InfraTypeMill {
-			nextLevel := existing.Level + 1
-			spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, upgradeCost)
-			if !paid {
-				ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-				return
-			}
-			existing.Level = nextLevel
-			ctx.events = append(ctx.events, Event{
-				Type:               EventTypeUpgrade,
-				Phase:              winterPhase,
-				OwnerID:            playerID,
-				OrderID:            order.ID,
-				TerritoryID:        order.TerritoryID,
-				InfrastructureID:   existing.ID,
-				InfrastructureType: existing.Type,
-				Level:              existing.Level,
-				ResourceSpent:      spent,
-			})
-			return
-		}
-		if existing.Type != models.InfraTypeVillage || order.InfraType != models.InfraTypeCastle {
-			ctx.rejectWinterOrder(playerID, order, "structure_present")
-			return
-		}
-	}
-	cost, exists := infrastructureCost(ctx.balance.Costs, order.InfraType)
-	if !exists {
-		ctx.rejectWinterOrder(playerID, order, "invalid_infrastructure")
-		return
-	}
-	spent, paid := ctx.payWinterCost(playerID, order.TerritoryID, cost)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	if existing != nil {
-		ctx.removeInfrastructurePreservingStock(existing.ID)
-	}
-	infrastructure := ctx.addWinterInfrastructure(order.InfraType, order.TerritoryID)
-	capitalAssigned := false
-	if order.InfraType == models.InfraTypeCastle {
-		if _, _, hasCapital := ctx.capitalTerritory(playerID); !hasCapital {
-			ctx.setCapital(playerID, infrastructure.ID)
-			capitalAssigned = true
-		}
-	}
-	ctx.events = append(ctx.events, Event{
-		Type:               EventTypeBuild,
-		Phase:              winterPhase,
-		OwnerID:            playerID,
-		OrderID:            order.ID,
-		TerritoryID:        order.TerritoryID,
-		InfrastructureID:   infrastructure.ID,
-		InfrastructureType: infrastructure.Type,
-		Level:              infrastructure.Level,
-		ResourceSpent:      spent,
-	})
-	if capitalAssigned {
-		ctx.events = append(ctx.events, Event{
-			Type:               EventTypeCapitalElected,
-			Phase:              winterPhase,
-			OwnerID:            playerID,
-			OrderID:            order.ID,
-			TerritoryID:        order.TerritoryID,
-			InfrastructureID:   infrastructure.ID,
-			InfrastructureType: infrastructure.Type,
-			ResourceSpent:      0,
-			Automatic:          true,
-		})
-	}
-}
-
-func (ctx *resolutionContext) resolveElectCapital(playerID models.PlayerID, order models.WinterOrder) {
-	if !ctx.territoryExists(order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "unknown_territory")
-		return
-	}
-	if !ctx.controlsTerritory(playerID, order.TerritoryID) {
-		ctx.rejectWinterOrder(playerID, order, "territory_not_controlled")
-		return
-	}
-	infrastructure := ctx.infrastructureAt(order.TerritoryID)
-	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle {
-		ctx.rejectWinterOrder(playerID, order, "capital_requires_controlled_castle")
-		return
-	}
-	ctx.setCapital(playerID, infrastructure.ID)
-	ctx.events = append(ctx.events, Event{
-		Type:               EventTypeCapitalElected,
-		Phase:              winterPhase,
-		OwnerID:            playerID,
-		OrderID:            order.ID,
-		TerritoryID:        order.TerritoryID,
-		InfrastructureID:   infrastructure.ID,
-		InfrastructureType: infrastructure.Type,
-		ResourceSpent:      0,
-	})
-}
-
-func (ctx *resolutionContext) resolveNobleStatusOrder(playerID models.PlayerID, order models.WinterOrder, status models.NobleStatus) {
-	nobleID, exists := ctx.noblesByCode[order.NobleCode]
-	if !exists {
-		ctx.rejectWinterOrder(playerID, order, "unknown_noble")
-		return
-	}
-	noble := ctx.noblesByID[nobleID]
-	if noble == nil || noble.Status == models.NobleStatusFree {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_prisoner")
-		return
-	}
-	holder := ctx.currentArmyAt(noble.LocationID)
-	if holder == nil || holder.OwnerID != playerID || noble.OwnerID == playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_held")
-		return
-	}
-	previousStatus := noble.Status
-	noble.Status = status
-	orderCopy := order
-	ctx.events = append(ctx.events, Event{
-		Type:           EventTypeCapture,
-		Phase:          winterPhase,
-		OwnerID:        playerID,
-		ArmyID:         holder.ID,
-		OrderID:        order.ID,
-		TerritoryID:    noble.LocationID,
-		NobleID:        noble.ID,
-		NobleCode:      models.NobleCode(noble.Code),
-		NobleName:      noble.Name,
-		PreviousStatus: previousStatus,
-		Status:         noble.Status,
-		CaptorPlayerID: playerID,
-		WinterOrder:    &orderCopy,
-	})
-}
-
-func (ctx *resolutionContext) resolveLiberateNoble(playerID models.PlayerID, order models.WinterOrder) {
-	nobleID, exists := ctx.noblesByCode[order.NobleCode]
-	if !exists {
-		ctx.rejectWinterOrder(playerID, order, "unknown_noble")
-		return
-	}
-	noble := ctx.noblesByID[nobleID]
-	if noble == nil || noble.Status == models.NobleStatusFree {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_prisoner")
-		return
-	}
-	holder := ctx.currentArmyAt(noble.LocationID)
-	if holder == nil || holder.OwnerID != playerID {
-		ctx.rejectWinterOrder(playerID, order, "noble_not_held")
-		return
-	}
-	capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(noble.OwnerID)
-	if !hasCapital {
-		ctx.rejectWinterOrder(playerID, order, "no_capital")
-		return
-	}
-	capitalArmy := ctx.currentArmyAt(capitalTerritoryID)
-	if capitalArmy == nil || capitalArmy.OwnerID != noble.OwnerID {
-		ctx.rejectWinterOrder(playerID, order, "no_army_at_capital")
-		return
-	}
-	paymentTargetID := noble.LocationID
-	if holderCapitalTerritoryID, _, holderHasCapital := ctx.capitalTerritory(playerID); holderHasCapital {
-		paymentTargetID = holderCapitalTerritoryID
-	}
-	spent, paid := ctx.payWinterCost(playerID, paymentTargetID, ctx.balance.Costs.Liberation)
-	if !paid {
-		ctx.rejectWinterOrder(playerID, order, "insufficient_resources")
-		return
-	}
-	previousStatus := noble.Status
-	noble.Status = models.NobleStatusFree
-	noble.LocationID = capitalTerritoryID
-	ctx.events = append(ctx.events, Event{
-		Type:           EventTypeLiberation,
-		Phase:          winterPhase,
-		OwnerID:        playerID,
-		OrderID:        order.ID,
-		NobleID:        noble.ID,
-		NobleCode:      models.NobleCode(noble.Code),
-		NobleName:      noble.Name,
-		PreviousStatus: previousStatus,
-		Status:         noble.Status,
-		TerritoryID:    capitalTerritoryID,
-		ResourceSpent:  spent,
-	})
-}
-
 func (ctx *resolutionContext) rejectWinterOrder(playerID models.PlayerID, order models.WinterOrder, reason string) {
+	ctx.rejectWinterOrderAt(playerID, order, reason, "")
+}
+
+// rejectWinterOrderAt rejects a winter order like rejectWinterOrder, but
+// attributes it to territoryID rather than defaulting to the order's own
+// TerritoryID. A found_fief order spans several territories (TerritoryID is
+// only the capital), so a rejection caused by one of the other group members
+// must point there for the map marker to land on the actual offending
+// territory instead of always the capital.
+func (ctx *resolutionContext) rejectWinterOrderAt(playerID models.PlayerID, order models.WinterOrder, reason string, territoryID models.TerritoryID) {
 	orderCopy := order
 	ctx.events = append(ctx.events, Event{
 		Type:          EventTypeRejected,
 		Phase:         winterPhase,
 		OwnerID:       playerID,
 		OrderID:       order.ID,
+		TerritoryID:   territoryID,
 		ResourceSpent: 0,
 		Reason:        reason,
 		WinterOrder:   &orderCopy,
@@ -506,9 +172,13 @@ func (ctx *resolutionContext) territoryExists(territoryID models.TerritoryID) bo
 	return ctx.territoriesByID[territoryID] != nil
 }
 
+// controlsTerritory reports whether playerID controlled territoryID when the
+// winter began. Winter orders change fiefs and capitals but never move an army,
+// and what they unanchor only takes effect at the end of the winter (see
+// emitAbandonedControl), so every winter rule reads the start-of-winter
+// control, whatever an earlier order of the same winter did.
 func (ctx *resolutionContext) controlsTerritory(playerID models.PlayerID, territoryID models.TerritoryID) bool {
-	state, exists := ctx.state.TerritoryStates[territoryID]
-	return exists && state.OwnerID != nil && *state.OwnerID == playerID
+	return controlledBy(ctx.controllerAtStart, playerID, territoryID)
 }
 
 func (ctx *resolutionContext) playerByID(playerID models.PlayerID) *models.Player {
@@ -520,13 +190,17 @@ func (ctx *resolutionContext) playerByID(playerID models.PlayerID) *models.Playe
 	return nil
 }
 
+// capitalTerritory returns the castle territory of playerID's capital. A
+// capital castle is always controlled by its owner, since a capital is a
+// permanent anchor (models.GameState.TerritoryController) and losing the
+// control of it clears the designation.
 func (ctx *resolutionContext) capitalTerritory(playerID models.PlayerID) (models.TerritoryID, models.InfraID, bool) {
 	player := ctx.playerByID(playerID)
 	if player == nil || player.CapitalCastleID == nil {
 		return "", "", false
 	}
 	infrastructure := ctx.infrastructuresByID[*player.CapitalCastleID]
-	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle || !ctx.controlsTerritory(playerID, infrastructure.TerritoryID) {
+	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle {
 		return "", "", false
 	}
 	return infrastructure.TerritoryID, infrastructure.ID, true
@@ -541,26 +215,6 @@ func (ctx *resolutionContext) setCapital(playerID models.PlayerID, infrastructur
 	player.CapitalCastleID = &capitalID
 }
 
-func (ctx *resolutionContext) hasAvailableFirstName(firstNames []assetgen.Asset) bool {
-	for _, firstName := range firstNames {
-		if _, exists := ctx.noblesByCode[models.NobleCode(firstName.Code)]; !exists {
-			return true
-		}
-	}
-	return false
-}
-
-func (ctx *resolutionContext) drawFirstName(rng *rand.Rand, firstNames []assetgen.Asset) assetgen.Asset {
-	start := rng.IntN(len(firstNames))
-	for offset := 0; offset < len(firstNames); offset++ {
-		candidate := firstNames[(start+offset)%len(firstNames)]
-		if _, exists := ctx.noblesByCode[models.NobleCode(candidate.Code)]; !exists {
-			return candidate
-		}
-	}
-	return assetgen.Asset{}
-}
-
 func newWinterRNG(seed string, turn int) *rand.Rand {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|winter-noble|%d", seed, turn)))
 	lo := binary.BigEndian.Uint64(digest[:8])
@@ -569,10 +223,16 @@ func newWinterRNG(seed string, turn int) *rand.Rand {
 }
 
 func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID models.TerritoryID, cost int) (int, bool) {
+	return ctx.payFromSources(ctx.winterPaymentSources(playerID, targetID), cost)
+}
+
+// payFromSources spends cost across sources in order, draining each one
+// before moving to the next. It fails without spending anything when the
+// combined stock of every source falls short.
+func (ctx *resolutionContext) payFromSources(sources []models.TerritoryID, cost int) (int, bool) {
 	if cost == 0 {
 		return 0, true
 	}
-	sources := ctx.winterPaymentSources(playerID, targetID)
 	total := 0
 	for _, sourceID := range sources {
 		total += ctx.state.TerritoryStates[sourceID].Resources
@@ -596,6 +256,31 @@ func (ctx *resolutionContext) payWinterCost(playerID models.PlayerID, targetID m
 	return spent, true
 }
 
+// millUpgradePaymentSources is the payment order for upgrading the mill at
+// millID: its own stock first (the one exception to "only castles and
+// villages pay"), then the single settlement its production would be routed
+// to (its adjacent castle under the same control, else its adjacent village,
+// per millRecipient), then the usual winter payment network as a fallback for
+// anything farther out.
+func (ctx *resolutionContext) millUpgradePaymentSources(playerID models.PlayerID, millID models.TerritoryID) []models.TerritoryID {
+	sources := []models.TerritoryID{millID}
+	if recipientID := millRecipientIn(ctx, millID, ctx.controllerAtStart); recipientID != millID && !ctx.occupiedAgainstStartController(recipientID, ctx.currentArmyAt(recipientID)) {
+		sources = append(sources, recipientID)
+	}
+	seen := make(map[models.TerritoryID]bool, len(sources))
+	for _, sourceID := range sources {
+		seen[sourceID] = true
+	}
+	for _, sourceID := range ctx.winterPaymentSources(playerID, millID) {
+		if seen[sourceID] {
+			continue
+		}
+		sources = append(sources, sourceID)
+		seen[sourceID] = true
+	}
+	return sources
+}
+
 func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, targetID models.TerritoryID) []models.TerritoryID {
 	distances := ctx.winterDistances(targetID)
 	type source struct {
@@ -606,6 +291,11 @@ func (ctx *resolutionContext) winterPaymentSources(playerID models.PlayerID, tar
 	sources := make([]source, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		if !ctx.controlsTerritory(playerID, territoryID) || !ctx.hasSettlement(territoryID) {
+			continue
+		}
+		if ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
+			// A settlement occupied against its controller pays for no
+			// winter investment, its own or anyone else's (titres.md).
 			continue
 		}
 		distance, reachable := distances[territoryID]
@@ -651,11 +341,11 @@ func (ctx *resolutionContext) winterDistances(startID models.TerritoryID) map[mo
 }
 
 func (ctx *resolutionContext) millCanBeBuiltAt(territoryID models.TerritoryID) bool {
-	if ctx.hasSettlement(territoryID) {
+	if ctx.hasActiveSettlement(territoryID) {
 		return true
 	}
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
-		if ctx.hasSettlement(neighborID) {
+		if ctx.hasActiveSettlement(neighborID) {
 			return true
 		}
 	}
@@ -693,19 +383,27 @@ func (ctx *resolutionContext) addWinterInfrastructure(infrastructureType models.
 	infrastructure := models.Infrastructure{
 		ID:          nextInfrastructureID(ctx.state.Infrastructures),
 		Type:        infrastructureType,
-		Level:       1,
+		Level:       infrastructureType.StartingLevel(),
 		TerritoryID: territoryID,
 	}
 	ctx.state.Infrastructures = append(ctx.state.Infrastructures, infrastructure)
 	state := ctx.state.TerritoryStates[territoryID]
-	state.Infrastructures = append(state.Infrastructures, infrastructure.ID)
+	infrastructureID := infrastructure.ID
+	state.Infrastructures = &infrastructureID
 	ctx.state.TerritoryStates[territoryID] = state
 	ctx.rebuildIndexes()
 	return ctx.infrastructuresByID[infrastructure.ID]
 }
 
-func nextNobleID(nobles []models.Noble) models.NobleID {
-	return models.NobleID(fmt.Sprintf("N%d", nextIDSequence(nobleIDs(nobles), 'N')))
+// nextNobleID scans both the living nobles and the lineage of removed ones:
+// a dead noble's ID must stay reserved forever rather than be handed out
+// again to a later recruit (specs/succession.md § Lignée).
+func nextNobleID(nobles []models.Noble, removedNobles []models.RemovedNoble) models.NobleID {
+	ids := nobleIDs(nobles)
+	for _, removed := range removedNobles {
+		ids = append(ids, string(removed.ID))
+	}
+	return models.NobleID(fmt.Sprintf("N%d", nextIDSequence(ids, 'N')))
 }
 
 func nextInfrastructureID(infrastructures []models.Infrastructure) models.InfraID {
@@ -756,7 +454,10 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 		if ctx.hasInfrastructure(territoryID, models.InfraTypeSupplyDepot) {
 			continue
 		}
-		if !ctx.hasSettlement(territoryID) {
+		// A mill conserves its stock exactly like a castle or village (see
+		// #195); pourMillStocks then pours it into the settlement its
+		// production feeds, if any (#470).
+		if !ctx.hasSettlement(territoryID) && !ctx.hasInfrastructure(territoryID, models.InfraTypeMill) {
 			state.Resources = 0
 			ctx.state.TerritoryStates[territoryID] = state
 			continue
@@ -766,29 +467,75 @@ func (ctx *resolutionContext) conserveWinterStocks() {
 	}
 }
 
-func (ctx *resolutionContext) repatriateWinterStocks() {
-	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || !ctx.hasSettlement(territoryID) {
+// repatriationCapital is the capital a territory's winter stock is brought
+// back to: none when the territory has no start-of-winter controller, when
+// it is occupied against that controller (its stock stays there and follows
+// the normal conservation rule, titres.md), or when the controller has no
+// capital. Shared by pourMillStocks and repatriateWinterStocks so a mill and
+// a settlement follow the same exceptions.
+func (ctx *resolutionContext) repatriationCapital(territoryID models.TerritoryID) (models.TerritoryID, bool) {
+	controllerID, controlled := ctx.controllerAtStart(territoryID)
+	if !controlled || ctx.occupiedAgainstStartController(territoryID, ctx.currentArmyAt(territoryID)) {
+		return "", false
+	}
+	capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(controllerID)
+	return capitalTerritoryID, hasCapital
+}
+
+// moveStock moves amount resources from one territory's stock to another's.
+func (ctx *resolutionContext) moveStock(fromID, toID models.TerritoryID, amount int) {
+	from := ctx.state.TerritoryStates[fromID]
+	from.Resources -= amount
+	ctx.state.TerritoryStates[fromID] = from
+	to := ctx.state.TerritoryStates[toID]
+	to.Resources += amount
+	ctx.state.TerritoryStates[toID] = to
+}
+
+// pourMillStocks moves the whole stock of every mill into its recipient
+// (millRecipientIn on the start-of-winter control: the adjacent castle, else
+// village, of the same controller), so repatriateWinterStocks then carries it
+// on to the capital (#470). The stock stays on an uncontrolled or isolated
+// mill (its own recipient), and wherever repatriationCapital finds no
+// capital for the mill or its recipient.
+func (ctx *resolutionContext) pourMillStocks() {
+	for _, millID := range sortedStateTerritoryIDs(ctx) {
+		stock := ctx.state.TerritoryStates[millID].Resources
+		if stock == 0 || !ctx.hasInfrastructure(millID, models.InfraTypeMill) {
 			continue
 		}
-		capitalTerritoryID, _, hasCapital := ctx.capitalTerritory(*state.OwnerID)
-		if !hasCapital || capitalTerritoryID == territoryID {
+		recipientID := millRecipientIn(ctx, millID, ctx.controllerAtStart)
+		if recipientID == millID {
+			continue
+		}
+		if _, ok := ctx.repatriationCapital(millID); !ok {
+			continue
+		}
+		if _, ok := ctx.repatriationCapital(recipientID); !ok {
+			continue
+		}
+		ctx.moveStock(millID, recipientID, stock)
+	}
+}
+
+// repatriateWinterStocks sends each castle and village's conserved surplus
+// above its cap to its controller's capital.
+func (ctx *resolutionContext) repatriateWinterStocks() {
+	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
+		if !ctx.hasSettlement(territoryID) {
+			continue
+		}
+		capitalTerritoryID, ok := ctx.repatriationCapital(territoryID)
+		if !ok || capitalTerritoryID == territoryID {
 			continue
 		}
 		maximum := ctx.balance.VillageStockCap
 		if ctx.hasCastle(territoryID) {
 			maximum = ctx.balance.CastleStockCap
 		}
-		if state.Resources <= maximum {
-			continue
+		if surplus := ctx.state.TerritoryStates[territoryID].Resources - maximum; surplus > 0 {
+			ctx.moveStock(territoryID, capitalTerritoryID, surplus)
 		}
-		surplus := state.Resources - maximum
-		state.Resources = maximum
-		ctx.state.TerritoryStates[territoryID] = state
-		capitalState := ctx.state.TerritoryStates[capitalTerritoryID]
-		capitalState.Resources += surplus
-		ctx.state.TerritoryStates[capitalTerritoryID] = capitalState
 	}
 }
 
@@ -798,10 +545,9 @@ func (ctx *resolutionContext) emitWinterStockEvents(stockBefore map[models.Terri
 		if !ctx.hasSettlement(territoryID) && stockBefore[territoryID] == 0 && state.Resources == 0 {
 			continue
 		}
-		ownerID := models.PlayerID("")
-		if state.OwnerID != nil {
-			ownerID = *state.OwnerID
-		}
+		// The control the winter ends on, once emitAbandonedControl has
+		// reported what its orders unanchored.
+		ownerID, _ := ctx.controllerNow(territoryID)
 		ctx.events = append(ctx.events, Event{
 			Type:        EventTypeWinterStock,
 			Phase:       winterPhase,

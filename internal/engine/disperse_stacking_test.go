@@ -119,6 +119,11 @@ func TestResolveFriendlyDispersesFuseWithStationaryFriendlyArmy(t *testing.T) {
 		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BBB": {"THR"}},
 	})
 	keepTestArmiesSupplied(state)
+	// Both dispersions fuse into A2, growing it to size 4 this same turn:
+	// ravitaillement now resolves after that fusion, on its exponential cost
+	// (#208), which keepTestArmiesSupplied's per-army preset (sized before
+	// the fusion) does not cover on its own.
+	setTerritoryResources(state, "BBB", 20)
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())

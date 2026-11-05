@@ -1,9 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,6 +11,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
 func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
@@ -19,7 +20,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 	snapshot := makeChainSnapshot(state.Chains[0], state.Turn)
 	putChainSnapshot(privacy, "P1", snapshot)
 
-	known := projectStateForPlayer(state, "P1")
+	known := projectStateForPlayer(state, "P1", assetgen.Balance{})
 	if got := known.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
 		t.Fatalf("known chain = %#v, want visibility known", got)
 	}
@@ -27,7 +28,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 		t.Fatalf("absent chain = %#v, want nil", got)
 	}
 
-	hidden := projectStateForPlayer(state, "P2")
+	hidden := projectStateForPlayer(state, "P2", assetgen.Balance{})
 	if got := hidden.Territories[0].Army.Chain; got == nil || got.Visibility != "hidden" {
 		t.Fatalf("hidden chain = %#v, want visibility hidden", got)
 	}
@@ -47,7 +48,7 @@ func TestProjectStateDistinguishesKnownHiddenAndAbsentChains(t *testing.T) {
 
 func TestProjectStateGivesSpectatorFullChainVisibility(t *testing.T) {
 	state := projectTestState()
-	view := projectStateForPlayer(state, models.SpectatorViewer)
+	view := projectStateForPlayer(state, models.SpectatorViewer, assetgen.Balance{})
 	if got := view.Territories[0].Army.Chain; got == nil || got.Visibility != "known" {
 		t.Fatalf("spectator chain = %#v, want visibility known", got)
 	}
@@ -122,9 +123,9 @@ func TestProjectStateDoesNotMutatePrivacyState(t *testing.T) {
 		t.Fatalf("marshal before projection: %v", err)
 	}
 
-	_ = projectStateForPlayer(state, "P1")
-	_ = projectStateForPlayer(state, "P2")
-	_ = projectState(state)
+	_ = projectStateForPlayer(state, "P1", assetgen.Balance{})
+	_ = projectStateForPlayer(state, "P2", assetgen.Balance{})
+	_ = projectState(state, assetgen.Balance{})
 
 	after, err := json.Marshal(state)
 	if err != nil {
@@ -220,10 +221,48 @@ func TestProjectReportNormalizesNilCollections(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatalf("decode empty projected report: %v", err)
 	}
-	for _, field := range []string{"players", "receptions", "supply", "famines", "combats", "orders", "moves", "nobles"} {
+	for _, field := range []string{"players", "receptions", "production", "income", "mills", "consumption", "combats", "orders", "moves", "nobles", "fiefs"} {
 		if value, ok := document[field]; !ok || value == nil {
 			t.Errorf("projected report field %q = %#v, want JSON array", field, value)
 		}
+	}
+}
+
+func TestProjectReportKeepsIncome(t *testing.T) {
+	report := engine.TurnReport{
+		Income: []engine.IncomeReport{{
+			Owner: "P1", Destination: "ROS", Territories: 5, Villages: 1,
+			Base: 6, Credited: 6, StockAfter: 6,
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Income) != 1 || view.Income[0].Owner != "P1" || view.Income[0].Credited != 6 {
+		t.Fatalf("projected income = %#v, want the report's income line preserved", view.Income)
+	}
+}
+
+func TestProjectReportKeepsFiefs(t *testing.T) {
+	report := engine.TurnReport{
+		Fiefs: []engine.FiefReport{{
+			Kind: engine.EventTypeFiefConquered, Owner: "P2", PreviousOwner: "P1",
+			Capital: "ROS", Title: models.FiefTitleBarony, Territories: []models.TerritoryID{"ROS", "BOI", "BRU"},
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Fiefs) != 1 || view.Fiefs[0].Owner != "P2" || view.Fiefs[0].PreviousOwner != "P1" || view.Fiefs[0].Capital != "ROS" {
+		t.Fatalf("projected fiefs = %#v, want the report's fief line preserved", view.Fiefs)
+	}
+}
+
+func TestProjectReportKeepsMills(t *testing.T) {
+	report := engine.TurnReport{
+		Mills: []engine.MillReport{{
+			Territory: "MIL", Owner: "P1", Level: 2, Destination: "CAS", Production: 2,
+		}},
+	}
+	view := projectReport(report, "P1", nil)
+	if len(view.Mills) != 1 || view.Mills[0].Territory != "MIL" || view.Mills[0].Destination != "CAS" || view.Mills[0].Production != 2 {
+		t.Fatalf("projected mills = %#v, want the report's mill line preserved", view.Mills)
 	}
 }
 
@@ -248,100 +287,82 @@ func TestCombatParticipationIncludesSupportingArmies(t *testing.T) {
 	}
 }
 
-func TestStateHTTPPlayerQueryServesPrivateProjection(t *testing.T) {
-	state := projectTestState()
-	putChainSnapshot(ensurePrivacy(state), "P1", makeChainSnapshot(state.Chains[0], state.Turn))
-	session := &Session{game: state}
+// TestCombatParticipationSkipsAbandonedCastleOwner checks #215: once a
+// castle's former controller has lost it to abandonment (no fief, capital,
+// or army left there), territoryOwner finds no controller on both snapshots
+// and grants combat visibility to nobody for the empty-defender contender,
+// unlike TestCombatParticipationSkipsNeutralOwner's live neutral defender.
+func TestCombatParticipationSkipsAbandonedCastleOwner(t *testing.T) {
+	// AAA has no controller on either snapshot: P1 controlled it once, but its
+	// army left and no anchor kept it, so it was already uncontrolled before
+	// this later turn's combat.
+	before := &models.GameState{Armies: []models.Army{
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+	}}
+	after := &models.GameState{Armies: append([]models.Army(nil), before.Armies...)}
+	privacy := ensurePrivacy(after)
+	trackCombatParticipation(before, after, []engine.CombatReport{{
+		Territory: "AAA",
+		Contenders: []engine.CombatContender{
+			{ArmyID: "A2", OwnerID: "P2", Force: 2},
+			{ArmyID: "", OwnerID: "", Force: 0, Defender: true},
+		},
+	}}, privacy)
 
-	recorder := httptest.NewRecorder()
-	session.StateHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/state?player=P2", nil))
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("GET state?player=P2 = %d: %s", recorder.Code, recorder.Body.String())
+	if privacy.CombatParticipation["P1"]["combat-AAA"] {
+		t.Error("P1, the castle's former controller, was marked as a combat participant")
 	}
-	var view StateView
-	if err := json.Unmarshal(recorder.Body.Bytes(), &view); err != nil {
-		t.Fatalf("decode private state: %v", err)
-	}
-	if view.Territories[0].Army.Chain == nil || view.Territories[0].Army.Chain.Visibility != "hidden" {
-		t.Fatalf("P2 state chain = %#v, want hidden", view.Territories[0].Army.Chain)
-	}
-
-	unknown := httptest.NewRecorder()
-	session.StateHTTP(unknown, httptest.NewRequest(http.MethodGet, "/api/state?player=P9", nil))
-	if unknown.Code != http.StatusBadRequest {
-		t.Errorf("GET state?player=P9 = %d, want %d", unknown.Code, http.StatusBadRequest)
+	if !privacy.CombatParticipation["P2"]["combat-AAA"] {
+		t.Error("the attacker was not marked as a combat participant")
 	}
 }
 
-func TestOrdersHTTPTracksPrivateChainProjection(t *testing.T) {
-	assets, err := assetgen.Load("../../assets")
-	if err != nil {
-		t.Fatalf("load assets: %v", err)
-	}
-	balance, err := assetgen.LoadBalance("../../assets")
-	if err != nil {
-		t.Fatalf("load balance: %v", err)
-	}
-	session, err := NewSession("privacy-orders", []engine.PlayerInit{{Name: "One"}, {Name: "Two"}}, balance, assets)
-	if err != nil {
-		t.Fatalf("NewSession: %v", err)
-	}
-	session.mu.RLock()
-	noble := session.game.Nobles[0]
-	location := noble.LocationID
-	session.mu.RUnlock()
+func TestDevGamesAPITracksPrivateChainProjection(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewDevGamesHandler(gameStore, rules, "P1")
+	game := createGameHTTP(t, handler, "P1", `{"name":"Privacy","seed":"privacy-orders","players":["One","Two"]}`)
+	base := "/api/games/" + string(game.ID)
 
-	submit := func(player, query, body string) *httptest.ResponseRecorder {
-		recorder := httptest.NewRecorder()
-		session.OrdersHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/orders?player="+query, strings.NewReader(body)))
-		return recorder
+	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, game.ID)
+	if err != nil {
+		t.Fatalf("load game state: %v", err)
 	}
-	chainText := string(noble.Code) + "\n(H " + string(location) + ")"
-	encodedChainText := strings.ReplaceAll(chainText, "\n", `\n`)
-	first := submit("P1", "P1", `{"player":"P1","chains":[{"player":"P1","noble":"`+string(noble.Code)+`","text":"`+encodedChainText+`"}],"winter":[]}`)
+	noble := snapshot.State.Nobles[0]
+	chainText := strings.ReplaceAll(noble.Code+"\n(H "+string(noble.LocationID)+")", "\n", `\n`)
+	first := requestGames(t, handler, http.MethodPost, base+"/orders?player=P1",
+		`{"chains":[{"noble":"`+noble.Code+`","text":"`+chainText+`"}],"winter":[]}`)
 	if first.Code != http.StatusOK {
 		t.Fatalf("P1 orders = %d: %s", first.Code, first.Body.String())
 	}
-	second := submit("P2", "P2", `{"player":"P2","chains":[],"winter":[]}`)
+	second := requestGames(t, handler, http.MethodPost, base+"/orders?player=P2", `{"chains":[],"winter":[]}`)
 	if second.Code != http.StatusOK {
 		t.Fatalf("P2 orders = %d: %s", second.Code, second.Body.String())
 	}
 
-	var p2 struct {
-		State StateView `json:"state"`
-	}
-	if err := json.Unmarshal(second.Body.Bytes(), &p2); err != nil {
-		t.Fatalf("decode P2 response: %v", err)
-	}
-	var p2Chain *ChainView
-	for _, territory := range p2.State.Territories {
-		if territory.Army != nil && territory.Army.Owner == "P1" {
-			p2Chain = territory.Army.Chain
-			break
+	chainFor := func(viewer string) *ChainView {
+		t.Helper()
+		response := requestGames(t, handler, http.MethodGet, base+"/state?player="+viewer, "")
+		if response.Code != http.StatusOK {
+			t.Fatalf("GET %s state = %d: %s", viewer, response.Code, response.Body.String())
 		}
-	}
-	if p2Chain == nil || p2Chain.Visibility != "hidden" {
-		t.Fatalf("P2 chain = %#v, want hidden", p2Chain)
-	}
-
-	p1State := httptest.NewRecorder()
-	session.StateHTTP(p1State, httptest.NewRequest(http.MethodGet, "/api/state?player=P1", nil))
-	if p1State.Code != http.StatusOK {
-		t.Fatalf("GET P1 state = %d: %s", p1State.Code, p1State.Body.String())
-	}
-	var p1 StateView
-	if err := json.Unmarshal(p1State.Body.Bytes(), &p1); err != nil {
-		t.Fatalf("decode P1 state: %v", err)
-	}
-	for _, territory := range p1.Territories {
-		if territory.Army != nil && territory.Army.Owner == "P1" {
-			if territory.Army.Chain == nil || territory.Army.Chain.Visibility != "known" {
-				t.Fatalf("P1 chain = %#v, want known", territory.Army.Chain)
+		var view StateView
+		if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
+			t.Fatalf("decode %s state: %v", viewer, err)
+		}
+		for _, territory := range view.Territories {
+			if territory.Army != nil && territory.Army.Owner == "P1" {
+				return territory.Army.Chain
 			}
-			return
 		}
+		t.Fatalf("%s state has no P1 army", viewer)
+		return nil
 	}
-	t.Fatal("P1 army not found in private state")
+	if chain := chainFor("P1"); chain == nil || chain.Visibility != "known" {
+		t.Fatalf("P1 chain = %#v, want known", chain)
+	}
+	if chain := chainFor("P2"); chain == nil || chain.Visibility != "hidden" {
+		t.Fatalf("P2 chain = %#v, want hidden", chain)
+	}
 }
 
 func clonePrivacyTestState(t *testing.T, source *models.GameState) *models.GameState {
@@ -379,4 +400,252 @@ func firstArmyChainObject(t *testing.T, document map[string]any) map[string]any 
 	}
 	t.Fatal("document contains no army chain object")
 	return nil
+}
+
+func TestCombatParticipationSkipsNeutralOwner(t *testing.T) {
+	before := &models.GameState{
+		Turn:    1,
+		Season:  models.SeasonSpring,
+		Players: []models.Player{{ID: "P1", Name: "One"}},
+		Territories: []models.Territory{
+			{ID: "AAA", Name: "AAA", Terrain: models.TerrainPlain},
+			{ID: "BBB", Name: "BBB", Terrain: models.TerrainPlain},
+		},
+		Armies: []models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 3},
+			{ID: "A9", OwnerID: models.NeutralPlayerID, TerritoryID: "AAA", Size: 2},
+		},
+	}
+	after := &models.GameState{Armies: append([]models.Army(nil), before.Armies...)}
+	privacy := ensurePrivacy(after)
+	trackCombatParticipation(before, after, []engine.CombatReport{{
+		Territory: "AAA",
+		Contenders: []engine.CombatContender{
+			{ArmyID: "A9", OwnerID: models.NeutralPlayerID, Force: 2},
+			{ArmyID: "A1", OwnerID: "P1", Force: 3, Defender: true},
+		},
+	}}, privacy)
+
+	if _, exists := privacy.CombatParticipation[models.NeutralPlayerID]; exists {
+		t.Error("neutral ownership was recorded as a combat participant")
+	}
+	if !privacy.CombatParticipation["P1"]["combat-AAA"] {
+		t.Error("the defender was not marked as a combat participant")
+	}
+	after.Privacy = privacy
+	after.Turn = before.Turn
+	after.Season = before.Season
+	after.Players = before.Players
+	after.Territories = before.Territories
+	after.NextChainID = 1
+	after.NextArmyID = 10
+	armyID := models.ArmyID("A1")
+	neutralID := models.ArmyID("A9")
+	after.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
+		"AAA": {Army: &neutralID},
+		"BBB": {Army: &armyID},
+	}
+	if err := after.Validate(); err != nil {
+		t.Fatalf("state with revolt combat participation = %v, want a valid state", err)
+	}
+}
+
+func TestTunnelEscapeIsKnownOnlyToItsPlayerAndTheHolder(t *testing.T) {
+	report := engine.TurnReport{SeasonEffects: []engine.SeasonEffectReport{
+		{Kind: engine.EventTypeTunnel, CardKind: models.CardKindTunnel, Reason: engine.TunnelEscapeReason, Owner: "P1", Holder: "P2", Noble: "ONE"},
+		{Kind: engine.EventTypeTunnel, CardKind: models.CardKindTunnel, Reason: engine.TunnelBypassReason, Owner: "P1", Territory: "AAA", Target: "BBB"},
+	}}
+	want := map[models.PlayerID]int{"P1": 2, "P2": 2, "P3": 1, models.SpectatorViewer: 2}
+	for viewer, count := range want {
+		if got := len(ProjectReport(report, viewer, nil).SeasonEffects); got != count {
+			t.Errorf("viewer %q sees %d season effects, want %d", viewer, got, count)
+		}
+	}
+	for _, effect := range ProjectReport(report, "P3", nil).SeasonEffects {
+		if effect.Reason == "tunnel_escape" {
+			t.Fatalf("P3 sees the escape: %#v", effect)
+		}
+	}
+}
+
+func TestAssassinationNamesNoCulpritAndShowsTheCommissionerToTheAuthorOnly(t *testing.T) {
+	report := engine.TurnReport{
+		SeasonEffects: []engine.SeasonEffectReport{{
+			Kind: engine.EventTypeAssassination, CardKind: models.CardKindAssassination, Reason: engine.AssassinationReason,
+			Owner: "P1", VictimOwner: "P2", Noble: "TWO", Commissioner: "ONE", CommissionerName: "One",
+		}},
+		Cards: []engine.CardReport{
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindAssassination, Player: "P1"},
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindTunnel, Player: "P1"},
+		},
+	}
+	want := map[models.PlayerID]struct {
+		owner        models.PlayerID
+		commissioner models.NobleCode
+		cards        int
+	}{
+		"P1":                   {"P1", "ONE", 2},
+		"P2":                   {"", "", 0},
+		"P3":                   {"", "", 0},
+		models.SpectatorViewer: {"P1", "ONE", 2},
+	}
+	for viewer, expected := range want {
+		view := ProjectReport(report, viewer, nil)
+		if len(view.SeasonEffects) != 1 {
+			t.Fatalf("viewer %q sees %d season effects, want the public death", viewer, len(view.SeasonEffects))
+		}
+		effect := view.SeasonEffects[0]
+		if effect.Noble != "TWO" || effect.Owner != expected.owner || effect.Commissioner != expected.commissioner ||
+			(expected.commissioner == "" && effect.CommissionerName != "") {
+			t.Errorf("viewer %q sees %#v, want owner %q and commissioner %q", viewer, effect, expected.owner, expected.commissioner)
+		}
+		if len(view.Cards) != expected.cards {
+			t.Errorf("viewer %q sees %d cards, want %d", viewer, len(view.Cards), expected.cards)
+		}
+	}
+}
+
+func TestStateLinksTheCommissionerOnlyForThoseWhoKnowIt(t *testing.T) {
+	state := models.NewGameState()
+	state.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}, {ID: "P3", Name: "Three"}, {ID: "P4", Name: "Four"}}
+	state.Nobles = []models.Noble{
+		{ID: "N1", Code: "ONE", OwnerID: "P1", Sex: models.SexMale, Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = []models.RemovedNoble{{
+		ID: "N2", Code: "TWO", OwnerID: "P2", Sex: models.SexMale, Cause: models.DeathCauseAssassination,
+		Commissioner: "N1", Author: "P1",
+	}}
+	// P3 inquired on the commissioner; P4 inquired on nobody.
+	state.RecordInquiry("P3", "N1")
+	known := map[models.PlayerID]bool{"P1": true, "P2": false, "P3": true, "P4": false, models.SpectatorViewer: true}
+	for viewer, want := range known {
+		view := ProjectStateForPlayer(state, viewer, assetgen.Balance{})
+		if got := view.Deceased[0].Commissioner != nil; got != want {
+			t.Errorf("viewer %q sees the commissioner = %v, want %v", viewer, got, want)
+		}
+		if want && (*view.Deceased[0].Commissioner != "ONE" || len(view.Nobles[0].Commissioned) != 1 || view.Nobles[0].Commissioned[0] != "TWO") {
+			t.Errorf("viewer %q sees %#v / %#v, want ONE <-> TWO", viewer, view.Deceased[0], view.Nobles[0])
+		}
+		if !want && len(view.Nobles[0].Commissioned) != 0 {
+			t.Errorf("viewer %q sees victims %v of ONE", viewer, view.Nobles[0].Commissioned)
+		}
+	}
+	if view := ProjectState(state, assetgen.Balance{}); view.Deceased[0].Commissioner != nil || len(view.Nobles[0].Commissioned) != 0 {
+		t.Errorf("the public projection reveals the commissioner: %#v", view)
+	}
+}
+
+func TestAssassinationRevealedByAnInquiryIsReadByTheInquirerOnly(t *testing.T) {
+	report := engine.TurnReport{SeasonEffects: []engine.SeasonEffectReport{{
+		Kind: engine.EventTypeAssassinationRevealed, Owner: "P3", Noble: "TWO", Commissioner: "ONE", CommissionerName: "One",
+	}}}
+	want := map[models.PlayerID]int{"P1": 0, "P2": 0, "P3": 1, "": 0, models.SpectatorViewer: 1}
+	for viewer, count := range want {
+		if got := len(ProjectReport(report, viewer, nil).SeasonEffects); got != count {
+			t.Errorf("viewer %q sees %d revelations, want %d", viewer, got, count)
+		}
+	}
+}
+
+func TestWinterAssassinationCardIsHiddenFromOtherPlayers(t *testing.T) {
+	report := engine.TurnReport{Winter: &engine.WinterReport{Cards: []engine.CardReport{
+		{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindAssassination, Player: "P1"},
+	}}}
+	want := map[models.PlayerID]int{"P1": 1, "P2": 0, "": 0, models.SpectatorViewer: 1}
+	for viewer, count := range want {
+		if got := len(ProjectReport(report, viewer, nil).Winter.Cards); got != count {
+			t.Errorf("viewer %q sees %d winter cards, want %d", viewer, got, count)
+		}
+	}
+}
+
+func TestRejectedWinterOrdersOfOthersLoseTheirPrivateTargets(t *testing.T) {
+	report := engine.TurnReport{Winter: &engine.WinterReport{Investments: []engine.WinterInvestmentReport{{
+		Kind: engine.EventTypeRejected, Player: "P1", Outcome: engine.OutcomeFailure, Reason: "card_not_in_hand",
+		Noble: "N1", NobleCode: "ONE", NobleName: "One", Dignity: models.DignityBastard,
+		Order: &models.WinterOrder{Type: models.WinterOrderTypeDignity, CardCode: "BAS"},
+	}}}}
+	own := ProjectReport(report, "P1", nil).Winter.Investments[0]
+	if own.Order == nil || own.NobleCode != "ONE" {
+		t.Fatalf("the author lost her rejection details: %#v", own)
+	}
+	for _, viewer := range []models.PlayerID{"P2", ""} {
+		got := ProjectReport(report, viewer, nil).Winter.Investments
+		if len(got) != 1 || got[0].Reason != "card_not_in_hand" || got[0].Order != nil || got[0].NobleCode != "" || got[0].Dignity != "" {
+			t.Errorf("viewer %q sees %#v, want only the bare rejection", viewer, got)
+		}
+	}
+	if spectator := ProjectReport(report, models.SpectatorViewer, nil).Winter.Investments[0]; spectator.Order == nil {
+		t.Errorf("the spectator must see the whole rejection")
+	}
+}
+
+func TestAssassinationCardEntryNamesVictimAndCommissionerToItsAuthor(t *testing.T) {
+	report := engine.TurnReport{Cards: []engine.CardReport{{
+		EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindAssassination, Player: "P1",
+		Noble: "TWO", NobleName: "Two", Commissioner: "ONE", CommissionerName: "One",
+	}}}
+	cards := ProjectReport(report, "P1", nil).Cards
+	if len(cards) != 1 || cards[0].Noble != "TWO" || cards[0].Commissioner != "ONE" {
+		t.Fatalf("author sees %#v", cards)
+	}
+	if got := ProjectReport(report, "P2", nil).Cards; len(got) != 0 {
+		t.Fatalf("P2 sees %#v", got)
+	}
+}
+
+func TestJusticeExecutionIsPublicAndNamesItsPlayer(t *testing.T) {
+	report := engine.TurnReport{
+		SeasonEffects: []engine.SeasonEffectReport{{
+			Kind: engine.EventTypeJustice, CardKind: models.CardKindJustice, Reason: engine.JusticeExecutedReason,
+			Owner: "P1", VictimOwner: "P2", Noble: "TWO", NobleName: "Two",
+		}},
+		Cards: []engine.CardReport{
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindJustice, Player: "P1", Noble: "TWO"},
+		},
+	}
+	want := map[models.PlayerID]int{"P1": 1, "P2": 0, "P3": 0, models.SpectatorViewer: 1}
+	for viewer, cards := range want {
+		view := ProjectReport(report, viewer, nil)
+		if len(view.SeasonEffects) != 1 || view.SeasonEffects[0].Owner != "P1" || view.SeasonEffects[0].Noble != "TWO" {
+			t.Errorf("viewer %q sees %#v, want the execution naming P1 and TWO", viewer, view.SeasonEffects)
+		}
+		if len(view.Cards) != cards {
+			t.Errorf("viewer %q sees %d card plays, want %d", viewer, len(view.Cards), cards)
+		}
+	}
+}
+
+func TestJusticeWithoutEffectIsToldToItsPlayerAlone(t *testing.T) {
+	report := engine.TurnReport{
+		SeasonEffects: []engine.SeasonEffectReport{{
+			Kind: engine.EventTypeJustice, CardKind: models.CardKindJustice, Reason: engine.JusticeNoEffectReason,
+			Owner: "P1", VictimOwner: "P2", Noble: "TWO", NobleName: "Two",
+		}},
+		Winter: &engine.WinterReport{Cards: []engine.CardReport{
+			{EventType: engine.EventTypeDeckOrderPlayed, Kind: models.CardKindJustice, Player: "P1", Noble: "TWO"},
+		}},
+	}
+	want := map[models.PlayerID]int{"P1": 1, "P2": 0, "P3": 0, models.SpectatorViewer: 1}
+	for viewer, count := range want {
+		view := ProjectReport(report, viewer, nil)
+		if len(view.SeasonEffects) != count {
+			t.Errorf("viewer %q sees %d failed justices, want %d", viewer, len(view.SeasonEffects), count)
+		}
+		if view.Winter == nil || len(view.Winter.Cards) != count {
+			t.Errorf("viewer %q sees the winter cards %#v, want %d", viewer, view.Winter, count)
+		}
+	}
+}
+
+func TestRejectedCardPlaysOfOthersLoseTheirReason(t *testing.T) {
+	report := engine.TurnReport{Winter: &engine.WinterReport{Investments: []engine.WinterInvestmentReport{{
+		Kind: engine.EventTypeRejected, Player: "P1", Outcome: engine.OutcomeFailure, Reason: engine.JusticeKingReason,
+	}}}}
+	if own := ProjectReport(report, "P1", nil).Winter.Investments[0]; own.Reason != engine.JusticeKingReason {
+		t.Fatalf("the author sees %#v", own)
+	}
+	if other := ProjectReport(report, "P2", nil).Winter.Investments; len(other) != 1 || other[0].Reason != "" {
+		t.Fatalf("P2 sees %#v, want the bare rejection", other)
+	}
 }

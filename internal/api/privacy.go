@@ -3,8 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
+	"slices"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
@@ -119,6 +118,7 @@ func recordChainKnowledge(before, after *models.GameState, chain models.Chain, p
 		deleteChainSnapshot(privacy, army.OwnerID, *previousChainID)
 	}
 	putChainSnapshot(privacy, noble.OwnerID, snapshot)
+	recordDignityKnowledge(before, privacy, chain, noble, snapshot)
 
 	if noble.Status != models.NobleStatusHostage {
 		return
@@ -284,6 +284,11 @@ func trackCombatParticipation(before, after *models.GameState, combats []engine.
 			}
 		}
 		for playerID := range participants {
+			if playerID == models.NeutralPlayerID {
+				// Rebel armies fight without an audience: neutral ownership is
+				// not a player and would fail the state validation.
+				continue
+			}
 			if privacy.CombatParticipation[playerID] == nil {
 				privacy.CombatParticipation[playerID] = make(map[string]bool)
 			}
@@ -308,9 +313,8 @@ func territoryOwner(before, after *models.GameState, territoryID models.Territor
 		if state == nil {
 			continue
 		}
-		territoryState, exists := state.TerritoryStates[territoryID]
-		if exists && territoryState.OwnerID != nil {
-			return *territoryState.OwnerID
+		if controller, controlled := state.TerritoryController(territoryID); controlled {
+			return controller
 		}
 	}
 	return ""
@@ -355,34 +359,29 @@ func armyAtTerritory(state *models.GameState, territoryID models.TerritoryID) *m
 	return &army
 }
 
-func requestedViewer(r *http.Request) (models.PlayerID, bool, error) {
-	values, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		return "", false, err
-	}
-	players, exists := values["player"]
-	if !exists {
-		return "", false, nil
-	}
-	if len(players) != 1 || players[0] == "" {
-		return "", false, fmt.Errorf("player must be provided exactly once")
-	}
-	return models.PlayerID(players[0]), true, nil
-}
-
 // TurnReportView is the player-filtered JSON form of a turn report. Combat
 // details and order details from unknown chains are redacted server-side.
 type TurnReportView struct {
-	Header     engine.ReportHeader      `json:"header"`
-	Players    []engine.PlayerReport    `json:"players"`
-	Receptions []engine.ReceptionReport `json:"receptions"`
-	Supply     []engine.SupplyReport    `json:"supply"`
-	Famines    []engine.FamineReport    `json:"famines"`
-	Combats    []CombatView             `json:"combats"`
-	Orders     []OrderReportView        `json:"orders"`
-	Moves      []engine.MoveReport      `json:"moves"`
-	Nobles     []engine.NobleReport     `json:"nobles"`
-	Winter     *engine.WinterReport     `json:"winter,omitempty"`
+	Header        engine.ReportHeader         `json:"header"`
+	Players       []engine.PlayerReport       `json:"players"`
+	Receptions    []engine.ReceptionReport    `json:"receptions"`
+	Production    []engine.ProductionReport   `json:"production"`
+	Income        []engine.IncomeReport       `json:"income"`
+	Mills         []engine.MillReport         `json:"mills"`
+	Consumption   []engine.ConsumptionReport  `json:"consumption"`
+	Combats       []CombatView                `json:"combats"`
+	Orders        []OrderReportView           `json:"orders"`
+	Moves         []engine.MoveReport         `json:"moves"`
+	Nobles        []engine.NobleReport        `json:"nobles"`
+	SeasonEffects []engine.SeasonEffectReport `json:"seasonEffects"`
+	Rumors        []engine.RumorReport        `json:"rumors"`
+	Cards         []engine.CardReport         `json:"cards"`
+	Announcements []engine.AnnouncementReport `json:"announcements"`
+	Augury        *engine.AuguryReport        `json:"augury,omitempty"`
+	Winter        *engine.WinterReport        `json:"winter,omitempty"`
+	Fiefs         []engine.FiefReport         `json:"fiefs"`
+	Marriages     []engine.MarriageReport     `json:"marriages"`
+	Elections     []engine.ElectionResult     `json:"elections"`
 }
 
 // OrderReportView keeps order outcomes useful to spectators without returning
@@ -394,6 +393,7 @@ type OrderReportView struct {
 	Order            models.OrderID
 	Owner            models.PlayerID
 	Noble            models.NobleCode
+	NobleName        string
 	Type             models.OrderType
 	Source           models.TerritoryID
 	Target           models.TerritoryID
@@ -422,6 +422,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Order            models.OrderID                            `json:"order"`
 		Owner            models.PlayerID                           `json:"owner"`
 		Noble            models.NobleCode                          `json:"noble"`
+		NobleName        string                                    `json:"nobleName,omitempty"`
 		Type             models.OrderType                          `json:"type"`
 		Source           models.TerritoryID                        `json:"source"`
 		Target           models.TerritoryID                        `json:"target,omitempty"`
@@ -441,6 +442,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Order:            view.Order,
 		Owner:            view.Owner,
 		Noble:            view.Noble,
+		NobleName:        view.NobleName,
 		Type:             view.Type,
 		Source:           view.Source,
 		Target:           view.Target,
@@ -520,17 +522,28 @@ func (view CombatView) MarshalJSON() ([]byte, error) {
 
 func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *models.PrivacyMeta) TurnReportView {
 	view := TurnReportView{
-		Header:     report.Header,
-		Players:    append([]engine.PlayerReport{}, report.Players...),
-		Receptions: append([]engine.ReceptionReport{}, report.Receptions...),
-		Supply:     append([]engine.SupplyReport{}, report.Supply...),
-		Famines:    append([]engine.FamineReport{}, report.Famines...),
-		Combats:    make([]CombatView, 0, len(report.Combats)),
-		Orders:     make([]OrderReportView, 0, len(report.Orders)),
-		Moves:      append([]engine.MoveReport{}, report.Moves...),
-		Nobles:     append([]engine.NobleReport{}, report.Nobles...),
-		Winter:     report.Winter,
+		Header:        report.Header,
+		Players:       append([]engine.PlayerReport{}, report.Players...),
+		Receptions:    append([]engine.ReceptionReport{}, report.Receptions...),
+		Production:    append([]engine.ProductionReport{}, report.Production...),
+		Income:        append([]engine.IncomeReport{}, report.Income...),
+		Mills:         append([]engine.MillReport{}, report.Mills...),
+		Consumption:   append([]engine.ConsumptionReport{}, report.Consumption...),
+		Combats:       make([]CombatView, 0, len(report.Combats)),
+		Orders:        make([]OrderReportView, 0, len(report.Orders)),
+		Moves:         append([]engine.MoveReport{}, report.Moves...),
+		Nobles:        append([]engine.NobleReport{}, report.Nobles...),
+		SeasonEffects: visibleSeasonEffects(report.SeasonEffects, viewer),
+		Rumors:        append([]engine.RumorReport{}, report.Rumors...),
+		Cards:         visibleCards(report.Cards, viewer),
+		Announcements: append([]engine.AnnouncementReport{}, report.Announcements...),
+		Augury:        report.Augury,
+		Winter:        report.Winter,
+		Fiefs:         append([]engine.FiefReport{}, report.Fiefs...),
+		Marriages:     append([]engine.MarriageReport{}, report.Marriages...),
+		Elections:     append([]engine.ElectionResult{}, report.Elections...),
 	}
+	view.Winter = redactHiddenDignities(report.Winter, viewer)
 	for _, order := range report.Orders {
 		if viewer == models.SpectatorViewer || privacy != nil && viewerKnowsChainSnapshot(privacy, viewer, order.Chain) {
 			view.Orders = append(view.Orders, knownOrderReport(order))
@@ -595,6 +608,7 @@ func knownOrderReport(order engine.OrderReport) OrderReportView {
 		Order:            order.Order,
 		Owner:            order.Owner,
 		Noble:            order.Noble,
+		NobleName:        order.NobleName,
 		Type:             order.Type,
 		Source:           order.Source,
 		Target:           order.Target,
@@ -629,4 +643,224 @@ func generalCombatSummary(combat engine.CombatReport) (string, string) {
 		return "attack_wins", "An attack overcame the defense."
 	}
 	return "defense_holds", "The defense held."
+}
+
+// redactHiddenDignities drops from the winter report the nominations of
+// hidden dignities that the viewer did not play: the other players only see a
+// lady, never her dignity (specs/dames.md § Dignités cachées).
+func redactHiddenDignities(winter *engine.WinterReport, viewer models.PlayerID) *engine.WinterReport {
+	if winter == nil || viewer == models.SpectatorViewer {
+		return winter
+	}
+	redacted := *winter
+	redacted.Investments = make([]engine.WinterInvestmentReport, 0, len(winter.Investments))
+	for _, investment := range winter.Investments {
+		if investment.Player != viewer && (revealsHiddenDignity(investment) || isPrivateBallot(investment)) {
+			continue
+		}
+		if investment.Player != viewer && investment.Kind == engine.EventTypeRejected {
+			if investment.Order == nil {
+				// A rejected card play carries no winter order: its reason
+				// names the card, which is private to its player.
+				investment.Reason = ""
+			}
+			investment = stripRejectedOrder(investment)
+		}
+		redacted.Investments = append(redacted.Investments, investment)
+	}
+	// A winter-sheet assassination card stays as private as the action one.
+	redacted.Cards = visibleCards(winter.Cards, viewer)
+	return &redacted
+}
+
+// stripRejectedOrder keeps from another player's rejected winter order only
+// the fact and, for a winter order, the reason: the order, the noble, the dignity and the claim
+// target would give away a card of a private hand.
+func stripRejectedOrder(investment engine.WinterInvestmentReport) engine.WinterInvestmentReport {
+	investment.Order = nil
+	investment.Noble, investment.NobleCode, investment.NobleName = "", "", ""
+	investment.Dignity, investment.ClaimTarget, investment.ClaimTargetName = "", "", ""
+	return investment
+}
+
+// recordDignityKnowledge gives the owners of the information dignities the
+// chains they reveal (specs/dames.md § Dignités): the castellan knows the
+// orders given on her fief, the abbess those started in her region, the
+// correspondent those of the player holding her hostage. Only a chain emitted
+// this turn is seen: an army entering from outside without changing its chain
+// stays hidden from the castellan.
+func recordDignityKnowledge(before *models.GameState, privacy *models.PrivacyMeta, chain models.Chain, emitter models.Noble, snapshot models.ChainSnapshot) {
+	for _, lady := range before.Nobles {
+		if len(lady.Dignities) == 0 {
+			continue
+		}
+		var viewers []models.PlayerID
+		holder := hostHolder(before, lady)
+		if lady.SeesFiefOrders() && inCastle(before, lady.LocationID) {
+			if fief := fiefOf(before, lady.LocationID); fief != nil && chainTouches(chain, fief.Territories) {
+				viewers = append(viewers, lady.OwnerID)
+				if holder != "" {
+					viewers = append(viewers, holder)
+				}
+			}
+		}
+		if lady.SeesAbbeyOrders() && lady.AbbeyRegion != "" {
+			territories := regionTerritories(before, lady.AbbeyRegion)
+			if slices.Contains(territories, lady.LocationID) && len(chain.Orders) > 0 && slices.Contains(territories, chain.Orders[0].PositionID) {
+				viewers = append(viewers, lady.OwnerID)
+			}
+		}
+		if lady.SeesHostOrders() && holder != "" && emitter.OwnerID == holder {
+			viewers = append(viewers, lady.OwnerID)
+		}
+		for _, viewer := range viewers {
+			putChainSnapshot(privacy, viewer, snapshot)
+		}
+	}
+}
+
+// hostHolder is the owner of the army that holds the hostage noble, or "".
+func hostHolder(state *models.GameState, noble models.Noble) models.PlayerID {
+	if noble.Status != models.NobleStatusHostage {
+		return ""
+	}
+	if army := armyAtTerritory(state, noble.LocationID); army != nil && army.OwnerID != noble.OwnerID {
+		return army.OwnerID
+	}
+	return ""
+}
+
+func inCastle(state *models.GameState, territoryID models.TerritoryID) bool {
+	for _, infrastructure := range state.Infrastructures {
+		if infrastructure.TerritoryID == territoryID && infrastructure.IsLiveCastle() {
+			return true
+		}
+	}
+	return false
+}
+
+func fiefOf(state *models.GameState, territoryID models.TerritoryID) *models.Fief {
+	for index := range state.Fiefs {
+		if slices.Contains(state.Fiefs[index].Territories, territoryID) {
+			return &state.Fiefs[index]
+		}
+	}
+	return nil
+}
+
+func regionTerritories(state *models.GameState, seed models.TerritoryID) []models.TerritoryID {
+	for _, region := range state.Regions {
+		if region.Seed == seed {
+			return region.Territories
+		}
+	}
+	return nil
+}
+
+// chainTouches reports whether an order of the chain stands on or targets one
+// of the territories.
+func chainTouches(chain models.Chain, territories []models.TerritoryID) bool {
+	for _, order := range chain.Orders {
+		if slices.Contains(territories, order.PositionID) {
+			return true
+		}
+		for _, target := range order.TargetIDs {
+			if slices.Contains(territories, target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// revealsHiddenDignity tells the winter entries that would give away a hidden
+// dignity: its nomination, or the rejection of the order that played its card.
+// isPrivateBallot reports whether the investment is a rejected vote or an
+// inquiry: the order it carries names the candidate its author backed, and
+// ballots stay private (specs/religieux.md § Votes); an inquiry names the
+// noble investigated, which only its author may know.
+func isPrivateBallot(investment engine.WinterInvestmentReport) bool {
+	if investment.Kind == engine.EventTypeRitual || investment.Kind == engine.EventTypeInquiry || investment.Kind == engine.EventTypeTrialFiled {
+		return true
+	}
+	return investment.Order != nil && (investment.Order.Type == models.WinterOrderTypeVote || investment.Order.Type == models.WinterOrderTypeRitual || investment.Order.Type == models.WinterOrderTypeInquiry || investment.Order.Type == models.WinterOrderTypeTrial)
+}
+
+func revealsHiddenDignity(investment engine.WinterInvestmentReport) bool {
+	if investment.Dignity != "" && investment.Dignity.Effect().Hidden {
+		return true
+	}
+	if investment.Order == nil || investment.Order.Type != models.WinterOrderTypeDignity {
+		return false
+	}
+	dignity, known := models.DignityForCardCode(investment.Order.CardCode)
+	return known && dignity.Effect().Hidden
+}
+
+// visibleSeasonEffects drops, for a viewer, the season effects that are private:
+// a tunnel escape is known only to the player who played the card and to the
+// holder of the freed noble (specs/ordres-speciaux.md § Souterrain). A justice
+// that executes is public, naming its player; one that fails is told to that
+// player alone (§ Justice). An assassination is public but names no culprit:
+// the player who played the card and the commissioner are revealed only to the
+// card's owner (§ Assassinat). Every other effect is public, except the
+// revelation of a commissioner by an inquiry, which only the inquirer reads
+// (§ Assassinat).
+func visibleSeasonEffects(effects []engine.SeasonEffectReport, viewer models.PlayerID) []engine.SeasonEffectReport {
+	visible := make([]engine.SeasonEffectReport, 0, len(effects))
+	for _, effect := range effects {
+		if effect.Kind == engine.EventTypeTunnel && effect.Reason == engine.TunnelEscapeReason &&
+			viewer != models.SpectatorViewer && viewer != effect.Owner && viewer != effect.Holder {
+			continue
+		}
+		if effect.Kind == engine.EventTypeAssassinationRevealed && viewer != models.SpectatorViewer && viewer != effect.Owner {
+			continue
+		}
+		if effect.Kind == engine.EventTypeAssassination {
+			effect = redactAssassination(effect, viewer)
+		}
+		if effect.Kind == engine.EventTypeJustice && effect.Reason == engine.JusticeNoEffectReason &&
+			viewer != models.SpectatorViewer && viewer != effect.Owner {
+			// A failed justice is told to its player alone; an execution is
+			// public, with the player who obtained it (§ Justice).
+			continue
+		}
+		visible = append(visible, effect)
+	}
+	return visible
+}
+
+// redactAssassination hides who ordered an assassination, and the commissioner,
+// from every viewer but the player who played the card and the spectator. The
+// owner of the victim, like everyone else, only learns the death; the players
+// who inquired are told by their own assassination_revealed event.
+func redactAssassination(effect engine.SeasonEffectReport, viewer models.PlayerID) engine.SeasonEffectReport {
+	switch {
+	case viewer == models.SpectatorViewer || viewer == effect.Owner:
+		return effect
+	}
+	effect.Owner, effect.Commissioner, effect.CommissionerName = "", "", ""
+	return effect
+}
+
+// privateCardPlay reports whether the play of a card of this kind is told to
+// its player alone: an assassination names no culprit, a justice that fails
+// stays secret (an execution is public through its season effect), a tunnel
+// escape or attack is no nominative rumor (specs/ordres-speciaux.md).
+func privateCardPlay(kind models.CardKind) bool {
+	return kind == models.CardKindAssassination || kind == models.CardKindJustice || kind == models.CardKindTunnel
+}
+
+// visibleCards drops, for a viewer, the play of an assassination, justice or
+// tunnel card by another player: the report must name no culprit and keep the
+// failures secret.
+func visibleCards(cards []engine.CardReport, viewer models.PlayerID) []engine.CardReport {
+	visible := make([]engine.CardReport, 0, len(cards))
+	for _, card := range cards {
+		if privateCardPlay(card.Kind) && card.EventType == engine.EventTypeDeckOrderPlayed && viewer != models.SpectatorViewer && viewer != card.Player {
+			continue
+		}
+		visible = append(visible, card)
+	}
+	return visible
 }

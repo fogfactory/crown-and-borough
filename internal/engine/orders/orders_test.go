@@ -106,6 +106,50 @@ func TestParseTransferRejectsInvalidAmounts(t *testing.T) {
 	}
 }
 
+func TestParseWinterOrdersWithDeckDiscards(t *testing.T) {
+	game := orderTestState()
+	winter, deck, parseErrors := ParseWinterOrdersWithDeckOrders("R T ROS\nD C BT # discard", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrdersWithDeckOrders errors = %#v", parseErrors)
+	}
+	if len(winter) != 1 || winter[0].Type != models.WinterOrderTypeRecruitTroop {
+		t.Fatalf("winter orders = %#v, want one troop recruitment", winter)
+	}
+	if len(deck) != 1 || deck[0].Type != models.DeckOrderTypeDiscard || deck[0].Kind != models.CardKindFairWeather {
+		t.Fatalf("deck orders = %#v, want one fair-weather discard", deck)
+	}
+}
+
+func TestParseWinterDiscardSplitsSpecialAndNobleCards(t *testing.T) {
+	game := orderTestState()
+	winter, deck, parseErrors := ParseWinterOrdersWithDeckOrders("D C BT\nD C ele\nD C BAS\nD C TX", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrdersWithDeckOrders errors = %#v", parseErrors)
+	}
+	if len(deck) != 2 || deck[0].Kind != models.CardKindFairWeather || deck[1].Kind != models.CardKindSeigneurialTax {
+		t.Errorf("deck orders = %#v, want the two-letter kinds as special discards", deck)
+	}
+	want := []models.WinterOrder{
+		{ID: "O2", Type: models.WinterOrderTypeDiscardNoble, CardCode: "ELE"},
+		{ID: "O3", Type: models.WinterOrderTypeDiscardNoble, CardCode: "BAS"},
+	}
+	if !reflect.DeepEqual(winter, want) {
+		t.Errorf("winter orders = %#v, want %#v", winter, want)
+	}
+	lines := ParseWinterSheetLines("D C ELE\nD C BT", game)
+	if lines[0].Winter == nil || lines[0].Deck != nil || lines[1].Deck == nil || lines[1].Winter != nil {
+		t.Errorf("sheet lines = %#v, want the trigram as a winter order and BT as a deck order", lines)
+	}
+	for _, line := range []string{"D C", "D C ELE BAS", "D C E1E", "D C ZZ"} {
+		if _, _, parseErrors := ParseWinterOrdersWithDeckOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrdersWithDeckOrders(%q) accepted a malformed discard", line)
+		}
+	}
+	if _, parseErrors := ParseWinterOrders("D C", game); len(parseErrors) == 0 {
+		t.Error("ParseWinterOrders accepted a bare D C")
+	}
+}
+
 func TestParseChainWildcardAssignmentsAndPartialResults(t *testing.T) {
 	game := orderTestState()
 	chain, parseErrors := ParseChain(`
@@ -333,7 +377,6 @@ func TestAssignChainReceptionFailuresAreAtomic(t *testing.T) {
 		{"no army at first position", nil, "JEA\nBRU A BOI", ErrNoArmyOnPosition},
 		{"foreign army at first position", nil, "JEA\nBOI A ROS", ErrArmyNotOwned},
 		{"dungeon emitter", func(game *models.GameState) { game.Nobles[0].Status = models.NobleStatusDungeon }, "JEA\nROS A BOI", ErrNoblePrisoner},
-		{"static invalid chain", nil, "JEA\nROS J BOI\nH BOI", ErrInvalidChain},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			game := orderTestState()
@@ -366,43 +409,33 @@ func TestAssignChainAllowsHostageEmitter(t *testing.T) {
 	})
 }
 
-func TestAssignChainRejectsNonAdjacentDiagnostic(t *testing.T) {
+func TestValidateChainLocatesNonAdjacentOrders(t *testing.T) {
 	game := orderTestState()
-	text := "JEA\nROS A BOI\nBOI S ROS\nBOI A FOU"
-	chain := mustParseChain(t, game, text)
+	chain := mustParseChain(t, game, "JEA\nROS A BOI\nBOI S ROS\nBOI A FOU")
 	validationErrors := ValidateChain(game, chain)
-	if !hasValidationCode(validationErrors, "not_adjacent") {
-		t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
+	if len(validationErrors) != 1 || validationErrors[0].Code != "not_adjacent" || validationErrors[0].Line != 4 {
+		t.Fatalf("ValidateChain() = %#v, want one not_adjacent error on line 4", validationErrors)
 	}
-	before := marshalGame(t, game)
-	err := AssignChain(game, chain)
-	if err == nil {
-		t.Fatal("AssignChain() = nil, want non-adjacent chain rejection")
-	}
-	if !strings.Contains(err.Error(), "not adjacent") ||
-		!strings.Contains(err.Error(), `"FOU"`) ||
-		!strings.Contains(err.Error(), `"BOI"`) {
-		t.Fatalf("AssignChain() = %v, want an explicit adjacency message", err)
-	}
-	if after := marshalGame(t, game); !bytes.Equal(before, after) {
-		t.Fatalf("rejected chain mutated game:\n before=%s\n after=%s", before, after)
-	}
-	if len(game.Chains) != 0 {
-		t.Fatalf("stored chains = %#v, want none", game.Chains)
+	if message := validationErrors[0].Error(); !strings.Contains(message, `"FOU"`) || !strings.Contains(message, `"BOI"`) {
+		t.Fatalf("validation error = %q, want an explicit adjacency message", message)
 	}
 }
 
-func TestAssignChainRejectsNonAdjacentMixedWithBlockingErrors(t *testing.T) {
+func TestValidateChainReportsEveryStaticError(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		text   string
 		mutate func(*models.Chain)
-		want   error
+		want   string
 	}{
-		{"duplicate order id after non-adjacent order", "JEA\nROS A BOI\nBOI A FOU", func(chain *models.Chain) {
+		{"join not last", "JEA\nROS J BOI\nH BOI", nil, "join_not_last"},
+		{"duplicate order id", "JEA\nROS A BOI\nH BOI", func(chain *models.Chain) {
 			chain.Orders[1].ID = chain.Orders[0].ID
-		}, ErrInvalidChain},
-		{"join not last and not adjacent", "JEA\nROS J BRU\nH BRU", nil, ErrInvalidChain},
+		}, "duplicate_order_id"},
+		{"D assignments on attack", "JEA\nROS A BOI", func(chain *models.Chain) {
+			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}}
+		}, "unexpected_noble_assignments"},
+		{"transfer to its own position", "JEA\nROS T ROS 1", nil, "transfer_same_position"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			game := orderTestState()
@@ -410,13 +443,8 @@ func TestAssignChainRejectsNonAdjacentMixedWithBlockingErrors(t *testing.T) {
 			if test.mutate != nil {
 				test.mutate(&chain)
 			}
-			if validationErrors := ValidateChain(game, chain); !hasValidationCode(validationErrors, "not_adjacent") {
-				t.Fatalf("ValidateChain() = %#v, want a not_adjacent diagnostic", validationErrors)
-			}
-			before := marshalGame(t, game)
-			assertAssignmentCategory(t, AssignChain(game, chain), test.want)
-			if after := marshalGame(t, game); !bytes.Equal(before, after) {
-				t.Fatalf("rejected mixed chain mutated game:\n before=%s\n after=%s", before, after)
+			if validationErrors := ValidateChain(game, chain); !hasValidationCode(validationErrors, test.want) {
+				t.Fatalf("ValidateChain() = %#v, want %s", validationErrors, test.want)
 			}
 		})
 	}
@@ -463,9 +491,7 @@ func TestAssignChainRejectsPendingDisperseExecutor(t *testing.T) {
 	game.Armies = append(game.Armies, models.Army{ID: "A3", OwnerID: "P1", TerritoryID: "FOU", Size: 1})
 	state := game.TerritoryStates["FOU"]
 	armyID := models.ArmyID("A3")
-	ownerID := models.PlayerID("P1")
 	state.Army = &armyID
-	state.OwnerID = &ownerID
 	game.TerritoryStates["FOU"] = state
 	game.Armies[0].ChainID = &chainID
 	game.Chains = []models.Chain{{
@@ -509,35 +535,9 @@ func TestAssignChainFailurePreservesExistingChain(t *testing.T) {
 	game.Turn = 2
 	game.Season = models.SeasonForTurn(game.Turn)
 	before := marshalGame(t, game)
-	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nROS J BOI\nH BOI")), ErrInvalidChain)
+	assertAssignmentCategory(t, AssignChain(game, mustParseChain(t, game, "ANN\nBRU A BOI")), ErrNoArmyOnPosition)
 	if after := marshalGame(t, game); !bytes.Equal(before, after) {
 		t.Fatalf("failed replacement mutated existing chain:\n before=%s\n after=%s", before, after)
-	}
-}
-
-func TestAssignChainRejectsMalformedDirectChains(t *testing.T) {
-	for _, test := range []struct {
-		name   string
-		text   string
-		mutate func(*models.Chain)
-	}{
-		{"duplicate order id", "JEA\nROS A BOI\nH BOI", func(chain *models.Chain) {
-			chain.Orders[1].ID = chain.Orders[0].ID
-		}},
-		{"D assignments on attack", "JEA\nROS A BOI", func(chain *models.Chain) {
-			chain.Orders[0].NobleAssignments = map[models.TerritoryID][]models.NobleCode{"ROS": {"JEA"}}
-		}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			game := orderTestState()
-			chain := mustParseChain(t, game, test.text)
-			test.mutate(&chain)
-			before := marshalGame(t, game)
-			assertAssignmentCategory(t, AssignChain(game, chain), ErrInvalidChain)
-			if after := marshalGame(t, game); !bytes.Equal(before, after) {
-				t.Fatalf("malformed chain mutated game:\n before=%s\n after=%s", before, after)
-			}
-		})
 	}
 }
 
@@ -612,6 +612,10 @@ func jsonCloneChain(chain models.Chain) models.Chain {
 	if err := json.Unmarshal(data, &copy); err != nil {
 		panic(err)
 	}
+	// Source lines are not persisted but belong to a freshly parsed chain.
+	for index := range copy.Orders {
+		copy.Orders[index].Line = chain.Orders[index].Line
+	}
 	return copy
 }
 
@@ -640,20 +644,229 @@ func orderTestState() *models.GameState {
 	}
 	game.NextArmyID = 3
 	game.Nobles = []models.Noble{
-		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
-		{ID: "N2", Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
-		{ID: "N3", Code: "BOB", Name: "Bob", OwnerID: p2, LocationID: "ROS", Status: models.NobleStatusHostage},
-		{ID: "N4", Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
+		{ID: "N1", Sex: models.SexMale, Code: "JEA", Name: "Jean", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Sex: models.SexMale, Code: "ANN", Name: "Anne", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Sex: models.SexMale, Code: "BOB", Name: "Bob", OwnerID: p2, LocationID: "ROS", Status: models.NobleStatusHostage},
+		{ID: "N4", Sex: models.SexMale, Code: "CAL", Name: "Calixte", OwnerID: p2, LocationID: "BOI", Status: models.NobleStatusFree},
 	}
 	game.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &p1, Army: &a1, Infrastructures: []models.InfraID{}},
-		"BOI": {OwnerID: &p2, Army: &a2, Infrastructures: []models.InfraID{}},
-		"BRU": {Infrastructures: []models.InfraID{}},
-		"FOU": {Infrastructures: []models.InfraID{}},
-		"CHA": {Infrastructures: []models.InfraID{}},
+		"ROS": {Army: &a1},
+		"BOI": {Army: &a2},
+		"BRU": {},
+		"FOU": {},
+		"CHA": {},
 	}
 	if err := game.Validate(); err != nil {
 		panic(err)
 	}
 	return game
+}
+
+func TestParseMarriageWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("M N JEA CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	if len(orders) != 1 || orders[0].Type != models.WinterOrderTypeMarriage || orders[0].NobleCode != "JEA" || orders[0].SpouseCode != "CAL" {
+		t.Fatalf("orders = %#v, want one marriage JEA/CAL", orders)
+	}
+	for _, text := range []string{"M N JEA", "M N JEA CAL ROS", "M N JEA JEA", "M X JEA CAL", "M N JEA ZZZ"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed marriage", text)
+		}
+	}
+}
+
+func TestParseAnnexAndRankWinterOrders(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("T X JEA ROS BOI\nT R JEA ROS", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeAnnexTerritory, NobleCode: "JEA", TerritoryID: "ROS", TargetID: "BOI"},
+		{ID: "O2", Type: models.WinterOrderTypeChangeRank, NobleCode: "JEA", TerritoryID: "ROS"},
+	}
+	if !reflect.DeepEqual(orders, want) {
+		t.Errorf("orders = %#v, want %#v", orders, want)
+	}
+	for _, line := range []string{
+		"T X JEA ROS", "T X JEA ROS BOI FOU", "T X ZZZ ROS BOI", "T X JEA ZZZ BOI", "T X JEA ROS ZZZ",
+		"T R JEA", "T R JEA ROS BOI", "T R ZZZ ROS", "T R JEA ZZZ",
+	} {
+		if _, parseErrors := ParseWinterOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed order", line)
+		}
+	}
+}
+
+func TestParseRoyalWinterOrders(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("W X JEA ROS BOI\nW R JEA ROS\nW F JEA ROS\nW G JEA ROS CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeRoyalAnnex, NobleCode: "JEA", TerritoryID: "ROS", TargetID: "BOI"},
+		{ID: "O2", Type: models.WinterOrderTypeRoyalRank, NobleCode: "JEA", TerritoryID: "ROS"},
+		{ID: "O3", Type: models.WinterOrderTypeRoyalFound, NobleCode: "JEA", TerritoryID: "ROS"},
+		{ID: "O4", Type: models.WinterOrderTypeRoyalGrant, NobleCode: "JEA", TerritoryID: "ROS", TargetCode: "CAL"},
+	}
+	if !reflect.DeepEqual(orders, want) {
+		t.Errorf("orders = %#v, want %#v", orders, want)
+	}
+	for _, line := range []string{
+		"W", "W Q JEA ROS", "W X JEA ROS", "W X JEA ROS BOI FOU", "W X ZZZ ROS BOI", "W X JEA ZZZ BOI", "W X JEA ROS ZZZ",
+		"W R JEA", "W R JEA ROS BOI", "W R ZZZ ROS", "W R JEA ZZZ",
+		"W F JEA", "W F JEA ROS BOI", "W F ZZZ ROS", "W F JEA ZZZ",
+		"W G JEA ROS", "W G JEA ROS CAL BOI", "W G JEA ROS ZZZ", "W G JEA ZZZ CAL", "W G ZZZ ROS CAL",
+	} {
+		if _, parseErrors := ParseWinterOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed order", line)
+		}
+	}
+}
+
+func TestParseWinterClaimOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("C N JEA CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeClaim, NobleCode: "JEA", SpouseCode: "CAL"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Errorf("orders = %#v, want %#v", orders, want)
+	}
+	for _, line := range []string{"C N JEA", "C N JEA CAL BOB", "C N JEA JEA", "C N J1A CAL", "C N JEA ZZZ"} {
+		if _, parseErrors := ParseWinterOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed claim", line)
+		}
+	}
+}
+
+func TestParseElectionWinterOrders(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("K E JEA ROS\nK P JEA\nV E CAL ROS\nV P CAL\nK R JEA\nV R CAL", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeCandidacy, Election: models.ElectionBishop, NobleCode: "JEA", TerritoryID: "ROS"},
+		{ID: "O2", Type: models.WinterOrderTypeCandidacy, Election: models.ElectionPope, NobleCode: "JEA"},
+		{ID: "O3", Type: models.WinterOrderTypeVote, Election: models.ElectionBishop, NobleCode: "CAL", TerritoryID: "ROS"},
+		{ID: "O4", Type: models.WinterOrderTypeVote, Election: models.ElectionPope, NobleCode: "CAL"},
+		{ID: "O5", Type: models.WinterOrderTypeCandidacy, Election: models.ElectionKing, NobleCode: "JEA"},
+		{ID: "O6", Type: models.WinterOrderTypeVote, Election: models.ElectionKing, NobleCode: "CAL"},
+	}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"K E JEA", "K E JEA ROS ROS", "K P JEA ROS", "V P", "V E CAL", "K R JEA ROS", "V R", "K X JEA", "K E ZZZ ROS", "K E JEA ZZZ"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed election order", text)
+		}
+	}
+}
+
+func TestParseInquiryWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("Q JEA BOB", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeInquiry, NobleCode: "JEA", TargetCode: "BOB"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"Q", "Q JEA", "Q JEA BOB JEA", "Q JEA ZZZ", "Q ZZZ JEA", "Q J1A BOB"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed inquiry", text)
+		}
+	}
+}
+
+func TestParseInquiryOnADeadNoble(t *testing.T) {
+	game := orderTestState()
+	game.RemovedNobles = append(game.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "DED"})
+	orders, parseErrors := ParseWinterOrders("Q JEA DED", game)
+	if len(parseErrors) != 0 || len(orders) != 1 || orders[0].TargetCode != "DED" {
+		t.Fatalf("orders = %#v, errors = %#v, want an inquiry on DED", orders, parseErrors)
+	}
+	// The investigating noble must be alive.
+	if _, parseErrors := ParseWinterOrders("Q DED JEA", game); len(parseErrors) == 0 {
+		t.Errorf("a dead noble must not conduct an inquiry")
+	}
+}
+
+func TestParseJusticeCard(t *testing.T) {
+	game := orderTestState()
+	deck, parseErrors := ParseDeckOrders("P JU BOB\np ju jea", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
+	}
+	want := []models.DeckOrder{
+		{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindJustice, TargetNobleID: "N3"},
+		{ID: "O2", Type: models.DeckOrderTypePlay, Kind: models.CardKindJustice, TargetNobleID: "N1"},
+	}
+	if !reflect.DeepEqual(deck, want) {
+		t.Fatalf("deck orders = %#v, want %#v", deck, want)
+	}
+	for _, line := range []string{"P JU", "P JU ZZZ", "P JU BOB JEA", "P JU BOI"} {
+		if _, parseErrors := ParseDeckOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseDeckOrders(%q) accepted a malformed justice order", line)
+		}
+	}
+}
+
+func TestParseJusticeCardOnTheWinterSheet(t *testing.T) {
+	game := orderTestState()
+	winter, deck, parseErrors := ParseWinterOrdersWithDeckOrders("R T ROS\nP JU BOB", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrdersWithDeckOrders errors = %#v", parseErrors)
+	}
+	if len(winter) != 1 || len(deck) != 1 || deck[0].Kind != models.CardKindJustice || deck[0].TargetNobleID != "N3" {
+		t.Fatalf("winter orders = %#v, deck orders = %#v, want the troop and the justice card", winter, deck)
+	}
+	lines := ParseWinterSheetLines("P JU BOB\nP JU ZZZ\nP JU BOB JEA", game)
+	if lines[0].Deck == nil || lines[0].Error != nil {
+		t.Errorf("line 1 = %#v, want a justice deck order", lines[0])
+	}
+	if lines[1].Error == nil || lines[2].Error == nil {
+		t.Errorf("lines = %#v, want an unknown noble and a shape error", lines)
+	}
+}
+
+func TestParseTrialWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("J JEA BOB", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeTrial, NobleCode: "JEA", TargetCode: "BOB"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"J", "J BOB", "J JEA BOB JEA", "J JEA ZZZ", "J B1B JEA"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed trial", text)
+		}
+	}
+}
+
+func TestParseBuyCardinalWinterOrder(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("N C JEA", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{{ID: "O1", Type: models.WinterOrderTypeBuyCardinal, NobleCode: "JEA"}}
+	if !reflect.DeepEqual(orders, want) {
+		t.Fatalf("orders = %#v, want %#v", orders, want)
+	}
+	for _, text := range []string{"N C", "N C JEA CAL", "N X JEA", "N C ZZZ", "N C J1A"} {
+		if _, parseErrors := ParseWinterOrders(text, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed cardinal purchase", text)
+		}
+	}
 }

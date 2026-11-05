@@ -27,8 +27,16 @@
 - Do not create production tags manually. release-please creates the SemVer
   tag and GitHub release after its release pull request is merged.
 - `main` is synchronized back into `develop` by automation. Do not create a
-  second synchronization pull request; resolve the generated one if it has a
+  second synchronization pull request; resolve the generated one (branch `chore/sync-main-into-develop`) if it has a
   conflict.
+
+## Forged game states (demo)
+
+`scripts/demo.sh [scenario] [--fg] [--skip-web]` (or `make run-demo
+SCENARIO=...`) starts the hotseat server on a forged game state, to try a
+feature without playing the turns that lead to it. Scenarios (`winter`,
+`action`) live in `cmd/server/demo_scenarios.go`, compiled only with `-tags
+demo`: add or adapt one there when a feature needs a particular situation.
 
 ## Commits and pushes
 

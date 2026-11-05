@@ -6,8 +6,14 @@ firestore-debug.log
 
 # Node
 node_modules/
-dist/
+**/dist/*
+# Keeps go:embed all:dist compiling before the first web build.
+!/web/dist/.gitkeep
 tmp/
+
+# Python
+__pycache__/
+*.pyc
 
 # Environment
 .env

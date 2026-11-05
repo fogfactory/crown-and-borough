@@ -23,6 +23,11 @@ env:
   RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
   PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
   PUBLIC_HOSTING_URL: ${{ vars.PUBLIC_HOSTING_URL }}
+  # Optional GitHub App that files the bug report issues; its private key is a
+  # Secret Manager secret, the two identifiers are not secret.
+  BUG_APP_ID: ${{ vars.BUG_APP_ID }}
+  BUG_APP_INSTALLATION_ID: ${{ vars.BUG_APP_INSTALLATION_ID }}
+  BUG_APP_KEY_SECRET: ${{ vars.GCP_BUG_APP_KEY_SECRET }}
   APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
   VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
   VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -130,6 +135,32 @@ jobs:
             exit 1
           fi
 
+  scan-image:
+    name: Scan the pushed image for vulnerabilities
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$ARTIFACT_REGISTRY" --quiet
+
+      - name: Scan the digest-pinned image for known vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ needs.build-and-push.outputs.image }}@${{ needs.build-and-push.outputs.digest }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
   deploy-rules:
     name: Deploy Firestore rules and indexes
     needs: build-and-push
@@ -160,6 +191,7 @@ jobs:
     needs:
       - build-and-push
       - deploy-rules
+      - scan-image
     runs-on: ubuntu-latest
     outputs:
       revision: ${{ steps.deploy.outputs.revision }}
@@ -190,6 +222,12 @@ jobs:
             if [[ "$staged_deploy" == true ]]; then
               traffic_flags=(--no-traffic --tag smoke)
             fi
+            local secret_flags=()
+            local bug_env=""
+            if [[ -n "$BUG_APP_ID" && -n "$BUG_APP_INSTALLATION_ID" && -n "$BUG_APP_KEY_SECRET" ]]; then
+              secret_flags=(--update-secrets "GITHUB_BUG_APP_PRIVATE_KEY=$BUG_APP_KEY_SECRET:latest")
+              bug_env=",GITHUB_BUG_APP_ID=$BUG_APP_ID,GITHUB_BUG_APP_INSTALLATION_ID=$BUG_APP_INSTALLATION_ID"
+            fi
             gcloud run deploy "$CLOUD_RUN_SERVICE" \
               --image "$IMAGE" \
               --region "$REGION" \
@@ -204,7 +242,8 @@ jobs:
               --timeout 60s \
               --port 8080 \
               "${traffic_flags[@]}" \
-              --set-env-vars "ASSETS_DIR=/assets,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_PROJECT_ID=$PROJECT_ID,ONLINE_DEV_MODE=false,PUBLIC_APP_URL=$app_url" \
+              "${secret_flags[@]}" \
+              --set-env-vars "ASSETS_DIR=/assets,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_PROJECT_ID=$PROJECT_ID,ONLINE_DEV_MODE=false,PUBLIC_APP_URL=$app_url$bug_env" \
               --quiet
           }
 

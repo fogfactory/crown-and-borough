@@ -1,0 +1,111 @@
+package models
+
+type SpecialCardID string
+
+type RegionID string
+
+type CardKind string
+
+const (
+	CardKindFairWeather     CardKind = "fair_weather"
+	CardKindAbundantHarvest CardKind = "abundant_harvest"
+	CardKindPlague          CardKind = "plague"
+	CardKindBadWeather      CardKind = "bad_weather"
+	CardKindRevolt          CardKind = "revolt"
+	CardKindFamine          CardKind = "famine"
+	CardKindSeigneurialTax  CardKind = "seigneurial_tax"
+	CardKindTunnel          CardKind = "tunnel"
+	CardKindAmbush          CardKind = "ambush"
+	CardKindAssassination   CardKind = "assassination"
+	CardKindJustice         CardKind = "justice"
+)
+
+func (k CardKind) IsValid() bool {
+	switch k {
+	case CardKindFairWeather, CardKindAbundantHarvest, CardKindPlague,
+		CardKindBadWeather, CardKindRevolt, CardKindFamine, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindJustice, CardKindAmbush:
+		return true
+	}
+	return false
+}
+
+func (k CardKind) IsBonus() bool {
+	switch k {
+	case CardKindFairWeather, CardKindAbundantHarvest, CardKindRevolt, CardKindSeigneurialTax, CardKindTunnel, CardKindAssassination, CardKindJustice, CardKindAmbush:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsRegionalBonus reports whether the card is played on a region and applies
+// as a regional bonus (fair weather, abundant harvest), as opposed to the cards
+// that name their own target (a territory, a noble or an attack).
+func (k CardKind) IsRegionalBonus() bool {
+	return k == CardKindFairWeather || k == CardKindAbundantHarvest
+}
+
+func (k CardKind) IsCalamity() bool {
+	switch k {
+	case CardKindPlague, CardKindBadWeather, CardKindFamine:
+		return true
+	default:
+		return false
+	}
+}
+
+func (k CardKind) CanceledCalamity() (CardKind, bool) {
+	switch k {
+	case CardKindFairWeather:
+		return CardKindBadWeather, true
+	case CardKindAbundantHarvest:
+		return CardKindFamine, true
+	default:
+		return "", false
+	}
+}
+
+type SpecialCard struct {
+	ID   SpecialCardID `json:"id"`
+	Kind CardKind      `json:"kind"`
+}
+
+type Region struct {
+	ID RegionID `json:"id"`
+	// Name is the name of the bishopric: the commune of its seed territory.
+	Name        string        `json:"name"`
+	Seed        TerritoryID   `json:"seed"`
+	Territories []TerritoryID `json:"territories"`
+}
+
+type Calamity struct {
+	CardID     SpecialCardID `json:"cardId"`
+	Kind       CardKind      `json:"kind"`
+	Year       int           `json:"year"`
+	Season     Season        `json:"season"`
+	RegionSeed TerritoryID   `json:"regionSeed"`
+	// Ritual marks a calamity bent by a Witch's ritual: its region (and its
+	// season, for a season ritual) were chosen, not drawn.
+	Ritual bool `json:"ritual,omitempty"`
+}
+
+type ActiveRegionEffect struct {
+	Kind       CardKind    `json:"kind"`
+	RegionSeed TerritoryID `json:"regionSeed"`
+	Season     Season      `json:"season"`
+	Year       int         `json:"year"`
+}
+
+type YearAugury struct {
+	Year       int            `json:"year"`
+	Capacities map[Season]int `json:"capacities"`
+	Revealed   bool           `json:"revealed"`
+	Calamities []Calamity     `json:"calamities"`
+}
+
+type SpecialDeck struct {
+	Cards    []SpecialCard                `json:"cards"`
+	DrawPile []SpecialCardID              `json:"drawPile"`
+	Discard  []SpecialCardID              `json:"discard"`
+	Hands    map[PlayerID][]SpecialCardID `json:"hands"`
+}

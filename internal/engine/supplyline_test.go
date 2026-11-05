@@ -65,15 +65,22 @@ func TestFindSupplyTraversesEnemyTerritoryWithoutArmy(t *testing.T) {
 					supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
 					supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB", "DDD"),
 					supplyTerritory("DDD", "DDD", models.TerrainMountain, "CCC"),
+					// Two more members for P2's barony, off the supply path.
+					supplyTerritory("XXA", "XXA", models.TerrainPlain),
+					supplyTerritory("XXB", "XXB", models.TerrainPlain),
 				},
 				[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "DDD", Size: 2}},
 			)
-			setTerritoryOwner(state, "AAA", "P1")
-			setTerritoryOwner(state, "BBB", "P2")
 			addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+			setCapital(state, "P1", "I1")
 			if test.kind != "" {
 				addInfrastructure(state, models.Infrastructure{ID: "I2", Type: test.kind, Level: 1, TerritoryID: "BBB"})
 			}
+			// BBB is a member of P2's barony, with no army on it.
+			state.Fiefs = []models.Fief{{
+				ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "BBB",
+				Territories: []models.TerritoryID{"BBB", "XXA", "XXB"}, OwnerID: "P2",
+			}}
 			validateTestState(t, state)
 
 			line, err := FindSupplyLine(state, testBalance(), "DDD")
@@ -169,7 +176,7 @@ func TestFindSupplyLineHandlesLocalRationsAndMissingSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("FindSupplyLine: %v", err)
 		}
-		if !line.SelfSupplied || line.TerrainProduction != 3 || line.LocalProduction != 5 || line.Rations != 1 || line.TotalDemand != 1 || line.Demand != 0 || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"AAA", "BBB"}) {
+		if !line.SelfSupplied || line.TerrainProduction != 3 || line.LocalProduction != 3 || line.Rations != 1 || line.TotalDemand != 1 || line.Demand != 0 || !reflect.DeepEqual(line.Reachable, []models.TerritoryID{"AAA", "BBB"}) {
 			t.Errorf("line = %#v, want self-supply and source zone", line)
 		}
 	})
@@ -381,10 +388,8 @@ func TestFindTransferProjectsEndpointOccupiedByRecipient(t *testing.T) {
 
 	blocked := state.TerritoryStates["MID"]
 	armyID := models.ArmyID("A3")
-	ownerID := models.PlayerID("P2")
-	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: ownerID, TerritoryID: "MID", Size: 1})
+	state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P2", TerritoryID: "MID", Size: 1})
 	blocked.Army = &armyID
-	blocked.OwnerID = &ownerID
 	state.TerritoryStates["MID"] = blocked
 	state.NextArmyID = 4
 	line, err = FindTransfer(state, testBalance(), "AAA", "BBB")
@@ -393,5 +398,31 @@ func TestFindTransferProjectsEndpointOccupiedByRecipient(t *testing.T) {
 	}
 	if line.Reachable || len(line.Path) != 0 {
 		t.Errorf("blocked transfer line = %#v, want no route", line)
+	}
+}
+
+// TestFindSupplyZoneOccupiedSourceIsUnavailable verifies that a controlled
+// castle occupied against its controller behaves as an absent source for
+// FindSupplyZone, exactly like an uncontrolled or empty one (titres.md,
+// #196).
+func TestFindSupplyZoneOccupiedSourceIsUnavailable(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA", "CCC"),
+			supplyTerritory("CCC", "CCC", models.TerrainPlain, "BBB"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}},
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
+	// AAA is a non-capital member of P1's barony, occupied by P2's army.
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "BBB",
+		Territories: []models.TerritoryID{"BBB", "AAA", "CCC"}, OwnerID: "P1",
+	}}
+	validateTestState(t, state)
+
+	if _, err := FindSupplyZone(state, testBalance(), "AAA"); !errors.Is(err, ErrSupplyLineNoSource) {
+		t.Errorf("occupied source error = %v, want ErrSupplyLineNoSource", err)
 	}
 }

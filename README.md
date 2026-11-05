@@ -105,8 +105,8 @@ changes.
 
 ## Multiplayer Mode v1
 
-The development server exposes the legacy hotseat session and, when started
-with `ONLINE_DEV_MODE=true`, a multi-game in-memory API. The game API is rooted
+When started with `ONLINE_DEV_MODE=true`, the development server exposes a
+multi-game in-memory API; the hotseat frontend plays on it. The game API is rooted
 at `/api/games`: create independent games with `POST /api/games`, inspect them
 with `GET /api/games/{id}`, and submit one player's orders through
 `POST /api/games/{id}/orders`. Creation accepts `years` from 1 to 50 and uses
@@ -125,6 +125,25 @@ derives the player from the verified UID. In hosted mode, profiles,
 memberships, canonical state, pending submissions, reports, privacy metadata,
 and filtered projections are persisted in Firestore Native mode. No Firebase
 token or clear invitation code is stored by the backend.
+
+## Bug reports
+
+`POST /api/bugs` (authenticated, 256 KiB body limit, 3 reports per 10 minutes
+per player) creates a public GitHub issue from the in-game bug report dialog.
+The player's game view never goes to GitHub: it is stored in the private
+Firestore collection `bugReports` (in memory without Firestore), under a
+readable ID such as `partie-du-mardi-t12-heloise-3f9a2c41b07e`
+(`<game>-t<turn>-<player>-<ref>`). The public issue only cites the random
+`ref`, since the full ID names the game and the player; find the report in
+the console by filtering on `ref` or `issueUrl`.
+It authenticates as a GitHub App installed on `fogfactory/crown-and-borough`
+with the *Issues: read and write* permission: set `GITHUB_BUG_APP_ID`,
+`GITHUB_BUG_APP_INSTALLATION_ID` and `GITHUB_BUG_APP_PRIVATE_KEY` (the PEM
+private key; `\n` escapes are accepted). A personal bot token in
+`GITHUB_BUG_TOKEN` also works, for local trials. Leave them empty (the default,
+also in `docker-compose.yml`) to disable the route: `GET /api/bugs` then answers
+`{"enabled": false}` and the dialog greys out "Send". Deployment: see
+`docs/deploy-cloudrun.md`.
 
 ## Firestore Persistence
 
@@ -243,9 +262,9 @@ emulators with Docker Compose, builds the frontend locally, and runs
 `make compose-logs`; the same links are available in the Emulator UI under
 Authentication. Open each link in the same browser that requested it.
 
-The legacy hotseat game is created at startup with `SEED` and `PLAYERS` (an
-integer from 2 to 16, default 4). `POST /api/game` replaces it, while
-`POST /api/reset` restores the startup game.
+The hotseat game is created at startup in the in-memory store with `SEED` and
+`PLAYERS` (an integer from 2 to 16, default 4). **New game** creates another
+game through `POST /api/games`, and the browser reopens the last game it used.
 
 In the browser, choose a player and the number of game years, then enter one complete chain per available noble
 (header plus order lines), or winter investment lines during winter, then click
@@ -260,9 +279,9 @@ The selected language is kept in the browser and is used for the interface,
 player-facing validation errors, reports, and the rules document. Order symbols
 and memorable command terms remain identical in both languages.
 
-The development hotseat server accepts `GET /api/state?player=P1` to return the
-server-filtered private view for the selected player; omitting `player` keeps the
-legacy global projection useful for diagnostics. The multi-game store keeps
+In development mode the games API trusts `?player=P1` (or the `X-Dev-Player`
+header) as the acting player, `P1` by default; the hotseat uses it to request
+each player's server-filtered private view, and `P1` hosts the hotseat game. The multi-game store keeps
 chain knowledge, combat audiences, pending submissions, reports, and a monotone
 revision per game. When the public Firebase Web variables are configured, the
 frontend switches to the authenticated friends flow: email-link sign-in,

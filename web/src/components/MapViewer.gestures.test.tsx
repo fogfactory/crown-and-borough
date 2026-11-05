@@ -93,65 +93,44 @@ describe('MapViewer map geometry', () => {
 })
 
 describe('MapViewer terrain textures', () => {
-  it('defines a pattern per terrain and overlays it on the territories', () => {
+  it('lays every territory on the common paper', () => {
     const { svg } = renderMap()
 
-    for (const terrain of ['plain', 'forest', 'hill', 'mountain', 'swamp']) {
-      expect(svg.querySelector(`#terrain-${terrain}`)).toBeInTheDocument()
-    }
-
-    const textureGroup = svg.querySelector('g[aria-label="Terrain textures"]')
-    expect(textureGroup).toBeInTheDocument()
-    expect(textureGroup).toHaveAttribute('pointer-events', 'none')
-    const overlays = textureGroup?.querySelectorAll('path') ?? []
-    expect(overlays.length).toBeGreaterThan(0)
-    expect(overlays[0]).toHaveAttribute('fill', 'url(#terrain-plain)')
-    // The overlay must not intercept pointer events: the terrain layer below
-    // handles selection.
-    expect(textureGroup?.querySelector('path')).not.toHaveAttribute('data-territory-id')
-  })
-
-  it('doubles the pattern tiles for forest, hill and mountain and keeps swamp', () => {
-    const { svg } = renderMap()
-
-    // Pattern geometry scales with the annotation scale of the fixture.
-    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
-    const s = Math.sqrt((50 * 50) / referenceMeanArea)
-
-    const tile = (id: string) => svg.querySelector(`#${id}`)?.getAttribute('width')
-
-    expect(Number(tile('terrain-plain'))).toBeCloseTo(14 * s)
-    expect(Number(tile('terrain-forest'))).toBeCloseTo(20 * s)
-    expect(Number(tile('terrain-hill'))).toBeCloseTo(20 * s)
-    expect(Number(tile('terrain-mountain'))).toBeCloseTo(18 * s)
-    expect(Number(tile('terrain-swamp'))).toBeCloseTo(10 * s)
-  })
-
-  it('draws the plain texture as three tiny slashes', () => {
-    const { svg } = renderMap()
-
-    const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
-    const s = Math.sqrt((50 * 50) / referenceMeanArea)
-    const slashes = svg.querySelectorAll('#terrain-plain line')
-    expect(slashes).toHaveLength(3)
-    slashes.forEach((slash) => {
-      expect(
-        Math.abs(Number(slash.getAttribute('x2')) - Number(slash.getAttribute('x1'))),
-      ).toBeCloseTo(1.2 * s)
-      expect(
-        Math.abs(Number(slash.getAttribute('y2')) - Number(slash.getAttribute('y1'))),
-      ).toBeCloseTo(1.2 * s)
+    const territories = svg.querySelectorAll('[data-territory-id]')
+    expect(territories.length).toBe(2)
+    territories.forEach((territory) => {
+      expect(territory).toHaveAttribute('fill', '#f1e6cb')
     })
   })
 
-  it('keeps the texture patterns pastel', () => {
+  it('defines one engraved symbol per terrain and reuses it per territory', () => {
     const { svg } = renderMap()
 
     for (const terrain of ['plain', 'forest', 'hill', 'mountain', 'swamp']) {
-      const group = svg.querySelector(`#terrain-${terrain} g`)
-      expect(group).toHaveAttribute('stroke-opacity', '0.22')
-      expect(group).toHaveAttribute('fill-opacity', '0.18')
+      expect(svg.querySelector(`symbol#terrain-symbol-${terrain}`)).toBeInTheDocument()
     }
+
+    const textureGroup = svg.querySelector('g[aria-label="Terrain textures"]')
+    expect(textureGroup).toHaveAttribute('pointer-events', 'none')
+    const uses = (terrain: string) =>
+      Array.from(
+        textureGroup?.querySelectorAll(`[data-terrain-symbols="${terrain}"] use`) ?? [],
+      )
+    expect(uses('plain').length).toBeGreaterThan(0)
+    expect(uses('forest').length).toBeGreaterThan(uses('plain').length)
+    expect(uses('plain')[0]).toHaveAttribute('href', '#terrain-symbol-plain')
+    expect(uses('forest')[0]).toHaveAttribute('href', '#terrain-symbol-forest')
+  })
+
+  it('draws the symbols in ink, shading the right side of the relief', () => {
+    const { svg } = renderMap()
+
+    const [outline, shade] = Array.from(
+      svg.querySelectorAll('#terrain-symbol-mountain path'),
+    )
+    expect(outline).toHaveAttribute('stroke', '#30291f')
+    expect(shade).toHaveAttribute('fill', '#30291f')
+    expect(shade).toHaveAttribute('fill-opacity', '0.4')
   })
 })
 
@@ -200,16 +179,16 @@ describe('MapViewer infrastructure ownership', () => {
     expect(markerFillPath(svg, 'M255.95 27.11', '#a84632')).toBeDefined()
   })
 
-  it('keeps unowned settlements in the neutral parchment tone', () => {
+  it('keeps unowned settlements on the paper tone', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
 
-    expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeDefined()
+    expect(markerFillPath(svg, 'M109.902 35.87', '#fbf7ee')).toBeDefined()
   })
 
   it('renders the village glyph from game-icons', () => {
     const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
 
-    expect(markerFillPath(svg, 'M109.902 35.87', '#efe6d0')).toBeInTheDocument()
+    expect(markerFillPath(svg, 'M109.902 35.87', '#fbf7ee')).toBeInTheDocument()
   })
 
   it('renders settlement glyphs at the enlarged marker size', () => {
@@ -257,14 +236,36 @@ describe('MapViewer infrastructure ownership', () => {
     expect(fills).toEqual(['url(#winter-snow-1)', 'url(#winter-snow-2)'])
   })
 
-  it('cases the colored control borders in dark under the player color', () => {
-    const { svg } = renderMap(vi.fn(), {}, { map, state: ownedState })
-    const controlGroup = svg.querySelector('g[aria-label="Territorial control"]')
-    const casing = controlGroup?.querySelector('path[stroke="#30291f"]')
+  it('plants a shield in the controller arms on each controlled territory', () => {
+    const armedState: StateData = {
+      ...ownedState,
+      players: [
+        {
+          id: 'P1',
+          name: 'One',
+          color: '#b3322b',
+          arms: { field: 'gules', metal: 'or', charge: 'bend' },
+        },
+        { id: 'P2', name: 'Two', color: '#2b5c9e' },
+      ],
+    }
+    const { svg } = renderMap(vi.fn(), {}, { map, state: armedState })
+    const badge = svg.querySelector('[data-ownership-badge="P1"]')
 
-    expect(casing).toBeInTheDocument()
-    expect(casing).toHaveAttribute('stroke-width', '11')
-    expect(casing?.getAttribute('stroke-opacity')).toBe('0.55')
+    expect(badge?.querySelector('use')).toHaveAttribute('href', '#arms-shield-P1')
+    expect(badge?.querySelector('title')?.textContent).toBe('One controls this territory')
+    // The shield symbol: gules field, a bend or, an ink casing.
+    const flag = svg.querySelector('symbol#arms-shield-P1')
+    expect(flag?.querySelector('path[fill="#b3322b"]')).toBeInTheDocument()
+    expect(flag?.querySelector('[data-charge="bend"] path')).toHaveAttribute(
+      'stroke',
+      '#d8ab35',
+    )
+    expect(flag?.querySelector('path[stroke="#30291f"]')).toBeInTheDocument()
+    // A player without arms (older game) flies a plain field.
+    expect(svg.querySelector('symbol#arms-shield-P2 [data-charge]')).toBeNull()
+    // Neutral territories carry no shield.
+    expect(svg.querySelector('[data-ownership-badge="NEUTRAL"]')).toBeNull()
   })
 })
 
