@@ -22,7 +22,13 @@ func prosperityBalance(threshold int) assetgen.Balance {
 // conservation keeps ceil(resources/2) and loses floor(resources/2), so an
 // even resources value losses exactly resources/2.
 func addVillageWithResources(state *models.GameState, infraID models.InfraID, territoryID models.TerritoryID, ownerID models.PlayerID, resources int) {
-	addInfrastructure(state, models.Infrastructure{ID: infraID, Type: models.InfraTypeVillage, Level: 1, TerritoryID: territoryID})
+	addLeveledVillageWithResources(state, infraID, territoryID, ownerID, 1, resources)
+}
+
+// addLeveledVillageWithResources is addVillageWithResources for a village at
+// the given level.
+func addLeveledVillageWithResources(state *models.GameState, infraID models.InfraID, territoryID models.TerritoryID, ownerID models.PlayerID, level, resources int) {
+	addVillageAtLevel(state, infraID, territoryID, level)
 	setTerritoryOwner(state, territoryID, ownerID)
 	setTerritoryResources(state, territoryID, resources)
 }
@@ -286,6 +292,20 @@ func TestProsperityCascadingFallback(t *testing.T) {
 		}
 	})
 
+	t.Run("prefers a depot the origin's controller holds over a closer foreign one", func(t *testing.T) {
+		depot := territory("DEP", "DEP", "NEA")
+		state := prosperityDeadEndState(t, &depot)
+		addInfrastructure(state, models.Infrastructure{ID: "I3", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "MID"})
+		setTerritoryOwner(state, "MID", "P2")
+		addInfrastructure(state, models.Infrastructure{ID: "I4", Type: models.InfraTypeSupplyDepot, Level: 1, TerritoryID: "DEP"})
+		setTerritoryOwner(state, "DEP", "P1")
+
+		_, event := resolveSingleProsperity(t, state, prosperityBalance(4))
+		if event.DestinationID != "DEP" || event.Reason != prosperityReasonDepotUpgraded {
+			t.Fatalf("event = %#v, want P1's depot at DEP upgraded before P2's closer one", event)
+		}
+	})
+
 	t.Run("does nothing when neither a depot nor a mill exists", func(t *testing.T) {
 		state := prosperityDeadEndState(t, nil)
 		validateTestState(t, state)
@@ -427,13 +447,20 @@ func addVillageAtLevel(state *models.GameState, infraID models.InfraID, territor
 	addInfrastructure(state, models.Infrastructure{ID: infraID, Type: models.InfraTypeVillage, Level: level, TerritoryID: territoryID})
 }
 
-func resolveSingleProsperity(t *testing.T, state *models.GameState, balance assetgen.Balance) (Resolution, Event) {
+// resolveProsperityWinter validates state and resolves its winter.
+func resolveProsperityWinter(t *testing.T, state *models.GameState, balance assetgen.Balance) Resolution {
 	t.Helper()
 	validateTestState(t, state)
 	resolution, err := ResolveWinter(state, balance, nil)
 	if err != nil {
 		t.Fatalf("ResolveWinter: %v", err)
 	}
+	return resolution
+}
+
+func resolveSingleProsperity(t *testing.T, state *models.GameState, balance assetgen.Balance) (Resolution, Event) {
+	t.Helper()
+	resolution := resolveProsperityWinter(t, state, balance)
 	founded := eventsOfType(resolution.Events, EventTypeProsperityFounded)
 	if len(founded) != 1 {
 		t.Fatalf("founded = %#v, want exactly one event", founded)
@@ -559,8 +586,7 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 			territory("BBB", "BBB", "AAA"),
 		}
 		state := winterTestState(t, territories, nil)
-		addVillageWithResources(state, "I1", "ORI", "P1", 8)
-		state.Infrastructures[len(state.Infrastructures)-1].Level = 3 // origin at the ceiling
+		addLeveledVillageWithResources(state, "I1", "ORI", "P1", 3, 8) // origin at the ceiling
 		addVillageAtLevel(state, "I2", "BBB", 1)
 		// AAA is adjacent to the origin village and BBB, so nothing is free.
 		resolution, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
@@ -578,14 +604,9 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 			territory("AAA", "AAA", "ORI", "BBB"),
 			territory("BBB", "BBB", "AAA"),
 		}, nil)
-		addVillageWithResources(state, "I1", "ORI", "P1", 8)
-		state.Infrastructures[len(state.Infrastructures)-1].Level = 3 // origin at the ceiling
+		addLeveledVillageWithResources(state, "I1", "ORI", "P1", 3, 8) // origin at the ceiling
 		addVillageAtLevel(state, "I2", "BBB", 3)
-		validateTestState(t, state)
-		resolution, err := ResolveWinter(state, prosperityGrowthBalance(4), nil)
-		if err != nil {
-			t.Fatalf("ResolveWinter: %v", err)
-		}
+		resolution := resolveProsperityWinter(t, state, prosperityGrowthBalance(4))
 		if founded := eventsOfType(resolution.Events, EventTypeProsperityFounded); len(founded) != 0 {
 			t.Fatalf("founded = %#v, want none: every village is at the ceiling", founded)
 		}
@@ -601,8 +622,7 @@ func TestProsperityLevelsUpNearestVillage(t *testing.T) {
 			territory("ZZZ", "ZZZ", "MID"),
 			territory("BBB", "BBB", "MID"),
 		}, nil)
-		addVillageWithResources(state, "I1", "ORI", "P1", 8)
-		state.Infrastructures[len(state.Infrastructures)-1].Level = 3 // origin at the ceiling
+		addLeveledVillageWithResources(state, "I1", "ORI", "P1", 3, 8) // origin at the ceiling
 		addVillageAtLevel(state, "I2", "ZZZ", 2)
 		addVillageAtLevel(state, "I3", "BBB", 2)
 		_, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
@@ -619,8 +639,7 @@ func TestProsperityOriginVillageCanBeTargeted(t *testing.T) {
 			territory("MID", "MID", "ORI", "FAR"),
 			territory("FAR", "FAR", "MID"),
 		}, nil)
-		addVillageWithResources(state, "I1", "ORI", "P1", 8)
-		state.Infrastructures[len(state.Infrastructures)-1].Level = 0
+		addLeveledVillageWithResources(state, "I1", "ORI", "P1", 0, 8)
 		addVillageAtLevel(state, "I2", "FAR", 0)
 		resolution, event := resolveSingleProsperity(t, state, prosperityGrowthBalance(4))
 		if event.DestinationID != "ORI" || event.Reason != prosperityReasonRenovated {

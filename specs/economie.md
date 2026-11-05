@@ -481,8 +481,9 @@ l'ordre du classement de l'étape 3 : un village fondé, rénové ou amélioré 
 l'une est visible des suivantes, aussi bien pour la contrainte de
 non-adjacence que pour la recherche de case libre ou de village à rénover.
 
-Le territoire d'origine n'est pas modifié par la fondation : ni dégradé, ni
-privé de son stock au-delà de la conservation normale.
+Le territoire d'origine n'est jamais dégradé par la fondation, ni privé de
+son stock au-delà de la conservation normale ; son propre village peut en
+revanche être rénové ou gagner un niveau, à distance 0.
 
 Le village fondé appartient au **contrôleur de la case** d'arrivée : le
 détenteur du fief, le contrôleur positionnel, ou personne si la case est

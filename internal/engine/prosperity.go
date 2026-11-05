@@ -77,50 +77,85 @@ func (ctx *resolutionContext) prosperityRankedLosses(stockBefore map[models.Terr
 // by one. It mutates state immediately, so a change made by this call is
 // visible to the next one in the same winter (economie.md#prospérité).
 func (ctx *resolutionContext) foundProsperityVillage(originID models.TerritoryID) {
-	if destinationID, _, found := ctx.prosperityPick(originID, ctx.prosperityRuinEligible); found {
-		infrastructure := ctx.infrastructureAt(destinationID)
-		infrastructure.Level = models.InfraTypeVillage.StartingLevel()
-		ctx.emitProsperityFounded(originID, destinationID, infrastructure, prosperityReasonRenovated)
-		return
+	steps := []struct {
+		eligible func(models.TerritoryID) bool
+		apply    func(models.TerritoryID) *models.Infrastructure
+		// reason overrides the priority reason prosperityPick returns; only
+		// the founding on a free tile reports the priority level it used.
+		reason string
+	}{
+		{ctx.prosperityRuinEligible, ctx.renovateVillage, prosperityReasonRenovated},
+		{ctx.prosperityTileEligible, ctx.foundVillage, ""},
+		{ctx.prosperityInfrastructureEligible(models.InfraTypeSupplyDepot), ctx.upgradeInfrastructureToVillage, prosperityReasonDepotUpgraded},
+		{ctx.prosperityInfrastructureEligible(models.InfraTypeMill), ctx.upgradeInfrastructureToVillage, prosperityReasonMillUpgraded},
+		{ctx.prosperityGrowthEligible, ctx.levelUpVillage, prosperityReasonLeveledUp},
 	}
-	if destinationID, reason, found := ctx.prosperityPick(originID, ctx.prosperityTileEligible); found {
-		infrastructure := ctx.addWinterInfrastructure(models.InfraTypeVillage, destinationID)
-		ctx.emitProsperityFounded(originID, destinationID, infrastructure, reason)
-		return
-	}
-	if depotID := ctx.closestTerritoryWithInfrastructure(originID, models.InfraTypeSupplyDepot); depotID != "" {
-		infrastructure := ctx.upgradeInfrastructureToVillage(depotID)
-		ctx.emitProsperityFounded(originID, depotID, infrastructure, prosperityReasonDepotUpgraded)
-		return
-	}
-	if millID := ctx.closestTerritoryWithInfrastructure(originID, models.InfraTypeMill); millID != "" {
-		infrastructure := ctx.upgradeInfrastructureToVillage(millID)
-		ctx.emitProsperityFounded(originID, millID, infrastructure, prosperityReasonMillUpgraded)
-		return
-	}
-	if destinationID, _, found := ctx.prosperityPick(originID, ctx.prosperityGrowthEligible); found {
-		infrastructure := ctx.infrastructureAt(destinationID)
-		infrastructure.Level++
-		ctx.emitProsperityFounded(originID, destinationID, infrastructure, prosperityReasonLeveledUp)
+	for _, step := range steps {
+		destinationID, reason, found := ctx.prosperityPick(originID, step.eligible)
+		if !found {
+			continue
+		}
+		if step.reason != "" {
+			reason = step.reason
+		}
+		ctx.emitProsperityFounded(originID, destinationID, step.apply(destinationID), reason)
 		return
 	}
 	// Nothing to renovate, found, upgrade or grow: nothing happens
 	// (economie.md#prospérité).
 }
 
+// villageAt returns the village standing on territoryID, or nil when the
+// tile carries no infrastructure or another kind.
+func (ctx *resolutionContext) villageAt(territoryID models.TerritoryID) *models.Infrastructure {
+	infrastructure := ctx.infrastructureAt(territoryID)
+	if infrastructure == nil || infrastructure.Type != models.InfraTypeVillage {
+		return nil
+	}
+	return infrastructure
+}
+
 // prosperityRuinEligible reports whether territoryID carries a ruined
 // (level 0) village.
 func (ctx *resolutionContext) prosperityRuinEligible(territoryID models.TerritoryID) bool {
-	infrastructure := ctx.infrastructureAt(territoryID)
-	return infrastructure != nil && infrastructure.Type == models.InfraTypeVillage && infrastructure.Level < 1
+	village := ctx.villageAt(territoryID)
+	return village != nil && village.IsRuined()
+}
+
+// prosperityInfrastructureEligible returns a predicate reporting whether a
+// territory carries an infrastructure of kind, for the depot then mill
+// upgrade step of the founding cascade.
+func (ctx *resolutionContext) prosperityInfrastructureEligible(kind models.InfraType) func(models.TerritoryID) bool {
+	return func(territoryID models.TerritoryID) bool {
+		return ctx.hasInfrastructure(territoryID, kind)
+	}
 }
 
 // prosperityGrowthEligible reports whether territoryID carries a village
 // that can still gain a level.
 func (ctx *resolutionContext) prosperityGrowthEligible(territoryID models.TerritoryID) bool {
-	infrastructure := ctx.infrastructureAt(territoryID)
-	return infrastructure != nil && infrastructure.Type == models.InfraTypeVillage &&
-		infrastructure.Level >= 1 && infrastructure.Level < ctx.balance.VillageMaxLevel
+	village := ctx.villageAt(territoryID)
+	return village != nil && village.Level >= 1 && village.Level < ctx.balance.VillageMaxLevel
+}
+
+// foundVillage plants a fresh village on the free tile territoryID.
+func (ctx *resolutionContext) foundVillage(territoryID models.TerritoryID) *models.Infrastructure {
+	return ctx.addWinterInfrastructure(models.InfraTypeVillage, territoryID)
+}
+
+// renovateVillage brings the ruined village on territoryID back to its
+// starting level.
+func (ctx *resolutionContext) renovateVillage(territoryID models.TerritoryID) *models.Infrastructure {
+	village := ctx.villageAt(territoryID)
+	village.Level = models.InfraTypeVillage.StartingLevel()
+	return village
+}
+
+// levelUpVillage raises the village on territoryID by one level.
+func (ctx *resolutionContext) levelUpVillage(territoryID models.TerritoryID) *models.Infrastructure {
+	village := ctx.villageAt(territoryID)
+	village.Level++
+	return village
 }
 
 func (ctx *resolutionContext) emitProsperityFounded(originID, destinationID models.TerritoryID, infrastructure *models.Infrastructure, reason string) {
@@ -217,33 +252,6 @@ func (ctx *resolutionContext) prosperityTileEligible(territoryID models.Territor
 		}
 	}
 	return true
-}
-
-// closestTerritoryWithInfrastructure returns the territory closest to
-// originID (crossable-border distance, trigram tie-break) carrying an
-// infrastructure of kind, regardless of its controller, or "" if none
-// exists. Used by the prosperity founding cascade (economie.md#prospérité):
-// unlike prosperityNearestTile, it ignores adjacency and control entirely, since
-// it upgrades infrastructure already standing rather than founding on a free
-// tile.
-func (ctx *resolutionContext) closestTerritoryWithInfrastructure(originID models.TerritoryID, kind models.InfraType) models.TerritoryID {
-	distances := ctx.winterDistances(originID)
-	best := models.TerritoryID("")
-	bestDistance := 0
-	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		if !ctx.hasInfrastructure(territoryID, kind) {
-			continue
-		}
-		distance, reachable := distances[territoryID]
-		if !reachable {
-			continue
-		}
-		if best == "" || distance < bestDistance {
-			best = territoryID
-			bestDistance = distance
-		}
-	}
-	return best
 }
 
 // upgradeInfrastructureToVillage turns the infrastructure at territoryID
