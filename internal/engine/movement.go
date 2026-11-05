@@ -827,6 +827,12 @@ func applyDisperse(
 		} else {
 			groupID = ctx.allocateArmyID()
 			createdArmyIDs = append(createdArmyIDs, groupID)
+			// A splinter carries its parent's starving status (copied on
+			// the struct below) into every same-turn reader of
+			// ctx.famished: retreat host order and the second-deficit loss.
+			if ctx.famished[army.ID] {
+				ctx.famished[groupID] = true
+			}
 		}
 		groupSize := targetCounts[targetID]
 		if targetID == intent.source {
