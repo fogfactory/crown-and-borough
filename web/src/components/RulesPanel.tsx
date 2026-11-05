@@ -195,6 +195,22 @@ export function RulesPanel({
                 </td>
               ),
               hr: () => <hr className="my-5 border-line/60" />,
+              img: ({ src, alt, width }) =>
+                width ? (
+                  <img
+                    src={src}
+                    alt={alt ?? ''}
+                    width={width}
+                    className="inline-block align-text-bottom"
+                  />
+                ) : (
+                  <img
+                    src={src}
+                    alt={alt ?? ''}
+                    loading="lazy"
+                    className="mx-auto mt-3 block h-auto max-h-[32rem] w-auto max-w-full rounded-lg border border-line/60"
+                  />
+                ),
               a: ({ children, href }) => (
                 <a
                   href={href}
