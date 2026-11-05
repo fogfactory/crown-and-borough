@@ -559,3 +559,44 @@ func TestResolveRetreatProcessingOrderByOriginTerritory(t *testing.T) {
 		t.Errorf("A1 territory = %q, want ALT", a1.TerritoryID)
 	}
 }
+
+func TestResolveRetreatFriendlyHostPrefersSuppliedOverSmallerStarving(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB", "EEE", "FFF"),
+			territory("BBB", "BBB", "AAA"),
+			territory("EEE", "EEE", "AAA"),
+			territory("FFF", "FFF", "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
+			{ID: "A5", OwnerID: "P1", TerritoryID: "EEE", Size: 1, Starving: true},
+			{ID: "A6", OwnerID: "P1", TerritoryID: "FFF", Size: 2},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	addNoble(state, "N5", "FIV", "P1", "EEE")
+	addNoble(state, "N6", "SIX", "P1", "FFF")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "EEE"})
+	addChain(t, state, "A6", "N6", models.Order{Type: models.OrderTypeHold, PositionID: "FFF"})
+	setTerritoryResources(state, "FFF", 20)
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	var retreat *Event
+	for i := range resolution.Events {
+		if e := &resolution.Events[i]; e.Type == EventTypeRetreat && e.ArmyID == "A1" {
+			retreat = e
+		}
+	}
+	if retreat == nil || retreat.HostArmyID != "A6" {
+		t.Fatalf("A1 retreat = %+v, want a merge into the supplied host A6", retreat)
+	}
+}

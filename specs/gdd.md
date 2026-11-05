@@ -777,16 +777,17 @@ déterminée par ordre de priorité décroissant :
    simplement de façon positionnelle, y compris celle qu'il vient de quitter
    ce même tour, relève de cette deuxième priorité comme n'importe quelle
    autre case vide — seul l'ancrage donne la première priorité.
-3. Armée amie adjacente non délogée (priorité à la plus petite en troupes), avec
-   fusion : la taille de l'hôte augmente de `N − 1` si la retraitante a `N ≥ 2`
-   troupes, sinon de `1` (`N = 1` sans perte). Plusieurs armées retraitantes
-   fusionnent séquentiellement sur un même hôte ami sans collision destructive.
+3. Armée amie adjacente non délogée (priorité aux armées non affamées, puis à
+   la plus petite en troupes), avec fusion : la taille de l'hôte augmente de
+   `N − 1` si la retraitante a `N ≥ 2` troupes, sinon de `1` (`N = 1` sans
+   perte). Plusieurs armées retraitantes fusionnent séquentiellement sur un même
+   hôte ami sans collision destructive.
 
 À égalité dans un bucket, la destination la plus proche d'un château ou village
 contrôlé par le propriétaire du retraité l'emporte, puis l'ordre lexicographique
-(trigramme croissant). Pour les armées amies, le tri s'effectue par taille
-croissante, puis distance à la source contrôlée la plus proche, puis trigramme
-croissant.
+(trigramme croissant). Pour les armées amies, le tri s'effectue par armée non
+affamée d'abord, puis par taille croissante, puis distance à la source contrôlée
+la plus proche, puis trigramme croissant.
 
 La case d'origine de l'attaquant est toujours exclue. Un château **ancré** — 
 membre d'un fief ou capitale d'un joueur, y compris neutre ou ennemi pour le
