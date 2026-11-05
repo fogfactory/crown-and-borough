@@ -44,7 +44,7 @@ Aucun noble n'est requis :
 - `D C BT` ou `D C RA` abandonne une carte bonus, en hiver uniquement ;
 - `P BT TER` joue Beau temps au printemps, en été ou en automne ;
 - `P RA TER` joue Récolte abondante au printemps, en été ou en automne ;
-- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, si un impôt (taxe ou dîme) a été joué sur la capitale du fief ou l'évêché auquel appartient le territoire la saison courante ou la saison précédente, ou si un procès a exécuté une dame dans la région du territoire à la saison d'action précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant ;
+- `P RE TER` joue Révolte sur le territoire pendant ces saisons, si une mauvaise récolte affecte la région du territoire, si un impôt (taxe ou dîme) a été joué sur la capitale du fief ou l'évêché auquel appartient le territoire la saison courante ou la saison précédente, ou si un procès a exécuté une dame dans la région du territoire à la saison d'action précédente ; chaque carte ajoute un jet borné à l'armée neutre commune du territoire, qui se bat contre l'occupant le cas échéant. Si une armée de joueur affamée occupe le territoire, la carte est jouable sans autre condition et vise cette armée : les jets des cartes jouées sur elle s'additionnent et, s'ils atteignent sa taille, elle devient `NEUTRAL` et ses nobles meurent (gdd.md section 5) ;
 - `P AG HHH TER` (rite gratuit, risqué) et `P AP HHH TER` (payant, sûr) font jouer
   à un ecclésiastique l'apaisement de révolte, sans carte : voir
   [religieux.md § Apaisement de révolte](religieux.md#apaisement-de-révolte) ;
@@ -129,7 +129,10 @@ interne de la carte.
   saison précédente — tout territoire du fief est alors éligible, pas
   seulement sa capitale taxée —, ou si un procès a exécuté une dame dans la
   région à la saison d'action précédente. Elle crée des armées `NEUTRAL` sur les cases
-  vides, selon la balance.
+  vides, selon la balance. Elle est aussi jouable sur le territoire d'une
+  armée de joueur affamée, qu'elle vise alors à la place du territoire : ses
+  jets cumulés, s'ils atteignent la taille de l'armée, la rendent `NEUTRAL`
+  et tuent ses nobles (gdd.md section 5).
 
 ## Bonus régionaux
 

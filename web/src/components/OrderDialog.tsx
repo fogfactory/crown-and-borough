@@ -21,6 +21,8 @@ export interface OrderFieldOption {
   label: string
   /** The value is a territory code: the list writes « Ravinval (RVN) ». */
   territory?: boolean
+  /** Written after the territory name: « Ravinval (RVN) · starving army ». */
+  note?: string
 }
 
 /** One input of an order dialog: a choice among options, or a short free code. */
@@ -251,7 +253,8 @@ function OrderDialogBody({
   // (charte-graphique.md § Identifiants et liens vers la carte).
   const optionLabel = (option: OrderFieldOption) => {
     const name = option.territory ? links?.territoryName(option.value) : undefined
-    return name ? `${name} (${option.value})` : option.label
+    const label = name ? `${name} (${option.value})` : option.label
+    return option.note ? `${label} · ${option.note}` : label
   }
   const [chosen, setValues] = useState(() => initialValues(fields))
   // A select whose options changed with another field falls back to its first

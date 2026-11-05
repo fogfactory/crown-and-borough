@@ -885,6 +885,7 @@ function revoltOptions(
   state: StateData,
   regions: Region[],
   draft: string,
+  t: Translate,
 ): OrderFieldOption[] {
   const targets = new Set(state.revoltTargets ?? [])
   for (const raw of draftLines(draft)) {
@@ -908,7 +909,30 @@ function revoltOptions(
       }
     }
   }
-  return [...targets].sort().map(codeOption)
+  return [...targets].sort().map((code) => ({
+    ...codeOption(code),
+    note: starvingArmyAt(state, code) ? t('orders.hint.revoltArmyShort') : undefined,
+  }))
+}
+
+/**
+ * The player army starving on `code`, which a Révolte played there targets
+ * instead of the territory (gdd.md section 5).
+ */
+function starvingArmyAt(state: StateData, code: string) {
+  const army = state.territories.find((entry) => entry.id === code)?.army
+  return army?.starving && army.owner !== NEUTRAL_PLAYER_ID ? army : undefined
+}
+
+/**
+ * The target field of a card played with `P KIND TARGET`, with its hint and
+ * order comment when they differ from the defaults (none, playSpecial).
+ */
+interface SpecialTargetField {
+  label: string
+  options: OrderFieldOption[]
+  hint?: (target: string) => string | null
+  commentKey?: (target: string) => MessageKey
 }
 
 function specialTargetField(
@@ -917,12 +941,18 @@ function specialTargetField(
   regions: Region[],
   t: Translate,
   draft: string,
-): { label: string; options: OrderFieldOption[] } {
+): SpecialTargetField {
   switch (kind) {
     case 'revolt':
       return {
         label: t('orders.field.territory'),
-        options: revoltOptions(state, regions, draft),
+        options: revoltOptions(state, regions, draft, t),
+        hint: (target) => {
+          const army = starvingArmyAt(state, target)
+          return army ? t('orders.hint.revoltArmy', { size: army.size }) : null
+        },
+        commentKey: (target) =>
+          starvingArmyAt(state, target) ? 'orders.comment.revoltArmy' : 'orders.comment.playSpecial',
       }
     case 'seigneurial_tax':
       return {
@@ -942,6 +972,7 @@ function specialTargetField(
           ...options.filter((option) => option.label.includes(t('orders.hint.cancelsShort'))),
           ...options.filter((option) => !option.label.includes(t('orders.hint.cancelsShort'))),
         ],
+        hint: (seed) => cancelHint(kind, state, t, seed),
       }
     }
   }
@@ -1059,13 +1090,16 @@ export function SpecialCardOrders({
             label={t('orders.playSpecialCard', { card })}
             title={t('orders.playSpecialCard', { card })}
             disabled={used(kind, 'P') >= copies(kind)}
-            hint={(values) => cancelHint(kind, state, t, values.target)}
+            hint={(values) => target.hint?.(values.target) ?? null}
             fields={[{ key: 'target', label: target.label, options: target.options }]}
             buildOrder={(values) =>
               values.target
                 ? {
                     line: `P ${shortCode(kind)} ${values.target}`,
-                    comment: t('orders.comment.playSpecial', { card, target: values.target }),
+                    comment: t(target.commentKey?.(values.target) ?? 'orders.comment.playSpecial', {
+                      card,
+                      target: values.target,
+                    }),
                   }
                 : null
             }

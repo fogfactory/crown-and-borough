@@ -27,6 +27,11 @@ func (revoltCardDefinition) CanPlay(ctx *ExecutionContext, order models.DeckOrde
 	if ctx.resolution.revoltEligibleByTrial(order.TargetTerritoryID) {
 		return true, ""
 	}
+	// A player army that starved last turn opens Révolte on its own
+	// territory, whoever plays the card (gdd.md "Révolte").
+	if ctx.resolution.starvingArmyAt(order.TargetTerritoryID) != nil {
+		return true, ""
+	}
 	return false, "revolt_requires_famine_or_tax"
 }
 

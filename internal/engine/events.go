@@ -125,6 +125,9 @@ const (
 	// EventTypeCardinalPurchase is the paid N C order; the title itself is
 	// conferred at the investiture.
 	EventTypeCardinalPurchase EventType = "cardinal_purchase"
+	// EventTypeArmyRevolt is the outcome of the revolt cards played on one
+	// starving army: Troops is their summed roll, SizeBefore the army's size.
+	EventTypeArmyRevolt EventType = "army_revolt"
 )
 
 // Outcome is the execution result of one current order.

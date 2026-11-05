@@ -690,6 +690,18 @@ func suppliedStrength(size, missing, costBase int) int {
 // can capture its nobles, so the free nobles of its owner on the territory
 // die with it; the territory keeps its controller.
 func (ctx *resolutionContext) destroyStarvedArmy(armyID models.ArmyID, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	// Chains already progressed this turn: drop the one the army still
+	// carries, or it would point at an army that no longer exists.
+	if army := ctx.armiesByID[armyID]; army != nil && army.ChainID != nil {
+		ctx.removeChain(*army.ChainID)
+	}
+	ctx.removeArmy(armyID)
+	ctx.killFreeNobles(ownerID, territoryID, models.DeathCauseFamine)
+}
+
+// killFreeNobles kills the free nobles of ownerID standing on territoryID: the
+// nobles of an army that vanished or changed hands with nobody to capture them.
+func (ctx *resolutionContext) killFreeNobles(ownerID models.PlayerID, territoryID models.TerritoryID, cause models.DeathCause) {
 	var dying []models.Noble
 	for _, nobleID := range ctx.noblesAt(territoryID) {
 		noble := ctx.noblesByID[nobleID]
@@ -697,14 +709,8 @@ func (ctx *resolutionContext) destroyStarvedArmy(armyID models.ArmyID, territory
 			dying = append(dying, *noble)
 		}
 	}
-	// Chains already progressed this turn: drop the one the army still
-	// carries, or it would point at an army that no longer exists.
-	if army := ctx.armiesByID[armyID]; army != nil && army.ChainID != nil {
-		ctx.removeChain(*army.ChainID)
-	}
-	ctx.removeArmy(armyID)
 	for _, noble := range dying {
-		ctx.removeNobleInAction(noble, models.DeathCauseFamine)
+		ctx.removeNobleInAction(noble, cause)
 	}
 }
 

@@ -180,12 +180,15 @@ const (
 	// DeathCauseFamine is the death of the nobles of an army that vanished
 	// for want of rations, with no enemy to capture them.
 	DeathCauseFamine DeathCause = "famine"
+	// DeathCauseRevolt is the death of the nobles of a starving army a revolt
+	// turned neutral.
+	DeathCauseRevolt DeathCause = "revolt"
 )
 
 // IsValid reports whether the death cause is a known value.
 func (c DeathCause) IsValid() bool {
 	switch c {
-	case DeathCauseNatural, DeathCauseExecution, DeathCauseAssassination, DeathCauseMartyr, DeathCauseFamine:
+	case DeathCauseNatural, DeathCauseExecution, DeathCauseAssassination, DeathCauseMartyr, DeathCauseFamine, DeathCauseRevolt:
 		return true
 	}
 	return false

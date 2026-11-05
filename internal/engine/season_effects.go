@@ -156,6 +156,7 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			applyRevolt(ctx, intent.order.TargetTerritoryID, intent.order.ID, intent.playerID)
 		}
 	}
+	resolveArmyRevolts(ctx)
 	resolvePlagueMortality(ctx)
 	emitFamineLosses(ctx)
 	emitBadWeatherLosses(ctx)
@@ -405,15 +406,22 @@ func (ctx *resolutionContext) isRoyalTax(playerID models.PlayerID, order models.
 	return !ownsIt
 }
 
-// applyRevolt consumes one revolt card on the target territory: it rolls for
-// reinforcements and adds them to the common neutral army building there, or
-// defers the fight to the post-movement revolt pass while the territory is
-// held by a player army. A revolt whose famine has been canceled in the
-// meantime, and whose territory's fief was not taxed this turn or the
+// applyRevolt consumes one revolt card on the target territory. On a starving
+// army it only adds its roll to the ones resolveArmyRevolts sums. Otherwise it
+// rolls for reinforcements and adds them to the common neutral army building
+// there, or defers the fight to the post-movement revolt pass while the
+// territory is held by a player army. A revolt whose famine has been canceled
+// in the meantime, and whose territory's fief was not taxed this turn or the
 // previous one either, is annulled with the card (titres.md "Taxe
 // seigneuriale").
 func applyRevolt(ctx *resolutionContext, targetTerritory models.TerritoryID, orderID models.OrderID, playerID models.PlayerID) {
 	if targetTerritory == "" {
+		return
+	}
+	// A starving army takes the card ahead of any territorial condition: its
+	// roll joins the others played on it, resolved together afterwards.
+	if army := ctx.starvingArmyAt(targetTerritory); army != nil {
+		ctx.armyRevoltRolls[army.ID] += ctx.rollRevoltSize(orderID)
 		return
 	}
 	regionSeed := regionForTerritory(ctx, targetTerritory)

@@ -1179,6 +1179,27 @@ describe('OrdersPanel title and card order dialogs', () => {
     ).toEqual(['CCC', 'FFF', 'GGG', 'HHH'])
   })
 
+  it('marks a starving army target and explains the revolt threshold', () => {
+    const onSpecialChange = renderAction({
+      specialHand: ['revolt'],
+      revoltTargets: ['BBB', 'CCC'],
+      territories: [
+        { id: 'CCC', owner: 'P2', resources: 0, army: { owner: 'P2', size: 3, chain: null, starving: true }, infrastructures: [] },
+      ],
+    })
+    pickHandCard()
+    fireEvent.click(screen.getByRole('button', { name: /^Play Revolt/ }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'BBB',
+      'CCC · starving army',
+    ])
+    fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'CCC' } })
+    expect(within(dialog).getByText(/Starving army of 3 troops: it turns neutral/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P RE CCC # .*on the starving army at CCC\n$/))
+  })
+
   const pope: Noble = { ...nobles[0], religiousTitle: 'pope' }
   const bishoprics = [
     { region: 'AAA', name: 'Ros', territories: ['AAA', 'BBB'], bishop: 'POP' },
