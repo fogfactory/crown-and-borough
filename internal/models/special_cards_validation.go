@@ -90,6 +90,41 @@ func validateSpecialDeck(deck *SpecialDeck, auguries map[int]YearAugury, players
 	return nil
 }
 
+// validateTaxedFiefs checks that every persisted tax window still points at
+// a known fief with a positive turn. Engine code is responsible for dropping
+// an entry the moment its fief dissolves (titres.md "Taxe seigneuriale"), so
+// a dangling reference here is a corrupted state rather than a normal
+// transient the validator should tolerate.
+func validateTaxedFiefs(taxedFiefs []TaxedFief, fiefIDs map[FiefID]bool) error {
+	for index, taxed := range taxedFiefs {
+		if !fiefIDs[taxed.FiefID] {
+			return fmt.Errorf("models: taxed fief %d: unknown fief %q", index, taxed.FiefID)
+		}
+		if taxed.Turn < 1 {
+			return fmt.Errorf("models: taxed fief %d: invalid turn %d", index, taxed.Turn)
+		}
+	}
+	return nil
+}
+
+// validateTithedRegions checks that every persisted tithe window points at a
+// known bishopric seed with a positive turn.
+func validateTithedRegions(tithed []TithedRegion, regions []Region) error {
+	seeds := make(map[TerritoryID]bool, len(regions))
+	for _, region := range regions {
+		seeds[region.Seed] = true
+	}
+	for index, entry := range tithed {
+		if !seeds[entry.RegionSeed] {
+			return fmt.Errorf("models: tithed region %d: unknown bishopric %q", index, entry.RegionSeed)
+		}
+		if entry.Turn < 1 {
+			return fmt.Errorf("models: tithed region %d: invalid turn %d", index, entry.Turn)
+		}
+	}
+	return nil
+}
+
 func validateActiveRegionEffects(effects []ActiveRegionEffect, regions []Region) error {
 	if len(regions) == 0 {
 		return nil
@@ -107,6 +142,24 @@ func validateActiveRegionEffects(effects []ActiveRegionEffect, regions []Region)
 		}
 		if !effect.Season.IsValid() || effect.Year < 1 {
 			return fmt.Errorf("models: active region effect %d: invalid season or year", index)
+		}
+	}
+	return nil
+}
+
+// validateTrialRevoltWindows checks that every revolt window an executed
+// trial opened points at a known region with a positive turn.
+func validateTrialRevoltWindows(windows []TrialRevoltWindow, regions []Region) error {
+	regionSeeds := make(map[TerritoryID]bool, len(regions))
+	for _, region := range regions {
+		regionSeeds[region.Seed] = true
+	}
+	for index, window := range windows {
+		if len(regions) != 0 && !regionSeeds[window.RegionSeed] {
+			return fmt.Errorf("models: trial revolt window %d: unknown region seed %q", index, window.RegionSeed)
+		}
+		if window.FromTurn < 1 {
+			return fmt.Errorf("models: trial revolt window %d: invalid turn %d", index, window.FromTurn)
 		}
 	}
 	return nil

@@ -131,25 +131,61 @@ export function pinchView(
   }
 }
 
+/** Bounding box in map units: [minX, minY, maxX, maxY]. */
+export type MapBounds = [number, number, number, number]
+
 /**
- * Which snap state a bottom sheet should take after a vertical drag, given the
- * distance travelled since drag start (positive = downward).
+ * View that frames `bounds` (plus `padding` map units around it) in the
+ * middle of the viewport. The SVG keeps its aspect ratio ("meet"), so the
+ * visible area may be wider or taller than the viewBox: `elementWidth` and
+ * `elementHeight` (pixels) account for it. The view never zooms out below the
+ * whole map.
  */
-export type SheetSnap = 'peek' | 'half' | 'full'
+export function frameView(
+  bounds: MapBounds,
+  viewWidth: number,
+  viewHeight: number,
+  mapWidth: number,
+  mapHeight: number,
+  elementWidth: number,
+  elementHeight: number,
+  padding = 0,
+): ViewState {
+  const [minX, minY, maxX, maxY] = bounds
+  const ratio = elementWidth > 0 && elementHeight > 0 ? elementWidth / elementHeight : 0
+  const visibleWidth = ratio > 0 ? Math.max(viewWidth, viewHeight * ratio) : viewWidth
+  const visibleHeight = ratio > 0 ? Math.max(viewHeight, viewWidth / ratio) : viewHeight
+  const width = Math.max(maxX - minX, 1) + padding * 2
+  const height = Math.max(maxY - minY, 1) + padding * 2
+  const k = clamp(Math.min(visibleWidth / width, visibleHeight / height), 1, MAX_ZOOM)
+  const centerX = (minX + maxX) / 2
+  const centerY = (minY + maxY) / 2
 
-const SHEET_SNAP_ORDER: SheetSnap[] = ['peek', 'half', 'full']
-
-export function snapFromDrag(current: SheetSnap, deltaY: number): SheetSnap {
-  const index = SHEET_SNAP_ORDER.indexOf(current)
-  if (deltaY <= -60) {
-    return SHEET_SNAP_ORDER[Math.min(index + 1, SHEET_SNAP_ORDER.length - 1)]
+  return {
+    k,
+    x: keepFilled(mapWidth / 2 - centerX * k, k, viewWidth, mapWidth, visibleWidth),
+    y: keepFilled(mapHeight / 2 - centerY * k, k, viewHeight, mapHeight, visibleHeight),
   }
-  if (deltaY >= 60) {
-    return SHEET_SNAP_ORDER[Math.max(index - 1, 0)]
-  }
-  return current
 }
 
-export function nextSheetSnap(current: SheetSnap): SheetSnap {
-  return current === 'full' ? 'peek' : 'full'
+/**
+ * Shifts an offset so the drawing (the map and its frame band, `viewSize`
+ * wide and centered on the map) covers the visible span when it can,
+ * instead of leaving empty paper past its edge; a drawing smaller than the
+ * visible span is centered.
+ */
+function keepFilled(
+  offset: number,
+  k: number,
+  viewSize: number,
+  mapSize: number,
+  visibleSize: number,
+): number {
+  const center = mapSize / 2
+  const visibleStart = center - visibleSize / 2
+  const visibleEnd = center + visibleSize / 2
+  const drawingStart = center - viewSize / 2
+  const drawingEnd = center + viewSize / 2
+  if ((drawingEnd - drawingStart) * k < visibleSize) return center * (1 - k)
+  return clamp(offset, visibleEnd - drawingEnd * k, visibleStart - drawingStart * k)
 }

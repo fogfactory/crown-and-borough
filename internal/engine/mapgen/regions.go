@@ -93,22 +93,27 @@ func (q *regionQueue) Pop() any {
 	return value
 }
 
-func generateRegions(territories []Territory) ([]models.Region, error) {
+// generateRegions partitions territories into one region per seed, using a
+// BFS multi-source shortest-path assignment. seeds are the chefs-lieux
+// territory IDs; a home village never seeds its own region, so the region
+// count is always the chef-lieu count rather than the total village count.
+func generateRegions(territories []Territory, seeds []models.TerritoryID) ([]models.Region, error) {
 	if len(territories) == 0 {
 		return []models.Region{}, nil
 	}
+	if len(seeds) == 0 {
+		return nil, fmt.Errorf("mapgen: cannot generate regions without seeds")
+	}
 	byID := make(map[models.TerritoryID]Territory, len(territories))
-	seeds := make([]models.TerritoryID, 0)
 	for _, territory := range territories {
-		territoryID := models.TerritoryID(territory.ID)
-		byID[territoryID] = territory
-		if territory.Village {
-			seeds = append(seeds, territoryID)
+		byID[models.TerritoryID(territory.ID)] = territory
+	}
+	for _, seed := range seeds {
+		if _, exists := byID[seed]; !exists {
+			return nil, fmt.Errorf("mapgen: region seed %q is not a known territory", seed)
 		}
 	}
-	if len(seeds) == 0 {
-		return nil, fmt.Errorf("mapgen: cannot generate regions without village seeds")
-	}
+	seeds = append([]models.TerritoryID(nil), seeds...)
 	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
 	best := make(map[models.TerritoryID]regionQueueItem, len(territories))
 	queue := &regionQueue{}
@@ -146,7 +151,7 @@ func generateRegions(territories []Territory) ([]models.Region, error) {
 	for _, seed := range seeds {
 		territoriesInRegion := members[seed]
 		sort.Slice(territoriesInRegion, func(i, j int) bool { return territoriesInRegion[i] < territoriesInRegion[j] })
-		regions = append(regions, models.Region{ID: models.RegionID(seed), Seed: seed, Territories: territoriesInRegion})
+		regions = append(regions, models.Region{ID: models.RegionID(seed), Name: byID[seed].Name, Seed: seed, Territories: territoriesInRegion})
 	}
 	if err := rebalanceRegions(territories, regions); err != nil {
 		return nil, err
@@ -237,7 +242,9 @@ func bestRegionMove(byID map[models.TerritoryID]Territory, regions []models.Regi
 					continue
 				}
 				moveSize := len(movedTerritories)
-				if len(donor.Territories)-len(target.Territories) < moveSize {
+				// A move must shrink the donor/target gap strictly: moving the
+				// whole gap only swaps the two sizes and could cycle forever.
+				if len(donor.Territories)-len(target.Territories) <= moveSize {
 					continue
 				}
 				sizes := make([]int, len(regions))

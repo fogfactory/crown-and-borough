@@ -15,37 +15,87 @@ const (
 		"MDO;Mont-Dore;mountain\n" +
 		"FOU;Fougères;swamp\n" +
 		"BLV;Belval;any\n"
-	validPrenoms = "code;nom\n" +
-		"GUI;Guillaume\n" +
-		"ADE;Adélaïde\n" +
-		"MAH;Mahaut\n"
+	validPrenoms = "code;nom;sexe\n" +
+		"GUI;Guillaume;male\n" +
+		"ADE;Adélaïde;female\n" +
+		"MAH;Mahaut;female\n"
 	validBalance = `# The loader accepts YAML documentation comments.
-base_production: 1
+territory_income: 1
+village_income: 1
 supply_range: 3
 depot_range_bonus: 2
-infra_rations_bonus: 2
 cost_base: 2
 pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
+city_defense_bonus: 2
 ration_terrain:
-  plain: 3
-  forest: 2
-  hill: 2
-  mountain: 1
+  plain: 2
+  forest: 1
+  hill: 1
+  mountain: 0
   swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
+village_max_level: 3
 castle_stock_cap: 2
+prosperity_loss_threshold: 10
 costs:
   castle: 10
   mill_levels: [3, 5, 7]
   troop: 1
-  noble: 2
   supply_depot: 3
-  liberation: 0
+  fief_per_territory: 2
+  annex_per_territory: 2
+  rank_per_territory: 2
+victory:
+  solo_territory_percent: 50
+  alliance_territory_percent: 66
+  reference_fief_size: 4
+alliance:
+  succession_ranks: [3, 2, 1]
+  title_ranks:
+    barony: 1
+    county: 2
+    marquisate: 3
+    duchy: 4
+  crown_rank: 5
+  density_bonus: 1
+religion:
+  cardinal_cost: 8
+  cardinal_purchase_base: 1
+  cardinal_purchase_players_per_extra: 6
+  cardinal_card_base: 1
+  cardinal_card_players_per_extra: 3
+  excommunications_per_winter: 1
+  excommunications_per_target_player: 1
+  appeasement_success_rolls: 3
+  appeasement_death_rolls: 1
+  appeasement_cost_base: 2
+  inquiry_cost:
+    untitled: 1
+    baron: 2
+    count: 3
+    marquis: 4
+    duke: 5
+    king: 5
+    pope: 5
+    bishop: 3
+    cardinal: 4
+  votes:
+    territory: 1
+    seat: 2
+    bishop: 1
+    cardinal: 2
+    pope: 3
+    abbess: 1
+royal:
+  orders_per_winter: 1
+noble_limit: 4
+noble_limit_max: 6
 starting_nobles: 1
 starting_troops: 1
+starting_outposts: 2
 starting_resources: 10
 special_orders:
   hand_limit: 4
@@ -64,13 +114,16 @@ special_orders:
     fair_weather: 3
     abundant_harvest: 3
     revolt: 1
+    seigneurial_tax: 2
+    tunnel: 1
+    ambush: 1
+    assassination: 1
+    justice: 1
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50
     revolt_army_min_size: 1
-    revolt_army_max_size: 3
-    bonus_mill_production: 1
-    bonus_army_ration: 1`
+    revolt_army_max_size: 3`
 )
 
 func writeAssets(t *testing.T, dir, communes, prenoms string) {
@@ -106,7 +159,7 @@ func TestLoadRealBalance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBalance(real asset) = %v", err)
 	}
-	if balance.BaseProduction != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || balance.Costs.Liberation != 0 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
+	if balance.TerritoryIncome != 1 || balance.VillageIncome != 1 || balance.DepotRangeBonus != 2 || balance.NobleCommandBonus != 1 || balance.WinterStockDivisor != 2 || balance.VillageStockCap != 1 || balance.CastleStockCap != 2 || balance.Costs.Castle != 10 || len(balance.Costs.MillLevels) != 3 || balance.Costs.MillLevels[0] != 3 || balance.Costs.MillLevels[1] != 5 || balance.Costs.MillLevels[2] != 7 {
 		t.Errorf("loaded costs = %#v / %#v", balance, balance.Costs)
 	}
 	if len(balance.FirstNames) < 100 {
@@ -124,8 +177,8 @@ func TestLoadBalanceValid(t *testing.T) {
 		t.Fatalf("LoadBalance(valid asset) = %v", err)
 	}
 	if balance.SupplyRange != 3 || balance.NobleCommandBonus != 1 ||
-		balance.RationTerrain["plain"] != 3 || balance.RationTerrain["forest"] != 2 ||
-		balance.RationTerrain["hill"] != 2 || balance.RationTerrain["mountain"] != 1 ||
+		balance.RationTerrain["plain"] != 2 || balance.RationTerrain["forest"] != 1 ||
+		balance.RationTerrain["hill"] != 1 || balance.RationTerrain["mountain"] != 0 ||
 		balance.RationTerrain["swamp"] != 1 {
 		t.Errorf("loaded balance = %#v", balance)
 	}
@@ -162,17 +215,32 @@ func TestLoadBalanceInvalid(t *testing.T) {
 		},
 		{
 			name:    "missing terrain value",
-			content: strings.Replace(validBalance, "  mountain: 1\n  swamp: 1\n", "  mountain: 1\n", 1),
+			content: strings.Replace(validBalance, "  mountain: 0\n  swamp: 1\n", "  mountain: 0\n", 1),
 			want:    "ration_terrain.swamp",
 		},
 		{
+			name:    "removed additive card bonus",
+			content: strings.Replace(validBalance, "    revolt_army_max_size: 3", "    revolt_army_max_size: 3\n    bonus_army_ration: 1", 1),
+			want:    "bonus_army_ration",
+		},
+		{
+			name:    "removed infrastructure rations bonus",
+			content: strings.Replace(validBalance, "territory_income: 1\n", "territory_income: 1\ninfra_rations_bonus: 2\n", 1),
+			want:    "infra_rations_bonus",
+		},
+		{
+			name:    "removed base production",
+			content: strings.Replace(validBalance, "territory_income: 1\n", "base_production: 1\nterritory_income: 1\n", 1),
+			want:    "base_production",
+		},
+		{
 			name:    "unknown setting",
-			content: strings.Replace(validBalance, "base_production: 1\n", "unknown_setting: 1\nbase_production: 1\n", 1),
+			content: strings.Replace(validBalance, "territory_income: 1\n", "unknown_setting: 1\nterritory_income: 1\n", 1),
 			want:    "unknown_setting",
 		},
 		{
 			name:    "malformed YAML",
-			content: "base_production: [\n",
+			content: "territory_income: [\n",
 			want:    "invalid YAML",
 		},
 	}
@@ -221,12 +289,22 @@ func TestLoadRealAssets(t *testing.T) {
 			t.Errorf("no commune with terrain %q", terrain)
 		}
 	}
+	seenSexes := make(map[string]bool)
 	for _, a := range assets.Prenoms {
 		if !isTrigram(a.Code) {
 			t.Errorf("prénom %q: invalid code %q", a.Name, a.Code)
 		}
 		if a.Name == "" {
 			t.Errorf("prénom with empty name, code %q", a.Code)
+		}
+		if a.Sex != "male" && a.Sex != "female" {
+			t.Errorf("prénom %q: invalid sex %q", a.Name, a.Sex)
+		}
+		seenSexes[a.Sex] = true
+	}
+	for _, sex := range []string{"male", "female"} {
+		if !seenSexes[sex] {
+			t.Errorf("no prénom with sex %q", sex)
 		}
 	}
 
@@ -320,6 +398,25 @@ func TestLoadHeaderOnly(t *testing.T) {
 
 	if _, err := Load(dir); err == nil {
 		t.Fatal("Load(header-only communes.csv) = nil error, want error")
+	}
+}
+
+func TestLoadInvalidPrenoms(t *testing.T) {
+	tests := map[string]string{
+		"invalid sex":        "code;nom;sexe\nGUI;Guillaume;other\n",
+		"empty sex":          "code;nom;sexe\nGUI;Guillaume;\n",
+		"missing sex column": "code;nom\nGUI;Guillaume\n",
+	}
+	for name, prenoms := range tests {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeAssets(t, dir, "", prenoms)
+			if _, err := Load(dir); err == nil {
+				t.Fatal("Load() = nil error, want error")
+			} else if !strings.Contains(err.Error(), "prenoms.csv") {
+				t.Errorf("error %q does not mention prenoms.csv", err)
+			}
+		})
 	}
 }
 

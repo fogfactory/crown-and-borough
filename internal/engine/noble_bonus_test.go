@@ -178,27 +178,48 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 	})
 }
 
+// TestResolveFamishedNobleCommandHasZeroForce: the turn after its demand
+// first goes unmet, a famished army defends at its capped strength and gets no
+// noble bonus (see TestResolveFamineCombatEffects).
 func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			supplyTerritory("AAA", "AAA", models.TerrainMountain, "BBB"),
 			supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
 		},
-		[]models.Army{
-			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
-			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
-		})
-	addNoble(state, "N1", "ONE", "P1", "AAA")
-	addChain(t, state, "A1", "N1", models.Order{
-		Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"},
-	})
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
+	)
 	validateTestState(t, state)
 
-	resolution, err := Resolve(state, testBalance())
+	turn1, err := Resolve(state, testBalance())
 	if err != nil {
-		t.Fatalf("Resolve: %v", err)
+		t.Fatalf("turn 1 Resolve: %v", err)
 	}
-	contender := combatContenderForNobleBonus(t, resolution.Events, "BBB", "A1")
+	if army := armyByID(t, turn1.State, "A1"); !army.Starving {
+		t.Fatalf("A1 after turn 1 = %+v, want starving", army)
+	}
+
+	state2 := cloneGameState(turn1.State)
+	addNoble(state2, "N1", "ONE", "P1", "AAA")
+	addNoble(state2, "N2", "TWO", "P2", "BBB")
+	state2.Armies = append([]models.Army(nil), state2.Armies...)
+	state2.Armies = append(state2.Armies, models.Army{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1})
+	territoryState := state2.TerritoryStates["BBB"]
+	armyID := models.ArmyID("A2")
+	territoryState.Army = &armyID
+	state2.TerritoryStates["BBB"] = territoryState
+	state2.NextArmyID = nextArmyID(state2.Armies)
+	addChain(t, state2, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+	addChain(t, state2, "A2", "N2", models.Order{
+		Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"},
+	})
+	validateTestState(t, state2)
+
+	turn2, err := Resolve(state2, testBalance())
+	if err != nil {
+		t.Fatalf("turn 2 Resolve: %v", err)
+	}
+	contender := combatContenderForNobleBonus(t, turn2.Events, "AAA", "A1")
 	if contender.Force != 0 || contender.NobleBonus != 0 {
 		t.Errorf("famished contender = %#v, want zero force and zero noble bonus", contender)
 	}
@@ -206,7 +227,8 @@ func TestResolveFamishedNobleCommandHasZeroForce(t *testing.T) {
 
 func testNoble(id models.NobleID, code string, ownerID models.PlayerID, territoryID models.TerritoryID, status models.NobleStatus) models.Noble {
 	return models.Noble{
-		ID: id, Code: code, Name: string(code), OwnerID: ownerID,
+		Sex: models.SexMale,
+		ID:  id, Code: code, Name: string(code), OwnerID: ownerID,
 		LocationID: territoryID, Status: status,
 	}
 }

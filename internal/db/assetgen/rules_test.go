@@ -101,7 +101,7 @@ func TestLoadRealRules(t *testing.T) {
 	if !ok || !strings.Contains(string(english), "# Game Rules") {
 		t.Errorf("English document = %q, %t", english, ok)
 	}
-	for _, heading := range []string{"## 4. Aide-mémoire des ordres", "## 5. Ordres d'hiver"} {
+	for _, heading := range []string{"## 5. Aide-mémoire des ordres", "## 8. Ordres d'hiver"} {
 		if !strings.Contains(string(document), heading) {
 			t.Errorf("French document does not contain %q", heading)
 		}
@@ -111,13 +111,14 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	for _, placeholder := range []string{
 		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
+		"{{territory_income}}", "{{village_income}}", "{{village_max_level}}",
 		"{{costs.mill_levels.0}}", "{{costs.mill_levels.1}}", "{{costs.mill_levels.2}}",
 	} {
 		if strings.Contains(string(document), placeholder) {
 			t.Errorf("French rules document still contains placeholder %q", placeholder)
 		}
 	}
-	for _, heading := range []string{"## 4. Order Cheat Sheet", "## 5. Winter Orders"} {
+	for _, heading := range []string{"## 5. Order Cheat Sheet", "## 8. Winter Orders"} {
 		if !strings.Contains(string(english), heading) {
 			t.Errorf("English document does not contain %q", heading)
 		}
@@ -127,6 +128,7 @@ func TestLoadRealRules(t *testing.T) {
 	}
 	for _, placeholder := range []string{
 		"{{ration_terrain.", "{{infra_rations_bonus}}", "{{base_production}}",
+		"{{territory_income}}", "{{village_income}}", "{{village_max_level}}",
 		"{{costs.mill_levels.0}}", "{{costs.mill_levels.1}}", "{{costs.mill_levels.2}}",
 	} {
 		if strings.Contains(string(english), placeholder) {

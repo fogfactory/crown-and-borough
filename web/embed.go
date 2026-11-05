@@ -6,7 +6,8 @@ import (
 )
 
 // dist contains the Vite output. The Docker build creates it before the Go
-// compiler packages this directory.
+// compiler packages this directory. A tracked dist/.gitkeep keeps the embed
+// pattern valid on a fresh clone; the frontend is then simply absent.
 //
 //go:embed all:dist
 var embeddedDist embed.FS

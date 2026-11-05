@@ -1,14 +1,48 @@
 import type { Translate, MessageKey } from '@/i18n/messages'
-import type { CardKind } from '@/types'
+import type { CardKind, NobleCard } from '@/types'
 
 const CARD_KIND_ORDER: CardKind[] = [
   'fair_weather',
   'abundant_harvest',
+  'seigneurial_tax',
+  'tunnel',
+  'ambush',
+  'assassination',
+  'justice',
   'plague',
   'bad_weather',
   'revolt',
   'famine',
 ]
+
+/** Calamities: the cards a Witch's ritual can call (`S R NNN CAL`). */
+export const CALAMITY_KINDS: CardKind[] = ['plague', 'bad_weather', 'famine']
+
+/** Name of a card of the noble deck: the noble, the dignity, or a claim. */
+export function nobleCardName(card: NobleCard, t: Translate): string {
+  if (card.kind === 'claim') return t('hand.claimCard')
+  if (card.kind === 'dignity') return t(`dignity.${card.dignity ?? 'bastard'}` as MessageKey)
+  return card.name ?? card.code
+}
+
+/** Code of a card kind in the order sheets (`P BT TER`, `D C BT`). */
+const SHORT_CODES: Record<CardKind, string> = {
+  fair_weather: 'BT',
+  abundant_harvest: 'RA',
+  revolt: 'RE',
+  plague: 'PE',
+  bad_weather: 'MT',
+  famine: 'FA',
+  seigneurial_tax: 'TX',
+  tunnel: 'SO',
+  ambush: 'EM',
+  assassination: 'AS',
+  justice: 'JU',
+}
+
+export function shortCode(kind: CardKind): string {
+  return SHORT_CODES[kind]
+}
 
 const CARD_SHORT_KEYS: Record<CardKind, MessageKey> = {
   fair_weather: 'card.short.fair_weather',
@@ -17,6 +51,11 @@ const CARD_SHORT_KEYS: Record<CardKind, MessageKey> = {
   plague: 'card.short.plague',
   bad_weather: 'card.short.bad_weather',
   famine: 'card.short.famine',
+  seigneurial_tax: 'card.short.seigneurial_tax',
+  tunnel: 'card.short.tunnel',
+  ambush: 'card.short.ambush',
+  assassination: 'card.short.assassination',
+  justice: 'card.short.justice',
 }
 
 const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
@@ -26,10 +65,19 @@ const CARD_NAME_KEYS: Record<CardKind, MessageKey> = {
   plague: 'card.plague',
   bad_weather: 'card.bad_weather',
   famine: 'card.famine',
+  seigneurial_tax: 'card.seigneurial_tax',
+  tunnel: 'card.tunnel',
+  ambush: 'card.ambush',
+  assassination: 'card.assassination',
+  justice: 'card.justice',
 }
 
 export function formatCardLabel(kind: CardKind, t: Translate): string {
   return `${t(CARD_NAME_KEYS[kind])} (${t(CARD_SHORT_KEYS[kind])})`
+}
+
+export function formatCardName(kind: CardKind, t: Translate): string {
+  return t(CARD_NAME_KEYS[kind])
 }
 
 export function formatCardCode(kind: CardKind, t: Translate): string {

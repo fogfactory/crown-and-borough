@@ -67,6 +67,9 @@ type FirestoreStore struct {
 	closeClient             bool
 	invitationCodeGenerator func() (string, error)
 	metrics                 firestoreMetrics
+	// commitFault, set only by tests, makes the resolution commit fail with
+	// its error before any write.
+	commitFault func() error
 }
 
 var _ store.InvitationGameStore = (*FirestoreStore)(nil)

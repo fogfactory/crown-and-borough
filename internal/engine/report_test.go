@@ -47,7 +47,7 @@ func TestTurnReportContainsResolutionSectionsAndRoundTrips(t *testing.T) {
 	for _, adjacentID := range start.Adjacencies {
 		candidate := territoryByID(game.Territories, adjacentID)
 		candidateState := game.TerritoryStates[candidate.ID]
-		if candidateState.OwnerID == nil && candidateState.Army == nil {
+		if controllerOf(game, candidate.ID) == nil && candidateState.Army == nil {
 			target = candidate
 			break
 		}
@@ -143,13 +143,13 @@ func TestBuildTurnReportKeepsCompleteOrderSyntaxFromBeforeSnapshot(t *testing.T)
 	armyID := models.ArmyID("A1")
 	before.Armies = []models.Army{{ID: armyID, OwnerID: owner, TerritoryID: "ROS", Size: 2}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &owner, Army: &armyID, Infrastructures: []models.InfraID{}},
-		"BRU": {Infrastructures: []models.InfraID{}},
-		"CHA": {Infrastructures: []models.InfraID{}},
+		"ROS": {Army: &armyID},
+		"BRU": {},
+		"CHA": {},
 	}
 	before.Nobles = []models.Noble{
-		{ID: "N1", Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "ROS", Status: models.NobleStatusFree},
-		{ID: "N2", Code: "BOB", Name: "Robert", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusHostage},
+		{ID: "N1", Sex: models.SexMale, Code: "JEA", Name: "Jean", OwnerID: owner, LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Sex: models.SexMale, Code: "BOB", Name: "Robert", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusHostage},
 	}
 	before.Chains = []models.Chain{{
 		ID: "C1", ArmyID: armyID, NobleID: "N1", CurrentIndex: 0,
@@ -209,7 +209,7 @@ func TestBuildTurnReportMarksWinterInvestmentOutcomes(t *testing.T) {
 	before.Players = []models.Player{{ID: "P1", Name: "One", Color: "red"}}
 	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {Infrastructures: []models.InfraID{}},
+		"ROS": {},
 	}
 	rejectedOrder := &models.WinterOrder{
 		ID: "O1", Type: models.WinterOrderTypeBuild, TerritoryID: "AAA", InfraType: models.InfraTypeMill,
@@ -266,6 +266,65 @@ func TestBuildTurnReportIncludesWinterNobleStatusInvestment(t *testing.T) {
 	investment := report.Winter.Investments[0]
 	if investment.Player != "P2" || investment.Outcome != OutcomeSuccess || investment.Order == nil || investment.Order.Type != models.WinterOrderTypeDungeon {
 		t.Errorf("status investment = %#v, want successful P2 dungeon order", investment)
+	}
+}
+
+func TestBuildTurnReportIncludesFiefInvestments(t *testing.T) {
+	before := models.NewGameState()
+	before.Turn = 4
+	before.Season = models.SeasonWinter
+	before.Players = []models.Player{{ID: "P1", Name: "One", Color: "red"}}
+	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
+	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {}}
+
+	report := BuildTurnReport(before, nil, []Event{
+		{
+			Type: EventTypeFiefFounded, OwnerID: "P1", TerritoryID: "ROS",
+			FiefID: "F1", FiefTitle: models.FiefTitleBarony, FiefTerritories: []models.TerritoryID{"ROS", "BOI", "BRU"},
+			NobleID: "N1", NobleCode: "HUG", ResourceSpent: 6,
+		},
+		{
+			Type: EventTypeFiefAssigned, OwnerID: "P1", TerritoryID: "ROS",
+			FiefID: "F1", FiefTitle: models.FiefTitleBarony, FiefTerritories: []models.TerritoryID{"ROS", "BOI", "BRU"},
+			NobleID: "N1", NobleCode: "HUG",
+		},
+	}, nil)
+	if report.Winter == nil || len(report.Winter.Investments) != 2 {
+		t.Fatalf("winter investments = %#v, want two entries", report.Winter)
+	}
+	founded := report.Winter.Investments[0]
+	if founded.Kind != EventTypeFiefFounded || founded.Title != models.FiefTitleBarony || founded.Cost != 6 {
+		t.Errorf("founded investment = %#v, want fief_founded barony costing 6", founded)
+	}
+	if got, want := founded.Territories, []models.TerritoryID{"ROS", "BOI", "BRU"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("founded territories = %#v, want %#v", got, want)
+	}
+	assigned := report.Winter.Investments[1]
+	if assigned.Kind != EventTypeFiefAssigned || assigned.Cost != 0 {
+		t.Errorf("assigned investment = %#v, want fief_assigned costing 0", assigned)
+	}
+}
+
+func TestBuildTurnReportIncludesFiefLifecycleSection(t *testing.T) {
+	before := models.NewGameState()
+	before.Turn = 5
+	before.Season = models.SeasonSpring
+	before.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
+	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
+	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {}}
+
+	report := BuildTurnReport(before, nil, []Event{
+		{
+			Type: EventTypeFiefConquered, TerritoryID: "ROS", FiefID: "F1", FiefTitle: models.FiefTitleBarony,
+			FiefTerritories: []models.TerritoryID{"ROS", "BOI", "BRU"}, PreviousOwnerID: "P1", OwnerID: "P2",
+		},
+	}, nil)
+	if len(report.Fiefs) != 1 {
+		t.Fatalf("fiefs section = %#v, want one entry", report.Fiefs)
+	}
+	fief := report.Fiefs[0]
+	if fief.Kind != EventTypeFiefConquered || fief.Owner != "P2" || fief.PreviousOwner != "P1" || fief.Capital != "ROS" {
+		t.Errorf("fief report = %#v, want conquest from P1 to P2 at ROS", fief)
 	}
 }
 
@@ -381,7 +440,7 @@ func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
 	before.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
 	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
 	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {Infrastructures: []models.InfraID{}},
+		"ROS": {},
 	}
 	report := BuildTurnReport(before, nil, []Event{
 		{

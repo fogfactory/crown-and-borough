@@ -5,21 +5,15 @@ import { LanguageProvider } from '@/i18n/LanguageContext'
 import { Scoreboard } from '@/components/Scoreboard'
 
 describe('Scoreboard', () => {
-  it('shows each player total and category breakdown', () => {
+  it('shows each player total and title count', () => {
     render(
       <LanguageProvider initialLanguage="en">
         <Scoreboard
           players={[{ id: 'P1', name: 'Alice', color: '#a84632' }]}
           scores={{
             P1: {
-              territories: 2,
-              villages: 4,
-              mills: 1,
-              castles: 5,
-              nobles: 2,
-              troops: 3,
-              resources: 7,
-              total: 24,
+              titles: 3,
+              total: 3,
             },
           }}
         />
@@ -28,8 +22,128 @@ describe('Scoreboard', () => {
 
     expect(screen.getByRole('heading', { name: 'Scores' })).toBeInTheDocument()
     expect(screen.getByText('Alice')).toBeInTheDocument()
-    expect(screen.getByText('24')).toBeInTheDocument()
-    expect(screen.getByText('Territories')).toBeInTheDocument()
-    expect(screen.getByText('Resources')).toBeInTheDocument()
+    expect(screen.getByText('Titles')).toBeInTheDocument()
+    expect(screen.getAllByText('3')).toHaveLength(2)
+  })
+
+  it('shows the marriage influence bonus only when there is one', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#2f6f9f' },
+          ]}
+          scores={{
+            P1: { titles: 1, alliance: 3, total: 4 },
+            P2: { titles: 3, total: 3 },
+          }}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getAllByText('Marriages')).toHaveLength(1)
+  })
+
+  it('defaults titles to 0 for a score snapshot recorded before issue #251', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[{ id: 'P1', name: 'Alice', color: '#a84632' }]}
+          scores={{
+            P1: {
+              total: 0,
+            },
+          }}
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText('Titles')).toBeInTheDocument()
+    expect(screen.getAllByText('0')).toHaveLength(2)
+  })
+
+  it('shows the victory goal and mode of each player', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#325ca8' },
+          ]}
+          scores={{ P1: { titles: 1, total: 1 }, P2: { titles: 0, ally: 1, total: 1 } }}
+          victory={{
+            soloThreshold: 4,
+            allianceThreshold: 6,
+            players: {
+              P1: { mode: 'solo', required: 4 },
+              P2: { mode: 'alliance', required: 6, partner: 'P1' },
+            },
+          }}
+        />
+      </LanguageProvider>,
+    )
+
+    // The mode reads as text, not as a badge.
+    expect(screen.getByTestId('victory-mode-P1').parentElement).toHaveTextContent(
+      'Goal: 4 influence · alone',
+    )
+    expect(screen.getByTestId('victory-mode-P2').parentElement).toHaveTextContent(
+      'Goal: 6 influence · allied',
+    )
+    expect(screen.getByTestId('ally-P2')).toHaveTextContent('Ally (Alice)')
+    expect(screen.getByTestId('ally-P2')).toHaveTextContent('1')
+  })
+
+  it('shows major, minor and failure outcomes once the game is finished', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#325ca8' },
+            { id: 'P3', name: 'Carol', color: '#32a85c' },
+          ]}
+          scores={{ P1: { total: 5 }, P2: { total: 3 }, P3: { total: 1 } }}
+          victory={{
+            soloThreshold: 4,
+            allianceThreshold: 6,
+            players: {
+              P1: { mode: 'solo', required: 4 },
+              P2: { mode: 'solo', required: 4 },
+              P3: { mode: 'solo', required: 4 },
+            },
+          }}
+          finished
+          winners={['P1']}
+          minorWinner="P2"
+        />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByTestId('victory-status-P1')).toHaveTextContent('Major victory')
+    expect(screen.getByTestId('victory-status-P2')).toHaveTextContent('Minor victory')
+    expect(screen.getByTestId('victory-status-P3')).toHaveTextContent('Defeat')
+  })
+
+  it("writes the viewer's score in brass, over its arms", () => {
+    const { container } = render(
+      <LanguageProvider initialLanguage="en">
+        <Scoreboard
+          players={[
+            { id: 'P1', name: 'Alice', color: '#a84632' },
+            { id: 'P2', name: 'Bob', color: '#2f6f9f' },
+          ]}
+          scores={{ P1: { titles: 1, total: 1 }, P2: { titles: 2, total: 2 } }}
+          activePlayer="P2"
+        />
+      </LanguageProvider>,
+    )
+
+    const total = (id: string) =>
+      container.querySelector(`[data-score-card="${id}"] [data-score-total]`)
+    expect(total('P2')).toHaveClass('text-brass-700')
+    expect(total('P1')).toHaveClass('text-ink-900')
+    expect(container.querySelectorAll('[data-shield-icon]')).toHaveLength(2)
   })
 })

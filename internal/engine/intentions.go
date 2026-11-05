@@ -126,6 +126,32 @@ func (ctx *resolutionContext) enumeratePendingDisperse(record *orderRecord, chai
 	}
 }
 
+// cancelAttackedOriginPeaceful cancels every join and dispersion whose origin
+// is the target of an attack, whoever the attacker is and whatever it wins:
+// an ally, an enemy, a starving attack at strength zero, or one that later
+// fails as allied_destination all count, since the rule looks at the attack,
+// not its outcome. A cancelled army's intent is removed before the
+// adjudicator ever sees it, so it settles like a hold: none of its troops
+// leaves, and applyContestOutcomes records why.
+func cancelAttackedOriginPeaceful(ctx *resolutionContext) {
+	attackedOrigins := make(map[models.TerritoryID]bool, len(ctx.attacks))
+	for _, attack := range ctx.attacks {
+		attackedOrigins[attack.target] = true
+	}
+	for _, armyID := range sortedArmyMap(ctx.joins) {
+		if attackedOrigins[ctx.joins[armyID].source] {
+			ctx.cancelledPeaceful[armyID] = true
+			delete(ctx.joins, armyID)
+		}
+	}
+	for _, armyID := range sortedArmyMap(ctx.disperses) {
+		if attackedOrigins[ctx.disperses[armyID].source] {
+			ctx.cancelledPeaceful[armyID] = true
+			delete(ctx.disperses, armyID)
+		}
+	}
+}
+
 // emitBadWeatherBlocked reports one army whose order could not run because of
 // the bad weather calamity, for the season-effects section of the report.
 func (ctx *resolutionContext) emitBadWeatherBlocked(army models.Army, order models.Order, regionSeed models.TerritoryID) {
@@ -175,25 +201,16 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 	}
 	switch order.Type {
 	case models.OrderTypeAttack:
-		targetID, valid := ctx.singleAdjacentTarget(record, army, false)
-		if !valid {
+		if ctx.famished[army.ID] {
+			// A famished army only defends: it cannot take the offensive.
+			record.invalidate("famished_attacker")
 			return
 		}
-		strength := army.Size
-		if ctx.famished[army.ID] {
-			strength = 0
-		}
-		ctx.attacks[army.ID] = &attackIntent{armyID: army.ID, source: army.TerritoryID, target: targetID, size: strength}
+		targetID := order.TargetIDs[0]
+		ctx.attacks[army.ID] = &attackIntent{armyID: army.ID, source: army.TerritoryID, target: targetID, size: army.Size}
 		ctx.attackedTerritories[targetID] = true
 	case models.OrderTypeJoin:
-		if !isLastOrder {
-			record.invalidate("join_not_terminal")
-			return
-		}
-		targetID, valid := ctx.singleAdjacentTarget(record, army, false)
-		if !valid {
-			return
-		}
+		targetID := order.TargetIDs[0]
 		ctx.joins[army.ID] = &joinIntent{armyID: army.ID, source: army.TerritoryID, target: targetID}
 	case models.OrderTypeDisperse:
 		assignments, valid := ctx.validateDisperse(record, army)
@@ -208,32 +225,18 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 			assignments:  assignments,
 			nobles:       ctx.noblesAt(army.TerritoryID),
 		}
-	case models.OrderTypeSupport:
-		ctx.validateSupport(record, army)
-	case models.OrderTypeHold:
-		if len(order.TargetIDs) != 0 || len(order.NobleAssignments) != 0 {
-			record.invalidate("invalid_hold_shape")
-		}
+	case models.OrderTypeSupport, models.OrderTypeHold:
+		// Supports are computed from the stored order once every intention
+		// is known; a hold has nothing to enumerate.
 	case models.OrderTypePillage:
-		if len(order.TargetIDs) != 0 || len(order.NobleAssignments) != 0 {
-			record.invalidate("invalid_pillage_shape")
-			return
-		}
-		if len(ctx.state.TerritoryStates[army.TerritoryID].Infrastructures) == 0 {
+		if infrastructure := ctx.infrastructureAt(army.TerritoryID); infrastructure == nil {
 			record.invalidate("no_infrastructure")
+		} else if !infrastructure.IsPillageable() {
+			record.invalidate("ruined_infrastructure")
 		}
 	case models.OrderTypeTransfer:
-		if len(order.TargetIDs) != 1 || len(order.NobleAssignments) != 0 || order.Amount < 1 {
-			record.invalidate("invalid_transfer_shape")
-			return
-		}
 		targetID := order.TargetIDs[0]
-		if targetID == army.TerritoryID || ctx.territoriesByID[targetID] == nil {
-			record.invalidate("invalid_transfer_destination")
-			return
-		}
-		sourceState := ctx.state.TerritoryStates[army.TerritoryID]
-		if sourceState.OwnerID == nil || *sourceState.OwnerID != army.OwnerID {
+		if !controlledBy(ctx.controllerAtStart, army.OwnerID, army.TerritoryID) {
 			record.invalidate("transfer_source_not_controlled")
 			return
 		}
@@ -243,15 +246,22 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 				record.invalidate("invalid_transfer_destination")
 				return
 			}
+			if ctx.occupiedAgainstStartController(targetID, targetArmy) {
+				// The recipient army only occupies its own territory (e.g. a
+				// fief member it does not own): it cannot be handed resources
+				// through it (titres.md).
+				record.invalidate("transfer_target_occupied")
+				return
+			}
 			intent.recipientArmyID = targetArmy.ID
 			intent.recipientPlayer = targetArmy.OwnerID
 		} else {
-			targetState := ctx.state.TerritoryStates[targetID]
-			if targetState.OwnerID == nil || *targetState.OwnerID == army.OwnerID || !PlayerAlive(ctx.state, *targetState.OwnerID) || !ctx.hasSettlement(targetID) {
+			targetControllerID, targetControlled := ctx.controllerAtStart(targetID)
+			if !targetControlled || targetControllerID == army.OwnerID || !PlayerAlive(ctx.state, targetControllerID) || !ctx.hasActiveSettlement(targetID) {
 				record.invalidate("invalid_transfer_destination")
 				return
 			}
-			intent.recipientPlayer = *targetState.OwnerID
+			intent.recipientPlayer = targetControllerID
 		}
 		reachable := transferNetwork(ctx, army.TerritoryID, army.OwnerID, targetID)
 		if _, reachable := reachable[targetID]; !reachable {
@@ -259,8 +269,6 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 			return
 		}
 		ctx.transfers[army.ID] = intent
-	default:
-		record.invalidate("unknown_order_type")
 	}
 }
 
@@ -293,53 +301,8 @@ func (ctx *resolutionContext) filterBadWeatherDisperseAssignments(assignments ma
 	return filtered
 }
 
-func (ctx *resolutionContext) singleAdjacentTarget(record *orderRecord, army models.Army, allowSource bool) (models.TerritoryID, bool) {
-	if len(record.order.TargetIDs) != 1 || len(record.order.NobleAssignments) != 0 {
-		record.invalidate("invalid_target_shape")
-		return "", false
-	}
-	targetID := record.order.TargetIDs[0]
-	if ctx.territoriesByID[targetID] == nil || (!allowSource || targetID != army.TerritoryID) && !ctx.isAdjacent(army.TerritoryID, targetID) {
-		record.invalidate("non_adjacent_destination")
-		return "", false
-	}
-	return targetID, true
-}
-
-func (ctx *resolutionContext) validateSupport(record *orderRecord, army models.Army) {
-	order := record.order
-	if len(order.NobleAssignments) != 0 || len(order.TargetIDs) < 1 || len(order.TargetIDs) > 2 {
-		record.invalidate("invalid_support_shape")
-		return
-	}
-	targetID := order.TargetIDs[0]
-	if ctx.territoriesByID[targetID] == nil {
-		record.invalidate("unknown_support_target")
-		return
-	}
-	if len(order.TargetIDs) == 1 {
-		if targetID == army.TerritoryID || !ctx.isAdjacent(army.TerritoryID, targetID) {
-			record.invalidate("invalid_defensive_support")
-		}
-		return
-	}
-	destinationID := order.TargetIDs[1]
-	if ctx.territoriesByID[destinationID] == nil || !ctx.isAdjacent(army.TerritoryID, destinationID) || !ctx.isAdjacent(targetID, destinationID) {
-		record.invalidate("invalid_offensive_support")
-	}
-}
-
 func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.Army) (map[models.TerritoryID][]models.NobleID, bool) {
 	order := record.order
-	targetSet := make(map[models.TerritoryID]bool, len(order.TargetIDs))
-	for _, targetID := range order.TargetIDs {
-		if ctx.territoriesByID[targetID] == nil || (targetID != army.TerritoryID && !ctx.isAdjacent(army.TerritoryID, targetID)) {
-			record.invalidate("non_adjacent_disperse_destination")
-			return nil, false
-		}
-		targetSet[targetID] = true
-	}
-
 	coLocated := ctx.noblesAt(army.TerritoryID)
 	assignments := make(map[models.TerritoryID][]models.NobleID, len(order.NobleAssignments))
 	assigned := make(map[models.NobleID]bool, len(coLocated))
@@ -350,16 +313,8 @@ func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.
 	}
 	sort.Slice(assignmentDestinations, func(i, j int) bool { return assignmentDestinations[i] < assignmentDestinations[j] })
 	for _, destinationID := range assignmentDestinations {
-		if ctx.territoriesByID[destinationID] == nil || !targetSet[destinationID] {
-			record.invalidate("invalid_disperse_assignment_destination")
-			return nil, false
-		}
 		for _, nobleCode := range order.NobleAssignments[destinationID] {
 			if nobleCode == "*" {
-				if wildcardDestination != "" {
-					record.invalidate("duplicate_disperse_wildcard")
-					return nil, false
-				}
 				wildcardDestination = destinationID
 				continue
 			}

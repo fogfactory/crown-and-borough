@@ -21,6 +21,11 @@ export function remainingTurns(state: StateData, fallbackYearCount = 10): number
   return Math.max(0, yearCount * 4 - state.turn + 1)
 }
 
+/** Number of turns in the whole game (four seasons a year). */
+export function totalTurns(state: StateData, fallbackYearCount = 10): number {
+  return (state.yearCount ?? fallbackYearCount) * 4
+}
+
 export function ownerName(
   owner: PlayerId | null,
   state: StateData,

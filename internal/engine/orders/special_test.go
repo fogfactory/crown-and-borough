@@ -32,6 +32,32 @@ func TestParseDeckOrdersAliasesAndComments(t *testing.T) {
 	}
 }
 
+func TestParseDeckOrdersSeigneurialTaxTargetsFiefCapital(t *testing.T) {
+	game := orderTestState()
+	game.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS", "BOI"}}}
+	game.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "BOI",
+		Territories: []models.TerritoryID{"BOI", "BRU", "CHA"}, OwnerID: "P1",
+	}}
+	parsed, parseErrors := ParseDeckOrders("p tx boi\nP ST BOI", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
+	}
+	if len(parsed) != 2 {
+		t.Fatalf("parsed = %#v, want 2 orders", parsed)
+	}
+	for _, order := range parsed {
+		if order.Type != models.DeckOrderTypePlay || order.Kind != models.CardKindSeigneurialTax || order.TargetTerritoryID != "BOI" {
+			t.Errorf("order = %#v, want a tax play targeting the fief capital BOI", order)
+		}
+	}
+	// ROS is a region seed but not a fief capital: the tax exception to
+	// "TER is a region's seed village" only allows a fief capital.
+	if _, parseErrors := ParseDeckOrders("P TX ROS", game); len(parseErrors) != 1 || parseErrors[0].Code != ParseCodeSpecialRegion {
+		t.Fatalf("parseErrors = %#v, want one ParseCodeSpecialRegion error for a non-capital target", parseErrors)
+	}
+}
+
 func TestParseDeckOrdersRejectsInvalidShapesKindsAndSeeds(t *testing.T) {
 	game := orderTestState()
 	game.Regions = []models.Region{{ID: "ROS", Seed: "ROS", Territories: []models.TerritoryID{"ROS", "BOI"}}}
@@ -65,5 +91,79 @@ func TestParseDeckOrdersPreservesLineNumbersAndAtomicity(t *testing.T) {
 	parsed, parseErrors := ParseDeckOrders("\n# comment\nT C\nP BT BAD\n", game)
 	if parsed != nil || len(parseErrors) != 2 || parseErrors[0].Line != 3 || parseErrors[1].Line != 4 {
 		t.Fatalf("parsed/errors = %#v/%#v, want nil and lines 3/4", parsed, parseErrors)
+	}
+}
+
+func TestParseDeckOrdersAppeasement(t *testing.T) {
+	game := orderTestState()
+	parsed, parseErrors := ParseDeckOrders("p ag jea ros\nP PQ ann BOI", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseDeckOrders errors = %#v", parseErrors)
+	}
+	if parsed[0].Type != models.DeckOrderTypeAppeaseRite || parsed[0].TargetNobleID != "N1" || parsed[0].TargetTerritoryID != "ROS" {
+		t.Errorf("rite = %#v", parsed[0])
+	}
+	if parsed[1].Type != models.DeckOrderTypeAppeasePaid || parsed[1].TargetNobleID != "N2" || parsed[1].TargetTerritoryID != "BOI" {
+		t.Errorf("paid = %#v", parsed[1])
+	}
+	for _, line := range []string{"P AP JEA", "P AP JEA ROS BOI", "P AP XXX ROS", "P AP JEA ZZZ"} {
+		if _, parseErrors := ParseDeckOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("%q should not parse", line)
+		}
+	}
+}
+
+func TestParseIssuedTaxLine(t *testing.T) {
+	game := &models.GameState{
+		Nobles:  []models.Noble{{ID: "N1", Code: "AAA"}},
+		Regions: []models.Region{{ID: "R1", Seed: "MIL"}},
+	}
+	order, parseError := parseDeckOrderLine("P TX AAA MIL", 1, game)
+	if parseError != nil {
+		t.Fatalf("parseDeckOrderLine: %v", parseError)
+	}
+	if order.Kind != models.CardKindSeigneurialTax || order.TargetNobleID != "N1" || order.TargetTerritoryID != "MIL" {
+		t.Fatalf("order = %#v, want a tax issued by N1 on MIL", order)
+	}
+	if _, parseError := parseDeckOrderLine("P RE AAA MIL", 1, game); parseError == nil {
+		t.Fatalf("a four-field order other than the tax must be rejected")
+	}
+}
+
+func TestParseTitheOnAFiefCapitalSeed(t *testing.T) {
+	game := &models.GameState{
+		Nobles:  []models.Noble{{ID: "N1", Code: "AAA"}},
+		Regions: []models.Region{{ID: "R1", Seed: "MIL"}},
+		Fiefs:   []models.Fief{{ID: "F1", CapitalTerritoryID: "MIL"}},
+	}
+	tax, parseError := parseDeckOrderLine("P TX AAA MIL", 1, game)
+	if parseError != nil || tax.Tithe {
+		t.Fatalf("P TX on a fief capital = %#v, %v, want a seigneurial tax", tax, parseError)
+	}
+	tithe, parseError := parseDeckOrderLine("P DI AAA MIL", 1, game)
+	if parseError != nil || !tithe.Tithe {
+		t.Fatalf("P DI = %#v, %v, want a tithe", tithe, parseError)
+	}
+	if _, parseError := parseDeckOrderLine("P DI MIL", 1, game); parseError == nil {
+		t.Fatalf("a tithe without issuer must be rejected")
+	}
+}
+
+func TestParsePapalTitheHasNoTarget(t *testing.T) {
+	pope := models.NobleID("N1")
+	game := &models.GameState{
+		Pope:    &pope,
+		Nobles:  []models.Noble{{ID: "N1", Code: "AAA"}, {ID: "N2", Code: "BBB"}},
+		Regions: []models.Region{{ID: "R1", Seed: "MIL"}},
+	}
+	order, parseError := parseDeckOrderLine("P DI AAA", 1, game)
+	if parseError != nil || !order.Tithe || order.TargetNobleID != "N1" || order.TargetTerritoryID != "" {
+		t.Fatalf("P DI <pope> = %#v, %v, want an untargeted tithe issued by the pope", order, parseError)
+	}
+	if _, parseError := parseDeckOrderLine("P DI BBB", 1, game); parseError == nil {
+		t.Fatal("a tithe of a cleric who is not the pope needs a bishopric")
+	}
+	if _, parseError := parseDeckOrderLine("P DI AAA", 1, nil); parseError == nil {
+		t.Fatal("an untargeted tithe cannot be read without a game state")
 	}
 }

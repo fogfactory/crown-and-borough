@@ -14,6 +14,9 @@ type AnnouncementReport struct {
 	Season models.Season      `json:"season"`
 	Region models.TerritoryID `json:"region"`
 	Year   int                `json:"year"`
+	// Ritual is set on a calamity bent by a ritual; the interface words its
+	// announcement a little differently, without saying why.
+	Ritual bool `json:"ritual,omitempty"`
 }
 
 func seasonRank(season models.Season) int {
@@ -83,7 +86,7 @@ func PendingAnnouncements(state *models.GameState, year int, season models.Seaso
 			if rank > threshold || (inclusive && rank == threshold) {
 				announcements = append(announcements, AnnouncementReport{
 					Kind: calamity.Kind, Season: calamity.Season,
-					Region: calamity.RegionSeed, Year: calamity.Year,
+					Region: calamity.RegionSeed, Year: calamity.Year, Ritual: calamity.Ritual,
 				})
 			}
 		}
@@ -92,7 +95,7 @@ func PendingAnnouncements(state *models.GameState, year int, season models.Seaso
 		for _, calamity := range augury.Calamities {
 			announcements = append(announcements, AnnouncementReport{
 				Kind: calamity.Kind, Season: calamity.Season,
-				Region: calamity.RegionSeed, Year: calamity.Year,
+				Region: calamity.RegionSeed, Year: calamity.Year, Ritual: calamity.Ritual,
 			})
 		}
 	}

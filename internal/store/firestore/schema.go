@@ -41,6 +41,7 @@ type gameDocument struct {
 	Scores        map[string]engine.ScoreBreakdown `firestore:"scores"`
 	WinnerUID     string                           `firestore:"winnerUid,omitempty"`
 	SubmittedUIDs []string                         `firestore:"submittedUids"`
+	RequiredUIDs  []string                         `firestore:"requiredUids"`
 	Revision      int64                            `firestore:"revision"`
 	CreatedAt     time.Time                        `firestore:"createdAt"`
 	UpdatedAt     time.Time                        `firestore:"updatedAt"`
@@ -130,6 +131,9 @@ type profileDocument struct {
 	DisplayName   string    `firestore:"displayName"`
 	CreatedAt     time.Time `firestore:"createdAt"`
 	UpdatedAt     time.Time `firestore:"updatedAt"`
+
+	LastSeenVersion  string `firestore:"lastSeenVersion"`
+	HideReleaseNotes bool   `firestore:"hideReleaseNotes"`
 }
 
 type invitationDocument struct {
@@ -185,7 +189,36 @@ func jsonMap(value interface{}) (map[string]interface{}, error) {
 	if result == nil {
 		result = make(map[string]interface{})
 	}
+	if path := nestedArrayPath(result); path != "" {
+		return nil, fmt.Errorf("firestore cannot store the nested array at %s", strings.TrimPrefix(path, "."))
+	}
 	return result, nil
+}
+
+// nestedArrayPath returns the path of an array held directly by another
+// array, or "" when there is none. Firestore rejects such documents, and
+// inside a transaction the rejection surfaces only as a lock timeout, so the
+// encoder fails first. The path is only built on the way back up: a document
+// without nested arrays costs one walk and no allocation.
+func nestedArrayPath(value interface{}) string {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		for key, item := range typed {
+			if path := nestedArrayPath(item); path != "" {
+				return "." + key + path
+			}
+		}
+	case []interface{}:
+		for index, item := range typed {
+			if _, isArray := item.([]interface{}); isArray {
+				return fmt.Sprintf("[%d]", index)
+			}
+			if path := nestedArrayPath(item); path != "" {
+				return fmt.Sprintf("[%d]%s", index, path)
+			}
+		}
+	}
+	return ""
 }
 
 func decodeJSONMap(source map[string]interface{}, target interface{}) error {

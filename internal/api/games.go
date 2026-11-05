@@ -30,6 +30,7 @@ type GamesHandler struct {
 	strictMembership bool
 	inviteBaseURL    string
 	creatorGate      CreatorGate
+	mux              *http.ServeMux
 }
 
 type GamesHandlerOptions struct {
@@ -46,7 +47,7 @@ func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve Ac
 	return NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{Actor: resolve})
 }
 
-func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) http.Handler {
+func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules, options GamesHandlerOptions) *GamesHandler {
 	profiles := options.Profiles
 	if profiles == nil {
 		profiles, _ = gameStore.(store.ProfileStore)
@@ -55,7 +56,7 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 	if creatorGate == nil {
 		creatorGate = AllowAllCreatorGate{}
 	}
-	return &GamesHandler{
+	h := &GamesHandler{
 		store:            gameStore,
 		rules:            rules,
 		balance:          options.Balance,
@@ -66,6 +67,8 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 		inviteBaseURL:    options.InviteBaseURL,
 		creatorGate:      creatorGate,
 	}
+	h.mux = h.routes()
+	return h
 }
 
 // NewDevGamesHandler is a convenience constructor for the local multi-game
@@ -79,52 +82,67 @@ func (h *GamesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusInternalServerError, "store_unavailable", "game store is not configured")
 		return
 	}
-	path := strings.TrimSuffix(r.URL.Path, "/")
-	if path == "/api/games" {
-		h.handleCollection(w, r)
-		return
-	}
-	const prefix = "/api/games/"
-	if !strings.HasPrefix(path, prefix) {
-		http.NotFound(w, r)
-		return
-	}
-	parts := strings.Split(strings.TrimPrefix(path, prefix), "/")
-	if len(parts) == 0 || parts[0] == "" {
-		http.NotFound(w, r)
-		return
-	}
-	if len(parts) == 1 {
-		h.handleDetail(w, r, store.GameID(parts[0]))
-		return
-	}
-	h.handleSubresource(w, r, store.GameID(parts[0]), parts[1:])
+	h.mux.ServeHTTP(w, r)
 }
 
-func (h *GamesHandler) handleCollection(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		h.create(w, r)
-		return
-	}
-	if r.Method == http.MethodGet {
+// gameResourceHandler is a route handler that already has its actor and game
+// ID resolved; see withActor.
+type gameResourceHandler func(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID)
+
+// withActor resolves the acting identity and the {id} path value once, so
+// individual routes only deal with their own resource logic. On failure it
+// has already written the error response.
+func (h *GamesHandler) withActor(next gameResourceHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		actor, ok := h.resolveActor(w, r)
 		if !ok {
 			return
 		}
-		games, err := h.store.List(r.Context(), actor)
-		if err != nil {
-			h.writeStoreError(w, err)
-			return
-		}
-		response := make([]gameListView, 0, len(games))
-		for _, game := range games {
-			response = append(response, makeGameListView(game, actor))
-		}
-		writeJSON(w, http.StatusOK, response)
+		next(w, r, actor, store.GameID(r.PathValue("id")))
+	}
+}
+
+// routes wires the games API surface on a dedicated mux, using method- and
+// wildcard-qualified patterns so unmatched methods and paths fall back to the
+// standard library's own 404/405 handling.
+func (h *GamesHandler) routes() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/games", h.list)
+	mux.HandleFunc("POST /api/games", h.create)
+	mux.HandleFunc("GET /api/games/{id}", h.withActor(h.detail))
+	mux.HandleFunc("GET /api/games/{id}/map", h.withActor(h.getMap))
+	mux.HandleFunc("GET /api/games/{id}/state", h.withActor(h.getState))
+	mux.HandleFunc("GET /api/games/{id}/balance", h.withActor(h.getBalance))
+	mux.HandleFunc("GET /api/games/{id}/supply", h.withActor(h.getSupply))
+	mux.HandleFunc("POST /api/games/{id}/orders", h.withActor(h.submit))
+	mux.HandleFunc("POST /api/games/{id}/orders/preview", h.withActor(h.preview))
+	mux.HandleFunc("POST /api/games/{id}/victory/simulate", h.withActor(h.simulateVictory))
+	mux.HandleFunc("GET /api/games/{id}/my-submission", h.withActor(h.mySubmission))
+	mux.HandleFunc("GET /api/games/{id}/submitted-orders", h.withActor(h.submittedOrders))
+	mux.HandleFunc("POST /api/games/{id}/join", h.withActor(h.join))
+	mux.HandleFunc("GET /api/games/{id}/invite", h.withActor(h.invite))
+	mux.HandleFunc("POST /api/games/{id}/resolve", h.withActor(h.resolve))
+	mux.HandleFunc("GET /api/games/{id}/reports", h.withActor(h.reportsList))
+	mux.HandleFunc("GET /api/games/{id}/reports/{index}", h.withActor(h.report))
+	mux.HandleFunc("GET /api/games/{id}/rules", h.withActor(h.getRules))
+	return mux
+}
+
+func (h *GamesHandler) list(w http.ResponseWriter, r *http.Request) {
+	actor, ok := h.resolveActor(w, r)
+	if !ok {
 		return
 	}
-	w.Header().Set("Allow", "GET, POST")
-	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	games, err := h.store.List(r.Context(), actor)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	response := make([]gameListView, 0, len(games))
+	for _, game := range games {
+		response = append(response, makeGameListView(game, actor))
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *GamesHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -195,16 +213,7 @@ func (h *GamesHandler) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, response)
 }
 
-func (h *GamesHandler) handleDetail(w http.ResponseWriter, r *http.Request, id store.GameID) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	actor, ok := h.resolveActor(w, r)
-	if !ok {
-		return
-	}
+func (h *GamesHandler) detail(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
 	snapshot, err := h.store.Get(r.Context(), actor, id)
 	if err != nil {
 		h.writeStoreError(w, err)
@@ -213,175 +222,114 @@ func (h *GamesHandler) handleDetail(w http.ResponseWriter, r *http.Request, id s
 	writeJSON(w, http.StatusOK, makeAuthenticatedGameDetailView(snapshot, actor))
 }
 
-func (h *GamesHandler) handleSubresource(w http.ResponseWriter, r *http.Request, id store.GameID, parts []string) {
-	actor, ok := h.resolveActor(w, r)
-	if !ok {
+func (h *GamesHandler) getMap(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	mapData, err := h.store.Map(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
 		return
 	}
-	resource := parts[0]
-	switch resource {
-	case "map":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
+	writeJSON(w, http.StatusOK, mapData)
+}
+
+func (h *GamesHandler) getState(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	snapshot, viewerID, err := h.viewerState(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, h.playerStateView(snapshot, viewerID))
+}
+
+// playerStateView is the body of GET /api/games/{id}/state.
+type playerStateView struct {
+	StateView
+	Revision store.Revision `json:"revision"`
+}
+
+func (h *GamesHandler) playerStateView(snapshot store.GameSnapshot, viewerID models.PlayerID) playerStateView {
+	return playerStateView{StateView: projectStateForPlayer(snapshot.State, viewerID, h.balance), Revision: snapshot.Revision}
+}
+
+// viewerState loads the game state with the actor's viewer identity.
+func (h *GamesHandler) viewerState(ctx context.Context, actor store.Actor, id store.GameID) (store.GameSnapshot, models.PlayerID, error) {
+	snapshot, err := h.store.State(ctx, actor, id)
+	if err != nil {
+		return store.GameSnapshot{}, "", err
+	}
+	viewerID, ok := snapshot.ViewerFor(actor)
+	if !ok {
+		return store.GameSnapshot{}, "", store.ErrNotMember
+	}
+	return snapshot, viewerID, nil
+}
+
+// PlayerState returns the projection of the game the actor sees (the body of
+// GET /api/games/{id}/state) with the labels naming a bug report.
+func (h *GamesHandler) PlayerState(ctx context.Context, actor store.Actor, id store.GameID) (PlayerGameView, error) {
+	snapshot, viewerID, err := h.viewerState(ctx, actor, id)
+	if err != nil {
+		return PlayerGameView{}, err
+	}
+	game := PlayerGameView{
+		GameName: snapshot.Name,
+		PlayerID: viewerID,
+		View:     h.playerStateView(snapshot, viewerID),
+	}
+	if snapshot.State != nil {
+		game.Turn = snapshot.State.Turn
+		for _, player := range snapshot.State.Players {
+			if player.ID == viewerID {
+				game.PlayerName = player.Name
+			}
 		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		mapData, err := h.store.Map(r.Context(), actor, id)
-		if err != nil {
-			h.writeStoreError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, mapData)
-	case "state":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		snapshot, err := h.store.State(r.Context(), actor, id)
-		if err != nil {
-			h.writeStoreError(w, err)
-			return
-		}
-		viewerID, ok := snapshotViewerID(snapshot, actor)
+	}
+	return game, nil
+}
+
+func (h *GamesHandler) getBalance(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	if _, err := h.store.Get(r.Context(), actor, id); err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, winterCostsView(h.balance))
+}
+
+func (h *GamesHandler) getSupply(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	territory := models.TerritoryID(r.URL.Query().Get("territory"))
+	if territory == "" {
+		writeAPIError(w, http.StatusBadRequest, "territory_required", "a territory is required")
+		return
+	}
+	if target := models.TerritoryID(r.URL.Query().Get("target")); target != "" {
+		transferStore, ok := h.store.(store.TransferSupplyStore)
 		if !ok {
-			writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
+			writeAPIError(w, http.StatusInternalServerError, "supply_failed", "transfer overlay is unavailable")
 			return
 		}
-		writeGameState(w, snapshot.Revision, projectStateForPlayer(snapshot.State, viewerID))
-	case "balance":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		if _, err := h.store.Get(r.Context(), actor, id); err != nil {
-			h.writeStoreError(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, winterCostsView(h.balance))
-	case "supply":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		territory := models.TerritoryID(r.URL.Query().Get("territory"))
-		if territory == "" {
-			writeAPIError(w, http.StatusBadRequest, "territory_required", "a territory is required")
-			return
-		}
-		if target := models.TerritoryID(r.URL.Query().Get("target")); target != "" {
-			transferStore, ok := h.store.(store.TransferSupplyStore)
-			if !ok {
-				writeAPIError(w, http.StatusInternalServerError, "supply_failed", "transfer overlay is unavailable")
-				return
-			}
-			line, err := transferStore.TransferSupply(r.Context(), actor, id, territory, target)
-			if err != nil {
-				h.writeStoreError(w, err)
-				return
-			}
-			writeJSON(w, http.StatusOK, line)
-			return
-		}
-		line, err := h.store.Supply(r.Context(), actor, id, territory)
+		line, err := transferStore.TransferSupply(r.Context(), actor, id, territory, target)
 		if err != nil {
 			h.writeStoreError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, line)
-	case "orders":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodPost {
-			methodNotAllowed(w, http.MethodPost)
-			return
-		}
-		h.submit(w, r, actor, id)
-	case "my-submission":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		h.mySubmission(w, r, actor, id)
-	case "submitted-orders":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		h.submittedOrders(w, r, actor, id)
-	case "join":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodPost {
-			methodNotAllowed(w, http.MethodPost)
-			return
-		}
-		h.join(w, r, actor, id)
-	case "invite":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		h.invite(w, r, actor, id)
-	case "resolve":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodPost {
-			methodNotAllowed(w, http.MethodPost)
-			return
-		}
-		h.resolve(w, r, actor, id)
-	case "reports":
-		h.reports(w, r, actor, id, parts[1:])
-	case "rules":
-		if len(parts) != 1 {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Method != http.MethodGet {
-			methodNotAllowed(w, http.MethodGet)
-			return
-		}
-		if _, err := h.store.Get(r.Context(), actor, id); err != nil {
-			h.writeStoreError(w, err)
-			return
-		}
-		h.serveRules(w, r)
-	default:
-		http.NotFound(w, r)
+		return
 	}
+	// special carries the viewer's drafted deck orders, so the projection
+	// reflects the cards they intend to play this turn.
+	line, err := h.store.Supply(r.Context(), actor, id, territory, r.URL.Query().Get("special"))
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, line)
+}
+
+func (h *GamesHandler) getRules(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	if _, err := h.store.Get(r.Context(), actor, id); err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	h.serveRules(w, r)
 }
 
 func methodNotAllowed(w http.ResponseWriter, method string) {
@@ -414,6 +362,11 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		Force:            request.Force,
 		ExpectedRevision: expectedRevision,
 	})
+	var inputErrors *engine.InputErrors
+	if errors.As(err, &inputErrors) {
+		writeResolutionError(w, err, i18n.FromRequest(r))
+		return
+	}
 	if err != nil {
 		h.writeStoreError(w, err)
 		return
@@ -471,7 +424,7 @@ func (h *GamesHandler) submittedOrders(w http.ResponseWriter, r *http.Request, a
 		h.writeStoreError(w, err)
 		return
 	}
-	if !isSnapshotSpectator(snapshot, actor) {
+	if !store.IsSpectator(snapshot.SpectatorUID, actor) {
 		writeAPIError(w, http.StatusForbidden, "spectator_only", "submitted orders are visible only to the observer host")
 		return
 	}
@@ -493,10 +446,16 @@ func (h *GamesHandler) submittedOrders(w http.ResponseWriter, r *http.Request, a
 		if len(input.Winter) > 0 {
 			winter = &winterSubmissionView{Lines: input.Winter[0].Lines}
 		}
+		preview, err := previewView(snapshot.State, h.balance, player.ID, input, i18n.FromRequest(r))
+		if err != nil {
+			h.writeStoreError(w, err)
+			return
+		}
 		response.Submissions = append(response.Submissions, submittedPlayerOrdersView{
-			Player: player.ID,
-			Chains: chains,
-			Winter: winter,
+			Player:  player.ID,
+			Chains:  chains,
+			Winter:  winter,
+			Preview: preview,
 		})
 	}
 	writeJSON(w, http.StatusOK, response)
@@ -592,30 +551,21 @@ func (h *GamesHandler) resolve(w http.ResponseWriter, r *http.Request, actor sto
 	h.writeSubmitResult(w, actor, result)
 }
 
-func (h *GamesHandler) reports(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID, parts []string) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", "GET")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+func (h *GamesHandler) reportsList(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	records, err := h.store.Reports(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
 		return
 	}
-	if len(parts) == 0 {
-		records, err := h.store.Reports(r.Context(), actor, id)
-		if err != nil {
-			h.writeStoreError(w, err)
-			return
-		}
-		response := make([]reportSummaryView, len(records))
-		for index, record := range records {
-			response[index] = reportSummaryView{Index: index, Header: record.Report.Header}
-		}
-		writeJSON(w, http.StatusOK, response)
-		return
+	response := make([]reportSummaryView, len(records))
+	for index, record := range records {
+		response[index] = reportSummaryView{Index: index, Header: record.Report.Header}
 	}
-	if len(parts) != 1 {
-		http.NotFound(w, r)
-		return
-	}
-	index, err := strconv.Atoi(parts[0])
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *GamesHandler) report(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	index, err := strconv.Atoi(r.PathValue("index"))
 	if err != nil || index < 0 {
 		writeAPIError(w, http.StatusNotFound, "report_not_found", "report index not found")
 		return
@@ -634,9 +584,9 @@ func (h *GamesHandler) reports(w http.ResponseWriter, r *http.Request, actor sto
 }
 
 func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Actor, result store.SubmitResult) {
-	playerID, ok := snapshotPlayerID(result.Snapshot, actor)
+	playerID, ok := result.Snapshot.PlayerFor(actor)
 	viewerID := playerID
-	if !ok && isSnapshotSpectator(result.Snapshot, actor) {
+	if !ok && store.IsSpectator(result.Snapshot.SpectatorUID, actor) {
 		ok = true
 		viewerID = models.SpectatorViewer
 	}
@@ -652,7 +602,7 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 		Resolved:  result.Resolved,
 		Forced:    result.Forced,
 		Revision:  result.Snapshot.Revision,
-		State:     projectStateForPlayer(result.Snapshot.State, viewerID),
+		State:     projectStateForPlayer(result.Snapshot.State, viewerID, h.balance),
 	}
 	if result.Report != nil {
 		report := projectReport(result.Report.Report, viewerID, result.Report.Privacy)
@@ -661,19 +611,12 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 	writeJSON(w, http.StatusOK, response)
 }
 
-func writeGameState(w http.ResponseWriter, revision store.Revision, state StateView) {
-	writeJSON(w, http.StatusOK, struct {
-		StateView
-		Revision store.Revision `json:"revision"`
-	}{StateView: state, Revision: revision})
-}
-
 func (h *GamesHandler) viewerIDForGame(ctx context.Context, actor store.Actor, id store.GameID) (models.PlayerID, bool) {
 	snapshot, err := h.store.Get(ctx, actor, id)
 	if err != nil {
 		return "", false
 	}
-	return snapshotViewerID(snapshot, actor)
+	return snapshot.ViewerFor(actor)
 }
 
 func (h *GamesHandler) serveRules(w http.ResponseWriter, r *http.Request) {
@@ -704,7 +647,7 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 	case errors.Is(err, store.ErrUnknownGame), errors.Is(err, store.ErrInvalidReport):
 		writeAPIError(w, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, store.ErrNotMember):
-		writeAPIError(w, http.StatusForbidden, "not_member", err.Error())
+		writeAPIError(w, http.StatusForbidden, "not_member", "actor is not a member of this game")
 	case errors.Is(err, store.ErrNotCreator):
 		writeAPIError(w, http.StatusForbidden, "not_creator", err.Error())
 	case errors.Is(err, store.ErrInvalidPlayers):
@@ -818,9 +761,10 @@ type submittedOrdersView struct {
 }
 
 type submittedPlayerOrdersView struct {
-	Player models.PlayerID       `json:"player"`
-	Chains []chainSubmissionView `json:"chains"`
-	Winter *winterSubmissionView `json:"winter,omitempty"`
+	Player  models.PlayerID       `json:"player"`
+	Chains  []chainSubmissionView `json:"chains"`
+	Winter  *winterSubmissionView `json:"winter,omitempty"`
+	Preview OrdersPreviewView     `json:"preview"`
 }
 
 type chainSubmissionView struct {
@@ -883,6 +827,7 @@ type PlayerSlotView struct {
 	Name      string          `json:"name"`
 	Color     string          `json:"color"`
 	Submitted bool            `json:"submitted"`
+	Required  bool            `json:"required"`
 }
 
 type invitationView struct {
@@ -937,11 +882,11 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 
 func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Actor) gameDetailView {
 	view := makeGameDetailView(snapshot)
-	view.CurrentPlayer, _ = snapshotPlayerID(snapshot, actor)
+	view.CurrentPlayer, _ = snapshot.PlayerFor(actor)
 	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
 		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
 	view.InviteAvailable = view.CanInvite && hasFreePlayerSlot(snapshot.Players)
-	view.Spectator = isSnapshotSpectator(snapshot, actor)
+	view.Spectator = store.IsSpectator(snapshot.SpectatorUID, actor)
 	return view
 }
 
@@ -957,43 +902,20 @@ func hasFreePlayerSlot(players []store.PlayerSlot) bool {
 func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
 	views := make([]PlayerSlotView, len(snapshot.Players))
 	for index, player := range snapshot.Players {
-		_, submitted := snapshot.Submissions[player.ID]
-		views[index] = PlayerSlotView{ID: player.ID, Name: player.Name, Color: player.Color, Submitted: submitted}
+		views[index] = makePlayerSlotView(player, snapshot)
 	}
 	return views
 }
 
 func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) PlayerSlotView {
 	_, submitted := snapshot.Submissions[player.ID]
-	return PlayerSlotView{ID: player.ID, Name: player.Name, Color: player.Color, Submitted: submitted}
-}
-
-func snapshotPlayerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
-	actorID := strings.TrimSpace(actor.ID)
-	for _, player := range snapshot.Players {
-		if player.ActorID == actorID {
-			return player.ID, true
-		}
-		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
-			return player.ID, true
-		}
+	return PlayerSlotView{
+		ID:        player.ID,
+		Name:      player.Name,
+		Color:     player.Color,
+		Submitted: submitted,
+		Required:  engine.PlayerMustSubmit(snapshot.State, player.ID),
 	}
-	return "", false
-}
-
-func isSnapshotSpectator(snapshot store.GameSnapshot, actor store.Actor) bool {
-	return strings.TrimSpace(snapshot.SpectatorUID) != "" &&
-		strings.TrimSpace(snapshot.SpectatorUID) == strings.TrimSpace(actor.ID)
-}
-
-func snapshotViewerID(snapshot store.GameSnapshot, actor store.Actor) (models.PlayerID, bool) {
-	if playerID, ok := snapshotPlayerID(snapshot, actor); ok {
-		return playerID, true
-	}
-	if isSnapshotSpectator(snapshot, actor) {
-		return models.SpectatorViewer, true
-	}
-	return "", false
 }
 
 type createGameBody struct {

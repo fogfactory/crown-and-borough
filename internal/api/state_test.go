@@ -1,22 +1,20 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 func TestProjectStateMatchesStateContract(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 
 	if view.Turn != state.Turn || view.Season != state.Season {
 		t.Errorf("view metadata = %d/%s, want %d/%s", view.Turn, view.Season, state.Turn, state.Season)
@@ -62,7 +60,7 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	if got := view.Territories[0].Infrastructures; !reflect.DeepEqual(got, []InfraView{{Type: models.InfraTypeCastle, Level: 1}}) {
 		t.Errorf("AAA infrastructure = %#v, want nested castle", got)
 	}
-	if len(view.Nobles) != 1 || view.Nobles[0] != (NobleView{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree}) {
+	if len(view.Nobles) != 1 || !reflect.DeepEqual(view.Nobles[0], NobleView{ID: "N1", Code: "HUG", Name: "Sieur Hugues de Rosemont", FirstName: "Hugues", Owner: "P1", Location: "ROS", Status: models.NobleStatusFree, Sex: models.SexMale}) {
 		t.Errorf("nobles = %#v, want N1", view.Nobles)
 	}
 
@@ -84,9 +82,63 @@ func TestProjectStateMatchesStateContract(t *testing.T) {
 	}
 }
 
+// TestProjectStateFiefs verifies that a fief is addressed by its capital's
+// trigram and its titleholder by their code, with no internal fief id exposed
+// (titres.md, #194).
+func TestProjectStateFiefs(t *testing.T) {
+	state := projectTestState()
+	holder := models.NobleID("N1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+		Territories: []models.TerritoryID{"ROS", "BRU", "FOU"}, OwnerID: "P1", HolderNobleID: &holder,
+	}}
+	view := projectState(state, assetgen.Balance{})
+	if len(view.Fiefs) != 1 {
+		t.Fatalf("fiefs = %#v, want 1", view.Fiefs)
+	}
+	fief := view.Fiefs[0]
+	if fief.Capital != "ROS" || fief.Title != models.FiefTitleBarony || fief.Owner != "P1" {
+		t.Errorf("fief = %#v", fief)
+	}
+	if fief.Holder == nil || *fief.Holder != "HUG" {
+		t.Errorf("fief holder = %v, want HUG", fief.Holder)
+	}
+	if got, want := fief.Territories, []models.TerritoryID{"ROS", "BRU", "FOU"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("fief territories = %#v, want %#v", got, want)
+	}
+	data, err := json.Marshal(view.Fiefs)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), `"id"`) || strings.Contains(string(data), "F1") {
+		t.Errorf("fief JSON %s leaks the internal fief id", data)
+	}
+}
+
+// TestProjectStateFiefVacant verifies that a vacant fief (no titleholder)
+// omits the holder field instead of returning a null or empty code.
+func TestProjectStateFiefVacant(t *testing.T) {
+	state := projectTestState()
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+		Territories: []models.TerritoryID{"ROS", "BRU", "FOU"}, OwnerID: "P1",
+	}}
+	view := projectState(state, assetgen.Balance{})
+	if len(view.Fiefs) != 1 || view.Fiefs[0].Holder != nil {
+		t.Fatalf("fiefs = %#v, want a vacant fief with no holder", view.Fiefs)
+	}
+	data, err := json.Marshal(view.Fiefs[0])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), "holder") {
+		t.Errorf("vacant fief JSON %s should omit holder", data)
+	}
+}
+
 func TestProjectStateNesting(t *testing.T) {
 	state := projectTestState()
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 
 	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
 	for _, territory := range view.Territories {
@@ -111,12 +163,62 @@ func TestProjectStateNesting(t *testing.T) {
 	}
 }
 
+func TestProjectStateProjectsMillProductionAndDestination(t *testing.T) {
+	p1 := models.PlayerID("P1")
+	state := &models.GameState{
+		ID:     "state-view-mill",
+		Seed:   "state-view-mill",
+		Turn:   5,
+		Season: models.SeasonSpring,
+		Players: []models.Player{
+			{ID: p1, Name: "Hugues", Color: "#a84632", CapitalCastleID: ptrInfraID("I1")},
+		},
+		Territories: []models.Territory{
+			{ID: "CAS", Name: "Castellan", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"MIL"}},
+			{ID: "MIL", Name: "Moulinet", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"CAS"}},
+		},
+		NextChainID: 1,
+		NextArmyID:  2,
+		Infrastructures: []models.Infrastructure{
+			{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAS"},
+			{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"},
+		},
+		// P1's army holds MIL: outside every fief and capital, a mill only
+		// produces while occupied (#215).
+		Armies: []models.Army{{ID: "A1", OwnerID: p1, TerritoryID: "MIL", Size: 1}},
+		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
+			"CAS": {Infrastructures: ptrInfraID("I1")},
+			"MIL": {Infrastructures: ptrInfraID("I2"), Army: ptrArmyID("A1")},
+		},
+	}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("invalid fixture: %v", err)
+	}
+
+	view := projectState(state, assetgen.Balance{})
+
+	viewByID := make(map[models.TerritoryID]TerritoryView, len(view.Territories))
+	for _, territory := range view.Territories {
+		viewByID[territory.ID] = territory
+	}
+	mill := viewByID["MIL"]
+	if mill.MillProduction != 2 {
+		t.Errorf("mill production = %d, want 2 (its level, no weather effect)", mill.MillProduction)
+	}
+	if mill.MillDestination == nil || *mill.MillDestination != "CAS" {
+		t.Errorf("mill destination = %v, want CAS", mill.MillDestination)
+	}
+	if castle := viewByID["CAS"]; castle.MillProduction != 0 || castle.MillDestination != nil {
+		t.Errorf("castle mill projection = %+v, want zero value (only the mill's own territory carries it)", castle)
+	}
+}
+
 func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
 	state := projectTestState()
 	missingCapitalID := models.InfraID("missing")
 	state.Players[0].CapitalCastleID = &missingCapitalID
 
-	view := projectState(state)
+	view := projectState(state, assetgen.Balance{})
 	if got := view.Players[0].CapitalTerritory; got != nil {
 		t.Errorf("unavailable capital territory = %v, want nil", got)
 	}
@@ -133,116 +235,6 @@ func TestProjectStateOmitsUnavailableCapital(t *testing.T) {
 	}
 	if _, exists := document.Players[0]["capitalTerritory"]; exists {
 		t.Error("unavailable capital must be omitted from the JSON view")
-	}
-}
-
-func TestStateHandler(t *testing.T) {
-	want := []byte(`{"turn":5,"season":"spring","territories":[],"nobles":[]}`)
-	resolvedPlayers := 0
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-
-	StateHandler(func(players int) ([]byte, error) {
-		resolvedPlayers = players
-		return want, nil
-	}).ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Errorf("GET /api/state = %d, want %d", recorder.Code, http.StatusOK)
-	}
-	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", got)
-	}
-	if !bytes.Equal(recorder.Body.Bytes(), want) {
-		t.Errorf("response = %q, want %q", recorder.Body.Bytes(), want)
-	}
-	if resolvedPlayers != DefaultPlayers {
-		t.Errorf("resolver players = %d, want %d", resolvedPlayers, DefaultPlayers)
-	}
-}
-
-func TestStateHandlerPlayers(t *testing.T) {
-	for _, test := range []struct {
-		name     string
-		rawQuery string
-		want     int
-	}{
-		{name: "default", want: 4},
-		{name: "minimum", rawQuery: "players=2", want: 2},
-		{name: "maximum", rawQuery: "players=5", want: 5},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			resolvedPlayers := 0
-			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-			request.URL.RawQuery = test.rawQuery
-
-			StateHandler(func(players int) ([]byte, error) {
-				resolvedPlayers = players
-				return []byte(`{}`), nil
-			}).ServeHTTP(recorder, request)
-
-			if recorder.Code != http.StatusOK {
-				t.Errorf("GET /api/state?%s = %d, want %d", test.rawQuery, recorder.Code, http.StatusOK)
-			}
-			if resolvedPlayers != test.want {
-				t.Errorf("resolver players = %d, want %d", resolvedPlayers, test.want)
-			}
-		})
-	}
-}
-
-func TestStateHandlerErrors(t *testing.T) {
-	for _, rawQuery := range []string{"players=1", "players=17", "players=abc", "players=", "players=2&players=3", "players=%zz"} {
-		t.Run(rawQuery, func(t *testing.T) {
-			called := false
-			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(http.MethodGet, "/api/state", nil)
-			request.URL.RawQuery = rawQuery
-			StateHandler(func(int) ([]byte, error) {
-				called = true
-				return nil, nil
-			}).ServeHTTP(recorder, request)
-			if recorder.Code != http.StatusBadRequest {
-				t.Errorf("GET /api/state?%s = %d, want %d", rawQuery, recorder.Code, http.StatusBadRequest)
-			}
-			if called {
-				t.Errorf("resolver called for invalid query %q", rawQuery)
-			}
-		})
-	}
-
-	recorder := httptest.NewRecorder()
-	StateHandler(func(int) ([]byte, error) {
-		return nil, errors.New("state generation failed")
-	}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/state", nil))
-	if recorder.Code != http.StatusInternalServerError {
-		t.Errorf("GET /api/state resolver error = %d, want %d", recorder.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestStateResolverCachesBytes(t *testing.T) {
-	assets := loadStateTestAssets(t)
-	mapData := generateStateTestMap(t, assets)
-	calls := 0
-	resolve := StateResolver(func(int) (mapgen.MapData, error) {
-		calls++
-		return mapData, nil
-	}, "state-cache", assets)
-
-	first, err := resolve(4)
-	if err != nil {
-		t.Fatalf("first resolve: %v", err)
-	}
-	second, err := resolve(4)
-	if err != nil {
-		t.Fatalf("second resolve: %v", err)
-	}
-	if !bytes.Equal(first, second) {
-		t.Error("state resolver returned unstable bytes")
-	}
-	if calls != 1 {
-		t.Errorf("map data calls = %d, want 1", calls)
 	}
 }
 
@@ -266,7 +258,7 @@ func projectTestState() *models.GameState {
 			{ID: "FOU", Name: "Fougères", Terrain: models.TerrainSwamp, Adjacencies: []models.TerritoryID{"BRU", "ROS"}},
 		},
 		Nobles: []models.Noble{
-			{ID: "N1", Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
+			{ID: "N1", Sex: models.SexMale, Code: "HUG", Name: "Hugues de Rosemont", OwnerID: p1, LocationID: "ROS", Status: models.NobleStatusFree},
 		},
 		Armies: []models.Army{
 			{ID: "A1", OwnerID: p1, TerritoryID: "ROS", Size: 1, ChainID: ptrChainID("C1")},
@@ -286,10 +278,10 @@ func projectTestState() *models.GameState {
 			{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "FOU"},
 		},
 		TerritoryStates: map[models.TerritoryID]models.TerritoryState{
-			"ROS": {OwnerID: &p1, Resources: 3, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
-			"BOI": {OwnerID: &p2, Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{}},
-			"BRU": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{}},
-			"FOU": {OwnerID: nil, Resources: 0, Infrastructures: []models.InfraID{"I2"}},
+			"ROS": {Resources: 3, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
+			"BOI": {Resources: 0, Army: ptrArmyID("A2")},
+			"BRU": {Resources: 0},
+			"FOU": {Resources: 0, Infrastructures: ptrInfraID("I2")},
 		},
 	}
 	if err := state.Validate(); err != nil {
@@ -301,6 +293,11 @@ func projectTestState() *models.GameState {
 func ptrArmyID(id string) *models.ArmyID {
 	armyID := models.ArmyID(id)
 	return &armyID
+}
+
+func ptrInfraID(id string) *models.InfraID {
+	infrastructureID := models.InfraID(id)
+	return &infrastructureID
 }
 
 func ptrChainID(id string) *models.ChainID {
@@ -429,13 +426,174 @@ func loadStateTestAssets(t *testing.T) assetgen.Assets {
 func generateStateTestMap(t *testing.T, assets assetgen.Assets) mapgen.MapData {
 	t.Helper()
 	mapData, err := mapgen.Generate("state-test-map", assets, mapgen.Config{
-		Width:        1000,
-		Height:       700,
-		SiteCount:    mapgen.TerritoriesPerPlayer * 4,
-		VillageCount: 5,
+		Width:      1000,
+		Height:     700,
+		SiteCount:  mapgen.TerritoriesPerPlayer*4 + mapgen.TerritoriesPerSeat*5,
+		StartCount: 4,
+		SeatCount:  5,
 	})
 	if err != nil {
 		t.Fatalf("generate map: %v", err)
 	}
 	return mapData
+}
+
+// An active marriage shows on both spouses as their spouse's code, with the
+// sex the client needs to word "Époux de" / "Épouse de"; a widowed noble no
+// longer shows one.
+func TestProjectStateNobleSpouse(t *testing.T) {
+	state := projectTestState()
+	state.Nobles = []models.Noble{
+		{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Code: "ANN", Name: "Anne", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "EVE", Name: "Eve", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = nil
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}}
+	view := projectState(state, assetgen.Balance{})
+	byCode := map[models.NobleCode]NobleView{}
+	for _, noble := range view.Nobles {
+		byCode[noble.Code] = noble
+	}
+	if got := byCode["JEA"].Spouse; got == nil || *got != "ANN" || byCode["JEA"].Sex != models.SexMale {
+		t.Errorf("JEA = %#v, want husband of ANN", byCode["JEA"])
+	}
+	if got := byCode["ANN"].Spouse; got == nil || *got != "JEA" || byCode["ANN"].Sex != models.SexFemale {
+		t.Errorf("ANN = %#v, want wife of JEA", byCode["ANN"])
+	}
+	if byCode["EVE"].Spouse != nil {
+		t.Errorf("EVE = %#v, want no spouse", byCode["EVE"])
+	}
+	state.Nobles = state.Nobles[1:]
+	state.RemovedNobles = []models.RemovedNoble{{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: 1}}
+	view = projectState(state, assetgen.Balance{})
+	for _, noble := range view.Nobles {
+		if noble.Spouse != nil {
+			t.Errorf("%s = %#v, want no spouse once widowed", noble.Code, noble)
+		}
+	}
+}
+
+// The projection exposes each player's line of succession and, for every
+// marriage, its category, weight and the houses it is the active head of.
+func TestProjectStateLineageAndMarriageCategory(t *testing.T) {
+	state := projectTestState()
+	state.Nobles = []models.Noble{
+		{ID: "N2", Code: "ANN", Name: "Anne", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "EVE", Name: "Eve", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = nil
+	state.Fiefs = nil
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}}
+	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2, 1}}}
+	view := projectState(state, balance)
+
+	for _, player := range view.Players {
+		if player.ID == "P2" && (len(player.Succession) != 2 || player.Succession[0] != "ANN" || player.Succession[1] != "EVE") {
+			t.Errorf("P2 succession = %v, want [ANN EVE]", player.Succession)
+		}
+	}
+	if len(view.Marriages) != 1 {
+		t.Fatalf("marriages = %d, want 1", len(view.Marriages))
+	}
+	marriage := view.Marriages[0]
+	if !marriage.Active || marriage.Category != engine.AllianceHead || marriage.Weight != 3 || len(marriage.ActiveHeadFor) != 2 {
+		t.Errorf("marriage = %#v, want an active head marriage of weight 3, active head for both houses", marriage)
+	}
+}
+
+// A head marriage names the marriage that would replace it as active head,
+// and claims are exposed with their rank among the claims on the same target.
+func TestProjectStateHeadSuccessorAndClaims(t *testing.T) {
+	state := projectTestState()
+	state.Nobles = []models.Noble{
+		{ID: "N1", Code: "JEA", Name: "Jean", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N2", Code: "ANN", Name: "Anne", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N3", Code: "EVE", Name: "Eve", Sex: models.SexFemale, OwnerID: "P2", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N4", Code: "LUC", Name: "Luc", Sex: models.SexMale, OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+	}
+	state.RemovedNobles = nil
+	state.Fiefs = nil
+	state.Turn = 5
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N2", Turn: 1}, {NobleA: "N4", NobleB: "N3", Turn: 2}}
+	state.Claims = []models.Claim{{Heir: "N4", Target: "N2", Spouse: "N1", Turn: 3}}
+	balance := assetgen.Balance{Alliance: assetgen.AllianceBalance{SuccessionRanks: []int{3, 2}}}
+	view := projectState(state, balance)
+
+	first := view.Marriages[0]
+	if len(first.HeadSuccessors) != 2 {
+		t.Fatalf("head successors = %#v, want one per house", first.HeadSuccessors)
+	}
+	for _, successor := range first.HeadSuccessors {
+		if successor.Marriage == nil || successor.Marriage.NobleA != "LUC" || successor.Marriage.NobleB != "EVE" {
+			t.Errorf("successor for %s = %#v, want LUC x EVE", successor.Player, successor.Marriage)
+		}
+	}
+	if len(view.Claims) != 1 || view.Claims[0].Heir != "LUC" || view.Claims[0].Target != "ANN" || view.Claims[0].Rank != 1 {
+		t.Errorf("claims = %#v, want LUC on ANN, rank 1", view.Claims)
+	}
+}
+
+// The next title of a fief follows the line of succession checked for each
+// sex on its own, the clergy holding no one back (succession.md § Lignée).
+func TestProjectStateWinterAidsNextTitleFollowsRelaxedLine(t *testing.T) {
+	cases := []struct {
+		name   string
+		sex    models.Sex
+		bishop bool
+		want   models.FiefTitle
+	}{
+		{name: "woman behind an untitled man", sex: models.SexFemale, want: models.FiefTitleCounty},
+		{name: "man behind an untitled bishop", sex: models.SexMale, bishop: true, want: models.FiefTitleCounty},
+		{name: "man behind an untitled man", sex: models.SexMale, want: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := projectTestState()
+			state.Season = models.SeasonWinter
+			state.Nobles = append(state.Nobles, models.Noble{ID: "N2", Sex: tc.sex, Code: "JEA", Name: "Jea", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree})
+			state.Fiefs = []models.Fief{{
+				ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "ROS",
+				Territories: []models.TerritoryID{"ROS", "FOU", "BRU"}, OwnerID: "P1",
+				HolderNobleID: ptr(models.NobleID("N2")),
+			}}
+			if tc.bishop {
+				state.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}}
+			}
+			view := projectStateForPlayer(state, "P1", assetgen.Balance{})
+			if view.WinterAids == nil || len(view.WinterAids.OwnFiefs) != 1 {
+				t.Fatalf("winter aids = %+v, want one own fief", view.WinterAids)
+			}
+			if got := view.WinterAids.OwnFiefs[0].NextTitle; got != tc.want {
+				t.Errorf("next title = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestProjectStateExposesVillageLevelZero checks that a level-0 village keeps
+// its level in state.json: the front reads it to mark the village as a ruin.
+func TestProjectStateExposesVillageLevelZero(t *testing.T) {
+	state := projectTestState()
+	state.Infrastructures[1].Level = 0
+	view := projectState(state, assetgen.Balance{})
+	for _, territory := range view.Territories {
+		if territory.ID != "FOU" {
+			continue
+		}
+		want := []InfraView{{Type: models.InfraTypeVillage, Level: 0, Ruined: true}}
+		if !reflect.DeepEqual(territory.Infrastructures, want) {
+			t.Fatalf("FOU infrastructures = %#v, want %#v", territory.Infrastructures, want)
+		}
+		document, err := json.Marshal(territory.Infrastructures[0])
+		if err != nil {
+			t.Fatalf("Marshal: %v", err)
+		}
+		if !strings.Contains(string(document), `"level":0`) {
+			t.Fatalf("infrastructure JSON = %s, want an explicit level 0", document)
+		}
+		return
+	}
+	t.Fatal("FOU territory missing from the projected state")
 }

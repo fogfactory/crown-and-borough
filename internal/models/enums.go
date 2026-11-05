@@ -107,6 +107,22 @@ func (i InfraType) IsValid() bool {
 	return false
 }
 
+// MinLevel is the lowest level an infrastructure of this type can have: a
+// village at level 0 is a ruin, every other type starts at level 1.
+func (i InfraType) MinLevel() int {
+	if i == InfraTypeVillage {
+		return 0
+	}
+	return 1
+}
+
+// StartingLevel is the level of a freshly built or founded infrastructure of
+// this type: level 1 for every type, a generated or prosperity-founded village
+// included.
+func (i InfraType) StartingLevel() int {
+	return 1
+}
+
 // NobleStatus describes whether a noble is free, held as a hostage, or locked
 // in a dungeon. Free and hostage nobles can emit a new order chain; a dungeon
 // noble cannot.
@@ -125,4 +141,98 @@ func (s NobleStatus) IsValid() bool {
 		return true
 	}
 	return false
+}
+
+// Sex is the sex of a noble, fixed when it is recruited (specs/succession.md
+// § Sexe des nobles). Its values match the "sexe" column of prenoms.csv.
+type Sex string
+
+const (
+	SexMale   Sex = "male"
+	SexFemale Sex = "female"
+)
+
+// IsValid reports whether the sex is a known value.
+func (s Sex) IsValid() bool {
+	return s == SexMale || s == SexFemale
+}
+
+// CanHoldReligiousOrRoyalTitle reports whether a noble of this sex may become
+// bishop, cardinal, pope or king. Secular titles and the line of succession
+// are open to both sexes.
+func (s Sex) CanHoldReligiousOrRoyalTitle() bool {
+	return s == SexMale
+}
+
+// DeathCause identifies how a noble left play for good. It is recorded on the
+// RemovedNoble entry so the lineage can tell a natural death (e.g. plague)
+// apart from a deliberate killing, even though no order yet triggers an
+// execution or an assassination (specs/succession.md § Lignée).
+type DeathCause string
+
+const (
+	DeathCauseNatural       DeathCause = "natural"
+	DeathCauseExecution     DeathCause = "execution"
+	DeathCauseAssassination DeathCause = "assassination"
+	// DeathCauseMartyr is the death of a cleric who fails the free revolt
+	// appeasement rite (specs/religieux.md § Apaisement de révolte).
+	DeathCauseMartyr DeathCause = "martyr"
+	// DeathCauseFamine is the death of the nobles of an army that vanished
+	// for want of rations, with no enemy to capture them.
+	DeathCauseFamine DeathCause = "famine"
+	// DeathCauseRevolt is the death of the nobles of a starving army a revolt
+	// turned neutral.
+	DeathCauseRevolt DeathCause = "revolt"
+)
+
+// IsValid reports whether the death cause is a known value.
+func (c DeathCause) IsValid() bool {
+	switch c {
+	case DeathCauseNatural, DeathCauseExecution, DeathCauseAssassination, DeathCauseMartyr, DeathCauseFamine, DeathCauseRevolt:
+		return true
+	}
+	return false
+}
+
+// FiefTitle is the nobility rank of a fief. It is set from the territory count
+// when the fief is constituted and only changes by an explicit rank change
+// (titres.md, politique.md § Seigneurie et annexion): annexing never touches it.
+type FiefTitle string
+
+const (
+	FiefTitleBarony     FiefTitle = "barony"
+	FiefTitleCounty     FiefTitle = "county"
+	FiefTitleMarquisate FiefTitle = "marquisate"
+	FiefTitleDuchy      FiefTitle = "duchy"
+)
+
+// IsValid reports whether the fief title is a known value.
+func (t FiefTitle) IsValid() bool {
+	switch t {
+	case FiefTitleBarony, FiefTitleCounty, FiefTitleMarquisate, FiefTitleDuchy:
+		return true
+	}
+	return false
+}
+
+// FiefMinTerritories is the smallest group a T F order can constitute
+// (titres.md).
+const FiefMinTerritories = 3
+
+// FiefTitleForSize returns the title a fief of size territories holds, and
+// false below FiefMinTerritories. A barony has exactly 3 territories, a
+// county 4, a marquisate 5, and a duchy 6 or more.
+func FiefTitleForSize(size int) (FiefTitle, bool) {
+	switch {
+	case size < FiefMinTerritories:
+		return "", false
+	case size == 3:
+		return FiefTitleBarony, true
+	case size == 4:
+		return FiefTitleCounty, true
+	case size == 5:
+		return FiefTitleMarquisate, true
+	default:
+		return FiefTitleDuchy, true
+	}
 }

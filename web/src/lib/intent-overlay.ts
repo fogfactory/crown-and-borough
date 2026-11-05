@@ -1,4 +1,3 @@
-import { parseChainDraft } from '@/lib/chain-parse'
 import { formatOrderLabel } from '@/lib/order-label'
 import type {
   MapData,
@@ -275,7 +274,8 @@ export function buildIntentions(
   map: MapData,
   state: StateData,
   player: PlayerId,
-  chainDrafts: Record<string, string>,
+  /** Drafted orders per noble code, as parsed by the server preview. */
+  draftOrders: Record<string, Order[]>,
   options: {
     includeInstalled?: boolean
     includeInstalledInWinter?: boolean
@@ -316,9 +316,8 @@ export function buildIntentions(
   )
 
   if (!winterInstalledOnly) {
-    for (const [nobleCode, text] of Object.entries(chainDrafts)) {
-      if (!ownedNobleCodes.has(nobleCode) || !text.trim()) continue
-      const parsedOrders = parseChainDraft(text)
+    for (const [nobleCode, parsedOrders] of Object.entries(draftOrders)) {
+      if (!ownedNobleCodes.has(nobleCode) || parsedOrders.length === 0) continue
       const firstOrder = parsedOrders[0]
       const territoryState = firstOrder
         ? state.territories.find(

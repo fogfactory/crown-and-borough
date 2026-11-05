@@ -1,5 +1,5 @@
 # Frontend build stage
-FROM node:22-alpine AS frontend
+FROM node:26-alpine AS frontend
 
 WORKDIR /web
 
@@ -24,10 +24,11 @@ ENV VITE_FIREBASE_API_KEY="$VITE_FIREBASE_API_KEY" \
     VITE_FIREBASE_AUTH_EMULATOR_HOST="$VITE_FIREBASE_AUTH_EMULATOR_HOST" \
     VITE_FIREBASE_FIRESTORE_EMULATOR_HOST="$VITE_FIREBASE_FIRESTORE_EMULATOR_HOST"
 
-RUN VITE_APP_VERSION="${VITE_APP_VERSION:-$APP_VERSION}" npm run build
+# dist/.gitkeep only keeps go:embed compiling on a fresh clone; do not ship it.
+RUN VITE_APP_VERSION="${VITE_APP_VERSION:-$APP_VERSION}" npm run build && rm -f dist/.gitkeep
 
 # Go build stage
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 
 WORKDIR /app
 

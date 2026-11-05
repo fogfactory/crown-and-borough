@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -16,8 +17,8 @@ func effectTestState() *models.GameState {
 		{ID: "BBB", Name: "BBB", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"AAA"}},
 	}
 	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"AAA": {Infrastructures: []models.InfraID{}},
-		"BBB": {Infrastructures: []models.InfraID{}},
+		"AAA": {},
+		"BBB": {},
 	}
 	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB"}}}
 	state.Auguries = map[int]models.YearAugury{}
@@ -34,7 +35,7 @@ func setCurrentCalamity(state *models.GameState, kind models.CardKind, region mo
 func TestResolveSeasonEffectsPlagueReducesArmies(t *testing.T) {
 	state := effectTestState()
 	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 5}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1"), Infrastructures: []models.InfraID{}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1")}
 	setCurrentCalamity(state, models.CardKindPlague, "AAA")
 	balance := testBalance()
 	balance.SpecialOrders.Effects.PlagueArmyDivisor = 2
@@ -57,23 +58,82 @@ func TestResolveSeasonEffectsFairWeatherCancelsBadWeatherWithoutBonus(t *testing
 	if ctx.badWeatherRegions["AAA"] {
 		t.Fatal("bad weather remains active after fair weather cancellation")
 	}
-	if ctx.bonusMillRegions["AAA"] != 0 || ctx.bonusRationRegions["AAA"] != 0 {
+	if ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
 		t.Fatal("canceling fair weather unexpectedly produced a bonus")
 	}
 }
 
-func TestResolveSeasonEffectsFamineDisablesMillContribution(t *testing.T) {
+// cardEffectState puts a level-2 mill on AAA and P1's capital castle on BBB,
+// both plains of region AAA.
+func cardEffectState() *models.GameState {
 	state := effectTestState()
-	state.Infrastructures = []models.Infrastructure{{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"}}
-	state.TerritoryStates["AAA"] = models.TerritoryState{Infrastructures: []models.InfraID{"I1"}}
-	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	setCapital(state, "P1", "I2")
+	return state
+}
+
+func TestCardEffectsOnRationsAndProduction(t *testing.T) {
+	plain := testBalance().RationTerrain[models.TerrainPlain]
+	tests := []struct {
+		name       string
+		calamity   models.CardKind
+		bonus      models.CardKind
+		wantRation int
+		wantSource sourceProductionParts
+	}{
+		{name: "no effect", wantRation: plain, wantSource: sourceProductionParts{mill: 2}},
+		{name: "bad harvest suppresses rations but not mills", calamity: models.CardKindFamine,
+			wantRation: 0, wantSource: sourceProductionParts{mill: 2}},
+		{name: "good harvest doubles rations but not mills", bonus: models.CardKindAbundantHarvest,
+			wantRation: 2 * plain, wantSource: sourceProductionParts{mill: 2}},
+		{name: "bad weather suppresses mills", calamity: models.CardKindBadWeather,
+			wantRation: plain, wantSource: sourceProductionParts{suppressed: 2}},
+		{name: "fair weather doubles mills", bonus: models.CardKindFairWeather,
+			wantRation: plain, wantSource: sourceProductionParts{mill: 2, bonus: 2}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := cardEffectState()
+			// The mill at AAA needs the same controller as the castle at
+			// BBB to route its production there under #195; the shared
+			// cardEffectState leaves AAA neutral for the famine/bad-weather
+			// loss summary tests, which don't want AAA counted as a second
+			// territory-income loss line.
+			// An army holds the mill: outside every fief and capital, only an
+			// army gives the mill a controller to feed (#470).
+			state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}}
+			aaaState := state.TerritoryStates["AAA"]
+			aaaState.Army = armyPointer("A1")
+			state.TerritoryStates["AAA"] = aaaState
+			if tt.calamity != "" {
+				setCurrentCalamity(state, tt.calamity, "AAA")
+			}
+			ctx := newResolutionContext(state, testBalance())
+			if tt.bonus != "" {
+				ctx.deckIntents = []deckOrderIntent{{playerID: "P1", order: models.DeckOrder{ID: "O1", Kind: tt.bonus, RegionSeed: "AAA"}}}
+			}
+			resolveSeasonEffects(ctx)
+			if got := rationProduction(ctx, "AAA"); got != tt.wantRation {
+				t.Fatalf("ration production = %d, want %d", got, tt.wantRation)
+			}
+			if got := sourceProductionBreakdown(ctx, "BBB"); got != tt.wantSource {
+				t.Fatalf("castle production = %#v, want %#v", got, tt.wantSource)
+			}
+		})
+	}
+}
+
+func TestSettlementsNoLongerProduceRations(t *testing.T) {
+	state := effectTestState()
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
 	ctx := newResolutionContext(state, testBalance())
 	resolveSeasonEffects(ctx)
-	if got := sourceProduction(ctx, "AAA"); got != ctx.balance.BaseProduction {
-		t.Fatalf("famine source production = %d, want %d", got, ctx.balance.BaseProduction)
-	}
-	if got := rationProduction(ctx, "AAA"); got != ctx.balance.RationTerrain[models.TerrainPlain] {
-		t.Fatalf("famine ration production = %d, want terrain production %d", got, ctx.balance.RationTerrain[models.TerrainPlain])
+	for _, territoryID := range []models.TerritoryID{"AAA", "BBB"} {
+		if got, want := rationProduction(ctx, territoryID), ctx.balance.RationTerrain[models.TerrainPlain]; got != want {
+			t.Fatalf("%s ration production = %d, want terrain only %d", territoryID, got, want)
+		}
 	}
 }
 
@@ -138,6 +198,28 @@ func TestResolveSeasonEffectsPlagueNobleMortalityIsDeterministic(t *testing.T) {
 				t.Fatal("historical chain was detached from army")
 			}
 		})
+	}
+}
+
+func TestPlagueDeathRecordsRemovedNobleAndReservesID(t *testing.T) {
+	state := effectTestState()
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	setCurrentCalamity(state, models.CardKindPlague, "AAA")
+	balance := testBalance()
+	balance.SpecialOrders.Effects.PlagueNobleMortalityPercentage = 100
+	ctx := newResolutionContext(state, balance)
+	resolveSeasonEffects(ctx)
+
+	if len(ctx.state.RemovedNobles) != 1 {
+		t.Fatalf("removed nobles = %#v, want one entry", ctx.state.RemovedNobles)
+	}
+	removed := ctx.state.RemovedNobles[0]
+	if removed.ID != "N1" || removed.Cause != models.DeathCauseNatural || removed.OwnerID != "P1" {
+		t.Fatalf("removed noble = %#v, want N1 natural death owned by P1", removed)
+	}
+
+	if got := nextNobleID(ctx.state.Nobles, ctx.state.RemovedNobles); got != "N2" {
+		t.Fatalf("nextNobleID = %q, want N2 (N1 stays reserved)", got)
 	}
 }
 
@@ -259,57 +341,51 @@ func TestPlagueEmitsDeathAndSurvivorEvents(t *testing.T) {
 	}
 }
 
-func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
-	state := effectTestState()
-	state.Infrastructures = []models.Infrastructure{
-		{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"},
-		{ID: "I2", Type: models.InfraTypeMill, Level: 2, TerritoryID: "BBB"},
-	}
-	aaaState := state.TerritoryStates["AAA"]
-	aaaState.Infrastructures = []models.InfraID{"I1"}
-	state.TerritoryStates["AAA"] = aaaState
-	bbbState := state.TerritoryStates["BBB"]
-	bbbState.Infrastructures = []models.InfraID{"I2"}
-	state.TerritoryStates["BBB"] = bbbState
-	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+func calamityLossEvents(t *testing.T, kind models.CardKind, eventType EventType) (*Event, []Event) {
+	t.Helper()
+	state := cardEffectState()
+	setCurrentCalamity(state, kind, "AAA")
 	ctx := newResolutionContext(state, testBalance())
 	resolveSeasonEffects(ctx)
-
 	var summary *Event
-	millDetails := 0
-	settlementDetails := 0
+	details := []Event{}
 	for index := range ctx.events {
-		event := &ctx.events[index]
-		if event.Type != EventTypeFamineLoss {
+		event := ctx.events[index]
+		if event.Type != eventType {
 			continue
 		}
-		if event.RegionSeed != "AAA" {
-			t.Fatalf("famine event = %#v, want region AAA", event)
+		if event.RegionSeed != "AAA" || event.CardKind != kind {
+			t.Fatalf("loss event = %#v, want %s in region AAA", event, kind)
 		}
 		if event.TerritoryID == "" {
-			summary = event
+			summary = &event
 			continue
 		}
-		if event.InfrastructureType == models.InfraTypeMill {
-			millDetails++
-			if event.TerritoryID != "BBB" || event.Production != 2 || event.Level != 2 {
-				t.Fatalf("mill detail = %#v, want mill BBB losing 2 R", event)
-			}
-		} else {
-			settlementDetails++
-			if event.TerritoryID != "AAA" || event.RationsLost != 2 {
-				t.Fatalf("settlement detail = %#v, want AAA losing 2 rations", event)
-			}
-		}
+		details = append(details, event)
 	}
 	if summary == nil {
-		t.Fatalf("events = %#v, want a famine summary", ctx.events)
+		t.Fatalf("events = %#v, want a %s summary", ctx.events, eventType)
 	}
-	if summary.Production != 2 || summary.RationsLost != 2 {
-		t.Fatalf("summary = %#v, want 2 R and 2 rations lost", summary)
+	return summary, details
+}
+
+func TestFamineEmitsLossSummaryAndDetails(t *testing.T) {
+	summary, details := calamityLossEvents(t, models.CardKindFamine, EventTypeFamineLoss)
+	if summary.Production != 1 || summary.RationsLost != 6 {
+		t.Fatalf("summary = %#v, want 1 R of castle production and 2 × 3 terrain rations lost", summary)
 	}
-	if millDetails != 1 || settlementDetails != 1 {
-		t.Fatalf("details = %d mills / %d settlements, want one of each", millDetails, settlementDetails)
+	if len(details) != 1 || details[0].TerritoryID != "BBB" || details[0].InfrastructureType != models.InfraTypeCastle || details[0].Production != 1 {
+		t.Fatalf("details = %#v, want the castle at BBB losing 1 R", details)
+	}
+}
+
+func TestBadWeatherEmitsMillLossSummaryAndDetails(t *testing.T) {
+	summary, details := calamityLossEvents(t, models.CardKindBadWeather, EventTypeBadWeatherLoss)
+	if summary.Production != 2 || summary.RationsLost != 0 {
+		t.Fatalf("summary = %#v, want 2 R of mill production lost", summary)
+	}
+	if len(details) != 1 || details[0].TerritoryID != "AAA" || details[0].Level != 2 || details[0].Production != 2 {
+		t.Fatalf("details = %#v, want the level-2 mill at AAA losing 2 R", details)
 	}
 }
 
@@ -326,8 +402,8 @@ func TestTwoFairWeathersAgainstBadWeatherApplyOneBonus(t *testing.T) {
 		t.Fatal("bad weather remains active after two fair weathers")
 	}
 	assertSeasonEffectCounts(t, ctx, 1, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
-		t.Fatalf("bonus regions = %d/%d, want one residual bonus", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if !ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want only the residual fair weather bonus", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -340,8 +416,8 @@ func TestTwoFairWeathersWithoutBadWeatherApplyOneBonus(t *testing.T) {
 	}
 	resolveSeasonEffects(ctx)
 	assertSeasonEffectCounts(t, ctx, 0, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
-		t.Fatalf("bonus regions = %d/%d, want the regional cap of one", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if !ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want the fair weather bonus only", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -355,8 +431,8 @@ func TestThreeFairWeathersCapOneBonus(t *testing.T) {
 	}
 	resolveSeasonEffects(ctx)
 	assertSeasonEffectCounts(t, ctx, 0, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 {
-		t.Fatalf("bonus mill regions = %d, want the regional cap of one", ctx.bonusMillRegions["AAA"])
+	if !ctx.fairWeatherRegions["AAA"] {
+		t.Fatalf("fair weather regions = %v, want AAA", ctx.fairWeatherRegions)
 	}
 }
 
@@ -373,8 +449,8 @@ func TestTwoAbundantHarvestsAgainstFamineApplyOneBonus(t *testing.T) {
 		t.Fatal("famine remains active after two abundant harvests")
 	}
 	assertSeasonEffectCounts(t, ctx, 1, 1)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusRationRegions["AAA"] != 1 {
-		t.Fatalf("bonus regions = %d/%d, want one residual bonus", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if ctx.fairWeatherRegions["AAA"] || !ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want only the residual good harvest bonus", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -397,8 +473,8 @@ func TestFairWeatherAndAbundantHarvestCancelBothIndependently(t *testing.T) {
 	}
 	// Each card is consumed by its own cancellation: no regional bonus remains.
 	assertSeasonEffectCounts(t, ctx, 2, 0)
-	if ctx.bonusMillRegions["AAA"] != 0 || ctx.bonusRationRegions["AAA"] != 0 {
-		t.Fatalf("bonus regions = %d/%d, want none while both cards cancel", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	if ctx.fairWeatherRegions["AAA"] || ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want none while both cards cancel", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -422,9 +498,9 @@ func TestDoubleBonusesAgainstBothCalamitiesApplyOncePerCategory(t *testing.T) {
 		t.Fatal("both calamities must be canceled")
 	}
 	assertSeasonEffectCounts(t, ctx, 2, 2)
-	// One bonus unit per category: BT and RA stack into two production units.
-	if ctx.bonusMillRegions["AAA"] != 2 || ctx.bonusRationRegions["AAA"] != 2 {
-		t.Fatalf("bonus regions = %d/%d, want one unit per category", ctx.bonusMillRegions["AAA"], ctx.bonusRationRegions["AAA"])
+	// One residual bonus per card kind: mills and harvest are both doubled.
+	if !ctx.fairWeatherRegions["AAA"] || !ctx.goodHarvestRegions["AAA"] {
+		t.Fatalf("bonus regions = %v/%v, want both residual bonuses", ctx.fairWeatherRegions, ctx.goodHarvestRegions)
 	}
 }
 
@@ -441,8 +517,8 @@ func TestFairWeathersInDifferentRegionsApplySeparately(t *testing.T) {
 	}
 	resolveSeasonEffects(ctx)
 	assertSeasonEffectCounts(t, ctx, 0, 2)
-	if ctx.bonusMillRegions["AAA"] != 1 || ctx.bonusMillRegions["BBB"] != 1 {
-		t.Fatalf("bonus mill regions = %d/%d, want one per region", ctx.bonusMillRegions["AAA"], ctx.bonusMillRegions["BBB"])
+	if !ctx.fairWeatherRegions["AAA"] || !ctx.fairWeatherRegions["BBB"] {
+		t.Fatalf("fair weather regions = %v, want AAA and BBB", ctx.fairWeatherRegions)
 	}
 }
 
@@ -460,5 +536,57 @@ func assertSeasonEffectCounts(t *testing.T, ctx *resolutionContext, wantCanceled
 	}
 	if canceled != wantCanceled || bonus != wantBonus {
 		t.Fatalf("season effect events = %d canceled / %d bonus, want %d/%d", canceled, bonus, wantCanceled, wantBonus)
+	}
+}
+
+// plagueMovementState has region AAA plagued and a third territory CCC outside
+// it, so an army can enter or leave the region.
+func plagueMovementState() *models.GameState {
+	state := effectTestState()
+	state.Territories = append(state.Territories, models.Territory{ID: "CCC", Name: "CCC", Terrain: models.TerrainPlain, Adjacencies: []models.TerritoryID{"BBB"}})
+	state.Territories[1].Adjacencies = []models.TerritoryID{"AAA", "CCC"}
+	state.TerritoryStates["CCC"] = models.TerritoryState{}
+	state.Regions = append(state.Regions, models.Region{ID: "CCC", Seed: "CCC", Territories: []models.TerritoryID{"CCC"}})
+	setCurrentCalamity(state, models.CardKindPlague, "AAA")
+	return state
+}
+
+func plagueBalance() assetgen.Balance {
+	balance := testBalance()
+	balance.SpecialOrders.Effects.PlagueArmyDivisor = 2
+	return balance
+}
+
+func TestPlagueStrikesArmyEnteringRegion(t *testing.T) {
+	state := plagueMovementState()
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "CCC", Size: 4}}
+	state.TerritoryStates["CCC"] = models.TerritoryState{Army: armyPointer("A1")}
+	ctx := newResolutionContext(state, plagueBalance())
+	resolveSeasonEffects(ctx)
+	if got := ctx.state.Armies[0].Size; got != 4 {
+		t.Fatalf("army outside the region = %d before moving, want 4", got)
+	}
+	ctx.state.Armies[0].TerritoryID = "AAA"
+	applyArrivalPlague(ctx)
+	if got := ctx.state.Armies[0].Size; got != 2 {
+		t.Fatalf("army entering plague region = %d, want 2", got)
+	}
+}
+
+func TestPlagueStrikesArmyLeavingRegionOnce(t *testing.T) {
+	state := plagueMovementState()
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 4}}
+	state.TerritoryStates["AAA"] = models.TerritoryState{Army: armyPointer("A1")}
+	ctx := newResolutionContext(state, plagueBalance())
+	resolveSeasonEffects(ctx)
+	ctx.state.Armies[0].TerritoryID = "BBB" // moved within the region
+	applyArrivalPlague(ctx)
+	if got := ctx.state.Armies[0].Size; got != 2 {
+		t.Fatalf("army starting and ending in plague region = %d, want 2 (struck once)", got)
+	}
+	ctx.state.Armies[0].TerritoryID = "CCC"
+	applyArrivalPlague(ctx)
+	if got := ctx.state.Armies[0].Size; got != 2 {
+		t.Fatalf("army leaving plague region = %d, want 2", got)
 	}
 }

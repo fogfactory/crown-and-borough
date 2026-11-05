@@ -59,6 +59,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Bug reports hold a player's private game view: backend-only.
+    match /bugReports/{reportId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

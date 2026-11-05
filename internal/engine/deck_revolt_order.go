@@ -15,10 +15,24 @@ func (revoltCardDefinition) CanPlay(ctx *ExecutionContext, order models.DeckOrde
 	if ctx.season == models.SeasonWinter {
 		return false, "deck_order_out_of_season"
 	}
-	if !ctx.resolution.hasActiveCalamity(regionForTerritory(ctx.resolution, order.TargetTerritoryID), models.CardKindFamine) {
-		return false, "revolt_requires_famine"
+	if ctx.resolution.hasActiveCalamity(regionForTerritory(ctx.resolution, order.TargetTerritoryID), models.CardKindFamine) {
+		return true, ""
 	}
-	return true, ""
+	// Independently of famine, a fief taxed this turn or last turn opens
+	// Révolte on every one of its territories, not just the taxed capital
+	// (titres.md "Taxe seigneuriale").
+	if ctx.resolution.revoltEligibleByTax(order.TargetTerritoryID) {
+		return true, ""
+	}
+	if ctx.resolution.revoltEligibleByTrial(order.TargetTerritoryID) {
+		return true, ""
+	}
+	// A player army that starved last turn opens Révolte on its own
+	// territory, whoever plays the card (gdd.md "Révolte").
+	if ctx.resolution.starvingArmyAt(order.TargetTerritoryID) != nil {
+		return true, ""
+	}
+	return false, "revolt_requires_famine_or_tax"
 }
 
 func (revoltCardDefinition) NewOrder(playerID models.PlayerID, order models.DeckOrder) ExecutableOrder {

@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate target branch, title, and release label
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pullRequest = context.payload.pull_request;
@@ -83,10 +83,28 @@ jobs:
             } else if (/^release-please--/.test(head)) {
               requireBase("main", "Release Please pull requests");
             } else if (/^(dependabot|renovate)\//.test(head)) {
-              requireBase("develop", "Dependency update branches");
+              // Dependency updates go straight to main; main is synced back into
+              // develop by automation.
+              requireBase("main", "Dependency update branches");
+            } else if (/^claude\//.test(head)) {
+              // Branches created by Claude Code worktrees carry no change-type
+              // prefix: the Conventional Commit title decides the target.
+              if (commitType === "feat") {
+                requireBase("develop", "Feature pull requests");
+                if (!hasLabel("release:minor") && !hasLabel("release:major")) {
+                  errors.push("Feature pull requests need release:minor or release:major.");
+                }
+              } else if (commitType === "fix") {
+                requireBase("main", "Bugfix pull requests");
+                if (!hasLabel("release:patch")) {
+                  errors.push("Bugfix pull requests need the release:patch label.");
+                }
+              } else {
+                requireBase("develop", "Maintenance pull requests");
+              }
             } else {
               errors.push(
-                "Use a branch prefix that describes the change: feat/, fix/, ux/, chore/, docs/, refactor/, test/, ci/, or build/.",
+                "Use a branch prefix that describes the change: feat/, fix/, ux/, chore/, docs/, refactor/, test/, ci/, build/, or claude/.",
               );
             }
 

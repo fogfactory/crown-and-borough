@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -26,10 +27,16 @@ func winterDeckState() *models.GameState {
 		{ID: "ROS", Name: "ROS", Terrain: models.TerrainPlain},
 		{ID: "BOI", Name: "BOI", Terrain: models.TerrainPlain},
 	}
-	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
+	// Both players stay in the game through the army that holds their
+	// territory.
+	state.Armies = []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "ROS", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BOI", Size: 1},
+	}
+	state.NextArmyID = 3
 	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: &p1, Infrastructures: []models.InfraID{}},
-		"BOI": {OwnerID: &p2, Infrastructures: []models.InfraID{}},
+		"ROS": {Army: armyPointer("A1")},
+		"BOI": {Army: armyPointer("A2")},
 	}
 	state.SpecialDeck = &models.SpecialDeck{
 		Cards: []models.SpecialCard{
@@ -64,7 +71,8 @@ func TestResolveWinterAutomaticallyRefillsThroughCalamity(t *testing.T) {
 func TestResolveWinterAutomaticallyRefillsConfiguredCount(t *testing.T) {
 	state := winterDeckState()
 	state.Players = []models.Player{{ID: "P1", Name: "One"}}
-	state.TerritoryStates["BOI"] = models.TerritoryState{Infrastructures: []models.InfraID{}}
+	state.Armies = state.Armies[:1]
+	state.TerritoryStates["BOI"] = models.TerritoryState{}
 	state.SpecialDeck.Cards = []models.SpecialCard{
 		{ID: "C1", Kind: models.CardKindFairWeather},
 		{ID: "C2", Kind: models.CardKindAbundantHarvest},
@@ -259,7 +267,7 @@ func TestResolveWinterRemixesDiscardBeforeDrawing(t *testing.T) {
 	}
 }
 
-func TestResolveWinterSchedulesThirdCalamityInAutumn(t *testing.T) {
+func TestResolveWinterSchedulesThreeCalamitiesInDistinctSeasons(t *testing.T) {
 	state := winterDeckState()
 	state.SpecialDeck.Cards = []models.SpecialCard{
 		{ID: "C1", Kind: models.CardKindPlague},
@@ -272,14 +280,35 @@ func TestResolveWinterSchedulesThirdCalamityInAutumn(t *testing.T) {
 		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 	}
 	augury := resolution.State.Auguries[2]
-	wantSeasons := []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn}
-	if len(augury.Calamities) != len(wantSeasons) {
+	if len(augury.Calamities) != 3 {
 		t.Fatalf("calamities = %#v, want three scheduled calamities", augury.Calamities)
 	}
-	for index, wantSeason := range wantSeasons {
-		if augury.Calamities[index].Season != wantSeason {
-			t.Fatalf("calamity %d season = %q, want %q", index, augury.Calamities[index].Season, wantSeason)
+	seasons := map[models.Season]bool{}
+	for _, calamity := range augury.Calamities {
+		seasons[calamity.Season] = true
+	}
+	if len(seasons) != 3 {
+		t.Fatalf("seasons = %v, want one calamity per season", seasons)
+	}
+}
+
+func TestResolveWinterDrawsTheCalamitySeasonAtRandomAmongFreeSeasons(t *testing.T) {
+	seen := map[models.Season]bool{}
+	for seed := 0; seed < 40; seed++ {
+		state := winterDeckState()
+		state.Seed = fmt.Sprintf("season-%d", seed)
+		state.SpecialDeck.Cards = []models.SpecialCard{{ID: "C1", Kind: models.CardKindPlague}}
+		state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1"}
+		resolution, err := ResolveWinterWithDeckOrders(state, winterDeckBalance(), nil, nil)
+		if err != nil {
+			t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
 		}
+		for _, calamity := range resolution.State.Auguries[2].Calamities {
+			seen[calamity.Season] = true
+		}
+	}
+	if len(seen) != 3 {
+		t.Errorf("a lone calamity fell in seasons %v, want all three over 40 seeds", seen)
 	}
 }
 

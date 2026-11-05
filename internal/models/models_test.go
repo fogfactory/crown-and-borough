@@ -30,6 +30,11 @@ func ptrInfraID(id string) *models.InfraID {
 	return &infrastructureID
 }
 
+func ptrNobleID(id string) *models.NobleID {
+	nobleID := models.NobleID(id)
+	return &nobleID
+}
+
 // validState returns a complete, valid state: 2 players, 4 territories in a
 // ring with commune trigrams, 2 armies, 1 noble, 1 mill level 2 and 1 castle,
 // 1 neutral territory, and stock on its castle. Tests mutate a fresh instance to build
@@ -54,17 +59,17 @@ func validState() *models.GameState {
 	}
 	g.NextArmyID = 3
 	g.Nobles = []models.Noble{
-		{ID: "N1", Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
+		{ID: "N1", Sex: models.SexMale, Code: "HUG", Name: "Hugues", OwnerID: "P1", LocationID: "ROS", Status: models.NobleStatusFree},
 	}
 	g.Infrastructures = []models.Infrastructure{
 		{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "ROS"},
 		{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BRU"},
 	}
 	g.TerritoryStates = map[models.TerritoryID]models.TerritoryState{
-		"ROS": {OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}},
-		"BCL": {OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2")},
-		"BRU": {OwnerID: ptrID("P1"), Resources: 5, Infrastructures: []models.InfraID{"I2"}},
-		"FOU": {OwnerID: nil, Resources: 0},
+		"ROS": {Resources: 0, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")},
+		"BCL": {Resources: 0, Army: ptrArmyID("A2")},
+		"BRU": {Resources: 5, Infrastructures: ptrInfraID("I2")},
+		"FOU": {Resources: 0},
 	}
 	return g
 }
@@ -130,16 +135,109 @@ func TestNobleStatusIsValid(t *testing.T) {
 	}
 }
 
+func TestSex(t *testing.T) {
+	for _, valid := range []models.Sex{models.SexMale, models.SexFemale} {
+		if !valid.IsValid() {
+			t.Errorf("Sex %q: want valid", valid)
+		}
+	}
+	for _, invalid := range []models.Sex{"", "M", "MALE", "other"} {
+		if invalid.IsValid() {
+			t.Errorf("Sex %q: want invalid", invalid)
+		}
+		if invalid.CanHoldReligiousOrRoyalTitle() {
+			t.Errorf("Sex %q: unknown sex must not hold religious or royal titles", invalid)
+		}
+	}
+	if !models.SexMale.CanHoldReligiousOrRoyalTitle() {
+		t.Error("male noble: want eligible for religious and royal titles")
+	}
+	if models.SexFemale.CanHoldReligiousOrRoyalTitle() {
+		t.Error("female noble: want ineligible for religious and royal titles")
+	}
+}
+
+func TestNobleDisplayName(t *testing.T) {
+	male := models.Noble{ID: "N1", Name: "Guillaume de Rosemont", Sex: models.SexMale}
+	female := models.Noble{ID: "N2", Name: "Mahaut de Rosemont", Sex: models.SexFemale}
+	wed := []models.Marriage{{NobleA: "N1", NobleB: "N2"}}
+	darc := female
+	darc.Dignities = []models.Dignity{models.DignityDArc}
+	holds := func(noble models.Noble, title models.FiefTitle) models.Fief {
+		id := noble.ID
+		return models.Fief{Title: title, CapitalTerritoryID: "ROC", HolderNobleID: &id}
+	}
+	tests := []struct {
+		name      string
+		fiefs     []models.Fief
+		marriages []models.Marriage
+		noble     models.Noble
+		want      string
+	}{
+		{"male without fief", nil, nil, male, "Sieur Guillaume de Rosemont"},
+		{"d'Arc replaces the family name", nil, nil, darc, "Dame Mahaut d'Arc"},
+		{"d'Arc keeps her name with a fief", []models.Fief{holds(darc, models.FiefTitleBarony)}, nil, darc, "Baronne Mahaut d'Arc"},
+		{"female without fief", nil, nil, female, "Dame Mahaut de Rosemont"},
+		{"baron", []models.Fief{holds(male, models.FiefTitleBarony)}, nil, male, "Baron Guillaume de Rochevent"},
+		{"baroness", []models.Fief{holds(female, models.FiefTitleBarony)}, nil, female, "Baronne Mahaut de Rochevent"},
+		{"count", []models.Fief{holds(male, models.FiefTitleCounty)}, nil, male, "Comte Guillaume de Rochevent"},
+		{"countess", []models.Fief{holds(female, models.FiefTitleCounty)}, nil, female, "Comtesse Mahaut de Rochevent"},
+		{"marquis", []models.Fief{holds(male, models.FiefTitleMarquisate)}, nil, male, "Marquis Guillaume de Rochevent"},
+		{"marquise", []models.Fief{holds(female, models.FiefTitleMarquisate)}, nil, female, "Marquise Mahaut de Rochevent"},
+		{"duke", []models.Fief{holds(male, models.FiefTitleDuchy)}, nil, male, "Duc Guillaume de Rochevent"},
+		{"duchess", []models.Fief{holds(female, models.FiefTitleDuchy)}, nil, female, "Duchesse Mahaut de Rochevent"},
+		{"highest of several fiefs", []models.Fief{holds(male, models.FiefTitleCounty), holds(male, models.FiefTitleDuchy), holds(male, models.FiefTitleBarony)}, nil, male, "Duc Guillaume de Rochevent"},
+		{"fief held by someone else", []models.Fief{holds(female, models.FiefTitleDuchy)}, nil, male, "Sieur Guillaume de Rosemont"},
+		{"vacant fief", []models.Fief{{Title: models.FiefTitleDuchy}}, nil, male, "Sieur Guillaume de Rosemont"},
+		{"husband of a countess", []models.Fief{holds(female, models.FiefTitleCounty)}, wed, male, "Comte Guillaume de Rochevent"},
+		{"wife of a duke", []models.Fief{holds(male, models.FiefTitleDuchy)}, wed, female, "Duchesse Mahaut de Rochevent"},
+		{"spouse without own fief and no spouse fief", nil, wed, female, "Dame Mahaut de Rosemont"},
+		{"spouse keeps higher own fief", []models.Fief{holds(male, models.FiefTitleDuchy), holds(female, models.FiefTitleCounty)}, wed, male, "Duc Guillaume de Rochevent"},
+		{"higher spouse fief outranks own", []models.Fief{holds(male, models.FiefTitleBarony), holds(female, models.FiefTitleDuchy)}, wed, male, "Duc Guillaume de Rochevent"},
+		{"spouse of vacant fief", []models.Fief{{Title: models.FiefTitleDuchy}}, wed, female, "Dame Mahaut de Rosemont"},
+		{"ended marriage grants nothing", []models.Fief{holds(male, models.FiefTitleDuchy)}, wed, models.Noble{ID: "N9", Name: "Aliénor de Rosemont", Sex: models.SexFemale}, "Dame Aliénor de Rosemont"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := &models.GameState{Fiefs: tt.fiefs, Nobles: []models.Noble{male, female}, Marriages: tt.marriages, Territories: []models.Territory{{ID: "ROC", Name: "Rochevent"}}}
+			if got := state.NobleDisplayName(tt.noble); got != tt.want {
+				t.Errorf("NobleDisplayName = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	var nilState *models.GameState
+	if got, want := nilState.NobleDisplayName(male), "Sieur Guillaume de Rosemont"; got != want {
+		t.Errorf("nil state NobleDisplayName = %q, want %q", got, want)
+	}
+}
+
+func TestDeathCauseIsValid(t *testing.T) {
+	for _, valid := range []models.DeathCause{
+		models.DeathCauseNatural, models.DeathCauseExecution, models.DeathCauseAssassination, models.DeathCauseRevolt,
+	} {
+		if !valid.IsValid() {
+			t.Errorf("DeathCause %q: want valid", valid)
+		}
+	}
+	for _, invalid := range []models.DeathCause{"", "poison", "NATURAL"} {
+		if invalid.IsValid() {
+			t.Errorf("DeathCause %q: want invalid", invalid)
+		}
+	}
+}
+
 func TestWinterOrderTypeIsValid(t *testing.T) {
 	for _, valid := range []models.WinterOrderType{
 		models.WinterOrderTypeRecruitNoble,
 		models.WinterOrderTypeRecruitTroop,
 		models.WinterOrderTypeBuild,
 		models.WinterOrderTypeElectCapital,
-		models.WinterOrderTypeLiberateNoble,
+		models.WinterOrderTypeTransferNoble,
 		models.WinterOrderTypeHostage,
 		models.WinterOrderTypeDungeon,
 		models.WinterOrderTypeTransfer,
+		models.WinterOrderTypeFoundFief,
+		models.WinterOrderTypeAssignFief,
 	} {
 		if !valid.IsValid() {
 			t.Errorf("WinterOrderType %q: want valid", valid)
@@ -154,7 +252,7 @@ func TestWinterOrderTypeIsValid(t *testing.T) {
 
 func TestValidateAllowsActionSeasonCacheOutsideSettlement(t *testing.T) {
 	state := validState()
-	state.TerritoryStates["FOU"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 3}
+	state.TerritoryStates["FOU"] = models.TerritoryState{Resources: 3}
 	if err := state.Validate(); err != nil {
 		t.Fatalf("Validate() = %v, want ordinary territory cache to be valid", err)
 	}
@@ -288,25 +386,53 @@ func TestValidateErrors(t *testing.T) {
 		{"army unknown owner", func(g *models.GameState) { g.Armies[0].OwnerID = "P9" }, "unknown owner"},
 		{"army unknown territory", func(g *models.GameState) { g.Armies[0].TerritoryID = "ZZZ" }, "unknown territory"},
 		{"army not referenced by territory state", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{Resources: 0, Infrastructures: ptrInfraID("I1")}
 		}, "does not reference it"},
 		{"state references army stationed elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A1")}
+			g.TerritoryStates["BCL"] = models.TerritoryState{Resources: 0, Army: ptrArmyID("A1")}
 		}, "stationed in"},
 		{"state references unknown army", func(g *models.GameState) {
-			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A9")}
+			g.TerritoryStates["BCL"] = models.TerritoryState{Resources: 0, Army: ptrArmyID("A9")}
 		}, "unknown army"},
 		{"duplicate noble id", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL"})
+			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N1", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL"})
 		}, "duplicate id"},
 		{"duplicate noble code", func(g *models.GameState) {
-			g.Nobles = append(g.Nobles, models.Noble{ID: "N2", Code: "HUG", Name: "Hugues II", OwnerID: "P2", LocationID: "BCL"})
+			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N2", Code: "HUG", Name: "Hugues II", OwnerID: "P2", LocationID: "BCL"})
 		}, "duplicate code"},
 		{"noble unknown owner", func(g *models.GameState) { g.Nobles[0].OwnerID = "P9" }, "unknown owner"},
 		{"noble unknown territory", func(g *models.GameState) { g.Nobles[0].LocationID = "ZZZ" }, "unknown territory"},
+		{"noble invalid sex", func(g *models.GameState) { g.Nobles[0].Sex = "" }, "invalid sex"},
 		{"noble invalid status", func(g *models.GameState) { g.Nobles[0].Status = "captured" }, "invalid status"},
 		{"noble negative last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = -1 }, "last emission turn"},
 		{"noble future last emission turn", func(g *models.GameState) { g.Nobles[0].LastEmissionTurn = g.Turn + 1 }, "last emission turn"},
+		{"removed noble duplicate id", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles,
+				models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural},
+				models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "BEA", OwnerID: "P1", Cause: models.DeathCauseNatural},
+			)
+		}, "duplicate or empty id"},
+		{"removed noble still exists", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N1", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "still exists"},
+		{"removed noble invalid sex", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "invalid sex"},
+		{"removed noble invalid code", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ann", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "invalid code"},
+		{"removed noble duplicate code", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "HUG", OwnerID: "P1", Cause: models.DeathCauseNatural})
+		}, "duplicate code"},
+		{"removed noble unknown owner", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P9", Cause: models.DeathCauseNatural})
+		}, "unknown owner"},
+		{"removed noble invalid cause", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P1", Cause: "poison"})
+		}, "invalid death cause"},
+		{"removed noble future turn", func(g *models.GameState) {
+			g.RemovedNobles = append(g.RemovedNobles, models.RemovedNoble{Sex: models.SexMale, ID: "N9", Code: "ANN", OwnerID: "P1", Cause: models.DeathCauseNatural, Turn: g.Turn + 1})
+		}, "must be between 0"},
 		{"next chain id zero", func(g *models.GameState) { g.NextChainID = 0 }, "next chain id"},
 		{"next army id zero", func(g *models.GameState) { g.NextArmyID = 0 }, "next army id"},
 		{"next army id collides with stored army", func(g *models.GameState) { g.NextArmyID = 2 }, "next army id"},
@@ -318,33 +444,23 @@ func TestValidateErrors(t *testing.T) {
 		{"infra unknown territory", func(g *models.GameState) { g.Infrastructures[0].TerritoryID = "ZZZ" }, "unknown territory"},
 		{"capital castle does not exist", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I9") }, "capital castle"},
 		{"capital references noncastle", func(g *models.GameState) { g.Players[0].CapitalCastleID = ptrInfraID("I1") }, "capital infrastructure"},
-		{"capital castle is enemy controlled", func(g *models.GameState) {
-			g.Players[0].CapitalCastleID = ptrInfraID("I2")
-			g.TerritoryStates["BRU"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 5, Infrastructures: []models.InfraID{"I2"}}
-		}, "not controlled by its owner"},
 		{"infra not listed in territory state", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 0, Army: ptrArmyID("A1")}
+			g.TerritoryStates["ROS"] = models.TerritoryState{Resources: 0, Army: ptrArmyID("A1")}
 		}, "does not list it"},
 		{"state lists infra built elsewhere", func(g *models.GameState) {
-			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I2"}}
+			g.TerritoryStates["BCL"] = models.TerritoryState{Resources: 0, Army: ptrArmyID("A2"), Infrastructures: ptrInfraID("I2")}
 		}, "built in"},
 		{"state lists unknown infra", func(g *models.GameState) {
-			g.TerritoryStates["BCL"] = models.TerritoryState{OwnerID: ptrID("P2"), Resources: 0, Army: ptrArmyID("A2"), Infrastructures: []models.InfraID{"I9"}}
+			g.TerritoryStates["BCL"] = models.TerritoryState{Resources: 0, Army: ptrArmyID("A2"), Infrastructures: ptrInfraID("I9")}
 		}, "unknown infrastructure"},
-		{"multiple infrastructures in territory state", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: 5, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1", "I2"}}
-		}, "multiple infrastructures"},
 		{"missing territory state entry", func(g *models.GameState) {
 			delete(g.TerritoryStates, "FOU")
 		}, "missing TerritoryState"},
 		{"orphan territory state entry", func(g *models.GameState) {
 			g.TerritoryStates["ZZZ"] = models.TerritoryState{}
 		}, "references unknown territory"},
-		{"state owner unknown", func(g *models.GameState) {
-			g.TerritoryStates["FOU"] = models.TerritoryState{OwnerID: ptrID("P9")}
-		}, "unknown owner"},
 		{"negative resources", func(g *models.GameState) {
-			g.TerritoryStates["ROS"] = models.TerritoryState{OwnerID: ptrID("P1"), Resources: -1, Army: ptrArmyID("A1"), Infrastructures: []models.InfraID{"I1"}}
+			g.TerritoryStates["ROS"] = models.TerritoryState{Resources: -1, Army: ptrArmyID("A1"), Infrastructures: ptrInfraID("I1")}
 		}, "negative resources"},
 	}
 	for _, tc := range cases {
@@ -476,6 +592,145 @@ func TestTrigramInvariants(t *testing.T) {
 	}
 }
 
+// validFiefState extends validState with a 3-territory fief (BRU as capital,
+// where the castle already sits, plus BCL and ROS) held by P1 with no
+// titleholder, so tests can attach a holder or mutate a single invariant.
+func validFiefState() *models.GameState {
+	g := validState()
+	g.Fiefs = []models.Fief{{
+		ID:                 "F1",
+		Title:              models.FiefTitleBarony,
+		CapitalTerritoryID: "BRU",
+		Territories:        []models.TerritoryID{"BRU", "BCL", "ROS"},
+		OwnerID:            "P1",
+	}}
+	return g
+}
+
+func TestValidateFiefValid(t *testing.T) {
+	g := validFiefState()
+	if err := g.Validate(); err != nil {
+		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidateFiefNilIsAccepted(t *testing.T) {
+	g := validState()
+	if g.Fiefs != nil {
+		t.Fatalf("validState() already sets Fiefs = %#v, want nil", g.Fiefs)
+	}
+	if err := g.Validate(); err != nil {
+		t.Errorf("Validate() with nil Fiefs = %v, want nil", err)
+	}
+}
+
+func TestValidateFiefWithHolder(t *testing.T) {
+	g := validFiefState()
+	g.Fiefs[0].HolderNobleID = ptrNobleID("N1")
+	if err := g.Validate(); err != nil {
+		t.Errorf("Validate() = %v, want nil", err)
+	}
+}
+
+// TestValidateFiefTitleIndependentOfSize: annexation adds territories without
+// changing the title, so a title may be lower or higher than the size's.
+func TestValidateFiefTitleIndependentOfSize(t *testing.T) {
+	for _, title := range []models.FiefTitle{models.FiefTitleBarony, models.FiefTitleCounty, models.FiefTitleDuchy} {
+		g := validFiefState()
+		g.Fiefs[0].Title = title
+		if err := g.Validate(); err != nil {
+			t.Errorf("Validate() with title %q = %v, want nil", title, err)
+		}
+	}
+}
+
+func TestValidateFiefErrors(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(g *models.GameState)
+		want   string
+	}{
+		{"empty id", func(g *models.GameState) { g.Fiefs[0].ID = "" }, "empty id"},
+		{"duplicate id", func(g *models.GameState) {
+			g.Fiefs = append(g.Fiefs, g.Fiefs[0])
+		}, "duplicate id"},
+		{"too few territories", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL"}
+		}, "at least 3 territories"},
+		{"unknown title", func(g *models.GameState) {
+			g.Fiefs[0].Title = models.FiefTitle("kingdom")
+		}, "invalid title"},
+		{"capital not first", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BCL", "BRU", "ROS"}
+		}, "must be the capital"},
+		{"unknown territory", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL", "ZZZ"}
+		}, "unknown territory"},
+		{"duplicate territory", func(g *models.GameState) {
+			g.Fiefs[0].Territories = []models.TerritoryID{"BRU", "BCL", "BCL"}
+		}, "duplicate territory"},
+		{"territory already in another fief", func(g *models.GameState) {
+			g.Fiefs = append(g.Fiefs, models.Fief{
+				ID: "F2", Title: models.FiefTitleBarony, CapitalTerritoryID: "BRU",
+				Territories: []models.TerritoryID{"BRU", "BCL", "ROS"}, OwnerID: "P1",
+			})
+		}, "already belongs to fief"},
+		{"unknown owner", func(g *models.GameState) { g.Fiefs[0].OwnerID = "P9" }, "unknown owner"},
+		{"capital castle inside another player's fief", func(g *models.GameState) {
+			// A capital is a permanent anchor of its player, but a fief
+			// member is controlled by the fief's owner first: the two must
+			// not disagree.
+			g.Players[1].CapitalCastleID = ptrInfraID("I2")
+		}, "is not controlled by its owner"},
+		{"unknown holder noble", func(g *models.GameState) {
+			g.Fiefs[0].HolderNobleID = ptrNobleID("N9")
+		}, "unknown holder noble"},
+		{"crown fief held by a noble", func(g *models.GameState) {
+			g.Fiefs[0].HolderNobleID = ptrNobleID("N1")
+			g.Fiefs[0].Crown = true
+		}, "crown fief held"},
+		{"holder noble owned by another player", func(g *models.GameState) {
+			g.Nobles = append(g.Nobles, models.Noble{Sex: models.SexMale, ID: "N2", Code: "ANN", Name: "Anne", OwnerID: "P2", LocationID: "BCL", Status: models.NobleStatusFree})
+			g.Fiefs[0].HolderNobleID = ptrNobleID("N2")
+		}, "belongs to"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := validFiefState()
+			tc.mutate(g)
+			err := g.Validate()
+			if err == nil {
+				t.Fatalf("Validate() = nil, want error containing %q", tc.want)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Validate() error %q does not contain %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestFiefTitleForSize(t *testing.T) {
+	cases := []struct {
+		size  int
+		title models.FiefTitle
+		ok    bool
+	}{
+		{0, "", false},
+		{2, "", false},
+		{3, models.FiefTitleBarony, true},
+		{4, models.FiefTitleCounty, true},
+		{5, models.FiefTitleMarquisate, true},
+		{6, models.FiefTitleDuchy, true},
+		{9, models.FiefTitleDuchy, true},
+	}
+	for _, tc := range cases {
+		title, ok := models.FiefTitleForSize(tc.size)
+		if title != tc.title || ok != tc.ok {
+			t.Errorf("FiefTitleForSize(%d) = (%q, %v), want (%q, %v)", tc.size, title, ok, tc.title, tc.ok)
+		}
+	}
+}
+
 func TestGameStateJSONRoundTrip(t *testing.T) {
 	g := validState()
 	g.Armies[0].ChainID = ptrChainID("C1")
@@ -531,5 +786,17 @@ func TestNewGameStateJSONEmptyCollections(t *testing.T) {
 		if !bytes.Contains(data, []byte(key)) {
 			t.Errorf("JSON %s does not contain %s", data, key)
 		}
+	}
+}
+
+func TestValidateVillageLevelZero(t *testing.T) {
+	state := validState()
+	state.Infrastructures[0] = models.Infrastructure{ID: "I1", Type: models.InfraTypeVillage, Level: 0, TerritoryID: "ROS"}
+	if err := state.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want a level-0 village to be valid", err)
+	}
+	state.Infrastructures[0].Level = -1
+	if err := state.Validate(); err == nil {
+		t.Fatal("Validate() = nil, want a negative village level rejected")
 	}
 }

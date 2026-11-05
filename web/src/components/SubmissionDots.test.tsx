@@ -8,6 +8,11 @@ const players = [
   { id: 'P2', name: 'Two', color: '#2d5f9e', submitted: false },
 ]
 
+const playersWithNotRequired = [
+  ...players,
+  { id: 'P3', name: 'Three', color: '#376341', submitted: false, required: false },
+]
+
 describe('SubmissionDots', () => {
   it('renders one dot per player with an accessible status label', () => {
     render(<SubmissionDots players={players} />)
@@ -28,6 +33,16 @@ describe('SubmissionDots', () => {
     const waiting = screen.getByLabelText('Two · Waiting')
     expect(waiting).toHaveStyle({ borderColor: '#2d5f9e' })
     expect(waiting.className).toContain('border-dashed')
+  })
+
+  it('marks a player not required this turn as such instead of waiting', () => {
+    render(<SubmissionDots players={playersWithNotRequired} />)
+
+    const notRequired = screen.getByLabelText('Three · Nothing to submit')
+    expect(notRequired).toBeInTheDocument()
+    expect(notRequired.className).toContain('opacity-40')
+    expect(notRequired.className).not.toContain('border-dashed')
+    expect(screen.queryByLabelText('Three · Waiting')).not.toBeInTheDocument()
   })
 
   it('renders nothing without players', () => {

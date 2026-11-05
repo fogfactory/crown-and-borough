@@ -40,22 +40,63 @@ func (t OrderType) IsValid() bool {
 type WinterOrderType string
 
 const (
-	WinterOrderTypeRecruitNoble  WinterOrderType = "recruit_noble"
-	WinterOrderTypeRecruitTroop  WinterOrderType = "recruit_troop"
-	WinterOrderTypeBuild         WinterOrderType = "build"
-	WinterOrderTypeElectCapital  WinterOrderType = "elect_capital"
-	WinterOrderTypeLiberateNoble WinterOrderType = "liberate_noble"
-	WinterOrderTypeHostage       WinterOrderType = "hostage"
-	WinterOrderTypeDungeon       WinterOrderType = "dungeon"
-	WinterOrderTypeTransfer      WinterOrderType = "transfer"
+	WinterOrderTypeRecruitNoble        WinterOrderType = "recruit_noble"
+	WinterOrderTypeRecruitTroop        WinterOrderType = "recruit_troop"
+	WinterOrderTypeBuild               WinterOrderType = "build"
+	WinterOrderTypeElectCapital        WinterOrderType = "elect_capital"
+	WinterOrderTypeTransferNoble       WinterOrderType = "transfer_noble"
+	WinterOrderTypeHostage             WinterOrderType = "hostage"
+	WinterOrderTypeDungeon             WinterOrderType = "dungeon"
+	WinterOrderTypeTransfer            WinterOrderType = "transfer"
+	WinterOrderTypeFoundFief           WinterOrderType = "found_fief"
+	WinterOrderTypeAssignFief          WinterOrderType = "assign_fief"
+	WinterOrderTypeAnnexTerritory      WinterOrderType = "annex_territory"
+	WinterOrderTypeChangeRank          WinterOrderType = "change_rank"
+	WinterOrderTypeMarriage            WinterOrderType = "marriage"
+	WinterOrderTypeDrawNoble           WinterOrderType = "draw_noble"
+	WinterOrderTypeDignity             WinterOrderType = "play_dignity"
+	WinterOrderTypeDiscardNoble        WinterOrderType = "discard_noble_card"
+	WinterOrderTypeClaim               WinterOrderType = "claim"
+	WinterOrderTypeCalamityVeto        WinterOrderType = "calamity_veto"
+	WinterOrderTypeCandidacy           WinterOrderType = "candidacy"
+	WinterOrderTypeVote                WinterOrderType = "vote"
+	WinterOrderTypeRitual              WinterOrderType = "ritual"
+	WinterOrderTypeExcommunicate       WinterOrderType = "excommunicate"
+	WinterOrderTypeLiftExcommunication WinterOrderType = "lift_excommunication"
+	WinterOrderTypeBuyCardinal         WinterOrderType = "buy_cardinal"
+	WinterOrderTypeInquiry             WinterOrderType = "inquiry"
+	WinterOrderTypeDissolveMarriage    WinterOrderType = "dissolve_marriage"
+	WinterOrderTypeTrial               WinterOrderType = "trial"
+	// Royal orders (W X, W R, W F, W G), issued by the king or the regent and
+	// resolved at stage 2a (specs/politique.md § Pouvoirs royaux).
+	WinterOrderTypeRoyalAnnex WinterOrderType = "royal_annex"
+	WinterOrderTypeRoyalRank  WinterOrderType = "royal_rank"
+	WinterOrderTypeRoyalFound WinterOrderType = "royal_found"
+	WinterOrderTypeRoyalGrant WinterOrderType = "royal_grant"
 )
+
+// IsRoyal reports whether the winter order is a royal order (W X, W R, W F or
+// W G), resolved before the management orders.
+func (t WinterOrderType) IsRoyal() bool {
+	switch t {
+	case WinterOrderTypeRoyalAnnex, WinterOrderTypeRoyalRank, WinterOrderTypeRoyalFound, WinterOrderTypeRoyalGrant:
+		return true
+	}
+	return false
+}
 
 // IsValid reports whether a winter order type is known to the winter resolver.
 func (t WinterOrderType) IsValid() bool {
 	switch t {
 	case WinterOrderTypeRecruitNoble, WinterOrderTypeRecruitTroop, WinterOrderTypeBuild,
-		WinterOrderTypeElectCapital, WinterOrderTypeLiberateNoble,
-		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer:
+		WinterOrderTypeElectCapital, WinterOrderTypeTransferNoble,
+		WinterOrderTypeHostage, WinterOrderTypeDungeon, WinterOrderTypeTransfer,
+		WinterOrderTypeFoundFief, WinterOrderTypeAssignFief, WinterOrderTypeAnnexTerritory, WinterOrderTypeChangeRank, WinterOrderTypeMarriage,
+		WinterOrderTypeDrawNoble, WinterOrderTypeDignity, WinterOrderTypeDiscardNoble,
+		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
+		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
+		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry, WinterOrderTypeTrial,
+		WinterOrderTypeRoyalAnnex, WinterOrderTypeRoyalRank, WinterOrderTypeRoyalFound, WinterOrderTypeRoyalGrant:
 		return true
 	}
 	return false
@@ -99,19 +140,70 @@ type Order struct {
 	Liaison LiaisonMode `json:"liaison"`
 	// Amount is used only by transfer orders and is expressed in resources.
 	Amount int `json:"amount,omitempty"`
+	// Line is the source line of a freshly parsed order, used to locate
+	// submission errors. It is not persisted.
+	Line int `json:"-"`
 }
 
 // WinterOrder is one direct winter management instruction. Fields irrelevant
-// to Type are left at their zero value.
+// to Type are left at their zero value. For WinterOrderTypeFoundFief,
+// TerritoryID holds the capital (also TerritoryIDs[0]) and TerritoryIDs holds
+// the whole group in source order; NobleCode is the titleholder. For
+// WinterOrderTypeAssignFief, TerritoryID is the fief's capital and NobleCode
+// is the noble it is attributed to. For WinterOrderTypeAnnexTerritory,
+// TerritoryID is the capital of the annexing fief, TargetID the annexed
+// territory and NobleCode the fief's titleholder; for WinterOrderTypeChangeRank,
+// TerritoryID is the fief's capital and NobleCode its titleholder
+// (specs/politique.md § Seigneurie et annexion). For WinterOrderTypeMarriage, NobleCode is
+// the player's own noble and SpouseCode the other player's noble it asks to
+// marry (specs/succession.md § Conclusion d'un mariage). For
+// WinterOrderTypeRecruitNoble, CardCode is the noble card played from the
+// hand and TerritoryID the castle or village where the noble appears. For
+// WinterOrderTypeDignity, NobleCode is the player's own noble and CardCode
+// the dignity card played on it. For WinterOrderTypeDiscardNoble, CardCode is
+// the code (noble trigram or dignity code) of the noble-hand card discarded
+// unplayed. WinterOrderTypeDrawNoble carries no field. For
+// WinterOrderTypeClaim, NobleCode is the player's own noble, the heir, and
+// SpouseCode the noble of another player whose titles it claims. For
+// WinterOrderTypeCandidacy and WinterOrderTypeVote, Election names the
+// election, NobleCode the candidate and TerritoryID the seed village of the
+// bishopric (bishop elections only). For WinterOrderTypeBuyCardinal, NobleCode
+// is the player's own bishop promoted to cardinal at the investiture. For
+// WinterOrderTypeExcommunicate and WinterOrderTypeLiftExcommunication, NobleCode
+// is the targeted noble (papal orders, resolved first: specs/religieux.md
+// § Excommunication). For WinterOrderTypeInquiry, NobleCode is the investigating
+// cardinal or pope of the player and TargetCode the investigated noble (stage
+// 3: specs/religieux.md § Enquête). For WinterOrderTypeTrial, NobleCode is the
+// cardinal backing the trial and TargetCode the noble put on trial (filed at
+// stage 3, judged at stage 9: specs/religieux.md § Procès à deux cardinaux).
 type WinterOrder struct {
-	ID          OrderID         `json:"id"`
-	Type        WinterOrderType `json:"type"`
-	TerritoryID TerritoryID     `json:"territory,omitempty"`
-	SourceID    TerritoryID     `json:"source,omitempty"`
-	TargetID    TerritoryID     `json:"target,omitempty"`
-	Amount      int             `json:"amount,omitempty"`
-	InfraType   InfraType       `json:"infrastructureType,omitempty"`
-	NobleCode   NobleCode       `json:"nobleCode,omitempty"`
+	ID           OrderID         `json:"id"`
+	Type         WinterOrderType `json:"type"`
+	TerritoryID  TerritoryID     `json:"territory,omitempty"`
+	SourceID     TerritoryID     `json:"source,omitempty"`
+	TargetID     TerritoryID     `json:"target,omitempty"`
+	TerritoryIDs []TerritoryID   `json:"territories,omitempty"`
+	Amount       int             `json:"amount,omitempty"`
+	InfraType    InfraType       `json:"infrastructureType,omitempty"`
+	NobleCode    NobleCode       `json:"nobleCode,omitempty"`
+	SpouseCode   NobleCode       `json:"spouseCode,omitempty"`
+	CardCode     string          `json:"cardCode,omitempty"`
+	// TargetCode is the noble an inquiry investigates or a trial judges
+	// (NobleCode is then the investigating or backing cardinal or pope).
+	TargetCode NobleCode `json:"targetCode,omitempty"`
+	// Election is the election a candidacy or a vote belongs to.
+	Election ElectionKind `json:"election,omitempty"`
+	// Status is the optional status a noble transfer gives a noble handed to
+	// another owner's army (hostage or dungeon); empty keeps its status.
+	Status NobleStatus `json:"status,omitempty"`
+	// Indices are the 1-based positions in the astrologer forecast a
+	// calamity veto removes.
+	Indices []int `json:"indices,omitempty"`
+	// Calamity and Season are the two exclusive choices of a ritual: the kind
+	// of calamity the Witch calls, or the season of the next year she fixes
+	// (specs/dames.md § Sorcière).
+	Calamity CardKind `json:"calamity,omitempty"`
+	Season   Season   `json:"season,omitempty"`
 }
 
 type DeckOrderType string
@@ -119,6 +211,14 @@ type DeckOrderType string
 const (
 	DeckOrderTypeDiscard DeckOrderType = "discard_card"
 	DeckOrderTypePlay    DeckOrderType = "play_card"
+	// DeckOrderTypeAppeaseRite is the free revolt appeasement of a cleric
+	// (specs/religieux.md § Apaisement de révolte): TargetNobleID is the
+	// cleric, TargetTerritoryID the territory. It plays no card and may kill
+	// the cleric.
+	DeckOrderTypeAppeaseRite DeckOrderType = "appease_rite"
+	// DeckOrderTypeAppeasePaid is the safe, paid revolt appeasement of a
+	// bishop (in their bishopric), a cardinal or the pope.
+	DeckOrderTypeAppeasePaid DeckOrderType = "appease_paid"
 )
 
 type DeckOrder struct {
@@ -127,10 +227,32 @@ type DeckOrder struct {
 	Kind              CardKind      `json:"kind,omitempty"`
 	RegionSeed        TerritoryID   `json:"regionSeed,omitempty"`
 	TargetTerritoryID TerritoryID   `json:"targetTerritory,omitempty"`
+	// TargetNobleID is the cleric
+	// issuing a revolt appeasement, or the detained noble a tunnel card helps
+	// escape.
+	TargetNobleID NobleID `json:"targetNoble,omitempty"`
+	// SourceTerritoryID is, with TargetTerritoryID, the attack a tunnel or
+	// ambush card designates: from this origin to the target
+	// (specs/ordres-speciaux.md § Cartes jouées sur une attaque).
+	SourceTerritoryID TerritoryID `json:"sourceTerritory,omitempty"`
+	// CommissionerNobleID is the free noble who commissions the assassination
+	// an assassination card plays on TargetNobleID (specs/ordres-speciaux.md
+	// § Assassinat).
+	CommissionerNobleID NobleID `json:"commissionerNoble,omitempty"`
+	// Tithe marks a Tax card played as a tithe on a bishopric rather than a
+	// seigneurial tax on a fief, which only the order can tell when the target
+	// is both a fief capital and a bishopric seed (religieux.md "Dîme").
+	Tithe bool `json:"tithe,omitempty"`
 }
 
 func (t DeckOrderType) IsValid() bool {
-	return t == DeckOrderTypeDiscard || t == DeckOrderTypePlay
+	return t == DeckOrderTypeDiscard || t == DeckOrderTypePlay || t.IsAppeasement()
+}
+
+// IsAppeasement reports whether the order is a revolt appeasement, which
+// plays no card.
+func (t DeckOrderType) IsAppeasement() bool {
+	return t == DeckOrderTypeAppeaseRite || t == DeckOrderTypeAppeasePaid
 }
 
 // PendingDisperse records unresolved branches of a looped dispersion after

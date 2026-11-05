@@ -1,0 +1,2 @@
+Placeholder so go:embed all:dist compiles before the first web build.
+web/public/.gitkeep has the same content so vite build recreates this file.

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -34,12 +35,15 @@ func TestResolveAttackIsPureAndUpdatesControl(t *testing.T) {
 	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "BBB" {
 		t.Errorf("N1 location = %q, want BBB", noble.LocationID)
 	}
-	owner := resolution.State.TerritoryStates["BBB"].OwnerID
+	owner := controllerOf(resolution.State, "BBB")
 	if owner == nil || *owner != "P1" {
 		t.Errorf("BBB owner = %v, want P1", owner)
 	}
-	if sourceOwner := resolution.State.TerritoryStates["AAA"].OwnerID; sourceOwner == nil || *sourceOwner != "P1" {
-		t.Errorf("AAA owner = %v, want P1 remanence after departure", sourceOwner)
+	// AAA carries no fief or capital and A1 left it: control outside a fief is
+	// ephemeral, so it reverts to neutral once no army of its former
+	// controller remains there (#215).
+	if sourceOwner := controllerOf(resolution.State, "AAA"); sourceOwner != nil {
+		t.Errorf("AAA owner = %v, want nil (released once its army departed)", sourceOwner)
 	}
 	if !containsEvent(resolution.Events, EventTypeMovement) || !containsEvent(resolution.Events, EventTypeControlChanged) {
 		t.Errorf("events = %#v, want movement and control events", resolution.Events)
@@ -92,6 +96,9 @@ func TestResolveCastleBlocksEqualAttack(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	setNobleStatus(state, "N1", models.NobleStatusHostage)
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	// BBB is P2's own capital: a permanent anchor outside any fief, the only
+	// thing keeping this empty castle from going inert (#215).
+	setCapital(state, "P2", "I1")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
 	validateTestState(t, state)
 
@@ -190,6 +197,141 @@ func TestResolveSupportCutAndDefensiveSupport(t *testing.T) {
 			t.Errorf("A1 territory = %q, want AAA against defensive support", army.TerritoryID)
 		}
 	})
+}
+
+// TestResolveDefensiveSupportUnlessAttacking covers the beta report: an army
+// of 5 attacks an army of 3 in a castle, supported by an army of 3. As in
+// Diplomacy, only an attack order gives up defensive supports; any other army
+// keeps them as long as it stays on its territory.
+func TestResolveDefensiveSupportUnlessAttacking(t *testing.T) {
+	cases := []struct {
+		name  string
+		order *models.Order
+	}{
+		{name: "no orders"},
+		{name: "hold", order: &models.Order{Type: models.OrderTypeHold, PositionID: "BBB"}},
+		{name: "transfer", order: &models.Order{Type: models.OrderTypeTransfer, PositionID: "BBB", TargetIDs: []models.TerritoryID{"CCC"}, Amount: 1}},
+		{name: "join cancelled by the attack", order: &models.Order{Type: models.OrderTypeJoin, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}}},
+		{name: "dispersion cancelled by the attack", order: &models.Order{Type: models.OrderTypeDisperse, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := defensiveSupportState(t, 3, true)
+			if tc.order != nil {
+				addChain(t, state, "A2", "N2", *tc.order)
+			}
+			validateTestState(t, state)
+
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BBB" {
+				t.Errorf("A2 territory = %q, want BBB held with defensive support", army.TerritoryID)
+			}
+			if event, found := findOutcome(resolution.Events, "S1"); !found || event.Reason != "support_applied" {
+				t.Errorf("S1 reason = %q, found=%t, want support_applied", event.Reason, found)
+			}
+		})
+	}
+
+	attacks := []struct {
+		name   string
+		target models.TerritoryID
+	}{
+		{name: "attack that fails", target: "DDD"},
+		{name: "attack that leaves", target: "EEE"},
+	}
+	for _, tc := range attacks {
+		t.Run(tc.name, func(t *testing.T) {
+			state := defensiveSupportState(t, 3, true)
+			addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{tc.target}})
+			validateTestState(t, state)
+
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" {
+				t.Errorf("A1 territory = %q, want BBB without defensive support", army.TerritoryID)
+			}
+			if army := armyByID(t, resolution.State, "A2"); army.TerritoryID == "BBB" {
+				t.Errorf("A2 territory = %q, want it to leave or retreat from BBB", army.TerritoryID)
+			}
+			if event, found := findOutcome(resolution.Events, "S1"); !found || event.Reason != "support_void" {
+				t.Errorf("S1 reason = %q, found=%t, want support_void", event.Reason, found)
+			}
+		})
+	}
+
+	withoutAttack := []struct {
+		name       string
+		size       int
+		order      models.Order
+		staysOnBBB bool
+	}{
+		{name: "army that joins without any attack", size: 3, order: models.Order{Type: models.OrderTypeJoin, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}}},
+		{name: "dispersion leaving troops behind without any attack", size: 3, order: models.Order{Type: models.OrderTypeDisperse, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}}, staysOnBBB: true},
+		{name: "dispersion of every troop without any attack", size: 1, order: models.Order{Type: models.OrderTypeDisperse, PositionID: "BBB", TargetIDs: []models.TerritoryID{"EEE"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"EEE": {"TWO"}}}},
+	}
+	for _, tc := range withoutAttack {
+		t.Run(tc.name, func(t *testing.T) {
+			state := defensiveSupportState(t, tc.size, false)
+			addChain(t, state, "A2", "N2", tc.order)
+			validateTestState(t, state)
+
+			resolution, err := Resolve(state, testBalance())
+			if err != nil {
+				t.Fatalf("Resolve: %v", err)
+			}
+			held := false
+			for _, army := range armiesAt(resolution.State, "BBB") {
+				held = held || army.OwnerID == "P2"
+			}
+			if held != tc.staysOnBBB {
+				t.Errorf("P2 army on BBB = %t, want %t", held, tc.staysOnBBB)
+			}
+			want := "support_void"
+			if tc.staysOnBBB {
+				want = "support_applied"
+			}
+			if event, found := findOutcome(resolution.Events, "S1"); !found || event.Reason != want {
+				t.Errorf("S1 reason = %q, found=%t, want %s", event.Reason, found, want)
+			}
+		})
+	}
+}
+
+// defensiveSupportState places A1 (5, P1) on AAA, attacking A2 (a2Size, P2)
+// in the castle of BBB when attack is set, and A3 (3, P3) supporting BBB from
+// CCC. A4 (5, P3) holds DDD and EEE is empty.
+func defensiveSupportState(t *testing.T, a2Size int, attack bool) *models.GameState {
+	t.Helper()
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB", "DDD"),
+			territory("BBB", "BBB", "AAA", "CCC", "DDD", "EEE"),
+			territory("CCC", "CCC", "BBB", "EEE"),
+			territory("DDD", "DDD", "AAA", "BBB"),
+			territory("EEE", "EEE", "BBB", "CCC"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 5},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: a2Size},
+			{ID: "A3", OwnerID: "P3", TerritoryID: "CCC", Size: 3},
+			{ID: "A4", OwnerID: "P3", TerritoryID: "DDD", Size: 5},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	addNoble(state, "N3", "THR", "P3", "CCC")
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	if attack {
+		addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}})
+	}
+	addChain(t, state, "A3", "N3", models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"BBB"}})
+	keepTestArmiesSupplied(state)
+	return state
 }
 
 func TestResolveJoinPairAndCrossing(t *testing.T) {
@@ -650,7 +792,6 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	carrierDefeat.Armies = append(carrierDefeat.Armies, models.Army{ID: attackerID, OwnerID: attackerOwner, TerritoryID: "EEE", Size: 2})
 	attackerState := carrierDefeat.TerritoryStates["EEE"]
 	attackerState.Army = &attackerID
-	attackerState.OwnerID = &attackerOwner
 	carrierDefeat.TerritoryStates["EEE"] = attackerState
 	addInfrastructure(carrierDefeat, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "EEE"})
 	carrierDefeat.NextArmyID = 5
@@ -680,7 +821,6 @@ func TestResolveLoopDisperseMovesResolvedBranchesAndRetriesResidual(t *testing.T
 	residualJoin.Armies = append(residualJoin.Armies, models.Army{ID: joiningID, OwnerID: joiningOwner, TerritoryID: "EEE", Size: 1})
 	joiningState := residualJoin.TerritoryStates["EEE"]
 	joiningState.Army = &joiningID
-	joiningState.OwnerID = &joiningOwner
 	residualJoin.TerritoryStates["EEE"] = joiningState
 	residualJoin.NextArmyID = 5
 	addNoble(residualJoin, "N4", "FOU", "P1", "EEE")
@@ -763,10 +903,10 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P1", "AAA")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 1, TerritoryID: "AAA"})
 	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
-	owner := models.PlayerID("P1")
-	castleState := state.TerritoryStates["BBB"]
-	castleState.OwnerID = &owner
-	state.TerritoryStates["BBB"] = castleState
+	// No army garrisons BBB: anchor it as P1's capital so control resolution
+	// (now ahead of ravitaillement, #208) does not release it as unanchored
+	// before supply can credit the pillage gain to it.
+	setCapital(state, "P1", "I2")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypePillage, PositionID: "AAA"})
 	validateTestState(t, state)
 
@@ -777,7 +917,11 @@ func TestResolvePillageCreditsNearestControlledSettlement(t *testing.T) {
 	if len(resolution.State.Infrastructures) != 1 || resolution.State.Infrastructures[0].ID != "I2" {
 		t.Errorf("infrastructures = %#v, want only I2", resolution.State.Infrastructures)
 	}
-	wantResources := testBalance().PillageBonus + testBalance().BaseProduction + 1
+	// BBB (P1's capital) receives territory income for both territories plus
+	// the pillage credit. The explicit T P order executes before
+	// ravitaillement now resolves (#208), so I1 is already gone by the time
+	// mill production is computed: AAA's mill no longer contributes.
+	wantResources := testBalance().PillageBonus + 2*testBalance().TerritoryIncome
 	if got := resolution.State.TerritoryStates["BBB"].Resources; got != wantResources {
 		t.Errorf("castle resources = %d, want %d", got, wantResources)
 	}
@@ -818,6 +962,77 @@ func TestResolveNobleCapture(t *testing.T) {
 			t.Errorf("events = %#v, want capture event", resolution.Events)
 		}
 	})
+}
+
+func TestResolveNobleCaptureBastardGoesToDungeon(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N3", "THR", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityBastard}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if noble := nobleByID(t, resolution.State, "N1"); noble.Status != models.NobleStatusDungeon {
+		t.Errorf("bastard N1 = %+v, want straight to the dungeon", noble)
+	}
+	if noble := nobleByID(t, resolution.State, "N3"); noble.Status != models.NobleStatusHostage {
+		t.Errorf("non-bastard N3 = %+v, want hostage", noble)
+	}
+	for _, event := range eventsOfType(resolution.Events, EventTypeCapture) {
+		if event.NobleID == "N1" && event.Status != models.NobleStatusDungeon {
+			t.Errorf("capture event = %+v, want status dungeon", event)
+		}
+	}
+}
+
+func TestResolveNobleCaptureUnmasksChevalierDEon(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB"),
+			territory("BBB", "BBB", "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	state.Nobles[0].Sex = models.SexFemale
+	state.Nobles[0].Dignities = []models.Dignity{models.DignityChevalierDEon}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "BBB"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	noble := nobleByID(t, resolution.State, "N1")
+	if noble.Status != models.NobleStatusHostage {
+		t.Errorf("captured noble = %+v, want hostage (capture, not sent hostage)", noble)
+	}
+	if !noble.EonUnmasked {
+		t.Error("EonUnmasked = false, want true once captured in combat")
+	}
+	if events := eventsOfType(resolution.Events, EventTypeEonUnmasked); len(events) != 1 || events[0].NobleID != "N1" {
+		t.Errorf("eon_unmasked events = %+v, want one on N1", events)
+	}
 }
 
 func TestResolveLoopProgression(t *testing.T) {
@@ -1209,114 +1424,24 @@ func TestResolveIsDeterministic(t *testing.T) {
 	}
 }
 
-func TestResolveDeferredNonAdjacencyPreservesEarlierOrders(t *testing.T) {
+func TestResolveRejectsAStoredChainThatFailsStaticValidation(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB"),
 			territory("BBB", "BBB", "AAA", "CCC"),
-			territory("CCC", "CCC", "BBB", "DDD", "EEE"),
-			territory("DDD", "DDD", "CCC"),
-			territory("EEE", "EEE", "CCC"),
+			territory("CCC", "CCC", "BBB"),
 		},
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2}},
 	)
 	addNoble(state, "N1", "ONE", "P1", "AAA")
+	// Submissions reject non-adjacent orders, so such a chain can only come
+	// from a corrupted state; resolution refuses it instead of running it.
 	addChainOrders(t, state, "A1", "N1",
-		models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB"}},
-		models.Order{Type: models.OrderTypeHold, PositionID: "BBB"},
-		models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"DDD"}},
-		models.Order{Type: models.OrderTypePillage, PositionID: "BBB"},
+		models.Order{Type: models.OrderTypeAttack, PositionID: "AAA", TargetIDs: []models.TerritoryID{"CCC"}},
 	)
 	validateTestState(t, state)
 
-	first, err := Resolve(state, testBalance())
-	if err != nil {
-		t.Fatalf("first Resolve: %v", err)
-	}
-	if army := armyByID(t, first.State, "A1"); army.TerritoryID != "BBB" {
-		t.Fatalf("A1 territory = %q, want BBB after O1", army.TerritoryID)
-	}
-	if chain := chainOf(first.State, "A1"); chain == nil || chain.CurrentIndex != 1 {
-		t.Fatalf("chain after O1 = %#v, want index 1", chain)
-	}
-	if event, found := findOutcome(first.Events, "O1"); !found || event.Outcome != OutcomeSuccess {
-		t.Fatalf("O1 events = %#v, want success", first.Events)
-	}
-
-	second, err := Resolve(first.State, testBalance())
-	if err != nil {
-		t.Fatalf("second Resolve: %v", err)
-	}
-	if event, found := findOutcome(second.Events, "O2"); !found || event.Outcome != OutcomeSuccess {
-		t.Fatalf("O2 events = %#v, want success", second.Events)
-	}
-	if chain := chainOf(second.State, "A1"); chain == nil || chain.CurrentIndex != 2 {
-		t.Fatalf("chain after O2 = %#v, want index 2", chain)
-	}
-
-	third, err := Resolve(second.State, testBalance())
-	if err != nil {
-		t.Fatalf("third Resolve: %v", err)
-	}
-	event, found := findOutcome(third.Events, "O3")
-	if !found {
-		t.Fatalf("missing O3 outcome event in %#v", third.Events)
-	}
-	if event.Outcome != OutcomeInvalid || event.Reason != "non_adjacent_destination" || event.Progression != ProgressionBroken {
-		t.Fatalf("O3 event = %#v, want invalid non_adjacent_destination broken", event)
-	}
-	if chain := chainOf(third.State, "A1"); chain != nil {
-		t.Errorf("chain after O3 = %#v, want removed", chain)
-	}
-	if army := armyByID(t, third.State, "A1"); army.ChainID != nil {
-		t.Errorf("A1 chain link = %#v, want nil", army.ChainID)
-	}
-
-	fourth, err := Resolve(third.State, testBalance())
-	if err != nil {
-		t.Fatalf("fourth Resolve: %v", err)
-	}
-	if _, executed := findOutcome(fourth.Events, "O4"); executed {
-		t.Errorf("O4 was executed after the broken chain: %#v", fourth.Events)
-	}
-	if containsEvent(fourth.Events, EventTypePillage) {
-		t.Errorf("suffix O4 pillage executed: %#v", fourth.Events)
-	}
-}
-
-func TestResolveLoopNonAdjacentBreaksChainWithoutRetry(t *testing.T) {
-	state := testState(t,
-		[]models.Territory{
-			territory("AAA", "AAA", "BBB"),
-			territory("BBB", "BBB", "AAA", "CCC"),
-			territory("CCC", "CCC", "BBB", "DDD", "EEE"),
-			territory("DDD", "DDD", "CCC"),
-			territory("EEE", "EEE", "CCC"),
-		},
-		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "BBB", Size: 2}},
-	)
-	addNoble(state, "N1", "ONE", "P1", "BBB")
-	addChainOrders(t, state, "A1", "N1",
-		models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"DDD"}, Liaison: models.LiaisonModeLoop},
-		models.Order{Type: models.OrderTypePillage, PositionID: "BBB"},
-	)
-	validateTestState(t, state)
-
-	resolution, err := Resolve(state, testBalance())
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	event, found := findOutcome(resolution.Events, "O1")
-	if !found {
-		t.Fatalf("missing O1 outcome event in %#v", resolution.Events)
-	}
-	if event.Outcome != OutcomeInvalid || event.Progression != ProgressionBroken {
-		t.Fatalf("O1 event = %#v, want invalid broken (not retried)", event)
-	}
-	if chain := chainOf(resolution.State, "A1"); chain != nil {
-		t.Errorf("chain after break = %#v, want removed", chain)
-	}
-	if _, executed := findOutcome(resolution.Events, "O2"); executed {
-		t.Errorf("O2 suffix executed after broken loop order: %#v", resolution.Events)
+	if _, err := Resolve(state, testBalance()); err == nil || !strings.Contains(err.Error(), "statically invalid") {
+		t.Fatalf("Resolve = %v, want a statically invalid chain error", err)
 	}
 }

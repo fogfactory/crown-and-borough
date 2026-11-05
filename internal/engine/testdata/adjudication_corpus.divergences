@@ -1,0 +1,38 @@
+# Seeds of the adjudication corpus on which the decision-graph adjudicator
+# intentionally differs from the iterative adjudicator that recorded
+# adjudication_corpus.golden. Each line gives the seed, the category and the
+# digests of the current resolution (turn 1, turn 2); a seed may combine
+# categories with "+". The categories are:
+#
+# cut_supporters       Report only. A supporter dislodged during the turn is
+#                      listed in the combat's cut supporters; the previous
+#                      adjudicator listed it only when the turn resolved in a
+#                      single iteration.
+# paradox              No resolution satisfies the rules: the cycle's joins and
+#                      dispersions are cancelled and its attacks resolved
+#                      without them. The previous adjudicator kept a
+#                      dislodgement or a failure from an earlier iteration.
+# legacy_inconsistent  The previous result violated the rules: an attack
+#                      turned back before a head-to-head loser stopped
+#                      contesting its destination, or a dislodgement kept from
+#                      an earlier iteration. The current result is the
+#                      consistent one.
+# two_resolutions      Two resolutions satisfy the rules; the orders succeed in
+#                      the adjudicator's fixed order whenever one allows it.
+# allied_attack_dispersion
+#                      Rule fix: a dispersion may arrive on a territory won by
+#                      an attack of its own player, as a join already could;
+#                      the previous adjudicator treated it as contested,
+#                      against the GDD's definition of a contested destination.
+# dispersion_execution Execution fix: allied troops stacked onto a dispersing
+#                      army stay on its origin instead of vanishing, a
+#                      dispersed troop fuses with the army that remains on its
+#                      destination, a chain handed to another army keeps its
+#                      orders consistent, and joins and dispersions read
+#                      attacked territories as the adjudicator does. Seeds on
+#                      which the previous adjudicator errored are pinned here.
+# legacy_error         The previous adjudicator failed on this turn (combat that
+#                      did not converge); the result is pinned from here on.
+#
+# The other categories are cases where the previous result depended on the
+# order of its iterations.

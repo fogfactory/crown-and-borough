@@ -37,13 +37,16 @@ Au printemps, en été et en automne :
 2. Le moteur vérifie les soumissions. Une erreur de syntaxe ou de réception
    empêche la résolution de la soumission concernée sans modifier l'état.
 3. Le moteur consomme et agrège les cartes valides, puis applique leurs effets
-   avant le ravitaillement et l'énumération des intentions d'armée.
-4. Le moteur résout simultanément le ravitaillement, les intentions, les
-   soutiens, les combats, les déplacements, les retraites, les jonctions, les
-   dispersions et la progression des chaînes.
-5. Le contrôle territorial, les déplacements de nobles et les événements sont
-   mis à jour.
-6. Le serveur construit un rapport de tour typé à partir des événements de la
+   avant l'énumération des intentions d'armée.
+4. Le moteur résout simultanément les intentions, les soutiens, les combats,
+   les déplacements, les retraites, les jonctions, les dispersions, les
+   transferts de ressources et la progression des chaînes.
+5. Le contrôle territorial et les déplacements de nobles sont mis à jour à
+   partir des positions et des résultats de cette résolution.
+6. Le moteur résout le ravitaillement de fin de tour sur ces positions et ce
+   contrôle définitifs, territoires tout juste capturés compris : revenu
+   territorial, production des moulins et rations, puis famine (section 5).
+7. Le serveur construit un rapport de tour typé à partir des événements de la
    résolution.
 
 La chaîne soumise est attachée immédiatement à l'armée présente sur la
@@ -56,40 +59,84 @@ L'hiver est une trêve de gestion : aucune chaîne d'action, aucun mouvement,
 aucun combat et aucun ravitaillement ne sont résolus. Le joueur soumet une
 liste d'investissements directs, traités dans l'ordre saisi :
 
-- `R N XXX` — recruter un noble sur `XXX` ;
+- `T N` — piocher une carte dans le deck de nobles (une fois par hiver) ; les ordres qui jouent une carte du deck de nobles (`R N`, `C N`, `D N`) se soumettent aussi pendant les saisons d'action, dans le champ `winter` ;
+- `R N CCC XXX` — jouer la carte de noble `CCC` de la main pour recruter ce noble sur `XXX` ;
+- `C N HHH CCC` — consomme une carte de prétention : l'héritier `HHH` (noble du joueur posé pendant un mariage de `CCC`) réclame les titres de fief du noble `CCC` d'un autre joueur ([succession.md](succession.md#prétentions-claims)) ;
+- `D N NNN CCC` — jouer la carte de dignité `CCC` (`BAS` : bâtard ; `ARC`, `CTL`, `ABB`, `HRB`, `AST`, `EON`, `COR`, `ESP`, `EMP`, `SOR` : dignités des dames ; `D N NNN ABB TER` pour l'Abbesse, voir `specs/dames.md`) de la main sur le noble `NNN` ;
+- `S R NNN CAL` / `S R NNN N` — rituel de la Sorcière `NNN` : appeler la calamité `CAL` (`PE`, `MT`, `FA`) ou fixer la saison `N` (`1` à `3`) d'une calamité de l'année suivante, sur la région de la Sorcière ([dames.md](dames.md#sorcière-cachée)) ;
+- `D C CCC` — défausser sans la jouer la carte `CCC` (trigramme de noble ou code de dignité) de la main de nobles, gratuit et sans limite par hiver ;
 - `A N XXX` — annoblir gratuitement une armée sur `XXX` lorsque le joueur n'a plus aucun noble ;
 - `R T XXX` — recruter une troupe sur `XXX` ;
 - `C M XXX` — construire ou améliorer un moulin sur `XXX` ;
-- `C C XXX` — construire un château sur `XXX` ;
+- `C C XXX` — construire un château sur `XXX` vide, ou fortifier le village
+  de `XXX` ([economie.md](economie.md#village-fortifié)) ;
 - `C D XXX` — construire un dépôt de vivres sur `XXX` ;
 - `E C XXX` — désigner le château de `XXX` comme capitale ;
 - `O N NNN` — placer le noble prisonnier `NNN` en statut `hostage` ;
 - `P N NNN` — placer le noble prisonnier `NNN` en statut `dungeon` ;
-- `L N NNN` — libérer le noble de code `NNN` ;
+- `H N NNN XXX [O|P]` — remettre le noble `NNN` que le joueur contrôle (l'un de ses nobles libres, ou un otage ou prisonnier qu'il détient) à l'armée d'un autre joueur présente sur `XXX` ; le noble y garde son statut (un noble libre devient `hostage`), que `O` (`hostage`) ou `P` (`dungeon`) peut fixer ; il est libéré, gratuitement, si cette armée appartient à son propriétaire ([succession.md](succession.md#transfert-de-noble-et-otage-volontaire)) ;
 - `G XXX YYY N` — transférer `N` ressources du château ou village `XXX` vers
-  le château ou village `YYY` d'un autre joueur.
+  le château ou village `YYY` d'un autre joueur ;
+- `T F NNN XXX YYY ZZZ …` — constituer un fief : `NNN` est le noble titulaire,
+  `XXX` la capitale (premier territoire, qui doit porter un château), suivi
+  du reste du groupe (voir [titres.md](titres.md#constitution-dun-fief)) ;
+- `T A NNN XXX` — attribuer le fief vacant de capitale `XXX` au noble
+  `NNN` du joueur qui le détient ;
+- `T X NNN XXX YYY` — annexer le territoire `YYY` au fief de capitale `XXX`,
+  dont `NNN` est le titulaire ; le titre du fief ne change pas
+  ([politique.md](politique.md#seigneurie-et-annexion)) ;
+- `T R NNN XXX` — monter d'un rang le titre du fief de capitale `XXX`, une
+  fois par hiver et par fief ([politique.md](politique.md#seigneurie-et-annexion)).
+- `K R NNN` / `V R NNN` — présenter la candidature du noble `NNN` au trône, ou
+  voter pour un candidat déclaré ([politique.md](politique.md#élection)) ;
+- `W X KKK XXX YYY`, `W R KKK XXX`, `W F KKK XXX`, `W G KKK XXX NNN` — ordres
+  royaux gratuits du roi ou de la régente : accord d'annexion, de rang,
+  octroi gratuit de fief, octroi d'un fief de la couronne
+  ([politique.md](politique.md#pouvoirs-royaux)) ;
+- `M N XXX YYY` — marier le noble `XXX` du joueur au noble `YYY` d'un autre
+  joueur ; l'ordre n'est conclu que si l'autre joueur soumet `M N YYY XXX`
+  le même hiver (voir [succession.md](succession.md#conclusion-dun-mariage)).
 
-`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et `L N`,
-qui ciblent un noble.
+`XXX` est le trigramme du territoire ciblé, sauf pour `O N`, `P N` et
+`M N`, qui ciblent des nobles. La feuille d'hiver peut aussi contenir `D C KIND` pour
+défausser une carte bonus (voir « Cartes bonus et calamités » ci-dessous).
 
-La feuille `winter` peut contenir `D C KIND` pour défausser une carte bonus,
-sans noble requis. La main est ensuite reconstituée automatiquement jusqu'à la
-limite de cartes, dans la limite de remplissage prévue par la balance. La
-soumission `special` reste distincte pour les cartes jouables : `P KIND TER` est
-autorisé au printemps, en été et en automne. Il n'existe pas d'ordre `T C`. La
-limite de main, le remplissage automatique, la taille et la composition du deck,
-ainsi que les capacités des slots
-de calamité, sont chargées depuis `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
-de la seed de partie. Au printemps, l’augure révèle le kind, la saison et la
-région de toutes les calamités de l’année ; les augures futures restent cachées.
-Les investissements territoriaux exigent le contrôle du
-territoire ciblé. Le
-recrutement d'une troupe exige en outre un noble libre du joueur, situé sur la
-cible ou sur un territoire adjacent à celle-ci par une frontière franchissable.
-Le recrutement d'un noble exige une
-infrastructure de peuplement (château ou village) et une armée du joueur sur la
-case. Un ordre rejeté est signalé dans le rapport et son investissement est
-perdu.
+Les investissements territoriaux exigent le contrôle du territoire ciblé et
+qu'il ne soit pas **occupé contre son contrôleur** (titres.md) : une armée
+adverse ou une révolte y stationnant rejette l'ordre sans prélèvement
+(`territory_occupied_by_other_player`). Le recrutement d'une troupe exige en
+outre un noble libre du joueur, situé sur la cible ou sur un territoire
+adjacent à celle-ci par une frontière franchissable.
+Les nobles se recrutent depuis un deck de nobles partagé par tous les
+joueurs et généré de façon déterministe à partir de la seed de partie : des
+cartes de noble (nom, trigramme et sexe, à parts égales entre hommes et
+femmes) et des cartes de dignité (le bâtard et, en plus de la taille de base, une carte par dignité des dames). `T N` ajoute la carte du dessus
+à la main du joueur, une fois par joueur et par hiver (`noble_draw_already_used`
+au-delà ; `hand_limit_reached` quand la main partagée — ordres spéciaux, cartes
+de noble et de dignité — atteint `special_orders.hand_limit` ; `noble_deck_empty` quand la pioche et la défausse sont vides ; une
+pioche vide est reconstituée en mélangeant la défausse). `D C CCC` défausse une carte
+de la main de nobles sans la jouer : elle rejoint la défausse du deck telle quelle,
+libère une place de main et n'est pas nommée dans le rapport public
+(`card_not_in_hand` si elle n'est pas en main). `R N CCC XXX` joue une
+carte de noble de la main : le noble apparaît sur `XXX`, qui exige une
+infrastructure de peuplement (château ou village) et une armée du joueur, et
+le joueur ne doit pas déjà posséder 4 nobles vivants (libres, otages ou au
+cachot). Le recrutement ne coûte aucune ressource. Une carte absente de la
+main est rejetée (`card_not_in_hand`). Les ordres suivants de la même feuille
+(`D N`, `C N`, `M N`) peuvent viser le noble que `R N` vient de recruter. Chaque noble porteur de la dignité de
+**bâtard** relève ce plafond de 1 (6 au plus), quel que soit son statut ;
+ce noble est toujours le dernier de la ligne de succession, ne reçoit un
+nouveau titre que s'il est le dernier de sa lignée, garde celui qu'il détient, ne peut pas être roi, est placé
+directement au cachot quand il est capturé en combat, et son mariage n'est
+pas une alliance. `D N NNN CCC` joue une carte de dignité sur n'importe quel noble, à soi
+ou à un adversaire (`noble_already_<dignité>`, `dignity_female_only`, `noble_married` pour une dignité Bloquée, `dignity_region_required`). Un ordre rejeté est
+signalé dans le rapport avec son motif ; toutes les conditions sont
+vérifiées avant de consommer la carte, donc un ordre rejeté ne la consomme
+pas. La dignité de bâtard compte comme un titre dans le score. Une carte
+jouée reste suivie tant que son noble vit ; à la mort de ce noble, sa carte de
+noble sort du jeu et une nouvelle carte de noble du même sexe (prénom encore
+libre, aucune s'il n'en reste pas) rejoint la défausse, tandis qu'une carte de
+dignité y retourne, de même que lorsque la dignité est retirée par un effet.
 
 | Investissement | Coût en R |
 |---|---:|
@@ -100,6 +147,8 @@ perdu.
 | Dépôt de vivres | 3 |
 | Changement de statut d'un noble | 0 |
 | Libération d'un noble | 0 |
+| Fief (par territoire du groupe) | 2 |
+| Attribution d'un fief vacant | 0 |
 
 Un moulin peut atteindre le niveau 3 inclus. Une construction coûte 3 R et les
 passages aux niveaux 2 et 3 coûtent respectivement 5 R et 7 R. Un ordre `C M`
@@ -112,35 +161,225 @@ Les coûts sont prélevés d'abord sur le stock de la case ciblée, puis sur la
 source contrôlée la plus proche. Si la réserve totale est insuffisante, aucun
 prélèvement partiel n'est effectué.
 
-Seuls les stocks de châteaux et villages contrôlés sont des réserves de paiement
-en hiver ; les caches ordinaires et les dépôts ne paient pas les investissements.
+Seuls les stocks de châteaux et villages contrôlés, **non occupés contre leur
+contrôleur**, sont des réserves de paiement en hiver ; les caches ordinaires
+et les dépôts ne paient pas les investissements. Un moulin fait exception à
+cette règle pour sa propre amélioration (`C M`) : il puise d'abord sur son
+propre stock, puis sur celui de l'infrastructure qui recevrait sa production
+(château en priorité, sinon village), avant de recourir au paiement d'hiver
+habituel (voir [economie.md](economie.md#amélioration-dun-moulin)) — sous la
+même réserve : une infrastructure occupée contre son contrôleur ne fait
+jamais partie de ces sources.
 
 À la fin de l'hiver :
 
-- chaque stock restant d'un château ou d'un village est conservé à hauteur de
-  `ceil(stock / 2)` ;
+- chaque stock restant d'un château, d'un village ou d'un moulin est conservé à
+  hauteur de `ceil(stock / 2)` ;
 - un stock situé dans un dépôt de vivres est conservé intégralement ;
-- tout stock situé hors château, village ou dépôt est perdu ;
-- les stocks sont rapatriés vers la capitale, en laissant au maximum 1 R par
-  village et 2 R par château hors capitale ;
+- tout stock situé hors château, village, moulin ou dépôt est perdu ;
+- le stock d'un moulin contrôlé est versé en entier à l'infrastructure qui
+  reçoit sa production (château adjacent du même contrôleur, sinon village,
+  voir [economie.md](economie.md#moulins)) ; il reste sur le moulin si
+  celui-ci est isolé, si le moulin ou cette infrastructure est occupé contre
+  son contrôleur, ou si le joueur n'a pas de capitale ;
+- les stocks des châteaux et villages sont ensuite rapatriés vers la
+  capitale, en laissant au maximum 1 R par village et 2 R par château hors
+  capitale ; une colonie occupée contre son contrôleur ne rapatrie pas son
+  stock, qui y reste et suit la conservation normale ; une capitale remplacée par `E C` ce même hiver
+  rapatrie encore son surplus en tant qu'ancienne capitale avant de perdre son
+  ancrage (voir [titres.md](titres.md#contrôle-et-occupation)) ;
 - sans capitale, les stocks restent sur place ;
+- un territoire contrôlé hors fief qui ne porte plus d'ancre (ni la capitale
+  du joueur, ni une armée du joueur) redevient neutre à la fin de l'hiver,
+  après ce rapatriement (voir [titres.md](titres.md#contrôle-et-occupation)) ;
+- tout fief encore vacant (sans titulaire) est **attribué par défaut** au
+  premier noble de la ligne de succession du joueur qui le détient, quel que
+  soit son statut, avec un avertissement dans le rapport ; sans aucun noble
+  vivant à ce moment, le fief reste simplement vacant
+  (il n'est jamais dissous faute d'attribution, voir
+  [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - la saison suivante est le printemps.
 
 Les stocks hors château et village ne peuvent pas payer les investissements
-hivernaux. Un transfert d'hiver débite un château ou village contrôlé par le
+hivernaux, à l'exception du stock d'un moulin pour sa propre amélioration (voir
+ci-dessus). Un transfert d'hiver débite un château ou village contrôlé par le
 donneur, mais peut viser directement le château ou village contrôlé par un autre
 joueur ; la destination n'a pas besoin d'appartenir au donneur.
-Les calamités et les cartes bonus sont appliquées avant la résolution simultanée des ordres d’armée. La peste réduit les armées et peut affecter les nobles ; le mauvais temps bloque les déplacements provenant de sa région ; la famine désactive les moulins et les rations d’infrastructure ; la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`.
 
-Une partie accepte de 2 à 16 joueurs. Chaque joueur commence sur un territoire
-distinct qui n'est pas un village neutre. Les territoires de départ sont séparés
-d'au moins quatre étapes dans le graphe des frontières franchissables. Un
-château y est construit gratuitement, devient la capitale par défaut, et le
-joueur reçoit ses nobles, ses armées et ses ressources de départ selon
-`assets/balance.yaml`. Les `N + 1` villages neutres générés sur la carte restent
-distincts des `N` châteaux de départ. Ils servent de seeds à une partition
-régionale statique, calculée par BFS multi-source sur les frontières franchissables
-et publiée avec la carte.
+### Ordre de résolution de l'hiver
+
+L'hiver se résout en étapes fixes. Dans une étape, les ordres sont traités par
+identifiant de joueur croissant, puis dans l'ordre de la feuille. Un ordre lit
+l'état courant : il voit ce que les étapes précédentes ont changé, jamais ce que
+les suivantes changeront. Contrôle, occupation et appartenance régionale sont
+ceux du début de l'hiver pendant toutes les étapes.
+
+0. **Instantané** — fige le contrôle, l'occupation, les statuts, les mariages et
+   les titres, et établit le registre des élections ouvertes : un siège vacant
+   dont la condition de déclenchement est vraie au début de l'hiver. Un siège
+   rendu vacant pendant l'hiver n'est électable qu'à l'hiver suivant.
+1. **Sanctions pontificales** — `X E NNN` (excommunier) et `X L NNN` (lever),
+   dans l'ordre de la feuille du pape.
+2. **Ordres de gestion** — les ordres listés ci-dessus, ainsi que l'achat de
+   cardinal `N C NNN` et la carte de cardinal `D N NNN CAR`, précédés des ordres
+   royaux `W …` (étape 2a de [hiver.md](hiver.md#ordre-de-résolution)) que ces
+   ordres lisent. Les coûts en R sont
+   prélevés à cette étape, sans prélèvement partiel ; un ordre rejeté pour une
+   condition ne prélève jamais.
+3. **Actions des cardinaux** — enquêtes `Q HHH NNN`, puis dépôt des ordres de
+   procès `J HHH NNN` (jugés à l'étape 9).
+4. **Dissolutions de mariage** — `X D NNN`, par couple.
+5. **Mariages** — ordres `M N` réciproques.
+6. **Élections** — candidatures `K E` / `K P` / `K R` et votes `V E` / `V P` /
+   `V R` : les évêchés par identifiant de région croissant, puis le conclave,
+   puis l'élection royale. Les voix se
+   lisent toutes sur l'instantané des titres ; seule l'éligibilité dépend de
+   l'ordre (un noble élu à un évêché n'est plus éligible aux évêchés suivants du
+   même hiver).
+7. **Investiture** — les élus deviennent évêque, pape ou roi ; les achats de cardinal
+   prennent effet.
+8. **Fin d'hiver** — défausses et remplissage des mains, fiefs vacants attribués
+   par défaut, conservation et rapatriement des stocks, prospérité, territoires
+   sans ancre redevenus neutres, rapports (voir ci-dessous).
+9. **Jugement des procès** — les procès `J` déposés à l'étape 3 sont jugés dans
+    l'ordre croissant du code de la cible. Avec les cartes Assassinat et Justice
+    (jouées ensuite, dans cet ordre), ce sont les seuls ordres d'hiver qui
+    tuent ; la mort suit les règles ordinaires (lignée, fiefs, prétentions).
+
+Un titre religieux perdu (excommunication, démasquage) cesse aussitôt de
+produire voix, pouvoirs et candidature. Un titre *gagné* par élection ou par
+achat de cardinal n'est conféré qu'à l'investiture et ne sert qu'à l'hiver
+suivant : un titre ne franchit jamais plus d'un échelon par hiver. La carte de
+cardinal fait exception : elle prend effet à l'étape 2 et ses voix comptent dès
+les élections du même hiver.
+
+Conséquences : une excommunication précède l'achat de cardinal, qui est alors
+rejeté sans prélèvement ; un noble marié à l'étape 5 n'est plus candidat
+(`candidate_not_eligible`) ; une dame mariée cet hiver n'est plus jugeable en
+procès direct ; un noble excommunié ou démasqué cet hiver peut être jugé le même
+hiver. Le détail de chaque ordre est dans [religieux.md](religieux.md),
+[dames.md](dames.md) et [succession.md](succession.md), le détail de l'ordre dans
+[hiver.md](hiver.md).
+
+### Royauté
+
+Le **roi** est un noble masculin, non bâtard, qui détient la couronne ; il n'y
+en a jamais plus d'un et il ne peut pas être pape. La couronne est un titre
+comme un autre pour le score (1 point) et le poids d'alliance (rang 5), et se
+cumule avec les fiefs et les titres religieux du même noble. Le détail complet
+est dans [politique.md](politique.md).
+
+- **Élection.** Quand le trône est vacant au début de l'hiver, qu'au moins 3
+  nobles titrés peuvent voter et que le clergé peut oindre, l'élection est
+  ouverte (réévaluée chaque hiver tant que ces conditions tiennent). Un
+  candidat `K R NNN` est un homme libre, non excommunié, non bâtard, ni pape ni
+  élu pape cet hiver, qui détient au moins un fief. Chaque noble titré donne
+  une voix (`V R NNN`), une seule quel que soit son nombre de titres ; les
+  voix se lisent sur l'instantané des titres. Pour être élu, un candidat doit
+  arriver seul en tête, avec au moins 3 voix dont l'**onction** (deux voix
+  d'évêques ou plus, ou une d'un cardinal ou du pape). Sans élu, le trône reste
+  vacant jusqu'à l'hiver suivant. L'élu est couronné à l'investiture et ne
+  règne qu'à partir de l'hiver suivant.
+- **Mandat.** Le roi règne à vie. Aucune destitution, aucune perte de la
+  couronne par excommunication. Un roi `hostage` garde ses pouvoirs ; un roi au
+  `dungeon` ne peut émettre aucun ordre royal ni jouer de taxe royale, mais
+  garde la couronne, son score et sa rente, et la reine libre ou otage exerce
+  la régence.
+- **Mort et héritage.** Un Claim sur le roi ou sur sa reine cible aussi la
+  couronne : le premier héritier éligible (homme, non bâtard, pas pape) est
+  couronné sans élection ni onction. Sans héritier éligible, la reine devient
+  régente et le trône est vacant.
+- **Pouvoirs.** Le roi ou la régente joue la **taxe royale** (`P TX`, carte
+  Impôts sur la capitale de n'importe quel fief constitué non taxé par son
+  seigneur) et émet les ordres royaux `W` d'hiver, au plus
+  `royal.orders_per_winter` de chaque type par hiver ; un accord `W X`, `W R`
+  ou `W F` dont l'ordre autorisé est absent est consommé sans effet.
+- **Rente.** À la fin de chaque tour, le roi gagne 1 R par fief constitué sur la
+  carte (vacants et siens compris), créé et livré à la capitale de son joueur,
+  même capturé. La reine gagne la moitié de cette rente, arrondie au supérieur,
+  tant qu'elle est reine, douairière et trône vacant compris. Quand le trône
+  est vacant, la régente perçoit aussi la rente du roi.
+- **Reine et régente.** La reine est la conjointe du roi ; elle appartient à un
+  autre joueur, n'a aucun pouvoir d'ordre, et garde son titre veuve (reine
+  douairière). Elle exerce la régence tant que le roi est au cachot, ou jusqu'au
+  couronnement quand le roi meurt sans héritier éligible ; elle la perd si elle
+  meurt, est mise au cachot ou se remarie.
+- **Fief de la couronne.** Quand un fief perd son titulaire et que son joueur
+  n'a plus aucun noble vivant ni héritier de Claim, il revient immédiatement au
+  joueur de la couronne (roi ou régente), vacant. Il produit et compte son point
+  jusqu'à son octroi (`W G` du roi), et n'est jamais attribué par défaut. Sans roi ni
+  régente, il reste vacant chez son joueur et fait retour à la couronne au
+  couronnement d'un roi.
+- **Seigneurie.** L'annexion `T X` et la montée de rang `T R` sont décrites dans
+  [politique.md](politique.md#seigneurie-et-annexion) : le titre d'un fief ne
+  change jamais par annexion ; le fief cédant par accord royal garde au moins 3
+  territoires.
+
+### Cartes bonus et calamités
+
+Chaque joueur détient une main de cartes bonus. Pendant l'hiver, la feuille
+d'hiver peut contenir `D C KIND` pour défausser une carte, sans noble requis ;
+la main est ensuite reconstituée automatiquement, après les ordres d'hiver et
+les défausses. La limite de main (`special_orders.hand_limit`) est partagée
+avec les cartes du deck de nobles (nobles et dignités), et un joueur pioche au
+plus `special_orders.draw_orders_limit` cartes par hiver tous decks confondus,
+dont au plus une du deck de nobles : le remplissage n'excède ni ce plafond,
+diminué de la pioche de noble éventuelle, ni les places libres de la main
+partagée. Il n'existe pas d'ordre de
+pioche (`T C`). Les cartes jouables passent par une soumission `special`
+distincte des chaînes : `P KIND TER` est autorisé au printemps, en été et en
+automne.
+
+La limite de main, le remplissage automatique, la taille et la composition du
+deck, ainsi que les capacités des slots de calamité, sont chargées depuis
+`assets/balance.yaml`. La génération initiale du deck est déterministe à partir
+de la seed de partie. Chaque calamité tirée est programmée sur une saison de
+l'année suivante tirée au hasard parmi celles dont les slots ne sont pas
+pleins. Au printemps, l'augure révèle le kind, la saison et la
+région de toutes les calamités de l'année ; les augures futures restent cachées.
+
+Les calamités et les cartes bonus sont appliquées avant la résolution
+simultanée des ordres d'armée :
+
+- la peste frappe toute armée et tout noble qui commence ou termine le tour dans
+  sa région : les occupants de départ avant la résolution, les arrivées (y
+  compris par retraite) une fois mouvements et retraites réglés ; une armée ou
+  un noble n'est frappé qu'une fois par tour ;
+- le mauvais temps bloque les déplacements provenant de sa région et arrête
+  ses moulins ; le Beau temps double leur production ;
+- la famine supprime les rations de terrain de sa région et son revenu
+  territorial ; la Récolte abondante les double ;
+- la révolte est une carte bonus conditionnelle qui crée des armées `NEUTRAL`
+  sur un territoire, ou qui rend `NEUTRAL` une armée affamée (section 5).
+
+Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
+
+### Joueurs, départ et élimination
+
+Une partie accepte de 2 à 16 joueurs dans le moteur ; une partie en ligne est
+limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire distinct qui
+n'est ni un village ni une montagne, et qui compte au moins deux voisins
+franchissables eux-mêmes non montagneux : cette réserve garantit à la fois que
+la garnison de départ ne meurt jamais de faim et qu'il existe assez de
+territoires voisins viables pour y placer les avant-postes de départ. Les
+territoires de départ sont séparés d'au moins quatre étapes dans le graphe des
+frontières franchissables. Un château y est construit gratuitement et devient
+la capitale par défaut. Le joueur y reçoit sa garnison, ses nobles et ses
+ressources de départ selon `assets/balance.yaml` ; il reçoit en outre
+`starting_outposts` armées d'une troupe chacune, placées dès le début de la
+partie sur autant de territoires voisins non montagneux distincts de sa
+capitale, retenus en priorité pour leur ration de terrain la plus élevée.
+
+Chaque territoire de départ possède un village dédié, situé à exactement deux
+étapes de lui dans le graphe franchissable, à au moins trois étapes de tout
+autre territoire de départ, et à au moins deux étapes de tout autre village :
+aucun village n'est adjacent à un territoire de départ. La carte porte en
+outre `N + 1` chefs-lieux neutres, séparés d'au moins trois étapes de tout
+territoire de départ et d'au moins deux étapes de tout village dédié. Un
+chef-lieu et un village dédié sont des infrastructures identiques en jeu (même
+revenu, même possibilité de fortification) ; seul le chef-lieu sert de seed à
+la partition régionale statique, calculée par BFS multi-source sur les
+frontières franchissables et publiée avec la carte via `regions[].seed`.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
 plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le
@@ -152,8 +391,10 @@ dernier joueur vivant gagne la partie.
 
 La carte est générée de manière déterministe à partir d'une seed. Elle contient
 `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4` territoires
-supplémentaires dédiés aux `joueurs + 1` villages neutres. Les territoires sont
-des polygones nommés par une commune de `communes.csv` ; le trigramme de la
+supplémentaires, et porte `2 x joueurs + 1` villages neutres au total :
+`joueurs + 1` chefs-lieux et un village dédié par territoire de départ (voir
+« Joueurs, départ et élimination » ci-dessus). Les territoires sont des
+polygones nommés par une commune de `communes.csv` ; le trigramme de la
 commune est l'identifiant unique du territoire, exactement trois lettres
 majuscules, unique et stable pour une seed donnée.
 
@@ -187,18 +428,43 @@ Les territoires sauvages ne produisent pas de ressource `R` stockable. La
 production vivrière instantanée, consommée sur place et perdue si elle n'est
 pas utilisée, vaut :
 
-- 3 rations en plaine ;
-- 2 rations en forêt ;
-- 2 rations en colline ;
-- 1 ration en montagne ;
-- 1 ration en marécage ;
-- 2 rations supplémentaires si la case porte un château ou un village.
+- 2 rations en plaine ;
+- 1 ration en forêt ;
+- 1 ration en colline ;
+- 0 ration en montagne ;
+- 1 ration en marécage.
+
+Un château ou un village n'ajoute aucune ration : seul le terrain nourrit une
+armée sur place. La famine supprime les rations de terrain de sa région ; la
+Récolte abondante les double. La table est dans `assets/balance.yaml`
+(`ration_terrain`).
 
 Une case ne porte qu'une seule infrastructure.
 
-Un village est une infrastructure rare et neutre à la génération. Il produit 1
-R stockable par tour et conserve son stock, qu'il soit neutre ou contrôlé. Un
-joueur ne peut utiliser le stock d'un village neutre qu'après sa capture. Un
+C'est le territoire contrôlé, et non l'infrastructure bâtie, qui produit la
+ressource `R` stockable : chaque saison d'action (jamais en hiver), chaque
+territoire contrôlé rapporte `territory_income` R, plus `village_income` R
+par niveau du village qu'il porte (voir `assets/balance.yaml`). Ce revenu est crédité en
+fin de tour, avec le reste du ravitaillement (section 5), sur le contrôle
+final du tour : un territoire capturé pendant le tour verse son revenu à son
+nouveau contrôleur, pas à celui du début de tour. Un territoire membre d'un
+fief le verse à la **capitale du fief** plutôt qu'à la capitale du joueur, y
+compris lorsque le territoire producteur ou la capitale du fief elle-même est
+occupée par une armée adverse : ce revenu n'est jamais intercepté par
+l'occupant (voir [titres.md](titres.md#contrôle-et-occupation)). Hors fief, il
+est versé directement au stock de la capitale du joueur ; sans capitale, le
+revenu de chaque territoire va au château contrôlé le plus proche, sinon au
+village contrôlé le plus proche, sinon il est perdu. La famine supprime ce
+revenu dans la région du territoire qui le produit ; la Récolte abondante le
+double, comme pour les rations.
+
+Un village est une infrastructure rare et neutre à la génération ; il ne
+peut pas être construit. Il a un niveau de 0 à `village_max_level` (3) ; les
+villages générés sont de niveau 1, et un village de niveau 0 est en ruine :
+il ne produit rien. Neutre, un village produit `village_income` R par niveau
+et par tour dans son propre stock, qu'un joueur ne peut utiliser qu'après sa
+capture. Contrôlé,
+il ne produit plus rien localement : son revenu suit la règle ci-dessus. Un
 château construit sur un village le remplace et conserve le stock de la case.
 
 ## 4. Information et divulgation par joueur
@@ -229,8 +495,10 @@ Elle limite les chiffres qui décrivent les intentions et les affrontements :
 
 Cette règle concerne les chaînes et les combats. Elle ne constitue pas encore
 un brouillard de guerre général sur les tailles d'armées ou les ressources.
-La projection serveur filtrée par joueur est une fonctionnalité online à
-réaliser ; le serveur v1 actuel renvoie encore la projection globale.
+En ligne, le serveur applique cette règle et ne renvoie à chaque joueur que
+sa projection filtrée ; un hôte observateur reçoit la projection complète. La
+session hotseat locale renvoie la projection globale, sauf lorsqu'un joueur
+est demandé explicitement.
 
 ## 5. Armées, combats et logistique
 
@@ -253,27 +521,64 @@ Les règles de combat sont les suivantes :
   si elle est commandée par un noble ;
 - la défense d'une armée inclut le même bonus de commandement de `+1`, en plus
   du bonus fixe d'un château le cas échéant ;
-- une attaque peut couper un soutien si elle vient d'une case différente de la
-  cible soutenue ;
+- une attaque coupe un soutien si elle vise l'armée soutenante, vient d'un
+  autre joueur et d'une case différente de la cible soutenue (la destination
+  d'un soutien offensif, la case tenue d'un soutien défensif), même si
+  l'attaque échoue ; un soutien est aussi coupé lorsque l'armée soutenante est
+  délogée ;
 - toutes les intentions sont calculées ensemble avant les déplacements ;
 - la plus haute force strictement unique gagne ;
 - une égalité au sommet produit un statu quo, y compris sur une case vide ;
+- une attaque ne déloge jamais une armée de son propre joueur qui reste sur
+  place : elle échoue, mais sa force continue d'empêcher les autres attaques
+  d'entrer sur cette case ;
+- les soutiens apportés par le joueur d'une armée ne comptent pas pour la
+  déloger : pour gagner, l'attaque doit dépasser la défense et chaque autre
+  attaque sans ces soutiens ; ils comptent en revanche pour empêcher les autres
+  attaques d'entrer ;
+- lorsque deux armées s'attaquent mutuellement (face-à-face), chacune oppose sa
+  force sans les soutiens du joueur adverse : la plus forte l'emporte et déloge
+  l'autre si elle bat aussi les autres attaques sur sa destination ; à égalité,
+  ou entre armées du même joueur, les deux échouent ;
+- une attaque qui échoue continue d'empêcher les autres attaques d'entrer sur
+  sa destination, même si son armée est délogée, sauf si elle a perdu un
+  face-à-face ;
+- des attaques en cercle (A vers B, B vers C, C vers A) réussissent toutes
+  lorsque rien d'autre ne s'y oppose ;
 - une armée délogée perd son déplacement et doit battre en retraite ;
 - une jonction et une dispersion ont une puissance de déplacement pacifique,
   n'attaquent pas et sont repoussées par une destination contestée. Une jonction
-  peut toutefois fusionner avec l'attaquant allié qui remporte le combat sur sa
-  destination ; les attaques adverses qui perdent ce combat ne l'empêchent pas
-  d'arriver. Si aucun attaquant n'atteint la case, la destination reste
-  contestée et la jonction est repoussée. Une destination est contestée
+  ou une troupe dispersée peut toutefois fusionner avec l'attaquant allié qui
+  remporte le combat sur sa destination ; les attaques adverses qui perdent ce
+  combat ne l'empêchent pas d'arriver. Si aucun attaquant n'atteint la case, la
+  destination reste contestée et le mouvement pacifique est repoussé. Une destination est contestée
   lorsqu'au moins une attaque adverse y participe et qu'aucune armée
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
-- un château apporte son bonus défensif fixe, même sans armée, sauf si tous les
-  attaquants appartiennent au propriétaire du château (auto-capture d'un château
-  ami vide).
+- un château, ou un village fortifié ([economie.md](economie.md#village-fortifié)),
+  apporte son bonus défensif fixe, même sans armée, tant qu'il reste
+  **ancré** — membre d'un fief ou capitale d'un joueur (voir
+  [titres.md](titres.md#contrôle-et-occupation)) — sauf si tous les attaquants
+  appartiennent à son propriétaire (auto-capture d'une place amie vide) ; un
+  château ou un village fortifié vide qui n'est ni membre d'un fief ni la
+  capitale d'un joueur est **inerte** et n'apporte aucun bonus ; le château de
+  la capitale d'un fief est une cité et apporte à la place un bonus fixe
+  supérieur, sans cumul avec le bonus de château (voir
+  [titres.md](titres.md#constitution-dun-fief)) — un village fortifié ne peut
+  jamais être la capitale d'un fief, qui exige un château ;
+- une jonction ou une dispersion dont l'origine est visée par une attaque,
+  quel qu'en soit l'auteur (allié, ennemi, ou une attaque à force nulle faute
+  de vivres), est annulée d'emblée : aucune de ses troupes ne part, qu'elle
+  gagne ou perde ce combat ;
+- lorsque des ordres dépendent les uns des autres en cycle, les mouvements
+  réussissent dès qu'une résolution cohérente avec ces règles le permet
+  (mouvement circulaire).
 
-### Ravitaillement exponentiel
+### Ravitaillement et famine
 
-Une armée de `N` troupes sur une case demande :
+Le ravitaillement est résolu en fin de tour d'action (voir section 2), sur les
+positions et le contrôle territorial définitifs du tour, territoires tout
+juste capturés compris : revenu territorial, production des moulins, rations
+de terrain, puis famine. Une armée de `N` troupes sur une case demande :
 
 `coût = 2^(N - 1)`
 
@@ -282,29 +587,77 @@ jusqu'à hauteur de sa demande. Le surplus est perdu ; le reste constitue la
 demande à ravitailler.
 
 Les châteaux, villages et caches contrôlés contenant un stock positif sont les
-sources de ravitaillement. Une armée consomme en priorité le stock de sa case.
+sources de ravitaillement. Un château ou un village en ruine (section 7) n'en
+est pas une, sauf le château capitale d'un fief. Une armée consomme en priorité le stock de sa case.
 Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur et
 ne s'arrête que devant une case occupée par une armée adverse. Un château, un
-village ou un dépôt adverse sans armée ne bloque donc pas le flux. La portée de
-base est de 3 cases ; chaque dépôt de vivres contrôlé rencontré sur le trajet
-ajoute 2 cases.
+village ou un dépôt adverse sans armée ne bloque donc pas le flux. Une case
+**occupée contre son contrôleur** (titres.md) n'est en revanche plus
+elle-même une source ni un dépôt utilisable, ni pour le contrôleur ni pour
+l'occupant. La portée de base est de 3 cases ; chaque dépôt de vivres
+contrôlé, non occupé, rencontré sur le trajet ajoute 2 cases.
 
-En cas de déficit :
+La **valeur ravitaillée** `s` d'une armée est la plus grande taille dont le coût
+`2^(s - 1)` tient dans les rations qu'elle atteint (`s = 0` si elle n'en
+atteint aucune).
 
-1. les stocks des châteaux, villages et caches contrôlés sont épuisés du plus
-   petit au plus grand, avec le trigramme territorial comme départage ;
-2. les armées restantes passent en famine, en commençant par les plus éloignées
-   de leur source, puis les plus grosses, puis le trigramme décroissant.
+En cas de déficit, la production et les stocks des sources d'un joueur forment
+une réserve commune, servie armée par armée dans l'ordre inverse de la famine :
+les armées passent en famine en commençant par les plus éloignées de leur
+source, puis les plus grosses, puis le trigramme décroissant, et sont donc
+servies en commençant par les plus proches, puis les plus petites.
 
-Une armée en famine combat à force 0 pour le tour et ne peut que se déplacer à
-force 0, même si elle est commandée par un noble. Si elle se trouve sur une
-infrastructure, elle la pille
-automatiquement. Le bonus de pillage, diminué de sa demande résiduelle, peut la
-sortir de famine. Si le pillage est insuffisant ou impossible, elle perd une
-troupe, sans jamais descendre sous 1 troupe. Elle reste
-néanmoins en famine pour le tour en cours : même si cette perte rendait sa
-demande future soutenable, la désorganisation lui conserve une force de 0 pour
-ce tour.
+1. une armée dont la demande tient dans ce qui reste de la réserve la prend en
+   entier ;
+2. sinon, elle passe en famine et ne prend que les rations qui nourrissent sa
+   valeur ravitaillée `s`, calculée sur ce qui reste ; le reliquat passe aux
+   armées servies après elle ;
+3. ce qu'aucune armée ne prend reste en stock ; les stocks des châteaux,
+   villages et caches contrôlés sont entamés du plus petit au plus grand, avec
+   le trigramme territorial comme départage.
+
+Exemple : une réserve de 7 rations sert une armée de 4 troupes sur la source
+(8 rations) puis une armée de 2 troupes plus éloignée (2 rations). La première
+passe en famine avec `s = 3` et prend 4 rations ; la seconde prend ses 2
+rations ; la dernière ration reste en stock.
+
+Une armée dont la demande n'est pas couverte à la fin du tour
+est marquée **affamée**, un statut qui persiste jusqu'à la résolution de
+ravitaillement suivante. Pendant tout le tour suivant, une armée affamée
+se défend à la force `s - 1` (au plus sa taille), même si elle est commandée
+par un noble : le bonus de noble ne s'applique alors pas. Elle ne peut ni
+attaquer (son ordre d'attaque est invalide), ni soutenir, ni émettre de
+transfert de ressources (`T`, section 6). Ce premier tour
+de famine ne lui inflige aucune perte de troupe ni pillage de l'infrastructure
+de sa case, ce qui laisse au joueur tout le tour suivant pour réagir en
+déplaçant l'armée ou en lui envoyant des ressources par transfert.
+
+À la résolution de ravitaillement du tour suivant, son statut est recalculé
+exactement comme celui de n'importe quelle armée : si elle a atteint une
+source suffisante entre-temps, elle redevient valide dès ce tour. Si elle est
+encore en déficit alors qu'elle est déjà affamée, elle pille automatiquement
+l'infrastructure de sa case si elle en occupe une qui n'est pas déjà en ruine
+(section 7) : le bonus de pillage, diminué de sa demande résiduelle, peut la
+sortir de famine. Si le pillage est
+insuffisant ou impossible, elle perd autant de troupes qu'il en faut pour
+revenir à sa valeur ravitaillée `s`, et n'est alors plus affamée. Si `s = 0`,
+elle disparaît : personne ne pouvant capturer ses nobles, ils meurent avec
+elle, et sa case garde son contrôleur.
+
+Tant qu'elle est affamée, une armée de joueur est aussi exposée à la carte
+**Révolte** : tout joueur qui la détient, propriétaire de l'armée compris,
+peut la jouer sur le territoire de l'armée (`P RE TER`) sans autre condition.
+La carte vise alors l'armée, et non le territoire, même si celui-ci remplit
+aussi une condition territoriale de révolte : elle ne lève aucune armée
+rebelle et ne livre aucun combat. Les cartes jouées sur une même armée sont
+résolues ensemble, avant les mouvements : leurs jets, bornés par la balance
+comme pour toute révolte, s'additionnent. Si le total est **supérieur ou
+égal** à la taille de l'armée, elle devient `NEUTRAL` avec toutes ses troupes
+sur sa case : sa chaîne est annulée et les nobles libres de son ancien
+propriétaire présents sur la case meurent. Sinon, l'armée reste à son
+propriétaire et les cartes sont dépensées sans effet. L'armée neutre suit
+ensuite la règle de famine des armées neutres : elle perd une troupe par tour
+tant que la production locale de sa case ne la nourrit pas.
 
 ## 6. Ordres et chaînes de commandement
 
@@ -337,13 +690,23 @@ Les ordres sont :
 | `S` | `XXX S YYY` ou `XXX S YYY - ZZZ` | Soutien défensif de `YYY`, ou soutien offensif de l'attaque `YYY` vers `ZZZ`. |
 | `H` | `H XXX` | Maintien sur `XXX`. |
 | `J` | `XXX J YYY` | Déplacement pacifique et jonction ; doit être le dernier ordre de la chaîne. Si une attaque alliée remporte le combat sur `YYY`, la jonction fusionne avec son vainqueur. |
-| `P` | `P XXX` | Détruit l'infrastructure de la case occupée et crédite le bonus de pillage à la source alliée la plus proche. |
+| `P` | `P XXX` | Pille l'infrastructure de la case occupée (la dégrade ou la détruit, voir section 7) et crédite le bonus de pillage à la source alliée la plus proche. |
 | `D` | `XXX D XXX YYY ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et reçoivent au plus une unité chacune ; les unités arrivées sur une même case sont empilées dans une seule armée, y compris lorsqu'elles viennent de plusieurs armées alliées. |
 | `T` | `XXX T YYY N` | Transfert d'action vers un château, un village ou une armée adverse via le réseau de ravitaillement. `N` est plafonné à `2^(taille - 1)`. |
 
-Un soutien défensif renforce une armée qui tient sa case. Un soutien offensif
-renforce une attaque précise. Un soutien peut viser toute nationalité et ne
-produit aucun effet si l'armée soutenue n'accomplit pas l'action annoncée.
+Un soutien peut viser toute nationalité. Un soutien défensif renforce l'armée
+présente sur sa case au début du tour tant qu'elle y reste, quel que soit son
+ordre (maintien, soutien, pillage, transfert, jonction ou dispersion, ou Sans
+Ordre), sauf une attaque : comme dans Diplomacy, une armée qui attaque renonce
+à tout soutien défensif, même si son attaque échoue. Le soutien défensif est
+aussi sans effet si la case est vide au début du tour ou si l'armée la quitte
+par une jonction ou une dispersion complète ; il n'empêche alors pas une armée
+adverse d'entrer sur la case libérée. Un soutien offensif renforce une attaque
+précise et ne produit aucun effet si l'armée soutenue n'effectue pas cette
+attaque.
+Toutefois, un soutien offensif qui ouvre une chaîne reçue ce tour est rejeté à la
+soumission lorsque l'armée soutenue est au joueur lui-même et que son ordre en
+cours n'est pas l'attaque soutenue (`support_no_attack`).
 
 Une chaîne `single` se casse au premier échec. Une chaîne `loop` retente l'ordre
 jusqu'à sa réussite. Un maintien en boucle met l'armée en veille jusqu'à la
@@ -351,7 +714,8 @@ réception d'une nouvelle chaîne. Une dispersion traite chaque destination dans
 son ordre d'apparition, sans introduire d'attaque : une destination occupée par
 une armée ennemie, contestée ou sans unité disponible ne consomme pas d'unité et
 les unités restantes demeurent à l'origine. Une destination occupée par une
-armée alliée reçoit la troupe et la fusionne avec l'armée présente. En mode
+armée alliée, ou prise par l'attaquant allié qui y remporte le combat, reçoit
+la troupe et la fusionne avec cette armée. En mode
 `single`, les destinations non traitées font progresser la chaîne avec une
 dispersion partielle. En mode `loop`, le résidu retente jusqu'à l'arrivée d'une
 armée sur toutes les destinations ; une liste qui épuise l'armée avant d'avoir
@@ -366,14 +730,21 @@ arrivées pacifiques ne s'effectue.
 
 Un transfert qui manque de ressources n'a aucun effet et n'interrompt pas la
 chaîne. En boucle, un transfert vide le reliquat du stock par une livraison
-partielle avant de progresser. Une armée affamée ne peut pas transférer. Les
-stocks présents sur les cases ordinaires sont des sources de ravitaillement
-pendant les tours d'action ; l'armée locale les consomme en priorité.
+partielle avant de progresser. Une armée affamée (section 5) ne peut pas
+émettre de transfert. Les stocks présents sur les cases
+ordinaires sont des sources de ravitaillement pendant les tours d'action ;
+l'armée locale les consomme en priorité.
 
-Une armée sans chaîne est Sans Ordre et ne reçoit aucun soutien automatique.
-Une erreur mécaniquement impossible casse immédiatement la chaîne, quel que
-soit son mode de liaison. La non-adjacence d'un ordre est contrôlée lors de son
-exécution : les ordres antérieurs restent valides et le suffixe est abandonné.
+Une armée sans chaîne est Sans Ordre : elle n'exécute aucune action
+automatique et tient sa case.
+Toute erreur statique d'une chaîne est contrôlée à la soumission : syntaxe,
+forme d'un ordre, codes inconnus, non-adjacence, jonction qui n'est pas le
+dernier ordre, soutien défensif de sa propre case, transfert vers sa propre
+position ou affectation de nobles invalide dans une dispersion. La soumission
+est alors refusée avec la ligne fautive à corriger, et aucune partie de la
+chaîne n'est reçue. À l'exécution, seules les conditions du monde (position de
+l'armée, infrastructure, contrôle, route, nobles présents) peuvent casser une
+chaîne, quel que soit son mode de liaison.
 
 ### Réception et capacité des nobles
 
@@ -391,7 +762,8 @@ Un noble `hostage` est détenu mais peut encore émettre une chaîne. Un noble
 `dungeon` est au cachot et ne peut plus émettre. Les ordres d'hiver `O N NNN` et
 `P N NNN` ne ciblent qu'un noble adverse détenu sur la case d'une armée du
 joueur ; ils peuvent faire passer le statut de `hostage` à `dungeon` et
-inversement. `hostage` est l'état par défaut après capture.
+inversement. `hostage` est l'état par défaut après capture, sauf pour un noble
+porteur de la dignité de bâtard, qui est placé directement au `dungeon`.
 
 Les nobles chevauchent les armées : ils suivent les déplacements et les
 retraites. Une dispersion peut affecter explicitement les nobles présents, avec
@@ -405,9 +777,7 @@ bonus fixe de `+1` décrit à la section 5.
 Lorsqu'une armée est détruite sur une case occupée par une armée ennemie, les
 nobles qu'elle portait sont capturés et deviennent `hostage`. Ils peuvent encore
 émettre des chaînes, dont le détail sera connu du détenteur dans les parties en
-ligne. Le détenteur peut les libérer en hiver avec `L N NNN` ; si la capitale du
-propriétaire existe et contient une armée de celui-ci, ils réapparaissent libres
-dans cette capitale. Un joueur sans noble libre ou otage apte à émettre n'a pas
+ligne. Le détenteur peut les rendre à leur propriétaire en hiver avec `H N NNN XXX`, `XXX` portant une armée de celui-ci : ils réapparaissent libres sur `XXX`. Un joueur sans noble libre ou otage apte à émettre n'a pas
 à soumettre de chaînes pendant une saison d'action.
 
 ### Retraites
@@ -415,10 +785,14 @@ dans cette capitale. Un joueur sans noble libre ou otage apte à émettre n'a pa
 Une armée défaite bat en retraite en bloc vers une destination adjacente
 déterminée par ordre de priorité décroissant :
 
-1. Case vide contrôlée par le propriétaire du retraité (avec ou sans château),
-   même si elle a été combattue ce tour.
-2. Case vide non contrôlée par le retraité (neutre ou ennemie), sans château et
-   non combattue ce tour.
+1. Case vide **ancrée** au retraité : membre d'un fief du retraité, ou sa
+   propre capitale (voir [titres.md](titres.md#contrôle-et-occupation)), même
+   si elle a été combattue ce tour.
+2. Toute autre case vide non ancrée au retraité, sans château **ancré** (à
+   quiconque) et non combattue ce tour ; une case que le retraité contrôlait
+   simplement de façon positionnelle, y compris celle qu'il vient de quitter
+   ce même tour, relève de cette deuxième priorité comme n'importe quelle
+   autre case vide — seul l'ancrage donne la première priorité.
 3. Armée amie adjacente non délogée (priorité à la plus petite en troupes), avec
    fusion : la taille de l'hôte augmente de `N − 1` si la retraitante a `N ≥ 2`
    troupes, sinon de `1` (`N = 1` sans perte). Plusieurs armées retraitantes
@@ -430,9 +804,13 @@ contrôlé par le propriétaire du retraité l'emporte, puis l'ordre lexicograph
 croissante, puis distance à la source contrôlée la plus proche, puis trigramme
 croissant.
 
-La case d'origine de l'attaquant est toujours exclue. Les châteaux neutres ou
-ennemis vides défendent contre une retraite et ne sont jamais une destination
-valide. Deux armées qui doivent reculer sur la même case vide sont détruites si
+La case d'origine de l'attaquant est toujours exclue. Un château **ancré** — 
+membre d'un fief ou capitale d'un joueur, y compris neutre ou ennemi pour le
+retraité — défend contre une retraite et n'est jamais une destination valide ;
+un château vide **inerte** (ni fief, ni capitale, ni armée) redevient en
+revanche une destination valide de deuxième priorité, comme l'absence de
+château. Un château en ruine ne défend contre une retraite que s'il est la
+capitale d'un fief ; sinon il est inerte. Deux armées qui doivent reculer sur la même case vide sont détruites si
 aucune alternative ne subsiste. L'ordre de traitement des armées en retraite suit
 le trigramme croissant de leur case d'origine.
 
@@ -441,18 +819,79 @@ le trigramme croissant de leur case d'origine.
 Les infrastructures appartiennent à leur case. Le joueur qui contrôle la case
 en bénéficie ; il n'y a pas de propriétaire stocké sur l'infrastructure.
 
+La prise de contrôle reste positionnelle hors fief : une armée qui s'arrête sur
+une case en prend le contrôle. Ce contrôle est cependant **éphémère** hors
+fief : un territoire ne reste « à quelqu'un » que tant qu'il est
+**ancré** — membre d'un fief, capitale du joueur (une exception permanente,
+même sans armée), ou actuellement occupé par une armée de ce joueur. Dès
+qu'aucune de ces trois conditions n'est plus vraie, le territoire redevient
+neutre (sans propriétaire), jusqu'à ce qu'une armée, quelle qu'elle soit,
+s'y arrête à nouveau et le reprenne positionnellement. Une révolte `NEUTRAL`
+qui s'arrête sur une case ne prend jamais le contrôle : elle l'occupe, ce qui
+libère la case si son ancien contrôleur n'y a plus d'armée et ne l'ancre
+autrement (voir [titres.md](titres.md#contrôle-et-occupation)).
+
+Dans un fief, le contrôle est **transitif** (titres.md) : un membre
+non-capitale reste contrôlé par le propriétaire du fief même lorsqu'une armée
+adverse, ou une révolte `NEUTRAL`, s'y arrête (elle l'**occupe** sans le
+contrôler) ; seule la prise de la **capitale** du fief transfère le contrôle
+de tous ses membres au conquérant en une seule fois.
+
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|
-| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village ; amélioration d'un moulin existant adjacent à cette source, jusqu'au niveau 3 | +1 R stockable par niveau à chaque source adjacente | 3 / 5 / 7 |
-| Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement lorsqu'il est contrôlé | 3 |
-| Château | Aucune | +1 défense, +2 rations, production de 1 R stockable par tour, ancre de ravitaillement | 10 |
-| Village | Généré neutre, non constructible | +2 rations, production de 1 R stockable par tour, ancre après capture | — |
+| Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même ; un moulin sans contrôleur produit toujours sur sa propre case, comme un village neutre (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
+| Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement, seulement lorsqu'il est ancré ou occupé (voir ci-dessus) ; inerte sinon | 3 |
+| Château | Aucune | +1 défense tant qu'il reste ancré ou occupé (voir ci-dessus), sinon inerte ; verse le revenu territorial (§3) lorsqu'il est contrôlé ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) ; en ruine, il n'apporte plus aucune défense (voir « Pillage et ruines ») | 10 |
+| Village | Généré neutre, non constructible ; niveau de 0 à `village_max_level` (3), niveau 1 à la génération | Verse le revenu territorial, majoré de `village_income` R par niveau, une fois contrôlé ; produit `village_income` R par niveau et par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (comme le moulin, il ne devient jamais inerte) ; un village de niveau 0 est en ruine et ne produit rien | — |
 
-Un moulin isolé est orphelin et ne produit rien. Une construction remplace la
-structure existante uniquement lorsque la règle de l'ordre le prévoit : un
-château construit sur un village remplace le village et conserve le stock de
-la case. Le contrôle reste acquis après le départ d'une armée jusqu'à l'arrêt
-d'une armée ennemie.
+### Pillage et ruines
+
+Une case ne porte qu'une infrastructure, et un pillage (`P`, section 6) ne
+l'élimine pas toujours : il la dégrade selon son type.
+
+| Infrastructure pillée | Effet |
+|---|---|
+| Moulin | Perd 1 niveau ; un moulin de niveau 1 disparaît. |
+| Village fortifié | Sa muraille est détruite ; il garde son niveau. |
+| Village non fortifié | Perd 1 niveau ; à 0, il est **en ruine**. |
+| Château | Il est mis **en ruine**. |
+| Dépôt de vivres | Il disparaît. |
+
+Une ruine (château en ruine, village de niveau 0 sans muraille) ne peut pas
+être pillée. Un château en ruine n'apporte aucune valeur défensive et ne
+peut pas devenir la capitale d'un nouveau fief ni la capitale d'un joueur.
+La case d'une ruine se construit comme une case vide : toute construction
+d'hiver y remplace la ruine (son stock reste sur la case), sauf `C C` sur un
+château en ruine, qui le reconstruit sur place au coût d'un château ; comme
+un château neuf, ce château reconstruit devient la capitale de son joueur
+s'il n'en a pas. Sur le château en ruine capitale d'un fief, seul `C C` est
+accepté : toute autre construction y est refusée. Un
+château ou un village en ruine n'est pas une source de ravitaillement et ne
+reçoit plus ni le revenu territorial ni la production d'un moulin voisin, sauf si c'est le château capitale d'un fief : celui-ci reste capitale,
+le fief n'est pas dissous, la capitale du joueur est conservée si c'était
+elle, et il reste source de ravitaillement et point d'ancrage pour les
+retraites, mais sans valeur défensive.
+
+Le stock d'un château ou d'un village qui cesse ainsi d'être une source
+s'ajoute au butin du pillage : il est crédité, avec le bonus de pillage
+(`pillage_bonus`), à la source alliée la plus proche. Un château capitale de
+fief mis en ruine garde son stock. Un château en ruine qui n'est la capitale
+d'aucun fief cesse d'être la capitale de son joueur.
+
+Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
+sur sa propre case ; cette case devient alors elle-même une source de
+ravitaillement pour son contrôleur. Un moulin sans contrôleur (hors fief et
+hors capitale, sans armée d'un joueur) produit lui aussi sur sa propre case,
+jamais pour un voisin, et y accumule son stock d'un tour à l'autre. L'armée
+qui en prend ensuite le contrôle trouve ce stock sur place : il la ravitaille
+comme toute source, elle peut l'expédier par un ordre de transfert (`T`), et
+il rejoint la capitale en fin d'hiver par le château ou le village qui reçoit
+la production du moulin (§2, « Phase d'hiver »). La contrainte de voisinage
+productif ne s'applique qu'à la construction d'un nouveau moulin : un moulin déjà bâti peut
+toujours être amélioré, même isolé, en payant sur son propre stock (voir
+[economie.md](economie.md#moulins)). Une construction remplace la structure
+existante uniquement lorsque la règle de l'ordre le prévoit : un château
+construit sur un village remplace le village et conserve le stock de la case.
 
 ## 8. Évolution du document
 
@@ -466,31 +905,83 @@ proposés et suivis dans GitHub avant d'être intégrés au document.
 Une partie est créée avec une durée comprise entre 1 et 50 années, avec une
 valeur par défaut de 10 années. Une année conserve exactement quatre tours :
 printemps, été, automne et hiver. Le compteur interne `year` commence à 1 ;
-l'interface affiche l'année historique `1000 + year`, soit `AN 1001` au premier
+l'interface affiche l'année historique `1000 + year`, soit « Année 1001 » au premier
 tour joué.
 
-La partie se termine après la résolution du dernier tour de la durée choisie,
-ou immédiatement lorsqu'un seul joueur reste en lice. Les scores sont recalculés
-après chaque tour et sont visibles par tous les joueurs.
+La partie se termine dans l'un de ces trois cas, évalués après chaque tour :
 
-Le score d'un joueur est la somme des éléments suivants :
+- un seul joueur reste en lice ;
+- un joueur ou une alliance franchit son seuil de suprématie (voir ci-dessous) ;
+- le dernier tour de la durée choisie vient d'être résolu.
 
-| Élément | Points |
-|---|---:|
-| Territoire contrôlé | 1 |
-| Village contrôlé | 2 |
-| Moulin contrôlé | 1 |
-| Château contrôlé | 5 |
-| Noble détenu | 2 |
-| Troupe | 1 par unité dans ses armées |
-| Ressource `R` | 1 par unité en stock sur ses territoires contrôlés |
+Les scores sont recalculés après chaque tour et sont visibles par tous les
+joueurs.
 
-Les points d'infrastructure et de ressource ne sont attribués que lorsque le
-territoire est contrôlé. Un noble libre est compté pour son propriétaire. Un
-noble capturé, qu'il soit otage ou au donjon, est compté pour le joueur qui
-contrôle le territoire où il se trouve ; il ne compte pas pour son propriétaire
-initial. Un territoire neutre ne rapporte aucun élément de score.
+### Score de titres
 
-À la fin d'une partie, un unique survivant gagne toujours, même si la durée
-vient d'être atteinte. Sinon, le joueur qui possède le score le plus élevé gagne.
-Une égalité parfaite de score ne désigne aucun gagnant officiel.
+Le score d'un joueur est son score de titres : chaque titre détenu rapporte
+1 point, quel que soit son rang (baronnie, comté, marquisat, duché, dignité, couronne ;
+aucun titre religieux ne compte), y compris un fief vacant tant qu'il n'est pas dissolu.
+Territoire, infrastructure, armée, noble et ressource ne rapportent rien par
+eux-mêmes.
+
+Les mariages ajustent ce score (voir
+[succession.md § Mariages et alliances](succession.md#mariages-et-alliances)) :
+
+- le mariage retenu comme **tête active** des deux maisons est une alliance
+  complète : aucun bonus individuel, les deux scores s'additionnent pour la
+  victoire commune ;
+- tout autre mariage entre deux maisons est un mariage d'influence : chaque
+  maison gagne le nombre de titres de la maison du conjoint (jamais son score
+  bonifié). Le bonus est affiché à part (`alliance`).
+
+Voir [titres.md § Score de titres](titres.md#score-de-titres) pour le détail.
+
+### Seuils de suprématie
+
+Deux seuils sont fixés dans `assets/balance.yaml` (bloc `victory`) en fonction
+du nombre de joueurs : une part des territoires de jeu (8 par joueur) que le
+joueur ou l'alliance doit tenir au travers de fiefs, divisée par la taille
+moyenne d'un fief (4) et arrondie au supérieur.
+
+- **Seuil solo** (75 % des territoires) : score requis pour un joueur sans tête
+  active.
+- **Seuil d'alliance** (90 %) : score combiné requis pour les deux époux d'une
+  tête active. Il est toujours strictement supérieur au seuil solo.
+
+| Joueurs | 2 | 3 | 4 | 6 |
+|---|---:|---:|---:|---:|
+| Seuil solo (titres) | 3 | 5 | 6 | 9 |
+| Seuil d'alliance (titres) | — | 6 | 8 | 11 |
+
+À deux joueurs, une alliance réunirait tous les joueurs : seul le seuil solo a
+un sens.
+
+Un joueur qui a une tête active ne peut jamais gagner seul, même si son score
+atteint le seuil solo : seul le score combiné contre le seuil d'alliance est
+évalué pour lui.
+
+### Victoire majeure, victoire mineure, échec
+
+À la fin de la partie, chaque joueur obtient l'un de ces trois résultats :
+
+- **Victoire majeure** : un joueur sans tête active qui franchit le seuil solo
+  gagne seul ; deux époux dont le score combiné franchit le seuil d'alliance
+  gagnent ensemble, à égalité. Un unique survivant gagne toujours. Si aucun
+  seuil n'est atteint à la durée choisie, le score le plus élevé l'emporte,
+  avec les mêmes règles de tête active.
+- **Victoire mineure** : parmi les joueurs reliés au vainqueur majeur par une
+  chaîne de mariages d'alliance, un seul obtient une victoire mineure : celui
+  dont le lien a le poids d'alliance le plus élevé. Une égalité sur ce poids
+  n'en désigne aucun.
+- **Échec** : tout autre joueur, éliminé ou non.
+
+Si plusieurs joueurs ou alliances remplissent la condition au même tour, ils
+sont départagés dans cet ordre : victoire solo avant victoire d'alliance, score
+le plus élevé, détention du titre de roi, plus grand nombre de territoires
+contrôlés (les deux époux additionnés pour une alliance). Les ex æquo restants
+sont tous vainqueurs majeurs. Une partie où personne ne détient de titre n'a
+aucun vainqueur.
+
+Voir [titres.md § Victoire majeure, victoire mineure, échec](titres.md#victoire-majeure-victoire-mineure-échec)
+pour le détail.

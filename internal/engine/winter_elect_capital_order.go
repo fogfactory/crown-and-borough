@@ -16,20 +16,17 @@ func (order electCapitalOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "territory_not_controlled")
 		return
 	}
+	if resolution.rejectIfOccupied(playerID, winterOrder, winterOrder.TerritoryID) {
+		return
+	}
 	infrastructure := resolution.infrastructureAt(winterOrder.TerritoryID)
 	if infrastructure == nil || infrastructure.Type != models.InfraTypeCastle {
 		resolution.rejectWinterOrder(playerID, winterOrder, "capital_requires_controlled_castle")
 		return
 	}
-	resolution.setCapital(playerID, infrastructure.ID)
-	resolution.events = append(resolution.events, Event{
-		Type:               EventTypeCapitalElected,
-		Phase:              winterPhase,
-		OwnerID:            playerID,
-		OrderID:            winterOrder.ID,
-		TerritoryID:        winterOrder.TerritoryID,
-		InfrastructureID:   infrastructure.ID,
-		InfrastructureType: infrastructure.Type,
-		ResourceSpent:      0,
-	})
+	if infrastructure.Ruined {
+		resolution.rejectWinterOrder(playerID, winterOrder, "capital_castle_ruined")
+		return
+	}
+	resolution.electCapital(playerID, winterOrder, infrastructure, false)
 }

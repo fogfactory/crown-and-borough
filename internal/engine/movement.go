@@ -36,10 +36,7 @@ type retreatPlan struct {
 }
 
 func executeMovementsAndRetreats(ctx *resolutionContext) error {
-	resolveDispersions(ctx)
-	resolveJoins(ctx)
-	resolveVacatedDisperseDestinations(ctx)
-	finalizeDispersions(ctx)
+	resolvePeacefulMovements(ctx)
 	riders := startingRiders(ctx)
 	for _, armyID := range sortedArmyMap(ctx.dislodged) {
 		displaced := ctx.dislodged[armyID]
@@ -123,9 +120,12 @@ func (ctx *resolutionContext) disperseCandidates(invalid map[models.ArmyID]strin
 			resolved: make([]bool, len(intent.targets)),
 		}
 		candidate := make([]bool, len(intent.targets))
+		ownerID := ctx.startArmiesByID[intent.armyID].OwnerID
 		for index, targetID := range intent.targets {
-			candidate[index] = !ctx.attackedTerritories[targetID]
-			if candidate[index] && targetID != intent.source {
+			attacked := ctx.facts.attacked(targetID)
+			alliedArrival := attacked && ctx.alliedAttackArrival(targetID, ownerID)
+			candidate[index] = !attacked || alliedArrival
+			if candidate[index] && targetID != intent.source && !alliedArrival {
 				if occupant := ctx.startArmyAt(targetID); occupant != nil && !ctx.vacatesForDisperse(occupant.ID) {
 					_, occupantJoins := ctx.joins[occupant.ID]
 					_, occupantDisperses := ctx.disperses[occupant.ID]
@@ -181,9 +181,7 @@ func finalizeDispersions(ctx *resolutionContext) {
 }
 
 func (ctx *resolutionContext) vacatesForDisperse(armyID models.ArmyID) bool {
-	attack := ctx.attacks[armyID]
-	record := ctx.records[armyID]
-	return attack != nil && record != nil && record.outcome == OutcomeSuccess
+	return ctx.facts.attackMoves(armyID)
 }
 
 func resolveJoins(ctx *resolutionContext) {
@@ -197,7 +195,7 @@ func resolveJoins(ctx *resolutionContext) {
 		joinsByTarget[join.target] = append(joinsByTarget[join.target], armyID)
 	}
 	for _, targetID := range sortedTerritoryMap(joinsByTarget) {
-		if ctx.attackedTerritories[targetID] || !ctx.hasDisperseActivityAt(targetID) {
+		if ctx.facts.attacked(targetID) || !ctx.hasDisperseActivityAt(targetID) {
 			continue
 		}
 		for _, joiningID := range joinsByTarget[targetID] {
@@ -210,13 +208,13 @@ func resolveJoins(ctx *resolutionContext) {
 	for _, targetID := range sortedTerritoryMap(joinsByTarget) {
 		members := joinsByTarget[targetID]
 		sortArmyIDs(members)
-		if ctx.attackedTerritories[targetID] {
+		if ctx.facts.attacked(targetID) {
 			ctx.resolveJoinAtAttackTarget(targetID, members)
 		}
 	}
 	for _, targetID := range sortedTerritoryMap(joinsByTarget) {
 		members := pendingJoinMembers(ctx, joinsByTarget[targetID])
-		if ctx.attackedTerritories[targetID] || len(members) < 2 {
+		if ctx.facts.attacked(targetID) || len(members) < 2 {
 			continue
 		}
 		if len(members) > 2 {
@@ -234,7 +232,7 @@ func resolveJoins(ctx *resolutionContext) {
 	for {
 		progressed := false
 		for _, targetID := range sortedTerritoryMap(joinsByTarget) {
-			if ctx.attackedTerritories[targetID] {
+			if ctx.facts.attacked(targetID) {
 				continue
 			}
 			members := pendingJoinMembers(ctx, joinsByTarget[targetID])
@@ -250,7 +248,7 @@ func resolveJoins(ctx *resolutionContext) {
 		}
 	}
 	for _, targetID := range sortedTerritoryMap(joinsByTarget) {
-		if ctx.attackedTerritories[targetID] {
+		if ctx.facts.attacked(targetID) {
 			continue
 		}
 		members := pendingJoinMembers(ctx, joinsByTarget[targetID])
@@ -286,7 +284,7 @@ func resolveVacatedDisperseDestinations(ctx *resolutionContext) {
 			available := result.remaining
 			for index, targetID := range result.intent.targets {
 				ownerID := ctx.startArmiesByID[result.intent.armyID].OwnerID
-				if result.resolved[index] || targetID == result.intent.source || len(claims[targetID]) != 1 || ctx.attackedTerritories[targetID] || ctx.hasPendingJoinTargetByOtherOwner(targetID, ownerID) {
+				if result.resolved[index] || targetID == result.intent.source || len(claims[targetID]) != 1 || ctx.facts.attacked(targetID) || ctx.hasPendingJoinTargetByOtherOwner(targetID, ownerID) {
 					continue
 				}
 				occupant := ctx.startArmyAt(targetID)
@@ -484,16 +482,19 @@ func hasOrphanedDisperseNobles(result *disperseResolution) bool {
 	return false
 }
 
+// alliedAttackArrival reports whether a peaceful movement of ownerID can
+// arrive on an attacked territory: an attack of the same player wins it and
+// the army that held it has left, so the arrival joins the winner.
+func (ctx *resolutionContext) alliedAttackArrival(targetID models.TerritoryID, ownerID models.PlayerID) bool {
+	winnerID := ctx.facts.winnerAt(targetID)
+	return winnerID != "" && ctx.startArmiesByID[winnerID].OwnerID == ownerID && ctx.facts.defenderLeaves(targetID)
+}
+
 func (ctx *resolutionContext) resolveJoinAtAttackTarget(targetID models.TerritoryID, members []models.ArmyID) {
 	if len(members) == 1 {
 		joiningID := members[0]
-		joiningArmy := ctx.startArmiesByID[joiningID]
-		result := ctx.contest.results[targetID]
-		winner := ctx.startArmiesByID[result.winnerID]
-		defender := ctx.startArmyAt(targetID)
-		defenderVacated := defender == nil || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID]
-		if result.winnerID != "" && defenderVacated && winner.OwnerID == joiningArmy.OwnerID {
-			ctx.joinResults[joiningID] = &joinResolution{targetID: targetID, hostID: winner.ID, fuse: true}
+		if ctx.alliedAttackArrival(targetID, ctx.startArmiesByID[joiningID].OwnerID) {
+			ctx.joinResults[joiningID] = &joinResolution{targetID: targetID, hostID: ctx.facts.winnerAt(targetID), fuse: true}
 			record := ctx.records[joiningID]
 			record.outcome = OutcomeSuccess
 			record.reason = "join_attack_arrival"
@@ -632,7 +633,7 @@ func (ctx *resolutionContext) hasActiveDisperseAt(territoryID models.TerritoryID
 
 func (ctx *resolutionContext) stationaryJoinHost(territoryID models.TerritoryID) *models.Army {
 	host := ctx.startArmyAt(territoryID)
-	if host == nil || ctx.dislodged[host.ID] != nil {
+	if host == nil || ctx.facts.dislodged(host.ID) {
 		return nil
 	}
 	if _, joining := ctx.joins[host.ID]; joining {
@@ -640,7 +641,7 @@ func (ctx *resolutionContext) stationaryJoinHost(territoryID models.TerritoryID)
 			return nil
 		}
 	}
-	if attack := ctx.attacks[host.ID]; attack != nil && ctx.records[host.ID].outcome == OutcomeSuccess {
+	if ctx.facts.attackMoves(host.ID) {
 		return nil
 	}
 	if ctx.disperseResultForArmy(host.ID) != nil {
@@ -742,7 +743,9 @@ func executeNormalMovements(ctx *resolutionContext, riders map[models.ArmyID][]m
 			return fmtMissingArmy(joiningID)
 		}
 		host.Size += joining.Size
-		if resolution.pair {
+		// A join pair drops the joining armies' chains; a chain the host
+		// inherited from a dispersion fusing into it carries on.
+		if hostRecord := ctx.records[resolution.hostID]; resolution.pair && host.ChainID != nil && hostRecord != nil && *host.ChainID == hostRecord.chainID {
 			host.ChainID = nil
 		}
 		live[resolution.hostID] = host
@@ -783,8 +786,12 @@ func applyDisperse(
 		return fmtMissingArmy(intent.armyID)
 	}
 	remaining := result.remaining
+	// Allied troops may already have stacked onto the army during the turn,
+	// before its own dispersion is applied: they stay on the origin with the
+	// residual troops.
+	arrived := army.Size - ctx.startArmiesByID[intent.armyID].Size
 	resolvedCount := countResolvedDisperse(result)
-	if resolvedCount == 0 && remaining != army.Size {
+	if arrived < 0 || resolvedCount == 0 && remaining+arrived != army.Size {
 		return fmt.Errorf("engine: dispersion %q has inconsistent remaining strength", record.armyID)
 	}
 	targetCounts := make(map[models.TerritoryID]int)
@@ -823,7 +830,7 @@ func applyDisperse(
 		}
 		groupSize := targetCounts[targetID]
 		if targetID == intent.source {
-			groupSize += remaining
+			groupSize += remaining + arrived
 		}
 		group := army
 		group.ID = groupID
@@ -832,7 +839,7 @@ func applyDisperse(
 		if groupID != army.ID {
 			group.ChainID = nil
 		}
-		if hostID, exists := liveArmyAt(live, targetID); exists && hostID != groupID && live[hostID].OwnerID == group.OwnerID {
+		if hostID, exists := ctx.disperseHostAt(live, targetID, group.OwnerID, groupID); exists {
 			ctx.mergeDisperseGroup(live, hostID, group, record, &createdArmyIDs)
 			groupID = hostID
 		} else {
@@ -856,7 +863,7 @@ func applyDisperse(
 		}
 		ensureGroup(targetID)
 	}
-	if remaining > 0 && sourceArmyID == "" {
+	if remaining+arrived > 0 && sourceArmyID == "" {
 		ensureGroup(intent.source)
 	}
 	for _, targetID := range groupOrder {
@@ -883,7 +890,7 @@ func applyDisperse(
 		})
 	}
 	if record.partialD && record.order.Liaison == models.LiaisonModeLoop {
-		if err := ctx.updateLoopDispersePending(record, result, sourceArmyID); err != nil {
+		if err := ctx.updateLoopDispersePending(live, record, result, sourceArmyID); err != nil {
 			return err
 		}
 	} else if result.intent.pending {
@@ -914,11 +921,20 @@ func applyDisperse(
 	return nil
 }
 
-func liveArmyAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID) (models.ArmyID, bool) {
+// disperseHostAt returns the army of ownerID, other than excluded, that a
+// dispersed group arriving on territoryID fuses with. An enemy army may still
+// stand there when its own dispersion has not been applied yet, and an arrived
+// join that fuses into another army right after is skipped for that army.
+func (ctx *resolutionContext) disperseHostAt(live map[models.ArmyID]models.Army, territoryID models.TerritoryID, ownerID models.PlayerID, excluded models.ArmyID) (models.ArmyID, bool) {
 	for _, armyID := range sortedArmyMap(live) {
-		if live[armyID].TerritoryID == territoryID {
-			return armyID, true
+		army := live[armyID]
+		if armyID == excluded || army.TerritoryID != territoryID || army.OwnerID != ownerID {
+			continue
 		}
+		if join := ctx.joinResults[armyID]; join != nil && join.fuse && join.hostID != armyID {
+			continue
+		}
+		return armyID, true
 	}
 	return "", false
 }
@@ -933,7 +949,7 @@ func (ctx *resolutionContext) mergeDisperseGroup(
 	host := live[hostID]
 	incomingChainID := incoming.ChainID
 	if incomingChainID != nil {
-		if host.ChainID == nil || ctx.shouldDisperseChainReplace(hostID) {
+		if (host.ChainID == nil && ctx.pendingDisperseChainOf(hostID) == nil) || ctx.shouldDisperseChainReplace(hostID) {
 			if host.ChainID != nil {
 				if hostRecord := ctx.records[hostID]; hostRecord != nil {
 					hostRecord.fused = true
@@ -943,6 +959,9 @@ func (ctx *resolutionContext) mergeDisperseGroup(
 			host.ChainID = &chainID
 			if chain := ctx.chainsByID[chainID]; chain != nil {
 				chain.ArmyID = hostID
+				for index := range chain.Orders {
+					chain.Orders[index].ArmyID = hostID
+				}
 			}
 		} else if record != nil {
 			record.fused = true
@@ -985,6 +1004,7 @@ func removeArmyID(ids []models.ArmyID, remove models.ArmyID) []models.ArmyID {
 }
 
 func (ctx *resolutionContext) updateLoopDispersePending(
+	live map[models.ArmyID]models.Army,
 	record *orderRecord,
 	result *disperseResolution,
 	residualID models.ArmyID,
@@ -996,6 +1016,12 @@ func (ctx *resolutionContext) updateLoopDispersePending(
 	if chain == nil {
 		return fmt.Errorf("engine: partial loop dispersion %q has no chain %q", record.armyID, record.chainID)
 	}
+	// The residual retries the dispersion: a chain it received from a group
+	// that fused into it this turn is dropped, as when a group fuses into an
+	// army that already has orders.
+	if residual := live[residualID]; residual.ChainID != nil && *residual.ChainID != record.chainID {
+		ctx.dropChain(*residual.ChainID)
+	}
 	pendingTargets := pendingDisperseTargets(result)
 	chain.PendingDisperse = &models.PendingDisperse{
 		ArmyID:           residualID,
@@ -1004,6 +1030,28 @@ func (ctx *resolutionContext) updateLoopDispersePending(
 		NobleAssignments: ctx.pendingDisperseAssignments(result, pendingTargets),
 	}
 	return nil
+}
+
+// pendingDisperseChainOf returns the chain whose pending dispersion retries
+// with armyID, if any.
+func (ctx *resolutionContext) pendingDisperseChainOf(armyID models.ArmyID) *models.Chain {
+	for index := range ctx.state.Chains {
+		chain := &ctx.state.Chains[index]
+		if chain.PendingDisperse != nil && chain.PendingDisperse.ArmyID == armyID {
+			return chain
+		}
+	}
+	return nil
+}
+
+// dropChain marks the order of chainID as fused, so that chain progression
+// removes the chain.
+func (ctx *resolutionContext) dropChain(chainID models.ChainID) {
+	for _, armyID := range sortedArmyMap(ctx.records) {
+		if record := ctx.records[armyID]; record.chainID == chainID {
+			record.fused = true
+		}
+	}
 }
 
 func pendingDisperseTargets(result *disperseResolution) []models.TerritoryID {
@@ -1076,7 +1124,7 @@ func executeLocalOrders(ctx *resolutionContext) {
 			support := ctx.supports[armyID]
 			record.outcome = OutcomeSuccess
 			switch {
-			case support == nil || !support.applies:
+			case support == nil || !support.applies || ctx.supportedArmyLeft(support):
 				record.reason = "support_void"
 			case ctx.contest.cuts[armyID]:
 				record.reason = "support_cut"
@@ -1091,6 +1139,28 @@ func executeLocalOrders(ctx *resolutionContext) {
 			record.invalidate("unresolved_order")
 		}
 	}
+}
+
+// supportedArmyLeft reports whether the army a defensive support targets
+// left its origin by a join or a complete dispersion: the support then does
+// not prevent an enemy from entering the vacated territory. A dislodged army
+// did not leave on its own, and a dispersion that leaves troops behind still
+// holds its origin, although its carrier keeps the army ID and moves away.
+func (ctx *resolutionContext) supportedArmyLeft(support *supportIntent) bool {
+	if support.offensive || support.targetArmyID == "" || ctx.dislodged[support.targetArmyID] != nil {
+		return false
+	}
+	if result := ctx.disperseResults[support.targetArmyID]; result != nil && result.remaining > 0 {
+		return false
+	}
+	return !ctx.supportedArmyOnTarget(support)
+}
+
+// supportedArmyOnTarget reports whether the army a defensive support targets
+// still stands on the supported territory.
+func (ctx *resolutionContext) supportedArmyOnTarget(support *supportIntent) bool {
+	army := ctx.armiesByID[support.targetArmyID]
+	return army != nil && army.TerritoryID == support.targetID
 }
 
 func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.Army) {
@@ -1150,28 +1220,45 @@ func (ctx *resolutionContext) executeTransfer(record *orderRecord, army *models.
 	})
 }
 
+// pillageReason is the order outcome reason of a pillage: "pillaged" when the
+// infrastructure disappeared, a specific one when it was only degraded.
+func pillageReason(effect PillageEffect) string {
+	switch effect {
+	case PillageEffectDowngraded:
+		return "pillaged_downgraded"
+	case PillageEffectUnfortified:
+		return "pillaged_unfortified"
+	case PillageEffectRuined:
+		return "pillaged_ruined"
+	}
+	return "pillaged"
+}
+
 func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.Army) {
 	state := ctx.state.TerritoryStates[army.TerritoryID]
-	if len(state.Infrastructures) == 0 {
+	if state.Infrastructures == nil {
 		record.invalidate("no_infrastructure")
 		return
 	}
-	infrastructureID := state.Infrastructures[0]
+	infrastructureID := *state.Infrastructures
 	infrastructure := ctx.infrastructuresByID[infrastructureID]
 	if infrastructure == nil {
 		record.invalidate("unknown_infrastructure")
 		return
 	}
+	if !infrastructure.IsPillageable() {
+		record.invalidate("ruined_infrastructure")
+		return
+	}
 	infrastructureType := infrastructure.Type
-	ctx.removeInfrastructure(infrastructureID)
-	creditTerritoryID := ctx.closestControlledSettlement(army.TerritoryID, army.OwnerID)
-	if creditTerritoryID != "" {
-		creditState := ctx.state.TerritoryStates[creditTerritoryID]
-		creditState.Resources += ctx.balance.PillageBonus
-		ctx.state.TerritoryStates[creditTerritoryID] = creditState
+	looted, effect := ctx.pillageInfrastructure(infrastructureID)
+	credit := ctx.balance.PillageBonus + looted
+	creditTerritoryID := ctx.creditNearestSettlement(army.TerritoryID, army.OwnerID, ctx.controllerAtStart, credit)
+	if creditTerritoryID == "" {
+		credit = 0
 	}
 	record.outcome = OutcomeSuccess
-	record.reason = "pillaged"
+	record.reason = pillageReason(effect)
 	ctx.events = append(ctx.events, Event{
 		Type:               EventTypePillage,
 		Phase:              4,
@@ -1179,20 +1266,38 @@ func (ctx *resolutionContext) executePillage(record *orderRecord, army *models.A
 		TerritoryID:        army.TerritoryID,
 		InfrastructureID:   infrastructureID,
 		InfrastructureType: infrastructureType,
-		ResourceCredit:     ctx.creditAmount(creditTerritoryID),
+		PillageEffect:      effect,
+		ResourceCredit:     credit,
 		CreditTerritoryID:  creditTerritoryID,
 		Outcome:            OutcomeSuccess,
 	})
 }
 
-func (ctx *resolutionContext) creditAmount(territoryID models.TerritoryID) int {
-	if territoryID == "" {
-		return 0
+// creditNearestSettlement adds amount to the stock of the controlled
+// settlement closest to startID and returns it, or "" when the owner has none
+// (nothing is credited then).
+func (ctx *resolutionContext) creditNearestSettlement(startID models.TerritoryID, ownerID models.PlayerID, view controlView, amount int) models.TerritoryID {
+	creditTerritoryID := ctx.closestControlledSettlement(startID, ownerID, view)
+	if creditTerritoryID == "" {
+		return ""
 	}
-	return ctx.balance.PillageBonus
+	creditState := ctx.state.TerritoryStates[creditTerritoryID]
+	creditState.Resources += amount
+	ctx.state.TerritoryStates[creditTerritoryID] = creditState
+	return creditTerritoryID
 }
 
-func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID) models.TerritoryID {
+func (ctx *resolutionContext) closestControlledSettlement(startID models.TerritoryID, ownerID models.PlayerID, view controlView) models.TerritoryID {
+	return ctx.closestControlledTerritory(startID, ownerID, view, func(candidateID models.TerritoryID) bool {
+		return ctx.hasActiveSettlement(candidateID)
+	})
+}
+
+// closestControlledTerritory does a level-by-level BFS over crossable borders
+// from startID, returning the closest territory controlled by ownerID in view
+// that satisfies match, with a trigram tie-break among equidistant candidates. It
+// returns "" when none is reachable.
+func (ctx *resolutionContext) closestControlledTerritory(startID models.TerritoryID, ownerID models.PlayerID, view controlView, match func(models.TerritoryID) bool) models.TerritoryID {
 	type queueItem struct {
 		territoryID models.TerritoryID
 		distance    int
@@ -1208,8 +1313,7 @@ func (ctx *resolutionContext) closestControlledSettlement(startID models.Territo
 		}
 		candidates := make([]models.TerritoryID, 0)
 		for _, item := range level {
-			state := ctx.state.TerritoryStates[item.territoryID]
-			if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+			if controlledBy(view, ownerID, item.territoryID) && match(item.territoryID) {
 				candidates = append(candidates, item.territoryID)
 			}
 		}
@@ -1244,8 +1348,7 @@ func (ctx *resolutionContext) distanceToClosestControlledSettlement(startID mode
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
-		state := ctx.state.TerritoryStates[item.territoryID]
-		if state.OwnerID != nil && *state.OwnerID == ownerID && (ctx.hasInfrastructure(item.territoryID, models.InfraTypeCastle) || ctx.hasInfrastructure(item.territoryID, models.InfraTypeVillage)) {
+		if controlledBy(ctx.controllerAtStart, ownerID, item.territoryID) && ctx.hasActiveSettlement(item.territoryID) {
 			return item.distance
 		}
 		for _, neighborID := range ctx.sortedNeighbors(item.territoryID) {
@@ -1281,18 +1384,24 @@ func (ctx *resolutionContext) classifyRetreatDestinations(displaced *dislodgedAr
 			continue
 		}
 
-		state := ctx.state.TerritoryStates[territoryID]
-		hasCastle := ctx.hasCastle(territoryID)
-
-		// Bucket 1: Empty and controlled by retreating army's owner (with or without castle).
-		// Overrides attackedTerritories.
-		if state.OwnerID != nil && *state.OwnerID == owner {
+		// Bucket 1: empty and anchored to the retreating army's owner: one of
+		// its own fiefs' members, or its own capital (#215). A territory the
+		// owner merely happened to control positionally, including one it
+		// just vacated this same turn, is not an anchor and falls through to
+		// bucket 2 like any other empty cell.
+		if controller, anchored := ctx.anchorOwner(territoryID); anchored && controller == owner {
 			buckets.controlledEmpty = append(buckets.controlledEmpty, territoryID)
 			continue
 		}
 
-		// Bucket 2: Empty, uncontrolled (neutral or enemy), no castle, not attacked this turn.
-		if !hasCastle && !ctx.attackedTerritories[territoryID] {
+		// Bucket 2: empty, not attacked this turn, and no active castle: a
+		// castle anchored to anyone (fief or capital) still blocks a retreat
+		// there, but an unanchored, unoccupied castle is inert, like the
+		// absence of one (#215).
+		// A ruined castle only keeps blocking as the capital of a fief.
+		castleBlocks := ctx.hasCastle(territoryID) && ctx.territoryAnchored(territoryID) &&
+			(ctx.hasLiveCastle(territoryID) || ctx.fiefByCapital(territoryID) != nil)
+		if !castleBlocks && !ctx.attackedTerritories[territoryID] {
 			buckets.emptyOther = append(buckets.emptyOther, territoryID)
 		}
 	}
@@ -1496,6 +1605,7 @@ func executeRetreats(ctx *resolutionContext) error {
 			ctx.captureNoblesAfterDestruction(plan)
 		}
 	}
+	ctx.settleAmbushes(plans)
 	return nil
 }
 
@@ -1526,6 +1636,9 @@ func (ctx *resolutionContext) captureNoblesAfterDestruction(plan *retreatPlan) {
 		}
 		previousStatus := noble.Status
 		noble.Status = models.NobleStatusHostage
+		if noble.CapturedToDungeon() {
+			noble.Status = models.NobleStatusDungeon
+		}
 		ctx.events = append(ctx.events, Event{
 			Type:           EventTypeCapture,
 			Phase:          4,
@@ -1536,6 +1649,7 @@ func (ctx *resolutionContext) captureNoblesAfterDestruction(plan *retreatPlan) {
 			Status:         noble.Status,
 			CaptorPlayerID: occupier.OwnerID,
 		})
+		ctx.unmaskEon(noble, 4)
 	}
 }
 

@@ -48,7 +48,14 @@ func validateDeckOrders(game *models.GameState, balance assetgen.Balance, deckOr
 					return fmt.Errorf("engine: resolve winter: player %q has no card of kind %q", playerID, order.Kind)
 				}
 				hands[playerID] = append(hands[playerID][:index], hands[playerID][index+1:]...)
+			case models.DeckOrderTypeAppeaseRite, models.DeckOrderTypeAppeasePaid:
+				// Rejected at submission; ignored here rather than failing the winter.
 			case models.DeckOrderTypePlay:
+				if isWinterEventCard(order.Kind) {
+					// Played in winter too; an illegal play is rejected alone
+					// when applied, never by failing the winter.
+					continue
+				}
 				return fmt.Errorf("engine: resolve winter: deck order %q is not playable in winter", order.Kind)
 			default:
 				return fmt.Errorf("engine: resolve winter: invalid deck order %q", order.Type)
@@ -70,7 +77,92 @@ func cardKind(deck *models.SpecialDeck, cardID models.SpecialCardID) models.Card
 	return ""
 }
 
+// retireCurrentAugury ends the year: every calamity card scheduled for it has
+// been applied, so the cards go to the discard pile (and are reshuffled into
+// the draw pile with it) instead of staying out of the deck for good, and the
+// augury is dropped.
+func retireCurrentAugury(ctx *resolutionContext) {
+	year := ctx.state.Year()
+	augury, exists := ctx.state.Auguries[year]
+	if !exists {
+		return
+	}
+	if deck := ctx.state.SpecialDeck; deck != nil {
+		for _, calamity := range augury.Calamities {
+			deck.Discard = append(deck.Discard, calamity.CardID)
+		}
+	}
+	delete(ctx.state.Auguries, year)
+}
+
+// winterEventCard is a card played on the winter sheet (Assassination,
+// Justice): its card is consumed at the start of stage 8, before the hands are
+// refilled, and its effect applies at stage 9, after the trial verdicts. The
+// effects of the cards played the same winter follow deckOrderRank.
+type winterEventCard interface {
+	CardDefinition
+	// applyWinterEffect applies the effect of a play whose card is already
+	// consumed and whose order is still playable.
+	applyWinterEffect(ctx *resolutionContext, playerID models.PlayerID, order models.DeckOrder)
+}
+
+var winterEventCards = map[models.CardKind]winterEventCard{
+	models.CardKindAssassination: assassinationCardDefinition{},
+	models.CardKindJustice:       justiceCardDefinition{},
+}
+
+// isWinterEventCard tells the cards played on a winter sheet besides the
+// discards (specs/ordres-speciaux.md).
+func isWinterEventCard(kind models.CardKind) bool {
+	return winterEventCards[kind] != nil
+}
+
+// reserveWinterEventCards takes, before the hands are refilled (start of
+// stage 8 of specs/hiver.md), the event cards of the winter sheets: players by
+// identifier, then sheet order. An order that is illegal now is rejected and
+// keeps its card; the others consume it and wait for stage 9. Every other card
+// kind is only played in an action season.
+func reserveWinterEventCards(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
+		for _, order := range deckOrders[playerID] {
+			if order.Type != models.DeckOrderTypePlay || !isWinterEventCard(order.Kind) {
+				continue
+			}
+			execution := &ExecutionContext{resolution: ctx, playerID: playerID, season: ctx.state.Season}
+			if playable, reason := winterEventCards[order.Kind].CanPlay(execution, order); !playable {
+				ctx.rejectDeckOrderReason(playerID, order, reason)
+				continue
+			}
+			if ctx.applyDeckCardOrder(playerID, order) {
+				ctx.winterEventPlays = append(ctx.winterEventPlays, deckOrderIntent{playerID: playerID, order: order})
+			}
+		}
+	}
+}
+
+// resolveWinterEventCards applies, at stage 9 after the trial verdicts, the
+// cards reserved at stage 8: assassinations, then justice (deckOrderRank). The
+// card is already consumed: an order whose target or commissioner has left the
+// game since (executed by a trial, for instance) is rejected and the card is
+// spent without effect.
+func (ctx *resolutionContext) resolveWinterEventCards() {
+	plays := ctx.winterEventPlays
+	ctx.winterEventPlays = nil
+	sort.SliceStable(plays, func(i, j int) bool { return deckOrderRank(plays[i].order) < deckOrderRank(plays[j].order) })
+	for _, play := range plays {
+		card := winterEventCards[play.order.Kind]
+		execution := &ExecutionContext{resolution: ctx, playerID: play.playerID, season: ctx.state.Season}
+		if playable, reason := card.CanPlay(execution, play.order); !playable {
+			ctx.rejectDeckOrderReason(play.playerID, play.order, reason)
+			continue
+		}
+		card.applyWinterEffect(ctx, play.playerID, play.order)
+	}
+}
+
 func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.PlayerID][]models.DeckOrder) {
+	retireCurrentAugury(ctx)
+	defer ctx.concludeRitual()
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, order := range deckOrders[playerID] {
 			if order.Type == models.DeckOrderTypeDiscard {
@@ -78,8 +170,15 @@ func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.Playe
 			}
 		}
 	}
+	// The refill runs after the winter orders (so after any noble draw) and
+	// the discards. A player draws at most draw_orders_limit cards per winter
+	// across both decks: a noble draw ordered this winter uses one of them.
 	for _, playerID := range sortedPlayerIDs(ctx.state.Players) {
-		for draw := 0; draw < ctx.balance.SpecialOrders.DrawOrdersLimit; draw++ {
+		draws := ctx.balance.SpecialOrders.DrawOrdersLimit
+		if ctx.nobleDraws[playerID] {
+			draws--
+		}
+		for draw := 0; draw < draws; draw++ {
 			if !ctx.drawUsefulDeckCard(playerID) {
 				break
 			}
@@ -88,7 +187,7 @@ func resolveWinterDeckOrders(ctx *resolutionContext, deckOrders map[models.Playe
 }
 
 func (ctx *resolutionContext) drawUsefulDeckCard(playerID models.PlayerID) bool {
-	if ctx.state.SpecialDeck == nil || len(ctx.state.SpecialDeck.Hands[playerID]) >= ctx.balance.SpecialOrders.HandLimit {
+	if ctx.state.SpecialDeck == nil || ctx.handSize(playerID) >= ctx.balance.SpecialOrders.HandLimit {
 		return false
 	}
 	cycle := len(ctx.state.SpecialDeck.DrawPile) + len(ctx.state.SpecialDeck.Discard)
@@ -149,15 +248,21 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 	for _, calamity := range augury.Calamities {
 		counts[calamity.Season]++
 	}
-	season := models.Season("")
+	// The season is drawn at random among those that still have a free slot,
+	// so the first calamities of a winter do not always fall in spring.
+	free := make([]models.Season, 0, 3)
 	for _, candidate := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn} {
 		if counts[candidate] < augury.Capacities[candidate] {
-			season = candidate
-			break
+			free = append(free, candidate)
 		}
 	}
-	if season == "" {
+	if len(free) == 0 {
 		return false
+	}
+	season := free[newCalamitySeasonRNG(ctx.state.Seed, ctx.state.Turn, cardID).IntN(len(free))]
+	ritual := ctx.ritualFor(kind, len(augury.Calamities) == 0, free)
+	if ritual != nil && ritual.order.Season != "" {
+		season = ritual.order.Season
 	}
 	seeds := make([]models.TerritoryID, len(ctx.state.Regions))
 	for index, region := range ctx.state.Regions {
@@ -166,9 +271,13 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 	sort.Slice(seeds, func(i, j int) bool { return seeds[i] < seeds[j] })
 	regionRNG := newCalamityRegionRNG(ctx.state.Seed, ctx.state.Turn, cardID)
 	regionSeed := seeds[regionRNG.IntN(len(seeds))]
-	augury.Calamities = append(augury.Calamities, models.Calamity{CardID: cardID, Kind: kind, Year: year, Season: season, RegionSeed: regionSeed})
+	if ritual != nil {
+		regionSeed = ritual.region
+		ctx.completeRitual(ritual, kind, season)
+	}
+	augury.Calamities = append(augury.Calamities, models.Calamity{CardID: cardID, Kind: kind, Year: year, Season: season, RegionSeed: regionSeed, Ritual: ritual != nil})
 	ctx.state.Auguries[year] = augury
-	ctx.events = append(ctx.events, Event{Type: EventTypeCalamityScheduled, Phase: winterPhase, CardID: cardID, CardKind: kind, RegionSeed: regionSeed, Season: season, Year: year})
+	ctx.events = append(ctx.events, Event{Type: EventTypeCalamityScheduled, Phase: winterPhase, CardID: cardID, CardKind: kind, RegionSeed: regionSeed, Season: season, Year: year, Ritual: ritual != nil})
 	return true
 }
 
@@ -179,6 +288,11 @@ func newReshuffleRNG(seed string, turn, count int) *rand.Rand {
 
 func newCalamityRegionRNG(seed string, turn int, cardID models.SpecialCardID) *rand.Rand {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|calamity-region|%d|%s", seed, turn, cardID)))
+	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
+}
+
+func newCalamitySeasonRNG(seed string, turn int, cardID models.SpecialCardID) *rand.Rand {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s|calamity-season|%d|%s", seed, turn, cardID)))
 	return rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
 }
 

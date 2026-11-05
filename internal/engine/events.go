@@ -9,50 +9,125 @@ type Resolution struct {
 	Events []Event           `json:"events"`
 }
 
+// PillageEffect is what a pillage did to an infrastructure: it degrades it
+// instead of always destroying it.
+type PillageEffect string
+
+const (
+	PillageEffectDestroyed   PillageEffect = "destroyed"
+	PillageEffectDowngraded  PillageEffect = "downgraded"
+	PillageEffectUnfortified PillageEffect = "unfortified"
+	PillageEffectRuined      PillageEffect = "ruined"
+)
+
 // EventType identifies the kind of a resolution event.
 type EventType string
 
 const (
-	EventTypeOrderOutcome      EventType = "order_outcome"
-	EventTypeCombat            EventType = "combat"
-	EventTypeMovement          EventType = "movement"
-	EventTypeFusion            EventType = "fusion"
-	EventTypeDispersion        EventType = "dispersion"
-	EventTypePillage           EventType = "pillage"
-	EventTypeRetreat           EventType = "retreat"
-	EventTypeArmyDestroyed     EventType = "army_destroyed"
-	EventTypeNobleMovement     EventType = "noble_movement"
-	EventTypeCapture           EventType = "capture"
-	EventTypeControlChanged    EventType = "control_changed"
-	EventTypeChainProgression  EventType = "chain_progression"
-	EventTypeSupply            EventType = "supply"
-	EventTypeFamine            EventType = "famine"
-	EventTypeTransfer          EventType = "transfer"
-	EventTypeWinterStock       EventType = "winter_stock"
-	EventTypeRecruit           EventType = "recruit"
-	EventTypeBuild             EventType = "build"
-	EventTypeUpgrade           EventType = "upgrade"
-	EventTypeRejected          EventType = "rejected"
-	EventTypeCapitalElected    EventType = "capital_elected"
-	EventTypeLiberation        EventType = "liberation"
-	EventTypeDeckDraw          EventType = "deck_draw"
-	EventTypeDeckDiscard       EventType = "deck_discard"
-	EventTypeDeckRestore       EventType = "deck_restore"
-	EventTypeCalamityScheduled EventType = "calamity_scheduled"
-	EventTypeAuguryRevealed    EventType = "augury_revealed"
-	EventTypeDeckOrderPlayed   EventType = "deck_order_played"
-	EventTypeCalamityApplied   EventType = "calamity_applied"
-	EventTypeCalamityCanceled  EventType = "calamity_canceled"
-	EventTypeBonusEffect       EventType = "bonus_effect"
-	EventTypeNeutralArmy       EventType = "neutral_army_created"
-	EventTypePlagueDeath       EventType = "plague_noble_death"
-	EventTypePlagueSurvived    EventType = "plague_noble_survived"
-	EventTypeBadWeatherBlocked EventType = "bad_weather_blocked"
-	EventTypeFamineLoss        EventType = "famine_loss"
-	EventTypeProduction        EventType = "production"
-	EventTypeConsumption       EventType = "consumption"
-	EventTypeCardCanceled      EventType = "card_canceled"
-	EventTypeRumor             EventType = "rumor"
+	EventTypeOrderOutcome       EventType = "order_outcome"
+	EventTypeCombat             EventType = "combat"
+	EventTypeMovement           EventType = "movement"
+	EventTypeFusion             EventType = "fusion"
+	EventTypeDispersion         EventType = "dispersion"
+	EventTypePillage            EventType = "pillage"
+	EventTypeRetreat            EventType = "retreat"
+	EventTypeArmyDestroyed      EventType = "army_destroyed"
+	EventTypeNobleMovement      EventType = "noble_movement"
+	EventTypeCapture            EventType = "capture"
+	EventTypeControlChanged     EventType = "control_changed"
+	EventTypeChainProgression   EventType = "chain_progression"
+	EventTypeSupply             EventType = "supply"
+	EventTypeFamine             EventType = "famine"
+	EventTypeTransfer           EventType = "transfer"
+	EventTypeWinterStock        EventType = "winter_stock"
+	EventTypeRecruit            EventType = "recruit"
+	EventTypeBuild              EventType = "build"
+	EventTypeUpgrade            EventType = "upgrade"
+	EventTypeFortify            EventType = "fortify"
+	EventTypeRejected           EventType = "rejected"
+	EventTypeCapitalElected     EventType = "capital_elected"
+	EventTypeNobleTransfer      EventType = "noble_transfer"
+	EventTypeDeckDraw           EventType = "deck_draw"
+	EventTypeDeckDiscard        EventType = "deck_discard"
+	EventTypeDeckRestore        EventType = "deck_restore"
+	EventTypeCalamityScheduled  EventType = "calamity_scheduled"
+	EventTypeAuguryRevealed     EventType = "augury_revealed"
+	EventTypeDeckOrderPlayed    EventType = "deck_order_played"
+	EventTypeCalamityApplied    EventType = "calamity_applied"
+	EventTypeCalamityCanceled   EventType = "calamity_canceled"
+	EventTypeBonusEffect        EventType = "bonus_effect"
+	EventTypeNeutralArmy        EventType = "neutral_army_created"
+	EventTypeRevoltAppeased     EventType = "revolt_appeased"
+	EventTypePlagueDeath        EventType = "plague_noble_death"
+	EventTypePlagueSurvived     EventType = "plague_noble_survived"
+	EventTypeBadWeatherBlocked  EventType = "bad_weather_blocked"
+	EventTypeFamineLoss         EventType = "famine_loss"
+	EventTypeBadWeatherLoss     EventType = "bad_weather_loss"
+	EventTypeProduction         EventType = "production"
+	EventTypeMillProduction     EventType = "mill_production"
+	EventTypeIncome             EventType = "income"
+	EventTypeConsumption        EventType = "consumption"
+	EventTypeCardCanceled       EventType = "card_canceled"
+	EventTypeRumor              EventType = "rumor"
+	EventTypeFiefFounded        EventType = "fief_founded"
+	EventTypeFiefAssigned       EventType = "fief_assigned"
+	EventTypeFiefAnnexed        EventType = "fief_annexed"
+	EventTypeFiefRankChanged    EventType = "fief_rank_changed"
+	EventTypeRoyalAccord        EventType = "royal_accord"
+	EventTypeFiefGranted        EventType = "fief_granted"
+	EventTypeFiefConquered      EventType = "fief_conquered"
+	EventTypeFiefVacated        EventType = "fief_vacated"
+	EventTypeFiefDissolved      EventType = "fief_dissolved"
+	EventTypeFiefMemberOccupied EventType = "fief_member_occupied"
+	EventTypeFiefAutoAssigned   EventType = "fief_auto_assigned"
+	EventTypeProsperityFounded  EventType = "prosperity_founded"
+	EventTypeMarriage           EventType = "marriage"
+	EventTypeMarriageRefused    EventType = "marriage_refused"
+	EventTypeMarriageDissolved  EventType = "marriage_dissolved"
+	EventTypeNobleDraw          EventType = "noble_draw"
+	EventTypeDignity            EventType = "dignity"
+	EventTypeTrial              EventType = "trial"
+	EventTypeTunnel             EventType = "tunnel"
+	EventTypeAmbush             EventType = "ambush"
+	EventTypeAssassination      EventType = "assassination"
+	EventTypeJustice            EventType = "justice"
+	// EventTypeAssassinationRevealed is private to its owner, the inquirer: an
+	// inquiry taught them who commissioned an assassination (NobleCode: the
+	// victim, CommissionerCode: the commissioner).
+	EventTypeAssassinationRevealed EventType = "assassination_revealed"
+	// EventTypeCalamityVeto is private: no report section lists it.
+	EventTypeCalamityVeto EventType = "calamity_veto"
+	EventTypeNobleDiscard EventType = "noble_discard"
+	EventTypeClaim        EventType = "claim"
+	EventTypeEonUnmasked  EventType = "eon_unmasked"
+	// EventTypeInquiry is the paid Q order (ResourceSpent), emitted whether or
+	// not the target hid a dignity.
+	EventTypeInquiry EventType = "inquiry"
+	// EventTypeTrialFiled is the private acknowledgement of an accepted J order
+	// (NobleID is the target); the verdict, if a second cardinal backs it, is a
+	// public EventTypeTrial at the end of the winter.
+	EventTypeTrialFiled EventType = "trial_filed"
+	// EventTypeDignityRevealed is the public reveal of a hidden dignity by an
+	// inquiry (Dignity names it); a chevalier d'Éon emits EventTypeEonUnmasked.
+	EventTypeDignityRevealed EventType = "dignity_revealed"
+	// EventTypeElectionOpened, EventTypeElectionResult and
+	// EventTypeInvestiture carry only public totals, never a ballot.
+	EventTypeElectionOpened EventType = "election_opened"
+	EventTypeElectionResult EventType = "election_result"
+	EventTypeInvestiture    EventType = "investiture"
+	// EventTypeRitual is private to the Witch's owner: the declaration of a
+	// ritual, then its outcome (Reason "succeeded" or "failed").
+	EventTypeRitual EventType = "ritual"
+	// EventTypeExcommunication and EventTypeExcommunicationLifted are public
+	// papal sanctions (winter stage 1).
+	EventTypeExcommunication       EventType = "excommunication"
+	EventTypeExcommunicationLifted EventType = "excommunication_lifted"
+	// EventTypeCardinalPurchase is the paid N C order; the title itself is
+	// conferred at the investiture.
+	EventTypeCardinalPurchase EventType = "cardinal_purchase"
+	// EventTypeArmyRevolt is the outcome of the revolt cards played on one
+	// starving army: Troops is their summed roll, SizeBefore the army's size.
+	EventTypeArmyRevolt EventType = "army_revolt"
 )
 
 // Outcome is the execution result of one current order.
@@ -62,6 +137,8 @@ const (
 	OutcomeSuccess Outcome = "success"
 	OutcomeFailure Outcome = "failure"
 	OutcomeInvalid Outcome = "invalid"
+	// OutcomeDissolved is a marriage dissolved by the pope (MarriageReport).
+	OutcomeDissolved Outcome = "dissolved"
 )
 
 // Progression records how the order outcome changed its chain.
@@ -82,6 +159,13 @@ type CombatContender struct {
 	Force      int             `json:"force"`
 	NobleBonus int             `json:"nobleBonus,omitempty"`
 	Defender   bool            `json:"defender"`
+	// Tunnel marks an attack carried by a tunnel card: it ignored the
+	// fortifications of its target.
+	Tunnel bool `json:"tunnel,omitempty"`
+	// TunnelForce is, on the defender, the force a tunneled attack faced:
+	// Force without the fortification bonus. Set (possibly to 0) only when a
+	// tunneled attack contested a fortified territory.
+	TunnelForce *int `json:"tunnelForce,omitempty"`
 }
 
 // Event is a value-only report of one resolution decision. Fields irrelevant
@@ -107,7 +191,9 @@ type Event struct {
 	Outcome     Outcome              `json:"outcome,omitempty"`
 	Automatic   bool                 `json:"automatic,omitempty"`
 	Reason      string               `json:"reason,omitempty"`
-	Progression Progression          `json:"progression,omitempty"`
+	// Ritual marks a calamity scheduled by a Witch's ritual.
+	Ritual      bool        `json:"ritual,omitempty"`
+	Progression Progression `json:"progression,omitempty"`
 
 	TerritoryID       models.TerritoryID `json:"territory,omitempty"`
 	SourceID          models.TerritoryID `json:"source,omitempty"`
@@ -130,27 +216,34 @@ type Event struct {
 	SizeBefore        int                `json:"sizeBefore,omitempty"`
 	SizeAfter         int                `json:"sizeAfter,omitempty"`
 
-	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
-	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`
-	Level              int                        `json:"level,omitempty"`
-	ResourceCredit     int                        `json:"resourceCredit,omitempty"`
-	ResourceAmount     int                        `json:"resourceAmount,omitempty"`
-	Partial            bool                       `json:"partial,omitempty"`
-	CreditTerritoryID  models.TerritoryID         `json:"creditTerritory,omitempty"`
-	Production         int                        `json:"production,omitempty"`
-	Demand             int                        `json:"demand,omitempty"`
-	Rations            map[models.TerritoryID]int `json:"rations,omitempty"`
-	StockConsumed      int                        `json:"stockConsumed,omitempty"`
-	StockBefore        int                        `json:"stockBefore,omitempty"`
-	StockAfter         int                        `json:"stockAfter,omitempty"`
-	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
-	Troops             int                        `json:"troops,omitempty"`
-	TroopsLost         int                        `json:"troopsLost,omitempty"`
-	RationsLost        int                        `json:"rationsLost,omitempty"`
-	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
+	InfrastructureID   models.InfraID   `json:"infrastructure,omitempty"`
+	InfrastructureType models.InfraType `json:"infrastructureType,omitempty"`
+	Level              int              `json:"level,omitempty"`
+	// PillageEffect is what a pillage did to the infrastructure it reached.
+	PillageEffect     PillageEffect              `json:"pillageEffect,omitempty"`
+	ResourceCredit    int                        `json:"resourceCredit,omitempty"`
+	ResourceAmount    int                        `json:"resourceAmount,omitempty"`
+	Partial           bool                       `json:"partial,omitempty"`
+	CreditTerritoryID models.TerritoryID         `json:"creditTerritory,omitempty"`
+	Production        int                        `json:"production,omitempty"`
+	Demand            int                        `json:"demand,omitempty"`
+	Rations           map[models.TerritoryID]int `json:"rations,omitempty"`
+	StockConsumed     int                        `json:"stockConsumed,omitempty"`
+	StockBefore       int                        `json:"stockBefore,omitempty"`
+	StockAfter        int                        `json:"stockAfter,omitempty"`
+	ResourceSpent     int                        `json:"resourceSpent,omitempty"`
+	Cost              int                        `json:"cost,omitempty"`
+	Troops            int                        `json:"troops,omitempty"`
+	TroopsLost        int                        `json:"troopsLost,omitempty"`
+	RationsLost       int                        `json:"rationsLost,omitempty"`
+	SavedByPillage    bool                       `json:"savedByPillage,omitempty"`
+	Warned            bool                       `json:"warned,omitempty"`
+	// SuppliedStrength is the size the rations an army reaches can feed.
+	SuppliedStrength int `json:"suppliedStrength,omitempty"`
+	// Destroyed marks an army that reached no ration and disappeared.
+	Destroyed bool `json:"destroyed,omitempty"`
 
 	TerrainRations       int                        `json:"terrainRations,omitempty"`
-	InfraRations         int                        `json:"infraRations,omitempty"`
 	BonusRations         int                        `json:"bonusRations,omitempty"`
 	SuppressedRations    int                        `json:"suppressedRations,omitempty"`
 	BaseProduction       int                        `json:"baseProduction,omitempty"`
@@ -160,6 +253,9 @@ type Event struct {
 	ReceivedLocal        int                        `json:"receivedLocal,omitempty"`
 	ReceivedTransfer     int                        `json:"receivedTransfer,omitempty"`
 	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
+	TerritoryCount       int                        `json:"territoryCount,omitempty"`
+	VillageCount         int                        `json:"villageCount,omitempty"`
+	Lost                 bool                       `json:"lost,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`
@@ -172,4 +268,25 @@ type Event struct {
 	IndexBefore     int                 `json:"indexBefore,omitempty"`
 	IndexAfter      int                 `json:"indexAfter,omitempty"`
 	WinterOrder     *models.WinterOrder `json:"winterOrder,omitempty"`
+
+	// CommissionerCode and CommissionerName identify the noble who commissioned
+	// an assassination (PreviousOwnerID is then the victim's owner).
+	CommissionerCode models.NobleCode `json:"commissionerCode,omitempty"`
+	CommissionerName string           `json:"commissionerName,omitempty"`
+
+	// Dignity is the dignity a EventTypeDignity event confers.
+	Dignity models.Dignity `json:"dignity,omitempty"`
+
+	SpouseNobleID   models.NobleID   `json:"spouseNoble,omitempty"`
+	SpouseNobleCode models.NobleCode `json:"spouseNobleCode,omitempty"`
+	SpouseNobleName string           `json:"spouseNobleName,omitempty"`
+	SpouseOwnerID   models.PlayerID  `json:"spouseOwner,omitempty"`
+
+	// Election is the public description of an election, its result or the
+	// title an investiture confers.
+	Election *ElectionResult `json:"election,omitempty"`
+
+	FiefID          models.FiefID        `json:"fiefId,omitempty"`
+	FiefTitle       models.FiefTitle     `json:"fiefTitle,omitempty"`
+	FiefTerritories []models.TerritoryID `json:"fiefTerritories,omitempty"`
 }

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { MISSING_EMAIL_ERROR, useAuth } from '@/auth/AuthProvider'
+import { Seal } from '@/components/Seal'
+import { Alert } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -55,27 +58,22 @@ export function SignInPage() {
   }
 
   return (
-    <Card className="mx-auto max-w-md border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-md border-line">
       <CardHeader>
-        <Link
-          to="/"
-          className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#a84632]"
-        >
-          Crown &amp; Borough
-        </Link>
-        <CardTitle className="font-serif text-3xl text-[#30291f]">
+        <Seal variant="full" className="mx-auto mb-2 size-32" />
+        <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('auth.title')}
         </CardTitle>
-        <CardDescription className="text-[#806f57]">
+        <CardDescription className="text-ink-500">
           {sent ? t('auth.linkSentHint') : t('profile.description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {sent ? (
           <div className="space-y-4" role="status" aria-live="polite">
-            <p className="rounded-lg border border-[#376341]/30 bg-[#e8f1e3] px-3 py-3 text-sm text-[#376341]">
+            <Alert tone="success">
               {t('auth.linkSent')}: <strong>{email}</strong>
-            </p>
+            </Alert>
             <Button
               type="button"
               variant="outline"
@@ -88,26 +86,19 @@ export function SignInPage() {
         ) : (
           <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-[#594b3c]">
+              <span className="text-sm font-semibold text-ink-700">
                 {t('auth.email')}
               </span>
-              <input
+              <Input
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                className="h-11"
               />
             </label>
-            {error && (
-              <p
-                role="alert"
-                className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-              >
-                {error}
-              </p>
-            )}
+            {error && <Alert role="alert">{error}</Alert>}
             <Button type="submit" className="w-full" disabled={sending || !email.trim()}>
               {sending ? t('auth.sendingLink') : t('auth.sendLink')}
             </Button>
@@ -163,20 +154,17 @@ export function FinishPage() {
   }, [finishSignIn, navigate, redirect, status])
 
   return (
-    <Card className="mx-auto max-w-md border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-md border-line">
       <CardHeader>
-        <CardTitle className="font-serif text-2xl text-[#30291f]">
+        <CardTitle className="font-display text-2xl text-ink-900">
           {t('auth.verifyLink')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {error && (
-          <p
-            role="alert"
-            className="mb-4 rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-          >
+          <Alert role="alert" className="mb-4">
             {error}
-          </p>
+          </Alert>
         )}
         {emailRequired && (
           <form
@@ -187,16 +175,16 @@ export function FinishPage() {
             }}
           >
             <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-[#594b3c]">
+              <span className="text-sm font-semibold text-ink-700">
                 {t('auth.emailMissing')}
               </span>
-              <input
+              <Input
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+                className="h-11"
               />
             </label>
             <Button type="submit" className="w-full" disabled={retrying || !email.trim()}>
@@ -208,14 +196,14 @@ export function FinishPage() {
           <div className="mt-4">
             <Link
               to="/signin"
-              className="block text-center text-sm font-semibold text-[#a84632] underline underline-offset-4"
+              className="block text-center text-sm font-semibold text-brass-700 underline underline-offset-4"
             >
               {t('auth.backToSignIn')}
             </Link>
           </div>
         )}
         {!error && !emailRequired && (
-          <p className="text-sm text-[#806f57]">{t('online.loading')}</p>
+          <p className="text-sm text-ink-500">{t('online.loading')}</p>
         )}
       </CardContent>
     </Card>
@@ -223,12 +211,13 @@ export function FinishPage() {
 }
 
 export function ProfilePage() {
-  const { profile, profileLoading, updateProfile } = useAuth()
+  const { profile, profileLoading, updateProfile, updateReleaseNotes } = useAuth()
   const { t } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [saving, setSaving] = useState(false)
+  const [togglingReleaseNotes, setTogglingReleaseNotes] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const redirect = safeRedirect(searchParams.get('redirect'))
 
@@ -238,7 +227,7 @@ export function ProfilePage() {
 
   if (profileLoading && !profile) {
     return (
-      <p className="py-20 text-center font-serif text-lg italic text-[#806f57]">
+      <p className="py-20 text-center font-display text-lg italic text-ink-500">
         {t('online.loading')}
       </p>
     )
@@ -258,23 +247,35 @@ export function ProfilePage() {
     }
   }
 
+  const handleReleaseNotesToggle = async (hide: boolean) => {
+    setTogglingReleaseNotes(true)
+    setError(null)
+    try {
+      await updateReleaseNotes({ hideReleaseNotes: hide })
+    } catch (toggleError) {
+      setError(errorText(toggleError, t('profile.hideReleaseNotesFailed')))
+    } finally {
+      setTogglingReleaseNotes(false)
+    }
+  }
+
   return (
-    <Card className="mx-auto max-w-xl border-[#b7a786] bg-[#fffaf0] shadow-[0_18px_50px_-30px_rgba(67,46,24,0.7)]">
+    <Card className="mx-auto max-w-xl border-line">
       <CardHeader>
-        <CardTitle className="font-serif text-3xl text-[#30291f]">
+        <CardTitle className="font-display text-3xl font-bold text-ink-900">
           {t('profile.title')}
         </CardTitle>
-        <CardDescription className="text-[#806f57]">
+        <CardDescription className="text-ink-500">
           {t('profile.description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-[#594b3c]">
+            <span className="text-sm font-semibold text-ink-700">
               {t('profile.displayName')}
             </span>
-            <input
+            <Input
               type="text"
               required
               minLength={1}
@@ -282,17 +283,10 @@ export function ProfilePage() {
               value={displayName}
               placeholder={t('profile.displayNamePlaceholder')}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="h-11 w-full rounded-lg border border-[#b7a786] bg-[#f8f0e2] px-3 text-sm outline-none transition focus:border-[#a84632] focus:ring-2 focus:ring-[#a84632]/20"
+              className="h-11"
             />
           </label>
-          {error && (
-            <p
-              role="alert"
-              className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-            >
-              {error}
-            </p>
-          )}
+          {error && <Alert role="alert">{error}</Alert>}
           <Button
             type="submit"
             className="w-full"
@@ -301,6 +295,23 @@ export function ProfilePage() {
             {saving ? t('profile.saving') : t('profile.save')}
           </Button>
         </form>
+        <label className="mt-6 flex items-start gap-3 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm">
+          <input
+            type="checkbox"
+            checked={profile?.hideReleaseNotes ?? false}
+            disabled={!profile || togglingReleaseNotes}
+            onChange={(event) => void handleReleaseNotesToggle(event.target.checked)}
+            className="mt-0.5 size-4 accent-brass-700"
+          />
+          <span>
+            <span className="block font-semibold text-ink-700">
+              {t('profile.hideReleaseNotes')}
+            </span>
+            <span className="mt-1 block text-xs text-ink-500">
+              {t('profile.hideReleaseNotesDescription')}
+            </span>
+          </span>
+        </label>
       </CardContent>
     </Card>
   )

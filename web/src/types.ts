@@ -7,7 +7,17 @@ export type InfraType = 'mill' | 'supply_depot' | 'castle' | 'village'
 export type NobleStatus = 'free' | 'hostage' | 'dungeon'
 
 export type CardKind =
-  'fair_weather' | 'abundant_harvest' | 'revolt' | 'plague' | 'bad_weather' | 'famine'
+  | 'fair_weather'
+  | 'abundant_harvest'
+  | 'revolt'
+  | 'plague'
+  | 'bad_weather'
+  | 'famine'
+  | 'seigneurial_tax'
+  | 'tunnel'
+  | 'ambush'
+  | 'assassination'
+  | 'justice'
 
 export type OrderType =
   'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
@@ -28,7 +38,7 @@ export type EventType =
   | 'control_changed'
   | 'noble_movement'
   | 'capture'
-  | 'liberation'
+  | 'noble_transfer'
   | 'transfer'
   | 'deck_draw'
   | 'deck_discard'
@@ -39,17 +49,54 @@ export type EventType =
   | 'calamity_canceled'
   | 'bonus_effect'
   | 'neutral_army_created'
+  | 'army_revolt'
+  | 'revolt_appeased'
   | 'plague_noble_death'
   | 'plague_noble_survived'
+  | 'trial'
+  | 'tunnel'
+  | 'ambush'
+  | 'assassination'
+  | 'justice'
+  | 'assassination_revealed'
   | 'bad_weather_blocked'
   | 'famine_loss'
+  | 'bad_weather_loss'
   | 'famine'
   | 'card_canceled'
   | 'rumor'
+  | 'fief_founded'
+  | 'fief_assigned'
+  | 'fief_annexed'
+  | 'fief_rank_changed'
+  | 'royal_accord'
+  | 'fief_granted'
+  | 'fief_conquered'
+  | 'fief_vacated'
+  | 'fief_dissolved'
+  | 'fief_member_occupied'
+  | 'fief_auto_assigned'
+  | 'marriage'
+  | 'marriage_refused'
+  | 'marriage_dissolved'
+  | 'noble_draw'
+  | 'noble_discard'
+  | 'dignity'
+  | 'claim'
+  | 'eon_unmasked'
+  | 'dignity_revealed'
+  | 'inquiry'
+  | 'trial_filed'
+  | 'ritual'
+  | 'excommunication'
+  | 'excommunication_lifted'
 
 export type PlayerId = string
 
 export const NEUTRAL_PLAYER_ID = 'NEUTRAL'
+
+/** Mirrors balance special_orders.hand_limit. */
+export const DEFAULT_HAND_LIMIT = 6
 
 export type GameStatus = 'playing' | 'finished'
 
@@ -57,6 +104,16 @@ export interface ProfileData {
   uid: string
   email: string
   displayName: string
+  /** Last deployed version whose release notes the player acknowledged. */
+  lastSeenVersion: string
+  /** Opt-out from the release notes dialog. */
+  hideReleaseNotes: boolean
+}
+
+/** Release notes preferences to change; omitted fields are left untouched. */
+export interface ReleaseNotesUpdate {
+  lastSeenVersion?: string
+  hideReleaseNotes?: boolean
 }
 
 export interface GameSlot {
@@ -64,6 +121,10 @@ export interface GameSlot {
   name: string
   color: string
   submitted: boolean
+  /** Whether the current turn is still awaiting this player, per the server
+   * (an eliminated player, or one with nothing left to submit this turn, is
+   * never required even before they act). */
+  required: boolean
   actorId?: string
 }
 
@@ -73,6 +134,8 @@ export interface GameSummary {
   seed: string
   status: GameStatus
   winner?: PlayerId | null
+  winners?: PlayerId[]
+  minorWinner?: PlayerId | null
   currentPlayer?: PlayerId
   canInvite?: boolean
   inviteAvailable?: boolean
@@ -102,6 +165,14 @@ export interface Army {
   owner: PlayerId
   size: number
   chain: Chain | null
+  /**
+   * Set by last turn's ravitaillement when this army's demand went unmet: it
+   * fights at no more than starvingStrength this turn, until ravitaillement
+   * re-evaluates it at this same turn's own end (issue #208).
+   */
+  starving?: boolean
+  /** Force ceiling of a starving army (absent when zero). */
+  starvingStrength?: number
 }
 
 export interface Order {
@@ -123,15 +194,168 @@ export interface Chain {
 export interface Infrastructure {
   type: InfraType
   level: number
+  /** Only ever true on a village fortified by `C C` (#193). */
+  fortified?: boolean
+  /** A pillaged castle or an unfortified level-0 village. */
+  ruined?: boolean
 }
 
 export interface Noble {
   id: string
   code: string
   name: string
+  /** First name alone, for short labels. */
+  firstName?: string
   owner: PlayerId
   location: string
   status: NobleStatus
+  sex?: 'male' | 'female'
+  /** Code of the spouse while the marriage is active (both spouses alive). */
+  spouse?: string
+  /** Permanent public distinctions the noble carries. */
+  dignities?: Dignity[]
+  /** Highest religious title held, if any. */
+  religiousTitle?: ReligiousTitle
+  /** Private identity replaced by a chevalier d'Éon; sent to its owner only. */
+  secret?: { code: string; name: string; sex: 'male' | 'female' }
+  /**
+   * Codes of the nobles whose assassination this noble commissioned; sent only
+   * to the viewers who know the link (the card's player and those who
+   * inquired on the victim or on this noble).
+   */
+  commissioned?: string[]
+}
+
+export type ReligiousTitle = 'bishop' | 'cardinal' | 'pope'
+
+/** A bishopric is a region of the map; `bishop` is a noble code, absent when vacant. */
+export interface Bishopric {
+  region: string
+  name: string
+  territories: string[]
+  bishop?: string
+}
+
+/** A noble the pope can excommunicate; `blocker` must be lifted first. */
+export interface ExcommunicationTarget {
+  code: string
+  blocker?: string
+}
+
+/** Connected controlled territories where a fief can be founded. */
+export interface FiefSite {
+  territories: string[]
+  castles: string[]
+  edges: FiefEdge[]
+}
+
+/** A crossable border inside a fief site, with `from` < `to`. */
+export interface FiefEdge {
+  from: string
+  to: string
+}
+
+/** One of the viewer's fiefs with a titulaire, and what `T X` / `T R` can do for it. */
+export interface FiefAid {
+  capital: string
+  holder: string
+  title: FiefTitle
+  territories: string[]
+  /** Free territories next to the fief held by an army of the viewer alone. */
+  annexable: string[]
+  /** Title a `T R` would confer; absent when the fief cannot rise. */
+  nextTitle?: FiefTitle
+  rankCost: number
+}
+
+/** Winter orders that can succeed for the viewer, with their prices. */
+export interface WinterAids {
+  excommunicable: ExcommunicationTarget[]
+  liftable: string[]
+  buyableCardinals: string[]
+  cardinalCost: number
+  /** The viewer's cardinals and pope able to order an inquiry. */
+  inquirers: string[]
+  /** R an inquiry costs, per noble code. */
+  inquiryCosts: Record<string, number>
+  /** The viewer's cardinals able to back a trial (`J`) order. */
+  trialJudges: string[]
+  /** Active marriages the viewer can ask to dissolve (`X D noble`). */
+  dissolvable?: { noble: string; spouse: string }[]
+  fiefSites: FiefSite[]
+  fiefCostPerTerritory: number
+  ownFiefs?: FiefAid[]
+  annexCostPerTerritory?: number
+  rankCostPerTerritory?: number
+  /** The viewer's Witches able to perform a ritual, with the region it would hit. */
+  rituals: Array<{ noble: string; region: string }>
+  /** Present when the viewer holds the royal powers (king's player, or regent's). */
+  royal?: { issuer: string; ordersPerWinter: number }
+}
+
+/** An election the winter announces, read for the viewing player. */
+export interface OpenElection {
+  kind: 'bishop' | 'pope' | 'king'
+  region?: string
+  /** Seed village the orders name (bishop elections only). */
+  seat?: string
+  /** Voices an absolute majority needs; absent for a relative majority. */
+  required?: number
+  /** Least voices a winner needs (royal election only). */
+  minVotes?: number
+  /** The viewer's own voices in this election. */
+  voices: number
+  /** What gives the viewer those voices. */
+  voiceSources: VoiceSource[]
+  /** The viewer's nobles accepted as candidates today. */
+  candidates: Array<{ code: string; name: string; owner: PlayerId }>
+  /** Every eligible noble of any player: the pool a vote can name. */
+  eligible: Array<{ code: string; name: string; owner: PlayerId }>
+}
+
+export interface VoiceSource {
+  kind: 'seat' | 'territory' | 'title' | 'abbey' | 'fief'
+  territory?: string
+  noble?: string
+  nobleName?: string
+  title?: 'bishop' | 'cardinal' | 'pope'
+  votes: number
+}
+
+export interface Excommunication {
+  noble: string
+  reason: 'ex_officio' | 'papal'
+  turn: number
+}
+
+/** A permanent distinction played on a noble (bastard and the dignities of the ladies). */
+export type Dignity =
+  | 'bastard'
+  | 'd_arc'
+  | 'castellan'
+  | 'abbess'
+  | 'herbalist'
+  | 'astrologer'
+  | 'chevalier_d_eon'
+  | 'correspondent'
+  | 'spy'
+  | 'poisoner'
+  | 'witch'
+  | 'cardinal'
+
+export type NobleCardKind = 'noble' | 'dignity' | 'claim'
+
+/** One card of the viewer's own noble hand (never other players' hands). */
+export interface NobleCard {
+  id: string
+  kind: NobleCardKind
+  /** Code typed in `R N CCC XXX` / `D N NNN CCC`. */
+  code: string
+  /** Set on noble cards only. */
+  name?: string
+  sex?: 'male' | 'female'
+  /** Set on dignity cards only. */
+  dignity?: Dignity
 }
 
 export interface Territory {
@@ -146,8 +370,33 @@ export interface Territory {
 
 export interface Region {
   id: string
+  /** Name of the bishopric: the commune of its seed territory. */
+  name?: string
   seed: string
   territories: string[]
+}
+
+export type FiefTitle = 'barony' | 'county' | 'marquisate' | 'duchy'
+
+/**
+ * A fief is addressed by its capital's trigram: no internal fief id is ever
+ * exposed by the server (titres.md, issue #194). `territories` lists the
+ * whole group in constitution order, capital first. `holder` is the
+ * titulaire noble's code, absent when the fief is vacant. `projectedIncome`
+ * sums the next action turn's territory income forecast over every member
+ * territory: the fief's own income projection, distinct from the capital
+ * territory's own `projectedIncome` since it also receives every other
+ * member's income (titres.md, #196).
+ */
+export interface Fief {
+  capital: string
+  title: FiefTitle
+  territories: string[]
+  owner: PlayerId
+  holder?: string
+  /** Vacant fief returned to the crown player; only a `W G` order grants it. */
+  crown?: boolean
+  projectedIncome?: number
 }
 
 export interface MapData {
@@ -155,22 +404,109 @@ export interface MapData {
   regions?: Region[]
 }
 
+export type Tincture =
+  | 'gules'
+  | 'azure'
+  | 'vert'
+  | 'purpure'
+  | 'sable'
+  | 'tenne'
+  | 'celeste'
+  | 'murrey'
+export type Metal = 'or' | 'argent'
+export type Charge =
+  | 'bend'
+  | 'fess'
+  | 'chevron'
+  | 'cross'
+  | 'saltire'
+  | 'pale'
+  | 'chief'
+  | 'bordure'
+
+/** A player's generated coat of arms: a field of a tincture, a charge of a metal. */
+export interface Arms {
+  field: Tincture
+  metal: Metal
+  charge: Charge
+}
+
 export interface Player {
   id: PlayerId
   name: string
   color: string
+  /** Absent from games created before arms existed. */
+  arms?: Arms
   capitalTerritory?: string
+  /** Territory income projected for the next action turn (never in winter). */
+  projectedIncome?: number
+  /**
+   * Mill production projected for the next action turn, credited to the
+   * player's own settlements and self-supplied mills (never in winter).
+   * Since issue #195, each mill credits exactly one destination (its
+   * adjacent castle under the same control, else its adjacent village, else
+   * itself), so this is the sum of what the player's own territories will
+   * receive.
+   */
+  projectedMillIncome?: number
+  /** Rent of the king or of the queen the player receives each action turn. */
+  projectedRoyalRent?: number
+  /** Codes of the player's living nobles in line-of-succession order. */
+  succession?: string[]
+  /**
+   * Net rations every army the player controls will draw from stock or the
+   * supply network beyond what its own territory already produces for it,
+   * projected for the next action turn (never populated in winter).
+   */
+  projectedConsumption?: number
+  /**
+   * Armies that would starve next action turn if nothing changes before
+   * resolution: an estimate only because orders aren't submitted yet and an
+   * undrawn calamity card is never reflected (see ArmyRisk).
+   */
+  armiesAtRisk?: ArmyRisk[]
+}
+
+/**
+ * One army the famine risk forecast flags as starving, addressed by its
+ * territory like the rest of the app addresses armies. Deficit is the
+ * ration shortfall that goes unmet, not a troop count. suppliedStrength is
+ * the size the army's rations can feed; expectedLoss is what it sheds this
+ * turn when it was already starving (all of its troops when suppliedStrength
+ * is zero).
+ */
+export interface ArmyRisk {
+  territoryId: string
+  size: number
+  deficit: number
+  suppliedStrength: number
+  expectedLoss: number
+  /** Infrastructure an already starving army pillages on its territory. */
+  pillageInfrastructure?: InfraType
+  /** The pillage covers the demand and spares every troop. */
+  savedByPillage?: boolean
 }
 
 export interface ScoreBreakdown {
-  territories: number
-  villages: number
-  mills: number
-  castles: number
-  nobles: number
-  troops: number
-  resources: number
+  /** Absent on report snapshots recorded before issue #251. */
+  titles?: number
+  /** Marriage influence bonus; absent before issue #252. */
+  alliance?: number
+  /** Share brought by the active-head spouse's house. */
+  ally?: number
   total: number
+}
+
+export interface PlayerVictory {
+  mode: 'solo' | 'alliance'
+  required: number
+  partner?: PlayerId
+}
+
+export interface VictoryStatus {
+  soloThreshold: number
+  allianceThreshold: number
+  players: Record<PlayerId, PlayerVictory>
 }
 
 export interface TerritoryState {
@@ -179,6 +515,51 @@ export interface TerritoryState {
   resources: number
   army: Army | null
   infrastructures: Infrastructure[]
+  /** Territory income this territory would yield next action turn. */
+  projectedIncome?: number
+  /** Where that income would land: the owner's capital or its fallback. */
+  incomeDestination?: string
+  /** Present only on a mill's own territory: its projected production. */
+  millProduction?: number
+  /**
+   * Present only on a mill's own territory: where that production would
+   * land (its adjacent castle under the same control, else its adjacent
+   * village, else itself, in which case this equals `id`).
+   */
+  millDestination?: string
+}
+
+export type MarriageCategory = 'head' | 'secondary'
+
+/** A concluded marriage; it outlives its spouses but is inactive once one dies. */
+export interface Marriage {
+  nobleA: string
+  nobleB: string
+  turn: number
+  /** False once a spouse has died. */
+  active?: boolean
+  /** Only set for an active alliance. */
+  category?: MarriageCategory
+  weight?: number
+  /** Players for whom this marriage is the active head. */
+  activeHeadFor?: PlayerId[]
+  /** For each house this is the active head of: the marriage that would take over if it ended. */
+  headSuccessors?: Array<{ player: PlayerId; marriage?: { nobleA: string; nobleB: string } }>
+}
+
+/** A pretension staked by `heir` on the titles of `target`. */
+export interface Claim {
+  heir: string
+  target: string
+  spouse: string
+  turn: number
+  wifeSide?: boolean
+  /** Position among the claims on the same target; 1 inherits first (0 once ended). */
+  rank: number
+  /** The claim ended: kept, like an ended marriage, with how and when. */
+  ended?: boolean
+  endedTurn?: number
+  outcome?: 'honoured' | 'lapsed'
 }
 
 export interface StateData {
@@ -187,12 +568,46 @@ export interface StateData {
   year?: number
   yearCount?: number
   scores?: Record<PlayerId, ScoreBreakdown>
+  victory?: VictoryStatus
   finished?: boolean
   winner?: PlayerId | null
+  winners?: PlayerId[]
+  minorWinner?: PlayerId | null
   players: Player[]
   territories: TerritoryState[]
   nobles: Noble[]
+  fiefs?: Fief[]
+  marriages?: Marriage[]
+  deceased?: DeceasedNoble[]
+  claims?: Claim[]
+  bishoprics?: Bishopric[]
+  cardinals?: string[]
+  pope?: string
+  /** Code of the noble who holds the crown; absent while the throne is vacant. */
+  king?: string
+  /** Code of the queen, a dowager queen included. */
+  queen?: string
+  /** The queen is not the spouse of the king in place (widow of a former king). */
+  queenDowager?: boolean
+  excommunicated?: Excommunication[]
   specialHand?: CardKind[]
+  /** Winter only: next calamities of the draw pile, revealed by a free astrologue. */
+  calamityForecast?: CardKind[]
+  /** Winter only: elections open since the start of the winter. */
+  openElections?: OpenElection[]
+  /** Outside winter: the territories a Révolte card can be played on. */
+  revoltTargets?: string[]
+  /** Outside winter: the paid appeasement of a rebel army of n troops costs base^n R. */
+  appeasementCostBase?: number
+  /** Winter only: the possible winter orders of the viewer. */
+  winterAids?: WinterAids
+  /** Hands revealed by a spy held hostage by their owner. */
+  spiedHands?: Array<{ player: PlayerId; specialHand: CardKind[]; nobleHand: NobleCard[] }>
+  nobleHand?: NobleCard[]
+  /** Cards left in the shared noble draw pile. */
+  nobleDeckSize?: number
+  /** Shared hand limit (special + noble cards); the client falls back to DEFAULT_HAND_LIMIT when absent. */
+  handLimit?: number
   activeRegionEffects?: ActiveRegionEffect[]
   announcements?: AnnouncementReport[]
 }
@@ -209,15 +624,14 @@ export interface AnnouncementReport {
   season: Season
   region: string
   year: number
+  ritual?: boolean
 }
 
 export interface WinterCosts {
   castle: number
   millLevels: number[]
   troop: number
-  noble: number
   supplyDepot: number
-  liberation: number
 }
 
 export interface SupplyLine {
@@ -226,6 +640,10 @@ export interface SupplyLine {
   armyOwner: PlayerId
   armySize: number
   terrainProduction: number
+  /** Terrain rations removed by the current season's famine. */
+  famineRations?: number
+  /** Rations added by a regional bonus card. */
+  bonusRations?: number
   localProduction: number
   rations: number
   totalDemand: number
@@ -291,6 +709,57 @@ export interface SubmittedPlayerOrders {
   player: PlayerId
   chains: SubmittedChain[]
   winter?: SubmittedWinter
+  /** Server dry run of this submission, used to draw the observer overlay. */
+  preview?: OrdersPreview
+}
+
+/** Error found by the server in a draft; line numbers include the noble header. */
+export interface OrdersPreviewError {
+  player?: PlayerId
+  noble?: string
+  line?: number
+  /** Draft that holds the error. */
+  source: 'chain' | 'winter' | 'special'
+  code: string
+  message: string
+}
+
+/** Order lines of one drafted chain that the server could parse. */
+export interface ChainPreview {
+  noble: string
+  orders: Order[]
+}
+
+export type WinterLineStatus = 'applied' | 'rejected' | 'invalid' | 'discard'
+
+/**
+ * Simulated outcome of one winter line. `reason` is an engine rejection
+ * reason; `message` explains a line that does not parse.
+ */
+export interface WinterLinePreview {
+  line: number
+  status: WinterLineStatus
+  type?: WinterOrderType
+  territory?: string
+  /** Present only for `found_fief`: the whole group, capital first. */
+  territories?: string[]
+  source?: string
+  target?: string
+  amount?: number
+  infrastructure?: 'mill' | 'castle' | 'supply_depot'
+  level?: number
+  noble?: string
+  cost?: number
+  reason?: string
+  message?: string
+}
+
+/** Server dry run of the current player's draft (`POST .../orders/preview`). */
+export interface OrdersPreview {
+  errors: OrdersPreviewError[]
+  chains: ChainPreview[]
+  winter: WinterLinePreview[]
+  winterCost?: { spent: number; available: number }
 }
 
 export interface SubmittedOrdersResponse {
@@ -369,12 +838,54 @@ export interface PlayerReport {
   infrastructures: ReportInfrastructure[]
 }
 
+/**
+ * `fief` and `title` are set together, distinguishing a fief's income line
+ * from a player's non-fief income to the same `destination`: a fief whose
+ * capital happens to also be the player's own capital still gets its own
+ * line (titres.md, #196). `fief` is the trigram of the fief's capital,
+ * equal to `destination` for that line.
+ */
+export interface IncomeReport {
+  owner: PlayerId
+  destination?: string
+  fief?: string
+  title?: FiefTitle
+  territories: number
+  villages: number
+  base: number
+  bonus?: number
+  suppressed?: number
+  credited: number
+  stockAfter?: number
+  lost?: boolean
+  /** Royal flow: royal tax supplement or the king's / queen's rent. */
+  source?: 'royal_tax' | 'royal_rent_king' | 'royal_rent_queen'
+  /** For a royal tax supplement, the capital of the taxed fief. */
+  taxed?: string
+}
+
+/**
+ * One mill's harvest-and-weather-adjusted production and its single
+ * beneficiary this turn (see issue #195): the adjacent castle or village
+ * under the mill's own control, or the mill's own territory when none
+ * qualifies (in which case `destination` equals `territory`). `suppressed`
+ * is the production lost to bad weather instead.
+ */
+export interface MillReport {
+  territory: string
+  owner?: PlayerId
+  level: number
+  destination: string
+  production: number
+  bonus?: number
+  suppressed?: number
+}
+
 export interface ProductionReport {
   territory: string
   region?: string
   owner?: PlayerId
   terrainRations: number
-  infraRations?: number
   bonusRations?: number
   suppressedRations?: number
   baseProduction?: number
@@ -400,8 +911,14 @@ export interface ConsumptionReport {
   totalReceived: number
   missing: number
   famine?: boolean
+  /** First consecutive deficit: a bare warning, no pillage or troop lost yet. */
+  warned?: boolean
   savedByPillage?: boolean
   troopsLost?: number
+  /** Size the rations the army reached could feed. */
+  suppliedStrength?: number
+  /** The army reached no ration and disappeared. */
+  destroyed?: boolean
   pillageInfrastructure?: InfraType
   resourceCredit?: number
   creditTerritory?: string
@@ -413,6 +930,10 @@ export interface CombatContender {
   force?: number
   nobleBonus?: number
   defender?: boolean
+  /** The attack was carried by a tunnel card: it ignored the target's fortifications. */
+  tunnel?: boolean
+  /** On the defender: the force a tunneled attack faced, without the fortification bonus. */
+  tunnelForce?: number
 }
 
 export interface CombatReport {
@@ -439,6 +960,7 @@ export interface OrderReport {
   order?: string
   owner?: PlayerId
   noble?: string
+  nobleName?: string
   type?: OrderType
   source?: string
   target?: string
@@ -491,8 +1013,16 @@ export interface WinterInvestmentReport {
   noble?: string
   nobleCode?: string
   nobleName?: string
+  /** Present only for the fief winter events (`fief_founded`, `fief_assigned`, `fief_annexed`, `fief_rank_changed`, `fief_auto_assigned`, `fief_granted`). */
+  title?: FiefTitle
+  territories?: string[]
   reason?: string
   order?: WinterOrder
+  /** Present only for `dignity`. */
+  dignity?: Dignity
+  /** Present only for `claim`: the noble whose titles the heir claims. */
+  claimTarget?: string
+  claimTargetName?: string
 }
 
 export type WinterOrderType =
@@ -500,20 +1030,52 @@ export type WinterOrderType =
   | 'recruit_troop'
   | 'build'
   | 'elect_capital'
-  | 'liberate_noble'
+  | 'transfer_noble'
   | 'hostage'
   | 'dungeon'
   | 'transfer'
+  | 'found_fief'
+  | 'assign_fief'
+  | 'annex_territory'
+  | 'change_rank'
+  | 'royal_annex'
+  | 'royal_rank'
+  | 'royal_found'
+  | 'royal_grant'
+  | 'marriage'
+  | 'draw_noble'
+  | 'play_dignity'
+  | 'calamity_veto'
+  | 'discard_noble_card'
+  | 'claim'
+  | 'ritual'
+  | 'inquiry'
+  | 'trial'
+  | 'dissolve_marriage'
 
 export interface WinterOrder {
   id?: string
   type: WinterOrderType
+  /** Noble or dignity card code for `recruit_noble` / `play_dignity` / `discard_noble_card`. */
+  cardCode?: string
   territory?: string
   infrastructureType?: InfraType
   nobleCode?: string
+  /** Optional new status of a `transfer_noble` order. */
+  status?: NobleStatus
+  /** Present only for `marriage` and `claim`: the other player's noble. */
+  spouseCode?: string
+  targetCode?: string
   source?: string
   target?: string
   amount?: number
+  /** Present only for `found_fief`: the whole group, capital first. */
+  territories?: string[]
+  /** Present only for `calamity_veto`: the struck forecast positions. */
+  indices?: number[]
+  /** Present only for `ritual`: the called calamity, or the fixed season (exclusive). */
+  calamity?: CardKind
+  season?: Season
 }
 
 export interface WinterStockReport {
@@ -531,6 +1093,13 @@ export interface CardReport {
   season?: Season
   outcome: Outcome
   reason?: string
+  /** A calamity bent by a ritual: worded differently, without saying why. */
+  ritual?: boolean
+  /** Assassination played: the victim, and the commissioner (author only). */
+  noble?: string
+  nobleName?: string
+  commissioner?: string
+  commissionerName?: string
 }
 
 export interface RumorReport {
@@ -547,6 +1116,7 @@ export interface SeasonEffectReport {
   owner?: PlayerId
   army?: string
   noble?: string
+  nobleName?: string
   territory?: string
   target?: string
   troops?: number
@@ -555,12 +1125,21 @@ export interface SeasonEffectReport {
   productionLost?: number
   rationsLost?: number
   reason?: string
+  cost?: number
+  dignity?: Dignity
+  /** Player whose army held the noble a tunnel card freed. */
+  holder?: PlayerId
+  /** Owner of the noble an assassination killed. */
+  victimOwner?: PlayerId
+  /** Noble who commissioned an assassination: only its two owners are told. */
+  commissioner?: string
+  commissionerName?: string
 }
 
 export interface AuguryReport {
   year: number
   capacities: Partial<Record<Season, number>>
-  calamities: Array<{ kind: CardKind; season: Season; region: string }>
+  calamities: Array<{ kind: CardKind; season: Season; region: string; ritual?: boolean }>
 }
 
 export interface WinterReport {
@@ -570,10 +1149,54 @@ export interface WinterReport {
   rumors?: RumorReport[]
 }
 
+/**
+ * One fief lifecycle change outside its constitution or attribution (those,
+ * plus the default attribution of a still-vacant fief at the end of winter,
+ * are recorded in `winter.investments` alongside the other investment
+ * orders): a conquered fief transferred to a new owner, a fief left vacant
+ * by the death of its titulaire, a fief dissolved for losing its capital's
+ * castle, or a non-capital member newly occupied by an army (including a
+ * NEUTRAL revolt) whose owner differs from the fief's. For that last kind,
+ * `territory` is the occupied member (distinct from `capital`, which still
+ * identifies the fief) and `occupant` is the occupying army's owner.
+ */
+export interface FiefReport {
+  kind: EventType
+  owner: PlayerId
+  previousOwner?: PlayerId
+  capital: string
+  title: FiefTitle
+  territories: string[]
+  territory?: string
+  occupant?: PlayerId
+  noble?: string
+  nobleName?: string
+  reason?: string
+}
+
+/**
+ * A marriage concluded this winter (`outcome: 'success'`) or a failed
+ * negotiation (`outcome: 'failure'`: `noble`'s owner proposed, `spouse`'s owner
+ * did not answer in kind). Public: every player receives it.
+ */
+export interface MarriageReport {
+  outcome: 'success' | 'failure' | 'dissolved'
+  noble: string
+  nobleCode: string
+  nobleName: string
+  owner: PlayerId
+  spouse: string
+  spouseCode: string
+  spouseName: string
+  spouseOwner: PlayerId
+}
+
 export interface TurnReport {
   header: ReportHeader
   players: PlayerReport[]
   receptions: ReceptionReport[]
+  income?: IncomeReport[]
+  mills?: MillReport[]
   production: ProductionReport[]
   consumption: ConsumptionReport[]
   combats: CombatReport[]
@@ -586,4 +1209,69 @@ export interface TurnReport {
   announcements?: AnnouncementReport[]
   augury?: AuguryReport
   winter?: WinterReport
+  fiefs?: FiefReport[]
+  marriages?: MarriageReport[]
+  elections?: ElectionReport[]
 }
+
+export interface ElectionCandidateReport {
+  noble: string
+  nobleCode: string
+  nobleName: string
+  owner: PlayerId
+  votes: number
+  /** The voices include the blessing of the clergy (royal election only). */
+  anointed?: boolean
+}
+
+/** Public outcome of one winter election: totals only, never the ballots. */
+export interface ElectionReport {
+  kind: 'bishop' | 'pope' | 'king'
+  region?: string
+  seat?: string
+  result: 'elected' | 'tie' | 'no_candidate' | 'no_majority' | 'no_anointment'
+  winner?: string
+  required?: number
+  minVotes?: number
+  cast: number
+  candidates: ElectionCandidateReport[]
+}
+
+/** A noble that has left the game (still named by the lineage and its marriages). */
+export interface DeceasedNoble {
+  code: string
+  name: string
+  owner: PlayerId
+  sex?: 'male' | 'female'
+  cause: 'natural' | 'execution' | 'assassination' | 'martyr' | 'famine' | 'revolt'
+  turn: number
+  /** Code of the noble who commissioned this assassination, for the viewers who know it. */
+  commissioner?: string
+  /** Victims of the assassinations this dead noble commissioned, for the viewers who know them. */
+  commissioned?: string[]
+}
+
+export type VictoryProjectionStatus = 'major' | 'minor' | 'failure' | 'ongoing'
+
+export interface VictoryReading {
+  score: ScoreBreakdown
+  victory: PlayerVictory
+  status: VictoryProjectionStatus
+  /** Score still to gain to reach the required threshold; 0 once reached. */
+  missing: number
+}
+
+/** Answer of POST /api/games/{id}/victory/simulate. */
+export interface VictorySimulation {
+  current: Record<PlayerId, VictoryReading>
+  projected: Record<PlayerId, VictoryReading>
+  /** The hypothetical state, served like state.json. */
+  state: StateData
+}
+
+/** One hypothetical change; nobles are given by code. */
+export type SimulationAction =
+  | { type: 'kill' | 'crown'; noble: string }
+  | { type: 'dethrone' }
+  | { type: 'rank'; fief: string }
+  | { type: 'marry' | 'divorce' | 'claim'; noble: string; other: string }

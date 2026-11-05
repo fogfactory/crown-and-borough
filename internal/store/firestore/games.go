@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"slices"
 	"sort"
 	"strings"
@@ -137,12 +138,13 @@ func (s *FirestoreStore) Map(ctx context.Context, actor store.Actor, id store.Ga
 	return snapshot.Map, nil
 }
 
-func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store.GameID, territoryID models.TerritoryID) (engine.SupplyLine, error) {
+func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store.GameID, territoryID models.TerritoryID, special string) (engine.SupplyLine, error) {
 	snapshot, err := s.Get(ctx, actor, id)
 	if err != nil {
 		return engine.SupplyLine{}, err
 	}
-	return engine.FindSupply(snapshot.State, s.balance, territoryID)
+	playerID, _ := snapshot.PlayerFor(actor)
+	return engine.FindPlayerSupply(snapshot.State, s.balance, territoryID, playerID, special)
 }
 
 func (s *FirestoreStore) TransferSupply(ctx context.Context, actor store.Actor, id store.GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {
@@ -207,7 +209,7 @@ func (s *FirestoreStore) ListMemberships(ctx context.Context, id store.GameID) (
 	}
 	result := make([]store.Membership, 0, len(game.Players))
 	for _, player := range game.Players {
-		if !isAssignedActor(player.ActorID) {
+		if !store.IsAssignedActor(player.ActorID) {
 			continue
 		}
 		result = append(result, store.Membership{GameID: id, UID: player.ActorID, PlayerID: player.ID})
@@ -385,7 +387,7 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
-	return gameSnapshot(game, state, mapData, submissions, reports), nil
+	return gameSnapshot(s.balance, game, state, mapData, submissions, reports), nil
 }
 
 func (s *FirestoreStore) readSubmissions(ctx context.Context, id store.GameID, turn int) (map[models.PlayerID]engine.OrdersInput, error) {
@@ -444,7 +446,7 @@ func (s *FirestoreStore) readReports(ctx context.Context, id store.GameID) ([]st
 }
 
 func (s *FirestoreStore) viewDocument(id store.GameID, uid string, playerID models.PlayerID, revision store.Revision, state *models.GameState, updatedAt time.Time) (viewDocument, error) {
-	view := api.ProjectStateForPlayer(state, playerID)
+	view := api.ProjectStateForPlayer(state, playerID, s.balance)
 	stateMap, err := jsonMap(view)
 	if err != nil {
 		return viewDocument{}, err
@@ -469,7 +471,7 @@ func (s *FirestoreStore) observerDocument(
 	updatedAt time.Time,
 	latestReportTurn int,
 ) (observerDocument, error) {
-	view := api.ProjectStateForPlayer(state, models.SpectatorViewer)
+	view := api.ProjectStateForPlayer(state, models.SpectatorViewer, s.balance)
 	stateMap, err := jsonMap(view)
 	if err != nil {
 		return observerDocument{}, err
@@ -505,7 +507,7 @@ func (s *FirestoreStore) viewProjections(
 ) ([]viewProjection, error) {
 	views := make([]viewProjection, 0, assignedDocumentPlayerCount(players))
 	for _, player := range players {
-		if !isAssignedActor(player.ActorID) {
+		if !store.IsAssignedActor(player.ActorID) {
 			continue
 		}
 		document, err := s.viewDocument(id, player.ActorID, player.ID, revision, state, updatedAt)
@@ -526,11 +528,11 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 	memberUIDs := make([]string, 0, len(snapshot.Players))
 	for index, player := range snapshot.Players {
 		players[index] = playerDocument{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID}
-		if isAssignedActor(player.ActorID) {
+		if store.IsAssignedActor(player.ActorID) {
 			memberUIDs = append(memberUIDs, player.ActorID)
 		}
 	}
-	if isAssignedActor(snapshot.SpectatorUID) && !slices.Contains(memberUIDs, snapshot.SpectatorUID) {
+	if store.IsAssignedActor(snapshot.SpectatorUID) && !slices.Contains(memberUIDs, snapshot.SpectatorUID) {
 		memberUIDs = append(memberUIDs, snapshot.SpectatorUID)
 	}
 	winner := ""
@@ -553,17 +555,15 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		Scores:        scoreDocuments(snapshot.Scores),
 		WinnerUID:     winner,
 		SubmittedUIDs: sortedSubmittedUIDs(snapshot.Submissions, snapshot.Players),
+		RequiredUIDs:  sortedRequiredUIDs(snapshot.State, snapshot.Players),
 		Revision:      int64(snapshot.Revision),
 		CreatedAt:     createdAt,
 		UpdatedAt:     updatedAt,
 	}
 }
 
-func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen.MapData, submissions map[models.PlayerID]engine.OrdersInput, reports []store.ReportRecord) store.GameSnapshot {
-	players := make([]store.PlayerSlot, len(document.Players))
-	for index, player := range document.Players {
-		players[index] = store.PlayerSlot{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID}
-	}
+func gameSnapshot(balance assetgen.Balance, document gameDocument, state *models.GameState, mapData mapgen.MapData, submissions map[models.PlayerID]engine.OrdersInput, reports []store.ReportRecord) store.GameSnapshot {
+	players := playerSlots(document.Players)
 	var winner *models.PlayerID
 	if document.WinnerUID != "" {
 		value := models.PlayerID(document.WinnerUID)
@@ -574,7 +574,7 @@ func gameSnapshot(document gameDocument, state *models.GameState, mapData mapgen
 		scores[models.PlayerID(playerID)] = score
 	}
 	if len(scores) == 0 {
-		scores = engine.ComputeScores(state)
+		scores = engine.ComputeScores(state, balance)
 	}
 	yearCount := document.YearCount
 	if yearCount == 0 {
@@ -610,7 +610,7 @@ func scoreDocuments(scores map[models.PlayerID]engine.ScoreBreakdown) map[string
 func sortedSubmittedUIDs(submissions map[models.PlayerID]engine.OrdersInput, players []store.PlayerSlot) []string {
 	result := make([]string, 0, len(submissions))
 	for _, player := range players {
-		if _, ok := submissions[player.ID]; ok && isAssignedActor(player.ActorID) {
+		if _, ok := submissions[player.ID]; ok && store.IsAssignedActor(player.ActorID) {
 			result = append(result, player.ActorID)
 		}
 	}
@@ -618,14 +618,34 @@ func sortedSubmittedUIDs(submissions map[models.PlayerID]engine.OrdersInput, pla
 	return result
 }
 
-func isAssignedActor(actorID string) bool {
-	return actorID != "" && !strings.HasPrefix(actorID, "slot:")
+// sortedRequiredUIDs lists the actor UIDs of players the current turn is
+// waiting on (see engine.PlayerMustSubmit), independent of whether they have
+// already submitted. It is recomputed at every turn boundary (game creation,
+// resolution) and stored on the game document so realtime listeners can tell
+// a player with nothing to submit from one still being awaited.
+func sortedRequiredUIDs(state *models.GameState, players []store.PlayerSlot) []string {
+	result := make([]string, 0, len(players))
+	for _, player := range players {
+		if engine.PlayerMustSubmit(state, player.ID) && store.IsAssignedActor(player.ActorID) {
+			result = append(result, player.ActorID)
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
+func playerSlots(documents []playerDocument) []store.PlayerSlot {
+	players := make([]store.PlayerSlot, len(documents))
+	for index, player := range documents {
+		players[index] = store.PlayerSlot{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID}
+	}
+	return players
 }
 
 func assignedDocumentPlayerCount(players []playerDocument) int {
 	count := 0
 	for _, player := range players {
-		if isAssignedActor(player.ActorID) {
+		if store.IsAssignedActor(player.ActorID) {
 			count++
 		}
 	}
@@ -633,24 +653,14 @@ func assignedDocumentPlayerCount(players []playerDocument) int {
 }
 
 func playerIDForActor(game gameDocument, actor store.Actor) (models.PlayerID, bool) {
-	actorID := strings.TrimSpace(actor.ID)
-	for _, player := range game.Players {
-		if player.ActorID == actorID && isAssignedActor(player.ActorID) {
-			return player.ID, true
-		}
-		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
-			return player.ID, true
-		}
-	}
-	return "", false
+	return store.PlayerForActor(playerSlots(game.Players), actor)
 }
 
 func membershipForActor(game gameDocument, actor store.Actor) bool {
 	if _, ok := playerIDForActor(game, actor); ok {
 		return true
 	}
-	return strings.TrimSpace(game.SpectatorUID) != "" &&
-		strings.TrimSpace(game.SpectatorUID) == strings.TrimSpace(actor.ID)
+	return store.IsSpectator(game.SpectatorUID, actor)
 }
 
 func (s *FirestoreStore) deleteGame(ctx context.Context, id store.GameID) error {
@@ -702,7 +712,7 @@ func (s *FirestoreStore) deleteGame(ctx context.Context, id store.GameID) error 
 		return err
 	}
 	for _, player := range game.Players {
-		if !isAssignedActor(player.ActorID) {
+		if !store.IsAssignedActor(player.ActorID) {
 			continue
 		}
 		if err := collect(gameRef(s.client, id).Collection("reports").Doc(player.ActorID).Collection("turns").Documents(operationContext)); err != nil {

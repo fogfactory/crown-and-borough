@@ -15,6 +15,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/turn"
 )
 
 type IDGenerator func() (GameID, error)
@@ -25,6 +26,10 @@ type MemoryStoreOptions struct {
 	ProfileStore     ProfileStore
 	InvitationStore  InvitationStore
 	StrictMembership bool
+	// MaximumPlayers overrides the online limit of MaximumPlayers per game.
+	// The local hotseat uses it to allow every player count the engine
+	// supports.
+	MaximumPlayers int
 }
 
 type MemoryStore struct {
@@ -141,7 +146,7 @@ func trackOwnerChainKnowledge(_ *models.GameState, after *models.GameState, _ en
 }
 
 func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateRequest) (GameSnapshot, error) {
-	players, err := normalizePlayers(request.Players)
+	players, err := normalizePlayers(request.Players, s.options.MaximumPlayers)
 	if err != nil {
 		return GameSnapshot{}, err
 	}
@@ -256,6 +261,10 @@ func (s *MemoryStore) GetProfile(ctx context.Context, uid string) (PlayerProfile
 
 func (s *MemoryStore) EnsureProfile(ctx context.Context, actor Actor) (PlayerProfile, error) {
 	return s.profiles.EnsureProfile(ctx, actor)
+}
+
+func (s *MemoryStore) UpdateReleaseNotes(ctx context.Context, uid string, update ReleaseNotesUpdate) (PlayerProfile, error) {
+	return s.profiles.UpdateReleaseNotes(ctx, uid, update)
 }
 
 func (s *MemoryStore) UpdateProfile(ctx context.Context, uid, displayName string) (PlayerProfile, error) {
@@ -440,7 +449,7 @@ func playerSlotForID(players []PlayerSlot, id models.PlayerID) PlayerSlot {
 }
 
 func isAssignedSlot(player PlayerSlot) bool {
-	return strings.TrimSpace(player.ActorID) != "" && !strings.HasPrefix(player.ActorID, "slot:")
+	return IsAssignedActor(strings.TrimSpace(player.ActorID))
 }
 
 func (s *MemoryStore) List(_ context.Context, actor Actor) ([]GameSnapshot, error) {
@@ -500,7 +509,7 @@ func (s *MemoryStore) State(ctx context.Context, actor Actor, id GameID) (GameSn
 	return s.Get(ctx, actor, id)
 }
 
-func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territoryID models.TerritoryID) (engine.SupplyLine, error) {
+func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territoryID models.TerritoryID, special string) (engine.SupplyLine, error) {
 	game, err := s.game(id)
 	if err != nil {
 		return engine.SupplyLine{}, err
@@ -510,7 +519,8 @@ func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territor
 	if !game.viewerForActorLocked(actor) {
 		return engine.SupplyLine{}, ErrNotMember
 	}
-	return engine.FindSupply(game.state, s.balance, territoryID)
+	playerID, _ := game.playerForActorLocked(actor)
+	return engine.FindPlayerSupply(game.state, s.balance, territoryID, playerID, special)
 }
 
 func (s *MemoryStore) TransferSupply(_ context.Context, actor Actor, id GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {
@@ -605,29 +615,22 @@ func (s *MemoryStore) MySubmission(_ context.Context, actor Actor, id GameID) (P
 	if !ok {
 		return PlayerSubmission{}, ErrNotMember
 	}
-	turn := game.state.Turn
+	currentTurn := game.state.Turn
 	season := game.state.Season
 	input, submitted := game.submissions[playerID]
 	if !submitted {
 		return PlayerSubmission{
-			Turn:      turn,
+			Turn:      currentTurn,
 			Season:    season,
 			Submitted: false,
 		}, nil
 	}
 	return PlayerSubmission{
-		Turn:      turn,
+		Turn:      currentTurn,
 		Season:    season,
 		Submitted: true,
-		Orders:    cloneOrdersInput(input),
+		Orders:    turn.CloneOrders(input),
 	}, nil
-}
-
-func cloneOrdersInput(source engine.OrdersInput) engine.OrdersInput {
-	return engine.OrdersInput{
-		Chains: append([]engine.ChainSubmission(nil), source.Chains...),
-		Winter: append([]engine.WinterSubmission(nil), source.Winter...),
-	}
 }
 
 func (s *MemoryStore) game(id GameID) (*memoryGame, error) {
@@ -651,7 +654,11 @@ func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, r
 		return SubmitResult{}, ErrRevisionConflict
 	}
 
-	input, err := normalizeSubmission(playerID, request)
+	input, err := turn.NormalizeSubmission(playerID, engine.OrdersInput{
+		Chains:  request.Chains,
+		Winter:  request.Winter,
+		Special: request.Special,
+	})
 	if err != nil {
 		return SubmitResult{}, err
 	}
@@ -674,7 +681,7 @@ func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, r
 		}
 		return result, nil
 	}
-	if _, err := engine.ResolveTurn(game.state, s.balance, input); err != nil {
+	if err := turn.ValidateSubmission(game.state, s.balance, input); err != nil {
 		if replaced {
 			game.submissions[playerID] = previous
 		} else {
@@ -709,29 +716,12 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 	} else {
 		submitted, remaining = game.submissionStatusLocked()
 	}
-	combined := engine.OrdersInput{
-		Chains:  []engine.ChainSubmission{},
-		Winter:  []engine.WinterSubmission{},
-		Special: []engine.DeckSubmission{},
-	}
-	for _, player := range game.state.Players {
-		input, exists := game.submissions[player.ID]
-		if !exists {
-			continue
-		}
-		combined.Chains = append(combined.Chains, input.Chains...)
-		combined.Winter = append(combined.Winter, input.Winter...)
-		combined.Special = append(combined.Special, input.Special...)
-	}
-
 	before := game.state
-	report, err := engine.ResolveTurn(before, s.balance, combined)
+	resolution, err := turn.Resolve(before, s.balance, game.submissions, s.options.PrivacyTracker)
 	if err != nil {
 		return SubmitResult{}, err
 	}
-	if s.options.PrivacyTracker != nil {
-		s.options.PrivacyTracker(before, report.State, combined, report)
-	}
+	report := resolution.Report
 	record := ReportRecord{
 		Report:  cloneReport(report),
 		Privacy: clonePrivacy(report.State.Privacy),
@@ -755,7 +745,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		strictMembership: game.strictMembership,
 		joinedAt:         cloneJoinedAt(game.joinedAt),
 	}
-	nextGame.updateStatusLocked()
+	nextGame.updateStatusLocked(s.balance)
 	snapshot, err := s.snapshotLocked(nextGame)
 	if err != nil {
 		return SubmitResult{}, err
@@ -792,23 +782,11 @@ func cloneJoinedAt(source map[models.PlayerID]time.Time) map[models.PlayerID]tim
 }
 
 func (game *memoryGame) playerForActorLocked(actor Actor) (models.PlayerID, bool) {
-	actorID := strings.TrimSpace(actor.ID)
-	if actorID == "" {
-		return "", false
-	}
-	for _, player := range game.players {
-		if player.ActorID == actorID {
-			return player.ID, true
-		}
-		if actor.Development && player.ActorID == "" && string(player.ID) == actorID {
-			return player.ID, true
-		}
-	}
-	return "", false
+	return PlayerForActor(game.players, actor)
 }
 
 func (game *memoryGame) spectatorForActorLocked(actor Actor) bool {
-	return strings.TrimSpace(actor.ID) != "" && strings.TrimSpace(actor.ID) == game.spectatorUID
+	return IsSpectator(game.spectatorUID, actor)
 }
 
 func (game *memoryGame) viewerForActorLocked(actor Actor) bool {
@@ -823,28 +801,19 @@ func (game *memoryGame) isAliveLocked(playerID models.PlayerID) bool {
 }
 
 func (game *memoryGame) submissionStatusLocked() ([]models.PlayerID, []models.PlayerID) {
-	submitted := make([]models.PlayerID, 0, len(game.submissions))
-	remaining := make([]models.PlayerID, 0, len(game.players))
-	for _, player := range game.players {
-		if _, exists := game.submissions[player.ID]; exists {
-			submitted = append(submitted, player.ID)
-			continue
-		}
-		if game.isAliveLocked(player.ID) {
-			remaining = append(remaining, player.ID)
-		}
-	}
-	return submitted, remaining
+	return turn.Progress(game.state, func(playerID models.PlayerID) bool {
+		_, ok := game.submissions[playerID]
+		return ok
+	})
 }
 
-func (game *memoryGame) updateStatusLocked() {
-	if !engine.GameFinished(game.state) {
-		game.status = StatusPlaying
-		game.winner = nil
-		return
+func (game *memoryGame) updateStatusLocked(balance assetgen.Balance) {
+	finished, winner := turn.Outcome(game.state, balance)
+	game.winner = winner
+	game.status = StatusPlaying
+	if finished {
+		game.status = StatusFinished
 	}
-	game.status = StatusFinished
-	game.winner = engine.WinnerForFinishedGame(game.state)
 }
 
 func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
@@ -859,7 +828,7 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 		YearCount:    game.state.YearCount,
 		Status:       game.status,
 		Winner:       clonePlayerID(game.winner),
-		Scores:       engine.ComputeScores(game.state),
+		Scores:       engine.ComputeScores(game.state, s.balance),
 		Players:      append([]PlayerSlot(nil), game.players...),
 		Map:          cloneMap(game.mapData),
 		State:        state,
@@ -871,8 +840,11 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 	}, nil
 }
 
-func normalizePlayers(players []engine.PlayerInit) ([]engine.PlayerInit, error) {
-	if len(players) < MinimumPlayers || len(players) > MaximumPlayers {
+func normalizePlayers(players []engine.PlayerInit, maximum int) ([]engine.PlayerInit, error) {
+	if maximum == 0 {
+		maximum = MaximumPlayers
+	}
+	if len(players) < MinimumPlayers || len(players) > maximum {
 		return nil, ErrInvalidPlayers
 	}
 	result := make([]engine.PlayerInit, len(players))
@@ -891,33 +863,6 @@ func spectatorUID(actorID string, spectate bool) string {
 		return ""
 	}
 	return strings.TrimSpace(actorID)
-}
-
-func normalizeSubmission(playerID models.PlayerID, request SubmitRequest) (engine.OrdersInput, error) {
-	input := engine.OrdersInput{
-		Chains:  append([]engine.ChainSubmission(nil), request.Chains...),
-		Winter:  append([]engine.WinterSubmission(nil), request.Winter...),
-		Special: append([]engine.DeckSubmission(nil), request.Special...),
-	}
-	for index := range input.Chains {
-		if input.Chains[index].Player != "" && input.Chains[index].Player != playerID {
-			return engine.OrdersInput{}, fmt.Errorf("store: chain %d belongs to another player", index+1)
-		}
-		input.Chains[index].Player = playerID
-	}
-	for index := range input.Winter {
-		if input.Winter[index].Player != "" && input.Winter[index].Player != playerID {
-			return engine.OrdersInput{}, fmt.Errorf("store: winter order %d belongs to another player", index+1)
-		}
-		input.Winter[index].Player = playerID
-	}
-	for index := range input.Special {
-		if input.Special[index].Player != "" && input.Special[index].Player != playerID {
-			return engine.OrdersInput{}, fmt.Errorf("store: deck order %d belongs to another player", index+1)
-		}
-		input.Special[index].Player = playerID
-	}
-	return input, nil
 }
 
 func cloneState(source *models.GameState) (*models.GameState, error) {

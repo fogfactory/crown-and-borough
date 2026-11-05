@@ -32,13 +32,38 @@ func ParseDeckOrders(text string, game *models.GameState) ([]models.DeckOrder, [
 
 func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
 	fields := strings.Fields(line)
+	if order, parseError, handled := parseAppeasementLine(fields, lineNumber, game); handled {
+		return order, parseError
+	}
 	if len(fields) < 3 {
 		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
 	}
-	if len(fields) > 3 {
+	if len(fields) == 3 && isTitheCode(fields[1]) {
+		// "P DI HHH" is the pope's tithe: it has no target, and covers every
+		// bishopric. Any other cleric needs one.
+		nobleID, found := nobleIDByCode(game, fields[2])
+		if fields[0] != "P" || !found || !game.IsPope(nobleID) {
+			error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetNobleID: nobleID, Tithe: true}, nil
+	}
+	if len(fields) == 5 && fields[0] == "P" && isTunnelCode(fields[1]) {
+		return parseTunnelAttackLine(fields, lineNumber, game)
+	}
+	if len(fields) == 4 && fields[0] == "P" && isAmbushCode(fields[1]) {
+		return parseAmbushLine(fields, lineNumber, game)
+	}
+	if len(fields) == 4 && fields[0] == "P" && isAssassinationCode(fields[1]) {
+		return parseAssassinationLine(fields, lineNumber, game)
+	}
+	if len(fields) > 4 || (len(fields) == 4 && !isTaxCode(fields[1]) && !isTitheCode(fields[1])) {
 		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.DeckOrderShape)
 		return models.DeckOrder{}, &error
+	}
+	if len(fields) == 4 {
+		return parseIssuedTaxLine(fields, lineNumber, game)
 	}
 	if fields[0] == "D" && fields[1] == "C" {
 		kind, parseError := parseSpecialKind(fields[2], lineNumber)
@@ -71,11 +96,128 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		}
 		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
 	}
+	if kind == models.CardKindSeigneurialTax {
+		// TER is a fief capital here, by exception to the usual "TER is a
+		// region's seed village" rule (titres.md "Taxe seigneuriale"):
+		// ownership of the targeted fief is checked later by CanPlay.
+		if !game.IsFiefCapital(target) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetTerritoryID: target}, nil
+	}
+	if kind == models.CardKindTunnel || kind == models.CardKindJustice {
+		// "P SO NNN" frees the detained noble NNN (the attack form, with a
+		// dash, is parsed by parseTunnelAttackLine); "P JU HHH" tries the
+		// noble HHH, whoever owns them.
+		nobleID, found := nobleIDByCode(game, fields[2])
+		if !found {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
+			return models.DeckOrder{}, &error
+		}
+		return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, TargetNobleID: nobleID}, nil
+	}
 	if !isSpecialRegionSeed(game, target) {
 		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
 		return models.DeckOrder{}, &error
 	}
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: target}, nil
+}
+
+func isAssassinationCode(code string) bool { return code == "AS" }
+
+func isJusticeCode(code string) bool { return code == "JU" }
+
+// parseAssassinationLine parses "P AS HHH NNN": the assassination card played
+// by the commissioner HHH on the noble NNN (specs/ordres-speciaux.md
+// § Assassinat). Whose nobles they are is checked later by CanPlay.
+func parseAssassinationLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	order := models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindAssassination}
+	for index, code := range fields[2:] {
+		nobleID, found := nobleIDByCode(game, code)
+		if !found {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, code)
+			return models.DeckOrder{}, &error
+		}
+		if index == 0 {
+			order.CommissionerNobleID = nobleID
+		} else {
+			order.TargetNobleID = nobleID
+		}
+	}
+	return order, nil
+}
+
+func isTunnelCode(code string) bool { return code == "SO" || code == "TU" }
+
+// parseTunnelAttackLine parses "P SO AAA - BBB": the tunnel card played on the
+// attack from AAA to BBB (specs/ordres-speciaux.md § Souterrain). Whether the
+// player really plans that attack is checked later by CanPlay.
+func parseTunnelAttackLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	if fields[3] != "-" {
+		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error
+	}
+	source, target := models.TerritoryID(fields[2]), models.TerritoryID(fields[4])
+	for _, code := range []models.TerritoryID{source, target} {
+		if !isTerritory(game, code) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, string(code))
+			return models.DeckOrder{}, &error
+		}
+	}
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindTunnel, SourceTerritoryID: source, TargetTerritoryID: target}, nil
+}
+
+func isAmbushCode(code string) bool { return code == "EM" || code == "AM" }
+
+// parseAmbushLine parses "P EM AAA BBB": the ambush card played on the attack
+// from AAA to BBB (specs/ordres-speciaux.md § Embuscade). Whether the player
+// really plans that attack is checked later by CanPlay.
+func parseAmbushLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	source, target := models.TerritoryID(fields[2]), models.TerritoryID(fields[3])
+	for _, code := range []models.TerritoryID{source, target} {
+		if !isTerritory(game, code) {
+			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, string(code))
+			return models.DeckOrder{}, &error
+		}
+	}
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindAmbush, SourceTerritoryID: source, TargetTerritoryID: target}, nil
+}
+
+func isTaxCode(code string) bool { return code == "TX" || code == "ST" }
+
+// isTitheCode reports the explicit tithe code ("P DI HHH XXX"), which keeps a
+// tithe distinct from a seigneurial tax when the target is both a fief capital
+// and a bishopric seed.
+func isTitheCode(code string) bool { return code == "DI" || code == "TT" }
+
+// parseIssuedTaxLine parses "P TX HHH XXX": HHH is the issuing noble and XXX
+// the target, a fief capital (seigneurial tax) or a bishopric's seed village
+// (tithe, religieux.md "Dîme"). Whether the issuer may tax the target is
+// checked later by CanPlay.
+func parseIssuedTaxLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError) {
+	if fields[0] != "P" {
+		error := parseMessage(lineNumber, ParseCodeUnknownSymbol, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error
+	}
+	nobleID, found := nobleIDByCode(game, fields[2])
+	if !found {
+		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
+		return models.DeckOrder{}, &error
+	}
+	target := models.TerritoryID(fields[3])
+	tithe := isTitheCode(fields[1])
+	known := game.IsFiefCapital(target) || isSpecialRegionSeed(game, target)
+	if tithe {
+		known = isSpecialRegionSeed(game, target)
+	}
+	if !known {
+		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[3])
+		return models.DeckOrder{}, &error
+	}
+	// "P TX" on a bishopric seed that is no fief capital can only be a tithe.
+	tithe = tithe || !game.IsFiefCapital(target)
+	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetNobleID: nobleID, TargetTerritoryID: target, Tithe: tithe}, nil
 }
 
 func isTerritory(game *models.GameState, territoryID models.TerritoryID) bool {
@@ -88,6 +230,18 @@ func isTerritory(game *models.GameState, territoryID models.TerritoryID) bool {
 		}
 	}
 	return false
+}
+
+func nobleIDByCode(game *models.GameState, code string) (models.NobleID, bool) {
+	if game == nil {
+		return "", false
+	}
+	for _, noble := range game.Nobles {
+		if noble.Code == code {
+			return noble.ID, true
+		}
+	}
+	return "", false
 }
 
 func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseError) {
@@ -104,6 +258,16 @@ func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseErro
 		"RV": models.CardKindRevolt,
 		"FA": models.CardKindFamine,
 		"FN": models.CardKindFamine,
+		"TX": models.CardKindSeigneurialTax,
+		"ST": models.CardKindSeigneurialTax,
+		"DI": models.CardKindSeigneurialTax,
+		"TT": models.CardKindSeigneurialTax,
+		"SO": models.CardKindTunnel,
+		"TU": models.CardKindTunnel,
+		"EM": models.CardKindAmbush,
+		"AM": models.CardKindAmbush,
+		"AS": models.CardKindAssassination,
+		"JU": models.CardKindJustice,
 	}[value]
 	if !exists {
 		error := parseMessage(lineNumber, ParseCodeSpecialKind, i18n.DeckOrderKindUnknown, value)
@@ -122,4 +286,41 @@ func isSpecialRegionSeed(game *models.GameState, seed models.TerritoryID) bool {
 		}
 	}
 	return false
+}
+
+// parseAppeasementLine reads "P AG HHH TER" (free rite) and "P AP HHH TER"
+// (paid appeasement): HHH is the cleric's noble code and TER a territory (EN
+// aliases FQ and PQ). handled is false for any other line.
+func parseAppeasementLine(fields []string, lineNumber int, game *models.GameState) (models.DeckOrder, *ParseError, bool) {
+	if len(fields) < 2 || fields[0] != "P" {
+		return models.DeckOrder{}, nil, false
+	}
+	var orderType models.DeckOrderType
+	switch fields[1] {
+	case "AG", "FQ":
+		orderType = models.DeckOrderTypeAppeaseRite
+	case "AP", "PQ":
+		orderType = models.DeckOrderTypeAppeasePaid
+	default:
+		return models.DeckOrder{}, nil, false
+	}
+	if len(fields) < 4 {
+		error := parseMessage(lineNumber, ParseCodeMissingTarget, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error, true
+	}
+	if len(fields) > 4 {
+		error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.DeckOrderShape)
+		return models.DeckOrder{}, &error, true
+	}
+	nobleID, found := nobleIDByCode(game, fields[2])
+	if !found {
+		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderNobleUnknown, fields[2])
+		return models.DeckOrder{}, &error, true
+	}
+	target := models.TerritoryID(fields[3])
+	if !isTerritory(game, target) {
+		error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[3])
+		return models.DeckOrder{}, &error, true
+	}
+	return models.DeckOrder{Type: orderType, TargetNobleID: nobleID, TargetTerritoryID: target}, nil, true
 }

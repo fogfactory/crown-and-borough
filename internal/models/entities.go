@@ -1,5 +1,7 @@
 package models
 
+import "slices"
+
 // ID types. UUIDs are not needed yet: short, readable identifiers such as
 // "ROS", "A1", "N1" identify the entities (architecture §4). Distinct named
 // string types keep the domain explicit and prevent cross-type mixups.
@@ -17,11 +19,58 @@ type InfraID string
 
 // Player is a human participant. CapitalCastleID identifies the castle it
 // designates as its stronghold, or is nil when it has no designated capital.
+// Arms are the player's generated coat of arms (graphic charter); games
+// created before arms existed have none.
 type Player struct {
 	ID              PlayerID `json:"id"`
 	Name            string   `json:"name"`
 	Color           string   `json:"color"`
+	Arms            *Arms    `json:"arms,omitempty"`
 	CapitalCastleID *InfraID `json:"capitalCastle,omitempty"`
+}
+
+// Tincture is the heraldic color of a player's field.
+type Tincture string
+
+const (
+	TinctureGules   Tincture = "gules"
+	TinctureAzure   Tincture = "azure"
+	TinctureVert    Tincture = "vert"
+	TincturePurpure Tincture = "purpure"
+	TinctureSable   Tincture = "sable"
+	TinctureTenne   Tincture = "tenne"
+	TinctureCeleste Tincture = "celeste"
+	TinctureMurrey  Tincture = "murrey"
+)
+
+// Metal is the heraldic metal of a player's charge.
+type Metal string
+
+const (
+	MetalOr     Metal = "or"
+	MetalArgent Metal = "argent"
+)
+
+// Charge is the geometric piece laid over a player's field.
+type Charge string
+
+const (
+	ChargeBend    Charge = "bend"
+	ChargeFess    Charge = "fess"
+	ChargeChevron Charge = "chevron"
+	ChargeCross   Charge = "cross"
+	ChargeSaltire Charge = "saltire"
+	ChargePale    Charge = "pale"
+	ChargeChief   Charge = "chief"
+	ChargeBordure Charge = "bordure"
+)
+
+// Arms is a simple coat of arms: a field of a tincture and a charge of a
+// metal, so a player stays recognizable in grayscale and to color-blind eyes.
+type Arms struct {
+	Field  Tincture `json:"field"`
+	Metal  Metal    `json:"metal"`
+	Charge Charge   `json:"charge"`
 }
 
 // Territory is the static geography of the map: the walkable adjacency graph
@@ -37,13 +86,26 @@ type Territory struct {
 // Army is the single force entity stationed on a territory. Size is the number
 // of abstract troops in the army. ChainID is nil when the army is Sans Ordre.
 // When equal-size armies must be ordered, the territory ID is the lexicographic
-// tie-break (GDD §4, §8).
+// tie-break (GDD §4, §8). Starving is set by the previous turn's famine
+// resolution when this army's demand went unmet without an auto-pillage
+// rescue (engine.resolveFamine, #208): it defends at most at
+// StarvingStrength (its supplied size minus one), grants no noble bonus, and
+// cannot attack, support or send a transfer for the turn it carries, then is
+// recomputed (including cleared) at that same turn's own ravitaillement. A
+// dispersed army copies it to every resulting splinter (plain struct-copy
+// semantics, like every other field but ChainID and Size);
+// a fusion keeps only the surviving host's own value and discards the
+// absorbed army's, again with no special-casing needed.
 type Army struct {
 	ID          ArmyID      `json:"id"`
 	OwnerID     PlayerID    `json:"owner"`
 	TerritoryID TerritoryID `json:"territory"`
 	Size        int         `json:"size"`
 	ChainID     *ChainID    `json:"chain"`
+	Starving    bool        `json:"starving,omitempty"`
+	// StarvingStrength caps the army's force while Starving: zero when the
+	// army is starving without any supplied troop to fight with.
+	StarvingStrength int `json:"starvingStrength,omitempty"`
 }
 
 // Noble is an immortal, non-combatant entity that emits at most one order
@@ -55,37 +117,210 @@ type Noble struct {
 	ID               NobleID     `json:"id"`
 	Code             string      `json:"code"` // first-name trigram (GDD §6), unique within a game
 	Name             string      `json:"name"`
+	Sex              Sex         `json:"sex"` // fixed at recruitment (specs/succession.md § Sexe des nobles)
 	OwnerID          PlayerID    `json:"owner"`
 	LocationID       TerritoryID `json:"location"`
 	Status           NobleStatus `json:"status"`
 	LastEmissionTurn int         `json:"lastEmissionTurn"`
+	// PlacedTurn is the absolute turn the noble was recruited (0 for a
+	// starting noble): a claim needs it to fall within one of the noble's
+	// parents' marriage (specs/succession.md § Prétentions).
+	PlacedTurn int `json:"placedTurn,omitempty"`
+	// Dignities are the permanent distinctions the noble carries, conferred
+	// by a dignity card (specs/succession.md § Bâtard).
+	Dignities []Dignity `json:"dignities,omitempty"`
+	// SecretCode, SecretName and SecretSex are the private identity a noble
+	// replaced by a chevalier d'Éon keeps: only its owner knows it. Code, Name
+	// and Sex are the public male identity. SecretCode stays reserved.
+	SecretCode string `json:"secretCode,omitempty"`
+	SecretName string `json:"secretName,omitempty"`
+	SecretSex  Sex    `json:"secretSex,omitempty"`
+	// EonUnmasked is set once a chevalier d'Éon's secret identity has been
+	// revealed to every player (specs/dames.md § Chevalier d'Éon): capture in
+	// combat, imprisonment (dungeon), or a Claim played against her. Once
+	// true, her dignity and secret identity stop being hidden to viewers
+	// other than her owner.
+	EonUnmasked bool `json:"eonUnmasked,omitempty"`
+	// DignityRevealed is set once an inquiry has revealed the noble's hidden
+	// dignity to every player (specs/religieux.md § Enquête).
+	DignityRevealed bool `json:"dignityRevealed,omitempty"`
+	// AbbeyRegion is the seed of the region (bishopric) an abbess is attached
+	// to, fixed when the dignity is played.
+	AbbeyRegion TerritoryID `json:"abbeyRegion,omitempty"`
 }
 
-// Infrastructure is a buildable structure. Level is >= 1: a mill yields +1 R
-// per level and a castle honours its defensive bonus regardless of its level
-// (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there
+// RemovedNoble is the lineage record of a noble who has permanently left
+// play (specs/succession.md § Lignée): it keeps the identity that noble had
+// while alive, plus the cause and turn of death, instead of discarding that
+// history once the noble leaves GameState.Nobles. Its position in the
+// recruitment order stays recoverable from its ID, a global, strictly
+// increasing sequence shared with GameState.Nobles. Both its ID and its Code
+// stay reserved forever so a later recruit never collides with them (see
+// engine.nextNobleID; a noble card is consumed when played, so its code is never drawn again).
+type RemovedNoble struct {
+	ID      NobleID    `json:"id"`
+	Code    string     `json:"code"`
+	Name    string     `json:"name"`
+	Sex     Sex        `json:"sex"`
+	OwnerID PlayerID   `json:"owner"`
+	Cause   DeathCause `json:"cause"`
+	Turn    int        `json:"turn"`
+	// InquiryCost is the R an inquiry on this dead noble costs: the cost of the
+	// title it bore at death (engine.InquiryCost), 0 when unrecorded.
+	InquiryCost int `json:"inquiryCost,omitempty"`
+	// Commissioner is the noble who commissioned an assassination, and Author
+	// the player who played the card (specs/ordres-speciaux.md § Assassinat).
+	// Both are server-side knowledge: the client sees the link only through
+	// GameState.KnowsAssassination (api projection), and the Justice card reads
+	// it.
+	Commissioner NobleID  `json:"commissioner,omitempty"`
+	Author       PlayerID `json:"author,omitempty"`
+}
+
+// InquiryRecord remembers that Player conducted an inquiry on Noble, living or
+// dead (specs/religieux.md § Enquête). The ledger is server-side only; it
+// grants the knowledge of an assassination whenever the inquiry targeted the
+// victim or the commissioner, before or after the killing.
+type InquiryRecord struct {
+	Player PlayerID `json:"player"`
+	Noble  NobleID  `json:"noble"`
+}
+
+// Infrastructure is a buildable structure. Level is >= 1, except for a
+// village, whose level runs from 0 (a ruin that produces nothing) upwards: a
+// mill yields +1 R per level, a village yields village_income per level and a
+// castle honours its defensive bonus regardless of its level (GDD §7, §8). An infrastructure belongs to its tile, not to a player: there
 // is no owner, whoever controls the territory benefits from it. A neutral
-// village is simply a village infrastructure on an uncontrolled territory
-// (its owner field no longer exists).
+// village is simply a village infrastructure on an uncontrolled territory.
+// Fortified only ever applies to a village (GDD §8, #193): it keeps its
+// InfraType (not a distinct infrastructure) and every village behavior
+// (stock, production, income), and additionally gains a castle's defensive
+// bonus, with the same auto-capture exception. It is always false for every
+// other InfraType.
 type Infrastructure struct {
 	ID          InfraID     `json:"id"`
 	Type        InfraType   `json:"type"`
-	Level       int         `json:"level"` // >= 1; mill yields +1 R per level (GDD §7)
+	Level       int         `json:"level"` // >= 1 (>= 0 for a village); production is per level (GDD §7)
 	TerritoryID TerritoryID `json:"territory"`
+	Fortified   bool        `json:"fortified,omitempty"`
+	// Ruined only ever applies to a castle: a pillaged castle stays on its
+	// tile as a ruin that offers no defense and can no longer be pillaged. A
+	// village is a ruin at level 0 without a wall and needs no flag.
+	Ruined bool `json:"ruined,omitempty"`
 }
 
-// TerritoryState is the dynamic layer attached to a single territory: who
-// controls it, its stock of R, the army stationed on it and the
-// infrastructures built on it. OwnerID is nil when the territory is neutral;
-// a castle construction does not imply control. Army is nil when the territory
-// is empty. Infrastructures follow the "Règle de la Structure Unique": at most
+// IsRuined reports whether the infrastructure is a ruin: a pillaged castle,
+// or an unfortified village that fell to level 0. A ruin can no longer be
+// pillaged.
+func (i Infrastructure) IsRuined() bool {
+	switch i.Type {
+	case InfraTypeCastle:
+		return i.Ruined
+	case InfraTypeVillage:
+		return i.Level == 0 && !i.Fortified
+	}
+	return false
+}
+
+// IsSettlement reports whether the infrastructure is a castle or a village,
+// ruined or not.
+func (i Infrastructure) IsSettlement() bool {
+	return i.Type == InfraTypeCastle || i.Type == InfraTypeVillage
+}
+
+// IsLiveCastle reports whether the infrastructure is a castle that is not in
+// ruins: only such a castle offers a defensive bonus or a refuge.
+func (i Infrastructure) IsLiveCastle() bool {
+	return i.Type == InfraTypeCastle && !i.Ruined
+}
+
+// IsPillageable reports whether a pillage can still degrade the
+// infrastructure: a ruin has nothing left to take.
+func (i Infrastructure) IsPillageable() bool {
+	return !i.IsRuined()
+}
+
+// IsFiefCapital reports whether territoryID is the capital of one of the
+// fiefs.
+func (g *GameState) IsFiefCapital(territoryID TerritoryID) bool {
+	if g == nil {
+		return false
+	}
+	for _, fief := range g.Fiefs {
+		if fief.CapitalTerritoryID == territoryID {
+			return true
+		}
+	}
+	return false
+}
+
+// IsActiveSettlement reports whether the infrastructure is a castle or a
+// village that still serves as a supply source and holds a usable stock: a
+// ruined castle or village is inert, except a castle that is the capital of a
+// fief.
+func (g *GameState) IsActiveSettlement(infrastructure Infrastructure) bool {
+	switch infrastructure.Type {
+	case InfraTypeCastle:
+		return !infrastructure.Ruined || g.IsFiefCapital(infrastructure.TerritoryID)
+	case InfraTypeVillage:
+		return !infrastructure.IsRuined()
+	}
+	return false
+}
+
+// TerritoryState is the dynamic layer attached to a single territory: its
+// stock of R, the army stationed on it and the infrastructure built on it.
+// Territorial control is not stored: it is derived from the fiefs, the
+// players' capitals and the stationed armies (see GameState.TerritoryController).
+// A castle construction does not imply control. Army is nil when the territory
+// is empty. Infrastructure follows the "Règle de la Structure Unique": at most
 // one per territory (GDD §3), which the pillage order then destroys outright
-// (GDD §6, §8) — no ordering or choice is ever needed. Action-season transfers
-// may leave a positive cache on an ordinary territory; winter decides whether
-// that cache survives.
+// (GDD §6, §8) — no ordering or choice is ever needed, so the field is a
+// pointer rather than a slice. Action-season transfers may leave a positive
+// cache on an ordinary territory; winter decides whether that cache survives.
 type TerritoryState struct {
-	OwnerID         *PlayerID `json:"owner"` // nil = neutral
-	Resources       int       `json:"resources"`
-	Army            *ArmyID   `json:"army"`            // nil = no army
-	Infrastructures []InfraID `json:"infrastructures"` // at most one per territory (GDD §3)
+	Resources       int      `json:"resources"`
+	Army            *ArmyID  `json:"army"`            // nil = no army
+	Infrastructures *InfraID `json:"infrastructures"` // nil = no infrastructure (GDD §3)
+}
+
+// RecordInquiry notes that the player conducted an inquiry on the noble; a
+// repeated inquiry is not recorded twice.
+func (g *GameState) RecordInquiry(player PlayerID, noble NobleID) {
+	record := InquiryRecord{Player: player, Noble: noble}
+	for _, existing := range g.Inquiries {
+		if existing == record {
+			return
+		}
+	}
+	g.Inquiries = append(g.Inquiries, record)
+}
+
+// Inquired reports whether the player ever conducted an inquiry on the noble.
+func (g *GameState) Inquired(player PlayerID, noble NobleID) bool {
+	return slices.Contains(g.Inquiries, InquiryRecord{Player: player, Noble: noble})
+}
+
+// IsCommissioner reports whether the noble commissioned at least one
+// assassination, whoever the victim (specs/ordres-speciaux.md § Justice).
+func (g *GameState) IsCommissioner(id NobleID) bool {
+	for _, removed := range g.RemovedNobles {
+		if removed.Cause == DeathCauseAssassination && removed.Commissioner == id {
+			return true
+		}
+	}
+	return false
+}
+
+// KnowsAssassination reports whether the player knows who commissioned the
+// death of the removed noble (specs/ordres-speciaux.md § Assassinat): the
+// player who played the card and every player who conducted an inquiry on the
+// victim or on the commissioner, whenever the inquiry took place. The owner of
+// the victim learns the death, not the commissioner.
+func (g *GameState) KnowsAssassination(player PlayerID, removed RemovedNoble) bool {
+	if removed.Cause != DeathCauseAssassination || removed.Commissioner == "" {
+		return false
+	}
+	return player == removed.Author ||
+		g.Inquired(player, removed.ID) || g.Inquired(player, removed.Commissioner)
 }

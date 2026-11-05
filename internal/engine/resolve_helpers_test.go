@@ -11,14 +11,15 @@ import (
 
 func testBalance() assetgen.Balance {
 	return assetgen.Balance{
-		BaseProduction:     1,
+		TerritoryIncome:    1,
+		VillageIncome:      1,
 		SupplyRange:        3,
 		DepotRangeBonus:    2,
-		InfraRationsBonus:  2,
 		CostBase:           2,
 		PillageBonus:       2,
 		NobleCommandBonus:  1,
 		CastleDefenseBonus: 1,
+		CityDefenseBonus:   2,
 		RationTerrain: map[models.Terrain]int{
 			models.TerrainPlain:    3,
 			models.TerrainForest:   2,
@@ -29,21 +30,35 @@ func testBalance() assetgen.Balance {
 		WinterStockDivisor: 2,
 		VillageStockCap:    1,
 		CastleStockCap:     2,
+		// High enough that no unrelated winter test accidentally triggers a
+		// prosperity founding: dedicated prosperity tests override this with a
+		// small threshold (prosperity_test.go).
+		ProsperityLossThreshold: 1_000_000,
 		Costs: assetgen.Costs{
-			Castle:      10,
-			MillLevels:  []int{3, 5, 7},
-			Troop:       1,
-			Noble:       2,
-			SupplyDepot: 3,
-			Liberation:  0,
+			Castle:            10,
+			MillLevels:        []int{3, 5, 7},
+			Troop:             1,
+			SupplyDepot:       3,
+			FiefPerTerritory:  2,
+			AnnexPerTerritory: 2,
+			RankPerTerritory:  3,
 		},
+		NobleLimit:        4,
+		NobleLimitMax:     6,
 		StartingNobles:    1,
 		StartingTroops:    1,
 		StartingResources: 10,
+		SpecialOrders:     assetgen.SpecialOrdersBalance{HandLimit: 4, DrawOrdersLimit: 2},
+		Royal:             assetgen.RoyalBalance{OrdersPerWinter: 1},
+		Religion: assetgen.ReligionBalance{
+			CardinalCost: 8, CardinalPurchaseBase: 1, CardinalPurchasePlayersPerExtra: 6, CardinalCardBase: 1, CardinalCardPlayersPerExtra: 3, ExcommunicationsPerWinter: 1, ExcommunicationsPerTargetPlayer: 1, AppeasementSuccessRolls: 3, AppeasementDeathRolls: 1, AppeasementCostBase: 2,
+			InquiryCost: assetgen.InquiryCost{Untitled: 1, Baron: 2, Count: 3, Marquis: 4, Duke: 5, King: 5, Pope: 5, Bishop: 3, Cardinal: 4},
+			Votes:       assetgen.VoteWeight{Territory: 1, Seat: 2, Bishop: 1, Cardinal: 2, Pope: 3, Abbess: 1},
+		},
 		FirstNames: []assetgen.Asset{
-			{Code: "ADE", Name: "Adelaide"},
-			{Code: "GUI", Name: "Guillaume"},
-			{Code: "MAH", Name: "Mahaut"},
+			{Code: "ADE", Name: "Adelaide", Sex: "female"},
+			{Code: "GUI", Name: "Guillaume", Sex: "male"},
+			{Code: "MAH", Name: "Mahaut", Sex: "female"},
 		},
 	}
 }
@@ -62,14 +77,12 @@ func testState(t *testing.T, territories []models.Territory, armies []models.Arm
 	state.Armies = append([]models.Army(nil), armies...)
 	state.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(territories))
 	for _, territory := range territories {
-		state.TerritoryStates[territory.ID] = models.TerritoryState{Infrastructures: []models.InfraID{}}
+		state.TerritoryStates[territory.ID] = models.TerritoryState{}
 	}
 	for _, army := range armies {
 		territoryState := state.TerritoryStates[army.TerritoryID]
 		armyID := army.ID
-		ownerID := army.OwnerID
 		territoryState.Army = &armyID
-		territoryState.OwnerID = &ownerID
 		state.TerritoryStates[army.TerritoryID] = territoryState
 	}
 	state.NextArmyID = nextArmyID(armies)
@@ -80,14 +93,16 @@ func keepTestArmiesSupplied(state *models.GameState) {
 	balance := testBalance()
 	for _, army := range state.Armies {
 		territoryState := state.TerritoryStates[army.TerritoryID]
-		if len(territoryState.Infrastructures) != 0 {
+		if territoryState.Infrastructures != nil {
 			continue
 		}
 		infrastructureID := models.InfraID("S" + string(army.ID))
 		addInfrastructure(state, models.Infrastructure{
 			ID: infrastructureID, Type: models.InfraTypeVillage, Level: 1, TerritoryID: army.TerritoryID,
 		})
-		stock := armyCost(army.Size, balance.CostBase) - balance.BaseProduction - 1
+		// The village has no capital or closer settlement to compete with, so
+		// it always receives its own territory income (territory + village).
+		stock := armyCost(army.Size, balance.CostBase) - (balance.TerritoryIncome + balance.VillageIncome) - 1
 		if stock < 0 {
 			stock = 0
 		}
@@ -99,6 +114,7 @@ func keepTestArmiesSupplied(state *models.GameState) {
 
 func addNoble(state *models.GameState, id models.NobleID, code string, ownerID models.PlayerID, territoryID models.TerritoryID) {
 	state.Nobles = append(state.Nobles, models.Noble{
+		Sex:        models.SexMale,
 		ID:         id,
 		Code:       code,
 		Name:       string(code),
@@ -170,10 +186,28 @@ func findOutcome(events []Event, orderID models.OrderID) (Event, bool) {
 	return Event{}, false
 }
 
+// addAnchorArmy appends a one-troop army of ownerID at territoryID, which is
+// how a test makes ownerID control that territory: control is derived from
+// fiefs, capitals and armies, so a bare territory with no fief and no capital
+// is controlled only by the army standing on it. Every default territory() is
+// plain terrain (3 rations), so this one-troop army is always self-sufficient
+// and never touches pooled supply or a wider scenario's deficit math.
+func addAnchorArmy(t *testing.T, state *models.GameState, id models.ArmyID, ownerID models.PlayerID, territoryID models.TerritoryID) {
+	t.Helper()
+	removeAnchorArmy(state, territoryID)
+	state.Armies = append(state.Armies, models.Army{ID: id, OwnerID: ownerID, TerritoryID: territoryID, Size: 1})
+	territoryState := state.TerritoryStates[territoryID]
+	armyID := id
+	territoryState.Army = &armyID
+	state.TerritoryStates[territoryID] = territoryState
+	state.NextArmyID = nextArmyID(state.Armies)
+}
+
 func addInfrastructure(state *models.GameState, infrastructure models.Infrastructure) {
 	state.Infrastructures = append(state.Infrastructures, infrastructure)
 	territoryState := state.TerritoryStates[infrastructure.TerritoryID]
-	territoryState.Infrastructures = append(territoryState.Infrastructures, infrastructure.ID)
+	infrastructureID := infrastructure.ID
+	territoryState.Infrastructures = &infrastructureID
 	state.TerritoryStates[infrastructure.TerritoryID] = territoryState
 }
 
@@ -245,5 +279,87 @@ func territory(id, code string, neighbors ...models.TerritoryID) models.Territor
 		Name:        code,
 		Terrain:     models.TerrainPlain,
 		Adjacencies: neighbors,
+	}
+}
+
+// controllerOf returns the player controlling territoryID in state, nil when
+// nobody does.
+func controllerOf(state *models.GameState, territoryID models.TerritoryID) *models.PlayerID {
+	controller, controlled := state.TerritoryController(territoryID)
+	if !controlled {
+		return nil
+	}
+	return &controller
+}
+
+// holdAsFiefMember makes ownerID the controller of territoryID as a non-capital
+// member of a new barony, whose capital and third member are two isolated
+// filler territories added to the state. It is how a fixture puts another
+// player's army on territory its owner still controls: only an anchored
+// territory (fief member or capital) stays controlled under an occupier.
+func holdAsFiefMember(state *models.GameState, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	exists := make(map[models.TerritoryID]bool, len(state.Territories))
+	for _, existing := range state.Territories {
+		exists[existing.ID] = true
+	}
+	var fillers []models.TerritoryID
+	for index := 0; len(fillers) < 2; index++ {
+		id := models.TerritoryID(fmt.Sprintf("Z%c%c", 'A'+index/26, 'A'+index%26))
+		if !exists[id] {
+			fillers = append(fillers, id)
+		}
+	}
+	for _, id := range fillers {
+		state.Territories = append(state.Territories, territory(string(id), string(id)))
+		state.TerritoryStates[id] = models.TerritoryState{}
+	}
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID:                 models.FiefID(fmt.Sprintf("FZ%d", len(state.Fiefs)+1)),
+		Title:              models.FiefTitleBarony,
+		CapitalTerritoryID: fillers[0],
+		Territories:        []models.TerritoryID{fillers[0], territoryID, fillers[1]},
+		OwnerID:            ownerID,
+	})
+}
+
+// giveNobleCard puts a noble card (code, first name, sex) in the player's hand,
+// creating the noble deck when the state has none, and returns its ID.
+func giveNobleCard(state *models.GameState, playerID models.PlayerID, code, name string, sex models.Sex) models.NobleCardID {
+	return giveCard(state, playerID, models.NobleCard{Kind: models.NobleCardKindNoble, Code: code, Name: name, Sex: sex})
+}
+
+// giveDignityCard puts a bastard dignity card in the player's hand.
+func giveDignityCard(state *models.GameState, playerID models.PlayerID) models.NobleCardID {
+	return giveCard(state, playerID, models.NobleCard{Kind: models.NobleCardKindDignity, Code: models.DignityBastardCardCode, Dignity: models.DignityBastard})
+}
+
+func giveCard(state *models.GameState, playerID models.PlayerID, card models.NobleCard) models.NobleCardID {
+	ensureNobleDeck(state)
+	card.ID = models.NobleCardID(fmt.Sprintf("K%d", len(state.NobleDeck.Cards)+1))
+	state.NobleDeck.Cards = append(state.NobleDeck.Cards, card)
+	state.NobleDeck.Hands[playerID] = append(state.NobleDeck.Hands[playerID], card.ID)
+	return card.ID
+}
+
+// pileNobleCard puts a noble card on the bottom of the draw pile.
+func pileNobleCard(state *models.GameState, code, name string, sex models.Sex) models.NobleCardID {
+	ensureNobleDeck(state)
+	card := models.NobleCard{
+		ID:   models.NobleCardID(fmt.Sprintf("K%d", len(state.NobleDeck.Cards)+1)),
+		Kind: models.NobleCardKindNoble, Code: code, Name: name, Sex: sex,
+	}
+	state.NobleDeck.Cards = append(state.NobleDeck.Cards, card)
+	state.NobleDeck.DrawPile = append(state.NobleDeck.DrawPile, card.ID)
+	return card.ID
+}
+
+func ensureNobleDeck(state *models.GameState) {
+	if state.NobleDeck != nil {
+		return
+	}
+	state.NobleDeck = &models.NobleDeck{
+		Cards: []models.NobleCard{}, DrawPile: []models.NobleCardID{},
+		Discard: []models.NobleCardID{}, Hands: map[models.PlayerID][]models.NobleCardID{},
+		Played: []models.NobleCardPlay{}, NamePool: []models.NobleName{},
 	}
 }

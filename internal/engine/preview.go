@@ -1,0 +1,343 @@
+package engine
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
+	"github.com/fogfactory/crown-and-borough/internal/models"
+)
+
+// OrdersPreview is a dry run of one player's draft against the current state.
+// It never changes the game. Unlike ResolveTurn, it keeps going past invalid
+// lines so a client can show the valid orders next to the errors, and it
+// reports the outcome the winter resolver would give each winter line if the
+// player's sheet were resolved alone.
+type OrdersPreview struct {
+	// Errors lists every problem that would reject the submission, followed by
+	// the chains the engine would refuse to receive.
+	Errors []InputError
+	// Chains holds, per submitted chain, the order lines that parse.
+	Chains []ChainPreview
+	// Winter holds one entry per non-empty winter line, in source order.
+	Winter []WinterLinePreview
+	// WinterCost is set during winter only.
+	WinterCost *WinterCostPreview
+}
+
+// ChainPreview is the parsed content of one submitted chain.
+type ChainPreview struct {
+	Noble  models.NobleCode
+	Orders []models.Order
+}
+
+// WinterLinePreview is one winter line: exactly one of Order, Discard or
+// ParseError is set. Applied, Reason, Cost, Level and Territory describe the
+// simulated outcome of Order.
+type WinterLinePreview struct {
+	Line        int
+	Order       *models.WinterOrder
+	Discard     *models.DeckOrder
+	Play        *models.DeckOrder
+	ParseError  *InputError
+	Applied     bool
+	Reason      string
+	Cost        int
+	Level       int
+	Territory   models.TerritoryID
+	Territories []models.TerritoryID
+}
+
+// WinterCostPreview compares the resources the simulated winter sheet spends
+// with the player's payment reserves (controlled castles and villages).
+type WinterCostPreview struct {
+	Spent     int
+	Available int
+}
+
+// PreviewOrders dry-runs input, which must already belong to playerID.
+func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID models.PlayerID, input OrdersInput) (OrdersPreview, error) {
+	preview := OrdersPreview{Errors: []InputError{}, Chains: []ChainPreview{}, Winter: []WinterLinePreview{}}
+	if game == nil {
+		return preview, fmt.Errorf("engine: preview orders: nil game state")
+	}
+
+	report, err := ResolveTurn(game, balance, input)
+	var inputErrors *InputErrors
+	switch {
+	case errors.As(err, &inputErrors):
+		preview.Errors = append(preview.Errors, inputErrors.Errors...)
+	case err != nil:
+		return preview, err
+	default:
+		for _, reception := range report.Receptions {
+			if reception.Received {
+				continue
+			}
+			preview.Errors = append(preview.Errors, InputError{
+				Player:      reception.Player,
+				Noble:       reception.Noble,
+				Source:      InputSourceChain,
+				Code:        "not_received",
+				Message:     reception.Reason,
+				MessageKey:  reception.ReasonKey,
+				MessageArgs: reception.ReasonArgs,
+			})
+		}
+	}
+
+	appeasementErrors := ValidateAppeasements(game, balance, input)
+	markSource(appeasementErrors, 0, InputSourceSpecial)
+	preview.Errors = append(preview.Errors, appeasementErrors...)
+
+	if game.Season != models.SeasonWinter {
+		for _, submission := range input.Chains {
+			chain, _ := orders.ParseChain(submission.Text, game)
+			preview.Chains = append(preview.Chains, ChainPreview{Noble: submission.Noble, Orders: chain.Orders})
+		}
+		if len(input.Winter) == 0 {
+			return preview, nil
+		}
+	}
+
+	lines := make([]string, 0, len(input.Winter))
+	for _, submission := range input.Winter {
+		lines = append(lines, submission.Lines)
+	}
+	if err := previewWinter(&preview, game, balance, playerID, strings.Join(lines, "\n")); err != nil {
+		return preview, err
+	}
+	return preview, nil
+}
+
+// hidesJusticeOutcome tells a rejection the draft preview must keep silent: a
+// Justice card whose target is gone at stage 9, because a card or a trial of
+// the same sheet executed them first. The parser only accepts living nobles, so
+// showing it would tell the drafting player that the target was liable, which
+// is what the card gambles on (specs/ordres-speciaux.md § Justice).
+func hidesJusticeOutcome(play models.DeckOrder, event Event) bool {
+	return play.Kind == models.CardKindJustice && event.Reason == JusticeUnknownNobleReason
+}
+
+func previewWinter(preview *OrdersPreview, game *models.GameState, balance assetgen.Balance, playerID models.PlayerID, text string) error {
+	winterOrders := []models.WinterOrder{}
+	deckOrders := []models.DeckOrder{}
+	for _, line := range orders.ParseWinterSheetLines(text, game) {
+		entry := WinterLinePreview{Line: line.Line}
+		switch {
+		case line.Error != nil:
+			parseError := newInputError(playerID, "", line.Line, "parse_"+line.Error.Code, line.Error.MessageKey, line.Error.MessageArgs...)
+			parseError.Source = InputSourceWinter
+			entry.ParseError = &parseError
+		case line.Deck != nil:
+			deck := *line.Deck
+			deck.ID = models.OrderID(fmt.Sprintf("D%d", line.Line))
+			deckOrders = append(deckOrders, deck)
+			if deck.Type == models.DeckOrderTypePlay {
+				entry.Play = &deck
+			} else {
+				entry.Discard = &deck
+			}
+		default:
+			order := *line.Winter
+			order.ID = models.OrderID(fmt.Sprintf("W%d", line.Line))
+			winterOrders = append(winterOrders, order)
+			entry.Order = &order
+			entry.Territories = append([]models.TerritoryID(nil), order.TerritoryIDs...)
+		}
+		preview.Winter = append(preview.Winter, entry)
+	}
+
+	cost := &WinterCostPreview{Available: winterPaymentReserves(game, playerID, winterOrders)}
+	preview.WinterCost = cost
+	if len(winterOrders) == 0 && len(deckOrders) == 0 {
+		return nil
+	}
+
+	var events []Event
+	if game.Season == models.SeasonWinter {
+		resolution, err := ResolveWinterWithDeckOrders(game, balance,
+			map[models.PlayerID][]models.WinterOrder{playerID: winterOrders},
+			map[models.PlayerID][]models.DeckOrder{playerID: deckOrders},
+		)
+		if err != nil {
+			return fmt.Errorf("engine: preview winter: %w", err)
+		}
+		events = resolution.Events
+	} else {
+		// Outside winter only the character-card orders apply; any other
+		// line was already reported by the input validation.
+		cardOrders := []models.WinterOrder{}
+		for _, order := range winterOrders {
+			if isCharacterCardOrder(order.Type) {
+				cardOrders = append(cardOrders, order)
+			}
+		}
+		var err error
+		events, err = applyCharacterCardOrders(cloneGameState(game), balance, map[models.PlayerID][]models.WinterOrder{playerID: cardOrders})
+		if err != nil {
+			return fmt.Errorf("engine: preview card orders: %w", err)
+		}
+	}
+	outcomes := make(map[models.OrderID]Event)
+	for _, event := range events {
+		if event.OrderID == "" {
+			continue
+		}
+		if _, seen := outcomes[event.OrderID]; !seen {
+			outcomes[event.OrderID] = event
+		}
+	}
+	for index := range preview.Winter {
+		entry := &preview.Winter[index]
+		if entry.Play != nil {
+			// A card played on the winter sheet is valid unless its resolution rejects it.
+			entry.Applied = true
+			if event, ok := outcomes[entry.Play.ID]; ok && event.Type == EventTypeRejected && !hidesJusticeOutcome(*entry.Play, event) {
+				entry.Applied, entry.Reason = false, event.Reason
+			}
+			continue
+		}
+		if entry.Order == nil {
+			continue
+		}
+		event, ok := outcomes[entry.Order.ID]
+		if !ok {
+			if isBallotOrder(*entry.Order) {
+				// An accepted candidacy or vote emits no event: only its
+				// rejection does, so silence means the line is valid.
+				entry.Applied = true
+				entry.Territory = winterOrderTerritory(game, *entry.Order)
+			}
+			continue
+		}
+		entry.Applied = event.Type != EventTypeRejected
+		entry.Reason = event.Reason
+		if event.Reason == "marriage_not_reciprocated" {
+			// The other player's sheet is private: the preview cannot know
+			// whether the marriage will be reciprocated, so the line stays
+			// valid and is only flagged as pending.
+			entry.Applied = true
+			entry.Reason = "marriage_pending"
+		}
+		if event.Reason == "royal_accord_unused" && royalAccordOnOtherSheet(game, playerID, *entry.Order) {
+			// The order an accord authorizes sits on its owner's private sheet:
+			// the preview cannot know whether it will be there.
+			entry.Applied = true
+			entry.Reason = "royal_accord_pending"
+		}
+		if event.Reason == "unknown_candidate" && entry.Order.Type == models.WinterOrderTypeVote && votesForOtherPlayer(game, playerID, entry.Order.NobleCode) {
+			// Candidacies are filed on the other players' private sheets: the
+			// preview cannot know whether this noble will stand.
+			entry.Applied = true
+			entry.Reason = "candidate_pending"
+		}
+		entry.Cost = event.ResourceSpent
+		entry.Level = event.Level
+		entry.Territory = event.TerritoryID
+		if entry.Territory == "" {
+			entry.Territory = winterOrderTerritory(game, *entry.Order)
+		}
+		if entry.Applied {
+			cost.Spent += entry.Cost
+		}
+	}
+	return nil
+}
+
+// royalAccordOnOtherSheet reports whether the order a royal accord authorizes
+// belongs to another player's sheet: the owner of the fief for W X and W R,
+// the controller of the capital for W F.
+func royalAccordOnOtherSheet(game *models.GameState, playerID models.PlayerID, order models.WinterOrder) bool {
+	switch order.Type {
+	case models.WinterOrderTypeRoyalAnnex, models.WinterOrderTypeRoyalRank:
+		for _, fief := range game.Fiefs {
+			if fief.CapitalTerritoryID == order.TerritoryID {
+				return fief.OwnerID != playerID
+			}
+		}
+	case models.WinterOrderTypeRoyalFound:
+		controller, controlled := game.TerritoryController(order.TerritoryID)
+		return !controlled || controller != playerID
+	}
+	return false
+}
+
+// winterPaymentReserves is the stock a player can spend on winter orders: the
+// resources of every controlled castle and village, plus the stock of any
+// mill targeted by one of winterOrders' build lines, since a mill upgrade can
+// pay for itself first (see #195's millUpgradePaymentSources). A settlement
+// or mill occupied against its controller is excluded: it pays for no
+// investment (titres.md).
+func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, winterOrders []models.WinterOrder) int {
+	settlements := make(map[models.InfraID]bool)
+	for _, infrastructure := range game.Infrastructures {
+		// Like winterPaymentSources: a ruin still pays from whatever stock it holds.
+		if infrastructure.IsSettlement() {
+			settlements[infrastructure.ID] = true
+		}
+	}
+	counted := make(map[models.TerritoryID]bool)
+	total := 0
+	for territoryID, territoryState := range game.TerritoryStates {
+		if controller, controlled := game.TerritoryController(territoryID); !controlled || controller != playerID || territoryState.Resources <= 0 {
+			continue
+		}
+		if territoryOccupiedAgainstController(game, territoryID) {
+			continue
+		}
+		if territoryState.Infrastructures != nil && settlements[*territoryState.Infrastructures] {
+			total += territoryState.Resources
+			counted[territoryID] = true
+		}
+	}
+	for _, order := range winterOrders {
+		if order.Type != models.WinterOrderTypeBuild || order.InfraType != models.InfraTypeMill || counted[order.TerritoryID] {
+			continue
+		}
+		territoryState, exists := game.TerritoryStates[order.TerritoryID]
+		if controller, controlled := game.TerritoryController(order.TerritoryID); !exists || !controlled || controller != playerID {
+			continue
+		}
+		if territoryOccupiedAgainstController(game, order.TerritoryID) {
+			continue
+		}
+		total += territoryState.Resources
+		counted[order.TerritoryID] = true
+	}
+	return total
+}
+
+// winterOrderTerritory locates an order that names a noble or a transfer
+// source rather than a territory.
+func winterOrderTerritory(game *models.GameState, order models.WinterOrder) models.TerritoryID {
+	if order.TerritoryID != "" {
+		return order.TerritoryID
+	}
+	if order.SourceID != "" {
+		return order.SourceID
+	}
+	for _, noble := range game.Nobles {
+		if models.NobleCode(noble.Code) == order.NobleCode {
+			return noble.LocationID
+		}
+	}
+	return ""
+}
+
+// isBallotOrder reports whether the order is an election candidacy or vote.
+func isBallotOrder(order models.WinterOrder) bool {
+	return order.Type == models.WinterOrderTypeCandidacy || order.Type == models.WinterOrderTypeVote
+}
+
+// votesForOtherPlayer reports whether the code names a noble of another player.
+func votesForOtherPlayer(game *models.GameState, playerID models.PlayerID, code models.NobleCode) bool {
+	for _, noble := range game.Nobles {
+		if noble.Code == string(code) {
+			return noble.OwnerID != playerID
+		}
+	}
+	return false
+}

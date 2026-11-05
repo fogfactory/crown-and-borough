@@ -9,7 +9,7 @@ export interface IconPlacement {
 }
 
 /** Mulberry32: tiny deterministic PRNG, reproducible across renders. */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let state = seed >>> 0
   return () => {
     state = (state + 0x6d2b79f5) >>> 0
@@ -20,7 +20,7 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-function hashSeed(key: string): number {
+export function hashSeed(key: string): number {
   let hash = 2166136261
   for (let index = 0; index < key.length; index += 1) {
     hash ^= key.charCodeAt(index)

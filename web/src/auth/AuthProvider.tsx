@@ -20,7 +20,7 @@ import {
 
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { firebaseConfigured, getFirebaseServices } from '@/lib/firebase'
-import type { ProfileData } from '@/types'
+import type { ProfileData, ReleaseNotesUpdate } from '@/types'
 
 const EMAIL_STORAGE_KEY = 'crown-and-borough.sign-in-email'
 const MISSING_EMAIL_ERROR = 'the email used to request the sign-in link is missing'
@@ -37,6 +37,7 @@ interface AuthContextValue extends TokenProvider {
   sendSignInLink: (email: string, redirectPath?: string) => Promise<void>
   completeSignIn: (href?: string, email?: string) => Promise<boolean>
   updateProfile: (displayName: string) => Promise<ProfileData>
+  updateReleaseNotes: (update: ReleaseNotesUpdate) => Promise<ProfileData>
   refreshProfile: () => Promise<ProfileData | null>
   signOut: () => Promise<void>
 }
@@ -187,6 +188,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [getIdToken],
   )
 
+  const updateReleaseNotes = useCallback(
+    async (update: ReleaseNotesUpdate): Promise<ProfileData> => {
+      const response = await apiRequest<{ player: ProfileData }>(
+        { getIdToken },
+        '/api/auth/me/release-notes',
+        {
+          method: 'PUT',
+          body: JSON.stringify(update),
+        },
+      )
+      setProfile(response.player)
+      return response.player
+    },
+    [getIdToken],
+  )
+
   const signOut = useCallback(async () => {
     if (!services) return
     await firebaseSignOut(services.auth)
@@ -211,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendSignInLink,
       completeSignIn,
       updateProfile,
+      updateReleaseNotes,
       refreshProfile,
       signOut,
     }),
@@ -226,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendSignInLink,
       signOut,
       updateProfile,
+      updateReleaseNotes,
       user,
     ],
   )

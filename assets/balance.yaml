@@ -10,23 +10,32 @@
 # add related parameters here without an explicit rules decision.
 
 # Action-turn production and supply.
-base_production: 1
+territory_income: 1
+# R per village level; a village runs from level 0 (a ruin, produces
+# nothing) to village_max_level.
+village_income: 1
+village_max_level: 3
 supply_range: 3
 depot_range_bonus: 2
-infra_rations_bonus: 2
 cost_base: 2
 pillage_bonus: 2
 noble_command_bonus: 1
 castle_defense_bonus: 1
+# A fief capital's castle becomes a city: +2 total, replacing (not stacking
+# with) castle_defense_bonus (titres.md).
+city_defense_bonus: 2
 ration_terrain:
-  plain: 3
-  forest: 2
-  hill: 2
-  mountain: 1
+  plain: 2
+  forest: 1
+  hill: 1
+  mountain: 0
   swamp: 1
 winter_stock_divisor: 2
 village_stock_cap: 1
 castle_stock_cap: 2
+# Every full multiple of this threshold in the map-wide winter conservation
+# loss triggers one prosperity founding (economie.md#prospérité).
+prosperity_loss_threshold: 10
 
 # Winter investment costs.
 costs:
@@ -34,17 +43,110 @@ costs:
   # Index 0 is the construction cost; index N-1 is the cost to reach level N.
   mill_levels: [3, 5, 7]
   troop: 1
-  noble: 2
   supply_depot: 3
-  liberation: 0
+  # Per territory, paid by a T F winter order (titres.md).
+  fief_per_territory: 2
+  # Per territory annexed by a T X winter order (politique.md).
+  annex_per_territory: 2
+  # Per territory of the fief, paid by a T R winter order (politique.md).
+  rank_per_territory: 2
+
+# Title-score supremacy thresholds (titres.md § Seuil de victoire et fin de
+# partie). Each threshold is the share of the game territories (8 per player)
+# a player (solo) or an alliance should hold through fiefs, divided by the
+# average fief size (a barony has 3 territories, a duchy 6 or more) and rounded
+# up. Approximate by design. The alliance share must exceed the solo share.
+# The solo share is high enough to leave room for the mixed/secondary marriage
+# bonuses (succession.md § Poids d'alliance), which add to the title score.
+victory:
+  solo_territory_percent: 75
+  alliance_territory_percent: 90
+  reference_fief_size: 4
+
+# Alliance weight (succession.md § Poids d'alliance). A noble weighs its
+# succession rank plus its title rank; a marriage weighs the weaker spouse plus
+# density_bonus per other alliance between the same two players, uncapped. The
+# heaviest marriages become head alliances (see succession.md § Tête active),
+# the others are secondary.
+alliance:
+  # Weight by position in the line of succession; the last value applies to
+  # every later position.
+  succession_ranks: [3, 2, 1]
+  # Weight of the highest fief title held (no title weighs 0).
+  title_ranks:
+    barony: 1
+    county: 2
+    marquisate: 3
+    duchy: 4
+  # Weight of the crown; it stands in for the fief title when higher.
+  crown_rank: 5
+  density_bonus: 1
+
+# Religious titles (religieux.md). cardinal_cost is the R paid for the winter
+# purchase of a cardinal; the purchased cardinals are capped at
+# cardinal_purchase_base plus one per full cardinal_purchase_players_per_extra
+# players. The noble deck holds cardinal_card_base plus one per full
+# cardinal_card_players_per_extra players cardinal cards (a free way to obtain
+# the title, independent of the purchase cap). The pope excommunicates
+# at most excommunications_per_winter nobles per winter, and a rival player has
+# at most excommunications_per_target_player excommunicated nobles at a time.
+# votes are the voices per territory held (seat: the seat of a bishopric in its
+# own bishop election), per highest religious title of a noble and for the
+# abbey of an abbess in the bishop election of its bishopric (abbess).
+religion:
+  cardinal_cost: 8
+  cardinal_purchase_base: 1
+  cardinal_purchase_players_per_extra: 6
+  cardinal_card_base: 1
+  cardinal_card_players_per_extra: 3
+  excommunications_per_winter: 1
+  excommunications_per_target_player: 1
+  # Revolt appeasement: free rite on a d6 (faces 1-3 succeed, the last face
+  # fails and kills the cleric), or paid for appeasement_cost_base^army size.
+  appeasement_success_rolls: 3
+  appeasement_death_rolls: 1
+  appeasement_cost_base: 2
+  # Inquiry (Q NNN): R paid per rank of the target. A target is charged its
+  # most expensive title; a spouse costs the spouse's cost minus one (at least
+  # untitled); a noble without title or spouse costs untitled.
+  inquiry_cost:
+    untitled: 1
+    baron: 2
+    count: 3
+    marquis: 4
+    duke: 5
+    king: 5
+    pope: 5
+    bishop: 3
+    cardinal: 4
+  votes:
+    territory: 1
+    seat: 2
+    bishop: 1
+    cardinal: 2
+    pope: 3
+    abbess: 1
+
+# Royal powers (politique.md § Pouvoirs royaux). Maximum number of royal winter
+# orders of each type (W X, W R, W F, W G) a king or regent issues per winter.
+# To calibrate.
+royal:
+  orders_per_winter: 1
 
 # P1.7 game setup values.
-starting_nobles: 1
+# Living nobles (free, hostage or in a dungeon) a player may own at once.
+# noble_limit is the base; game effects may raise it, never above
+# noble_limit_max (succession.md#plafond-de-nobles).
+noble_limit: 4
+noble_limit_max: 6
+starting_nobles: 2
 starting_troops: 2
-starting_resources: 10
+# 1-troop armies pre-placed on non-mountain neighbours of the capital (#203).
+starting_outposts: 2
+starting_resources: 6
 
 special_orders:
-  hand_limit: 4
+  hand_limit: 6
   draw_orders_limit: 2
   deck_size: 30
   calamity_percentage: 30
@@ -60,10 +162,13 @@ special_orders:
     fair_weather: 3
     abundant_harvest: 3
     revolt: 1
+    seigneurial_tax: 2
+    tunnel: 1
+    ambush: 1
+    assassination: 1
+    justice: 1
   effects:
     plague_army_divisor: 2
     plague_noble_mortality_percentage: 50
     revolt_army_min_size: 1
     revolt_army_max_size: 3
-    bonus_mill_production: 1
-    bonus_army_ration: 1

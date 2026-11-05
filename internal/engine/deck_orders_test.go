@@ -109,7 +109,7 @@ func TestRevoltCardRequiresActiveFamineOnTargetRegion(t *testing.T) {
 	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{TargetTerritoryID: "BBB"}); !ok || reason != "" {
 		t.Fatalf("revolt with famine on second territory = %t/%q, want true/empty", ok, reason)
 	}
-	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{TargetTerritoryID: "XXX"}); ok || reason != "revolt_requires_famine" {
-		t.Fatalf("revolt without famine = %t/%q, want false/revolt_requires_famine", ok, reason)
+	if ok, reason := definition.CanPlay(&ExecutionContext{resolution: ctx, season: models.SeasonSpring}, models.DeckOrder{TargetTerritoryID: "XXX"}); ok || reason != "revolt_requires_famine_or_tax" {
+		t.Fatalf("revolt without famine = %t/%q, want false/revolt_requires_famine_or_tax", ok, reason)
 	}
 }

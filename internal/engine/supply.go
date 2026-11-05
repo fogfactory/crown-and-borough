@@ -24,23 +24,39 @@ type supplyAssignment struct {
 }
 
 type famineCandidate struct {
-	army     models.Army
-	demand   int
+	army   models.Army
+	demand int
+	// missing is the part of demand the pool could not reach; received is
+	// what the army still took from it to feed its supplied strength.
+	missing  int
+	received int
 	sourceID models.TerritoryID
 	distance int
 }
 
+// pillageOutcome is the infrastructure an already starving army pillages on
+// its territory (nil when there is none) and the pillage bonus left once it
+// covers the demand the pool left unfed: a gain of zero or more saves the
+// army. resolveFamine applies it and the famine forecast reads it.
+func (ctx *resolutionContext) pillageOutcome(candidate famineCandidate) (*models.Infrastructure, int) {
+	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
+	if infrastructure == nil || !infrastructure.IsPillageable() {
+		return nil, 0
+	}
+	return infrastructure, ctx.balance.PillageBonus - (candidate.demand - candidate.received)
+}
+
 // rationProductionParts breaks the local ration production of one territory
-// into its terrain, settlement, and regional bonus components.
+// into its terrain and good harvest components, plus the terrain rations the
+// bad harvest calamity suppresses.
 type rationProductionParts struct {
 	terrain    int
-	infra      int
 	bonus      int
 	suppressed int
 }
 
 func (parts rationProductionParts) total() int {
-	return parts.terrain + parts.infra + parts.bonus
+	return parts.terrain + parts.bonus
 }
 
 // sourceProductionParts breaks the stockable production of one source into its
@@ -67,21 +83,41 @@ type consumptionDetail struct {
 	receivedLocal         int
 	receivedTransfer      int
 	famined               bool
+	warned                bool
 	troopsLost            int
+	suppliedStrength      int
+	destroyed             bool
 	savedByPillage        bool
 	pillageInfrastructure models.InfraType
 	resourceCredit        int
 	creditTerritory       models.TerritoryID
 }
 
-// resolveSupply calculates the complete start-of-turn supply phase before any
-// order can move an army or change control.
+// resolveSupply calculates the complete end-of-turn ravitaillement phase,
+// after every order has moved an army or changed control this turn (#208): it
+// reads and feeds armies where they actually stand once combat, movement and
+// control are settled, not where they started the turn. A famine here never
+// weakens the army in this same turn's own combat (already resolved earlier);
+// it only sets models.Army.Starving for the penalty the following turn reads
+// (see ctx.famished's seeding in newResolutionContext).
 func resolveSupply(ctx *resolutionContext) {
+	ctx.settledControl = ctx.snapshotControlNow()
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		ctx.supplyStockBefore[territoryID] = ctx.state.TerritoryStates[territoryID].Resources
 	}
+	// Starving is recomputed in full every turn: clear it here so an army
+	// that meets its demand this turn is no longer flagged, then resolveFamine
+	// (below) sets it back on whichever one fails to.
+	for index := range ctx.state.Armies {
+		ctx.state.Armies[index].Starving = false
+		ctx.state.Armies[index].StarvingStrength = 0
+	}
+	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
-	produceNeutralVillageStocks(ctx)
+	produceNeutralStocks(ctx)
+	// Mill production is captured now, before any famine auto-pillage can
+	// remove the infrastructure that just produced it (see #195).
+	millProductions := computeMillProduction(ctx)
 	allSources := make([]*supplySource, 0)
 	directFamine := make([]famineCandidate, 0)
 	assignedFamine := make([]famineCandidate, 0)
@@ -91,8 +127,7 @@ func resolveSupply(ctx *resolutionContext) {
 		allSources = append(allSources, sources...)
 		assignments, direct := assignSupply(ctx, ownerID, sources, receivedRations)
 		directFamine = append(directFamine, direct...)
-		delta := resolveSupplyStocks(ctx, sources)
-		assignedFamine = append(assignedFamine, selectAssignedFamine(ctx, assignments, delta)...)
+		assignedFamine = append(assignedFamine, allocateSupply(ctx, sources, assignments)...)
 		for _, source := range sources {
 			ctx.supplyStockConsumed[source.territoryID] += source.stockConsumed
 		}
@@ -101,7 +136,7 @@ func resolveSupply(ctx *resolutionContext) {
 	for _, source := range allSources {
 		ctx.events = append(ctx.events, Event{
 			Type:          EventTypeSupply,
-			Phase:         0,
+			Phase:         6,
 			SourceID:      source.territoryID,
 			OwnerID:       source.ownerID,
 			Production:    source.production,
@@ -112,11 +147,11 @@ func resolveSupply(ctx *resolutionContext) {
 		})
 	}
 
-	sortDirectFamine(ctx, directFamine)
+	sortFamineOrder(directFamine)
 	for _, candidate := range directFamine {
 		ctx.resolveFamine(candidate)
 	}
-	sortAssignedFamine(ctx, assignedFamine)
+	sortFamineOrder(assignedFamine)
 	for _, candidate := range assignedFamine {
 		ctx.resolveFamine(candidate)
 	}
@@ -124,14 +159,19 @@ func resolveSupply(ctx *resolutionContext) {
 	updateSupplyEventStocks(ctx)
 	ctx.emitProductionEvents()
 	ctx.emitConsumptionEvents()
+	ctx.emitMillProductionEvents(millProductions)
 }
 
 // resolveNeutralFamines applies the neutral starvation rule: neutral armies
 // never lose strength to a famine, but lose one troop when the local
-// production of their territory cannot feed them.
+// production of their territory cannot feed them. Unlike player famines
+// (resolveFamine), this stays a single-step penalty with no warning turn: the
+// two-turn grace period exists so a player can react to a warning by moving
+// the army or sending it a transfer, and no player controls a neutral army to
+// do either.
 func resolveNeutralFamines(ctx *resolutionContext) {
-	for _, armyID := range sortedArmyMap(ctx.startArmiesByID) {
-		army := ctx.startArmiesByID[armyID]
+	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
+		army := ctx.armiesByID[armyID]
 		if army.OwnerID != models.NeutralPlayerID || army.Size <= 1 {
 			continue
 		}
@@ -139,19 +179,16 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 		if local >= armyCost(army.Size, ctx.balance.CostBase) {
 			continue
 		}
+		sizeBefore := army.Size
 		army.Size--
-		ctx.startArmiesByID[army.ID] = army
-		if live := ctx.armiesByID[army.ID]; live != nil {
-			live.Size = army.Size
-		}
 		ctx.events = append(ctx.events, Event{
 			Type:        EventTypeFamine,
-			Phase:       0,
+			Phase:       6,
 			ArmyID:      army.ID,
 			OwnerID:     models.NeutralPlayerID,
 			RegionSeed:  regionForTerritory(ctx, army.TerritoryID),
 			TerritoryID: army.TerritoryID,
-			Troops:      army.Size + 1,
+			Troops:      sizeBefore,
 			TroopsLost:  1,
 			Season:      ctx.state.Season,
 			Year:        ctx.state.Year(),
@@ -159,19 +196,39 @@ func resolveNeutralFamines(ctx *resolutionContext) {
 	}
 }
 
-func produceNeutralVillageStocks(ctx *resolutionContext) {
+// produceNeutralStocks credits the local production of every unclaimed
+// territory that carries a village or a mill into its own stock: a village's
+// harvest-adjusted village_income, a mill's level-based production
+// (millSelfProductionBreakdown: an uncontrolled mill is its own recipient,
+// #470). The next army to control the territory finds that stock there, as a
+// supply source and for a transfer.
+func produceNeutralStocks(ctx *resolutionContext) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID != nil || !ctx.hasInfrastructure(territoryID, models.InfraTypeVillage) {
+		if _, controlled := ctx.controllerNow(territoryID); controlled {
 			continue
 		}
-		ctx.supplySources[territoryID] = sourceProductionBreakdown(ctx, territoryID)
-		production := sourceProduction(ctx, territoryID)
+		var parts sourceProductionParts
+		switch {
+		case ctx.hasInfrastructure(territoryID, models.InfraTypeVillage):
+			parts = harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
+		case ctx.hasInfrastructure(territoryID, models.InfraTypeMill):
+			parts = millSelfProductionBreakdown(ctx, territoryID)
+		default:
+			continue
+		}
+		if parts.total() == 0 && parts.suppressed == 0 {
+			// Nothing produced and nothing suppressed (a ruined, level-0
+			// village): the territory is no source this turn.
+			continue
+		}
+		state := ctx.state.TerritoryStates[territoryID]
+		ctx.supplySources[territoryID] = parts
+		production := parts.total()
 		state.Resources += production
 		ctx.state.TerritoryStates[territoryID] = state
 		ctx.events = append(ctx.events, Event{
 			Type:       EventTypeSupply,
-			Phase:      0,
+			Phase:      6,
 			SourceID:   territoryID,
 			Production: production,
 			StockAfter: state.Resources,
@@ -192,16 +249,15 @@ func updateSupplyEventStocks(ctx *resolutionContext) {
 }
 
 func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
-	received := make(map[models.ArmyID]int, len(ctx.startArmiesByID))
+	received := make(map[models.ArmyID]int, len(ctx.armiesByID))
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		army := ctx.startArmyAt(territoryID)
+		army := ctx.currentArmyAt(territoryID)
 		if army == nil {
 			continue
 		}
 		parts := rationProductionBreakdown(ctx, territoryID)
 		ctx.supplyRations[territoryID] = parts
-		distribution := distributeRations(parts.total(), []models.Army{*army}, ctx.balance.CostBase)
-		received[army.ID] = distribution[army.ID]
+		received[army.ID] = min(parts.total(), armyDemand(ctx, *army))
 		if army.OwnerID == models.NeutralPlayerID {
 			continue
 		}
@@ -209,31 +265,29 @@ func resolveRations(ctx *resolutionContext) map[models.ArmyID]int {
 		detail.size = army.Size
 		detail.ownerID = army.OwnerID
 		detail.territoryID = army.TerritoryID
-		detail.demand = armyCost(army.Size, ctx.balance.CostBase)
+		detail.demand = armyDemand(ctx, *army)
 		detail.receivedLocal = received[army.ID]
 	}
 	return received
 }
 
 // rationProductionBreakdown splits the local ration production of a territory
-// into terrain, settlement, and regional bonus parts, reporting the settlement
-// part as suppressed while the bad harvest calamity disables it.
+// into terrain and regional bonus parts. The bad harvest calamity suppresses
+// all terrain rations of its region; the good harvest bonus doubles them.
 func rationProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) rationProductionParts {
 	territory := ctx.territoriesByID[territoryID]
 	if territory == nil {
 		return rationProductionParts{}
 	}
-	parts := rationProductionParts{terrain: ctx.balance.RationTerrain[territory.Terrain]}
+	terrain := ctx.balance.RationTerrain[territory.Terrain]
 	regionSeed := regionForTerritory(ctx, territoryID)
-	if ctx.hasSettlement(territoryID) {
-		if ctx.famineRegions[regionSeed] {
-			parts.suppressed = ctx.balance.InfraRationsBonus
-		} else {
-			parts.infra = ctx.balance.InfraRationsBonus
-		}
+	switch {
+	case ctx.famineRegions[regionSeed]:
+		return rationProductionParts{suppressed: terrain}
+	case ctx.goodHarvestRegions[regionSeed]:
+		return rationProductionParts{terrain: terrain, bonus: terrain}
 	}
-	parts.bonus = ctx.bonusRationRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusArmyRation
-	return parts
+	return rationProductionParts{terrain: terrain}
 }
 
 func rationProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
@@ -285,13 +339,29 @@ func terrainRationProduction(ctx *resolutionContext, territoryID models.Territor
 func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []*supplySource {
 	sources := make([]*supplySource, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
+		if !controlledBy(ctx.controllerNow, ownerID, territoryID) {
+			continue
+		}
 		state := ctx.state.TerritoryStates[territoryID]
-		if state.OwnerID == nil || *state.OwnerID != ownerID || (!ctx.hasSettlement(territoryID) && state.Resources == 0) {
+		if ctx.occupiedAgainstController(territoryID, ctx.currentArmyAt(territoryID)) {
+			// A controlled cell occupied by another player's (or a revolt's)
+			// army is no longer a supply source for its controller: neither
+			// side may draw from it (titres.md, economie.md#portée-de-ravitaillement).
+			continue
+		}
+		isSettlement := ctx.hasActiveSettlement(territoryID)
+		selfSuppliedMill := !isSettlement && ctx.isSelfSuppliedMill(territoryID)
+		if !isSettlement && !selfSuppliedMill && state.Resources == 0 {
 			continue
 		}
 		production := 0
-		if ctx.hasSettlement(territoryID) {
+		switch {
+		case isSettlement:
 			parts := sourceProductionBreakdown(ctx, territoryID)
+			ctx.supplySources[territoryID] = parts
+			production = parts.total()
+		case selfSuppliedMill:
+			parts := millSelfProductionBreakdown(ctx, territoryID)
 			ctx.supplySources[territoryID] = parts
 			production = parts.total()
 		}
@@ -306,31 +376,28 @@ func controlledSupplySources(ctx *resolutionContext, ownerID models.PlayerID) []
 	return sources
 }
 
-// sourceProductionBreakdown splits the stockable production of a source into
-// base, mill, and regional bonus parts, reporting mill contributions as
-// suppressed while the bad harvest calamity disables them.
+// sourceProductionBreakdown splits the stockable production of a controlled
+// source into its mill and regional weather bonus parts. Base production was
+// replaced by territory income (see income.go), credited directly to its
+// destination outside this ledger. A neighboring mill only contributes here
+// when territoryID is its single designated recipient (see #195's
+// millRecipient).
 func sourceProductionBreakdown(ctx *resolutionContext, territoryID models.TerritoryID) sourceProductionParts {
-	parts := sourceProductionParts{base: ctx.balance.BaseProduction}
-	locations := append([]models.TerritoryID{territoryID}, ctx.sortedNeighbors(territoryID)...)
-	for _, locationID := range locations {
-		infrastructure := ctx.infrastructureAt(locationID)
+	parts := sourceProductionParts{mill: ctx.titheProductionAtCapital(territoryID)}
+	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
+		infrastructure := ctx.infrastructureAt(neighborID)
 		if infrastructure == nil || infrastructure.Type != models.InfraTypeMill {
 			continue
 		}
-		regionSeed := regionForTerritory(ctx, locationID)
-		contribution := infrastructure.Level + ctx.bonusMillRegions[regionSeed]*ctx.balance.SpecialOrders.Effects.BonusMillProduction
-		if ctx.famineRegions[regionSeed] {
-			parts.suppressed += contribution
+		if millRecipient(ctx, neighborID) != territoryID {
 			continue
 		}
-		parts.mill += infrastructure.Level
-		parts.bonus += ctx.bonusMillRegions[regionSeed] * ctx.balance.SpecialOrders.Effects.BonusMillProduction
+		production, bonus, suppressed := millWeatherProduction(ctx, neighborID, infrastructure.Level)
+		parts.mill += production
+		parts.bonus += bonus
+		parts.suppressed += suppressed
 	}
 	return parts
-}
-
-func sourceProduction(ctx *resolutionContext, territoryID models.TerritoryID) int {
-	return sourceProductionBreakdown(ctx, territoryID).total()
 }
 
 // supplyNetwork visits each territory once per source. That makes every depot
@@ -355,11 +422,11 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 			if _, visited := reachable[neighborID]; visited {
 				continue
 			}
-			if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
+			if army := ctx.currentArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 				continue
 			}
 			remaining := current.remaining - 1
-			if ctx.isControlledDepot(neighborID, ownerID) {
+			if ctx.isControlledDepot(neighborID, ownerID, ctx.controllerNow) {
 				remaining += ctx.balance.DepotRangeBonus
 			}
 			reachable[neighborID] = current.distance + 1
@@ -377,7 +444,8 @@ func supplyNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID 
 // same range and depot rules as ordinary supply, but permits the requested
 // destination to be occupied by an enemy army. Enemy armies on intermediate
 // territories still block the route, including an army belonging to the
-// recipient when it is not the final destination.
+// recipient when it is not the final destination. Transfers are validated
+// before any army moves, so it reads the start-of-resolution control.
 func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerID models.PlayerID, targetID models.TerritoryID) map[models.TerritoryID]int {
 	type visit struct {
 		territoryID models.TerritoryID
@@ -398,12 +466,12 @@ func transferNetwork(ctx *resolutionContext, sourceID models.TerritoryID, ownerI
 				continue
 			}
 			if neighborID != targetID {
-				if army := ctx.startArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
+				if army := ctx.currentArmyAt(neighborID); army != nil && army.OwnerID != ownerID {
 					continue
 				}
 			}
 			remaining := current.remaining - 1
-			if ctx.isControlledDepot(neighborID, ownerID) {
+			if ctx.isControlledDepot(neighborID, ownerID, ctx.controllerAtStart) {
 				remaining += ctx.balance.DepotRangeBonus
 			}
 			reachable[neighborID] = current.distance + 1
@@ -425,21 +493,21 @@ func assignSupply(
 ) ([]supplyAssignment, []famineCandidate) {
 	assignments := make([]supplyAssignment, 0)
 	direct := make([]famineCandidate, 0)
-	for _, army := range startArmiesForPlayer(ctx, ownerID) {
+	for _, army := range liveArmiesForPlayer(ctx, ownerID) {
 		detail := ctx.consumptionDetailFor(army)
 		detail.size = army.Size
 		detail.ownerID = army.OwnerID
 		detail.territoryID = army.TerritoryID
 		if detail.demand == 0 {
-			detail.demand = armyCost(army.Size, ctx.balance.CostBase)
+			detail.demand = armyDemand(ctx, army)
 		}
-		demand := armyCost(army.Size, ctx.balance.CostBase) - receivedRations[army.ID]
+		demand := armyDemand(ctx, army) - receivedRations[army.ID]
 		if demand == 0 {
 			continue
 		}
 		source, distance := closestSupplySource(ctx, army.TerritoryID, sources)
 		if source == nil {
-			direct = append(direct, famineCandidate{army: army, demand: demand})
+			direct = append(direct, famineCandidate{army: army, demand: demand, missing: demand})
 			continue
 		}
 		detail.receivedTransfer = demand
@@ -475,27 +543,75 @@ func closestSupplySource(ctx *resolutionContext, territoryID models.TerritoryID,
 	return closest, distance
 }
 
-func resolveSupplyStocks(ctx *resolutionContext, sources []*supplySource) int {
-	totalDemand := 0
+// allocateSupply feeds one player's source-assigned armies from the pool of
+// its sources' production and stocks, and returns the armies it cannot feed.
+// Armies are served in the reverse of the famine order (closest, then
+// smallest, then ascending trigram first): each takes its whole demand while
+// the pool holds it; one that the pool cannot cover starves and takes only
+// what feeds its supplied strength, leaving the rest to the armies served
+// after it. Whatever no army takes stays in stock.
+func allocateSupply(ctx *resolutionContext, sources []*supplySource, assignments []supplyAssignment) []famineCandidate {
 	totalProduction := 0
+	totalStock := 0
 	for _, source := range sources {
-		totalDemand += source.demand
 		totalProduction += source.production
+		totalStock += ctx.state.TerritoryStates[source.territoryID].Resources
 	}
-	if totalDemand <= totalProduction {
+	sort.SliceStable(assignments, func(i, j int) bool {
+		if assignments[i].distance != assignments[j].distance {
+			return assignments[i].distance < assignments[j].distance
+		}
+		if assignments[i].army.Size != assignments[j].army.Size {
+			return assignments[i].army.Size < assignments[j].army.Size
+		}
+		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
+	})
+	pool := totalProduction + totalStock
+	consumed := 0
+	served := make(map[models.TerritoryID]int, len(sources))
+	candidates := make([]famineCandidate, 0)
+	for _, assignment := range assignments {
+		taken := assignment.demand
+		if taken > pool {
+			missing := assignment.demand - pool
+			taken = starvingIntake(assignment.army.Size, assignment.demand, missing, ctx.balance.CostBase)
+			candidates = append(candidates, famineCandidate{
+				army:     assignment.army,
+				demand:   assignment.demand,
+				missing:  missing,
+				received: taken,
+				sourceID: assignment.source.territoryID,
+				distance: assignment.distance,
+			})
+			if detail := ctx.supplyConsumption[assignment.army.ID]; detail != nil {
+				detail.receivedTransfer = taken
+			}
+		}
+		pool -= taken
+		consumed += taken
+		served[assignment.source.territoryID] += taken
+		ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, taken)
+	}
+
+	if consumed <= totalProduction {
+		// Production alone covered what the armies took: the pool's net
+		// excess is stored where it was produced, each source (in territory
+		// order) keeping at most what it produced beyond what its own armies
+		// took.
+		excess := totalProduction - consumed
 		for _, source := range sources {
-			excess := source.production - source.demand
-			if excess <= 0 {
+			stored := min(excess, max(0, source.production-served[source.territoryID]))
+			if stored == 0 {
 				continue
 			}
 			state := ctx.state.TerritoryStates[source.territoryID]
-			state.Resources += excess
+			state.Resources += stored
 			ctx.state.TerritoryStates[source.territoryID] = state
+			excess -= stored
 		}
-		return 0
+		return candidates
 	}
-
-	delta := totalDemand - totalProduction
+	delta := consumed - totalProduction
 	stocks := append([]*supplySource(nil), sources...)
 	sort.SliceStable(stocks, func(i, j int) bool {
 		left := ctx.state.TerritoryStates[stocks[i].territoryID]
@@ -510,56 +626,25 @@ func resolveSupplyStocks(ctx *resolutionContext, sources []*supplySource) int {
 			break
 		}
 		state := ctx.state.TerritoryStates[source.territoryID]
-		consumed := min(state.Resources, delta)
-		state.Resources -= consumed
+		drawn := min(state.Resources, delta)
+		state.Resources -= drawn
 		ctx.state.TerritoryStates[source.territoryID] = state
-		source.stockConsumed += consumed
-		delta -= consumed
-	}
-	return delta
-}
-
-func selectAssignedFamine(ctx *resolutionContext, assignments []supplyAssignment, delta int) []famineCandidate {
-	if delta == 0 {
-		for _, assignment := range assignments {
-			ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
-		}
-		return nil
-	}
-	sort.SliceStable(assignments, func(i, j int) bool {
-		if assignments[i].distance != assignments[j].distance {
-			return assignments[i].distance > assignments[j].distance
-		}
-		if assignments[i].army.Size != assignments[j].army.Size {
-			return assignments[i].army.Size > assignments[j].army.Size
-		}
-		return assignments[i].army.TerritoryID < assignments[j].army.TerritoryID
-	})
-	candidates := make([]famineCandidate, 0)
-	famined := make(map[models.ArmyID]bool)
-	for _, assignment := range assignments {
-		if delta == 0 {
-			break
-		}
-		if detail := ctx.supplyConsumption[assignment.army.ID]; detail != nil {
-			detail.receivedTransfer = 0
-		}
-		famined[assignment.army.ID] = true
-		candidates = append(candidates, famineCandidate{
-			army:     assignment.army,
-			demand:   assignment.demand,
-			sourceID: assignment.source.territoryID,
-			distance: assignment.distance,
-		})
-		delta -= assignment.demand
-	}
-	for _, assignment := range assignments {
-		if famined[assignment.army.ID] {
-			continue
-		}
-		ctx.recordPoolRations(assignment.source.territoryID, assignment.army.TerritoryID, assignment.demand)
+		source.stockConsumed += drawn
+		delta -= drawn
 	}
 	return candidates
+}
+
+// starvingIntake is what a starving army takes from the pool: the rations its
+// supplied strength still needs beyond what it covers on its own (local
+// rations and discounts), never more than the pool left it.
+func starvingIntake(size, demand, missing, costBase int) int {
+	supplied := suppliedStrength(size, missing, costBase)
+	if supplied == 0 {
+		return 0
+	}
+	ownCover := armyCost(size, costBase) - demand
+	return min(demand-missing, max(0, armyCost(supplied, costBase)-ownCover))
 }
 
 // recordPoolRations traces the rations one source dispatched to the armies of
@@ -574,16 +659,9 @@ func (ctx *resolutionContext) recordPoolRations(sourceID, territoryID models.Ter
 	ctx.poolRations[sourceID][territoryID] += amount
 }
 
-func sortDirectFamine(ctx *resolutionContext, candidates []famineCandidate) {
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].army.Size != candidates[j].army.Size {
-			return candidates[i].army.Size > candidates[j].army.Size
-		}
-		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
-	})
-}
-
-func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
+// sortFamineOrder puts the famine order first: farthest from the source, then
+// largest, then descending trigram. Direct candidates carry no distance.
+func sortFamineOrder(candidates []famineCandidate) {
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].distance != candidates[j].distance {
 			return candidates[i].distance > candidates[j].distance
@@ -591,57 +669,134 @@ func sortAssignedFamine(ctx *resolutionContext, candidates []famineCandidate) {
 		if candidates[i].army.Size != candidates[j].army.Size {
 			return candidates[i].army.Size > candidates[j].army.Size
 		}
-		return candidates[i].army.TerritoryID < candidates[j].army.TerritoryID
+		return candidates[i].army.TerritoryID > candidates[j].army.TerritoryID
 	})
+}
+
+// suppliedStrength is the largest size an army can field on the rations it
+// reaches: the largest s whose cost 2^(s-1) fits in the army's own cost minus
+// the rations it is missing. Zero when it reaches no ration at all.
+func suppliedStrength(size, missing, costBase int) int {
+	reached := armyCost(size, costBase) - missing
+	supplied, nextCost := 0, 1
+	for supplied < size && nextCost <= reached {
+		supplied++
+		nextCost *= costBase
+	}
+	return supplied
+}
+
+// destroyStarvedArmy removes an army whose supplied strength is zero. Nobody
+// can capture its nobles, so the free nobles of its owner on the territory
+// die with it; the territory keeps its controller.
+func (ctx *resolutionContext) destroyStarvedArmy(armyID models.ArmyID, territoryID models.TerritoryID, ownerID models.PlayerID) {
+	// Chains already progressed this turn: drop the one the army still
+	// carries, or it would point at an army that no longer exists.
+	if army := ctx.armiesByID[armyID]; army != nil && army.ChainID != nil {
+		ctx.removeChain(*army.ChainID)
+	}
+	ctx.removeArmy(armyID)
+	ctx.killFreeNobles(ownerID, territoryID, models.DeathCauseFamine)
+}
+
+// killFreeNobles kills the free nobles of ownerID standing on territoryID: the
+// nobles of an army that vanished or changed hands with nobody to capture them.
+func (ctx *resolutionContext) killFreeNobles(ownerID models.PlayerID, territoryID models.TerritoryID, cause models.DeathCause) {
+	var dying []models.Noble
+	for _, nobleID := range ctx.noblesAt(territoryID) {
+		noble := ctx.noblesByID[nobleID]
+		if noble != nil && noble.OwnerID == ownerID && noble.Status == models.NobleStatusFree {
+			dying = append(dying, *noble)
+		}
+	}
+	for _, noble := range dying {
+		ctx.removeNobleInAction(noble, cause)
+	}
 }
 
 func (ctx *resolutionContext) resolveFamine(candidate famineCandidate) {
 	event := Event{
 		Type:        EventTypeFamine,
-		Phase:       0,
+		Phase:       6,
 		ArmyID:      candidate.army.ID,
 		OwnerID:     candidate.army.OwnerID,
 		TerritoryID: candidate.army.TerritoryID,
 		SourceID:    candidate.sourceID,
 		Troops:      candidate.army.Size,
 	}
-	infrastructure := ctx.infrastructureAt(candidate.army.TerritoryID)
-	if infrastructure != nil {
+	supplied := suppliedStrength(candidate.army.Size, candidate.missing, ctx.balance.CostBase)
+	if !ctx.famished[candidate.army.ID] {
+		// First turn this army falls into deficit: only a warning. It is
+		// marked Starving for next turn's own combat, support and
+		// noble-bonus penalty (ctx.famished's seeding in
+		// newResolutionContext), but its infrastructure is spared and it
+		// keeps every troop this turn, so its owner has this whole next turn
+		// to react — move the army away or send it a resource transfer
+		// (only the famished sender is blocked, not the recipient) — before
+		// a second consecutive deficit triggers the auto-pillage below.
+		event.Warned = true
+		event.SuppliedStrength = supplied
+		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
+			army.Starving = true
+			army.StarvingStrength = max(0, supplied-1)
+		}
+		if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
+			detail.famined = true
+			detail.warned = true
+			detail.suppliedStrength = supplied
+		}
+		ctx.events = append(ctx.events, event)
+		return
+	}
+	if infrastructure, gain := ctx.pillageOutcome(candidate); infrastructure != nil {
 		event.InfrastructureID = infrastructure.ID
 		event.InfrastructureType = infrastructure.Type
-		ctx.removeInfrastructure(infrastructure.ID)
-		gain := ctx.balance.PillageBonus - candidate.demand
-		if gain >= 0 {
-			event.SavedByPillage = true
-			if gain > 0 {
-				creditTerritoryID := ctx.closestControlledSettlement(candidate.army.TerritoryID, candidate.army.OwnerID)
-				if creditTerritoryID != "" {
-					creditState := ctx.state.TerritoryStates[creditTerritoryID]
-					creditState.Resources += gain
-					ctx.state.TerritoryStates[creditTerritoryID] = creditState
-					event.ResourceCredit = gain
-					event.CreditTerritoryID = creditTerritoryID
-				}
+		looted, effect := ctx.pillageInfrastructure(infrastructure.ID)
+		event.PillageEffect = effect
+		event.SavedByPillage = gain >= 0
+		// The stock a ruined source hands over is loot on top of the bonus,
+		// credited whether or not the pillage saved the army.
+		if credit := max(gain, 0) + looted; credit > 0 {
+			if creditTerritoryID := ctx.creditNearestSettlement(candidate.army.TerritoryID, candidate.army.OwnerID, ctx.controllerSettled, credit); creditTerritoryID != "" {
+				event.ResourceCredit = credit
+				event.CreditTerritoryID = creditTerritoryID
 			}
 		}
 	}
 	if !event.SavedByPillage {
-		ctx.famished[candidate.army.ID] = true
-		if army := ctx.armiesByID[candidate.army.ID]; army != nil && army.Size > 1 {
-			army.Size--
-			ctx.startArmiesByID[candidate.army.ID] = *army
-			event.TroopsLost = 1
+		event.SuppliedStrength = supplied
+		// The army sheds every troop it cannot feed: it comes back down to
+		// its supplied strength, and disappears when it reaches no ration.
+		if army := ctx.armiesByID[candidate.army.ID]; army != nil {
+			event.TroopsLost = max(0, army.Size-supplied)
+			if supplied == 0 {
+				event.Destroyed = true
+			} else {
+				army.Size = min(army.Size, supplied)
+			}
 		}
 	}
 	if detail := ctx.supplyConsumption[candidate.army.ID]; detail != nil {
 		detail.famined = true
 		detail.troopsLost = event.TroopsLost
+		detail.suppliedStrength = event.SuppliedStrength
+		detail.destroyed = event.Destroyed
 		detail.savedByPillage = event.SavedByPillage
 		detail.pillageInfrastructure = event.InfrastructureType
 		detail.resourceCredit = event.ResourceCredit
 		detail.creditTerritory = event.CreditTerritoryID
 	}
 	ctx.events = append(ctx.events, event)
+	if event.Destroyed {
+		ctx.events = append(ctx.events, Event{
+			Type:        EventTypeArmyDestroyed,
+			Phase:       6,
+			ArmyID:      candidate.army.ID,
+			TerritoryID: candidate.army.TerritoryID,
+			Reason:      "famine",
+		})
+		ctx.destroyStarvedArmy(candidate.army.ID, candidate.army.TerritoryID, candidate.army.OwnerID)
+	}
 }
 
 func (ctx *resolutionContext) consumptionDetailFor(army models.Army) *consumptionDetail {
@@ -673,10 +828,10 @@ func (ctx *resolutionContext) emitProductionEvents() {
 		rations := ctx.supplyRations[territoryID]
 		source := ctx.supplySources[territoryID]
 		state := ctx.state.TerritoryStates[territoryID]
-		var ownerID models.PlayerID
-		if state.OwnerID != nil {
-			ownerID = *state.OwnerID
-		}
+		// The control the turn settled on, not the current one: a famine
+		// auto-pillage above may have dissolved a fief since the production
+		// this ledger reports was credited.
+		ownerID, _ := ctx.controllerSettled(territoryID)
 		var sentRations map[models.TerritoryID]int
 		if dispatch := ctx.poolRations[territoryID]; len(dispatch) > 0 {
 			sentRations = make(map[models.TerritoryID]int, len(dispatch))
@@ -686,12 +841,11 @@ func (ctx *resolutionContext) emitProductionEvents() {
 		}
 		ctx.events = append(ctx.events, Event{
 			Type:                 EventTypeProduction,
-			Phase:                0,
+			Phase:                6,
 			TerritoryID:          territoryID,
 			RegionSeed:           regionForTerritory(ctx, territoryID),
 			OwnerID:              ownerID,
 			TerrainRations:       rations.terrain,
-			InfraRations:         rations.infra,
 			BonusRations:         rations.bonus,
 			SuppressedRations:    rations.suppressed,
 			BaseProduction:       source.base,
@@ -703,6 +857,34 @@ func (ctx *resolutionContext) emitProductionEvents() {
 			StockBefore:          ctx.supplyStockBefore[territoryID],
 			StockConsumed:        ctx.supplyStockConsumed[territoryID],
 			StockAfter:           state.Resources,
+			Season:               ctx.state.Season,
+			Year:                 ctx.state.Year(),
+		})
+	}
+}
+
+// emitMillProductionEvents reports one line per mill: its level, single
+// destination, harvest-and-weather-adjusted production, and any production
+// lost to bad weather (see #195). mills is captured before famine's
+// auto-pillage can remove the infrastructure that already produced it.
+func (ctx *resolutionContext) emitMillProductionEvents(mills []millProduction) {
+	for _, mill := range mills {
+		var ownerID models.PlayerID
+		if mill.ownerID != nil {
+			ownerID = *mill.ownerID
+		}
+		ctx.events = append(ctx.events, Event{
+			Type:                 EventTypeMillProduction,
+			Phase:                6,
+			TerritoryID:          mill.millID,
+			DestinationID:        mill.destinationID,
+			OwnerID:              ownerID,
+			InfrastructureID:     mill.infrastructureID,
+			InfrastructureType:   models.InfraTypeMill,
+			Level:                mill.level,
+			Production:           mill.production,
+			BonusProduction:      mill.bonus,
+			SuppressedProduction: mill.suppressed,
 			Season:               ctx.state.Season,
 			Year:                 ctx.state.Year(),
 		})
@@ -722,7 +904,7 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 		detail := ctx.supplyConsumption[armyID]
 		ctx.events = append(ctx.events, Event{
 			Type:               EventTypeConsumption,
-			Phase:              0,
+			Phase:              6,
 			ArmyID:             armyID,
 			OwnerID:            detail.ownerID,
 			TerritoryID:        detail.territoryID,
@@ -732,7 +914,10 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 			ReceivedLocal:      detail.receivedLocal,
 			ReceivedTransfer:   detail.receivedTransfer,
 			TroopsLost:         detail.troopsLost,
+			SuppliedStrength:   detail.suppliedStrength,
+			Destroyed:          detail.destroyed,
 			SavedByPillage:     detail.savedByPillage,
+			Warned:             detail.warned,
 			InfrastructureType: detail.pillageInfrastructure,
 			ResourceCredit:     detail.resourceCredit,
 			CreditTerritoryID:  detail.creditTerritory,
@@ -744,27 +929,47 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 
 func (ctx *resolutionContext) hasSettlement(territoryID models.TerritoryID) bool {
 	infrastructure := ctx.infrastructureAt(territoryID)
-	return infrastructure != nil && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage)
+	return infrastructure != nil && infrastructure.IsSettlement()
 }
 
-func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, ownerID models.PlayerID) bool {
-	state := ctx.state.TerritoryStates[territoryID]
+// hasActiveSettlement is hasSettlement for a castle or village that still
+// works as a supply source: a ruin is inert unless it is a fief capital.
+func (ctx *resolutionContext) hasActiveSettlement(territoryID models.TerritoryID) bool {
 	infrastructure := ctx.infrastructureAt(territoryID)
-	return state.OwnerID != nil && *state.OwnerID == ownerID && infrastructure != nil && infrastructure.Type == models.InfraTypeSupplyDepot
+	return infrastructure != nil && ctx.state.IsActiveSettlement(*infrastructure)
+}
+
+// isControlledDepot reports whether territoryID carries a supply depot
+// controlled by ownerID and usable by it: a depot on a cell occupied against
+// its controller extends nobody's range, neither the controller's nor the
+// occupant's (economie.md#portée-de-ravitaillement).
+func (ctx *resolutionContext) isControlledDepot(territoryID models.TerritoryID, ownerID models.PlayerID, view controlView) bool {
+	if !controlledBy(view, ownerID, territoryID) {
+		return false
+	}
+	infrastructure := ctx.infrastructureAt(territoryID)
+	if infrastructure == nil || infrastructure.Type != models.InfraTypeSupplyDepot {
+		return false
+	}
+	return !occupiedAgainst(view, territoryID, ctx.currentArmyAt(territoryID))
 }
 
 func (ctx *resolutionContext) infrastructureAt(territoryID models.TerritoryID) *models.Infrastructure {
 	state := ctx.state.TerritoryStates[territoryID]
-	if len(state.Infrastructures) == 0 {
+	if state.Infrastructures == nil {
 		return nil
 	}
-	return ctx.infrastructuresByID[state.Infrastructures[0]]
+	return ctx.infrastructuresByID[*state.Infrastructures]
 }
 
-func startArmiesForPlayer(ctx *resolutionContext, ownerID models.PlayerID) []models.Army {
+// liveArmiesForPlayer lists ownerID's armies where they actually stand now:
+// resolveSupply resolves at the end of the turn, on post-combat,
+// post-movement positions (#208), unlike the frozen start-of-turn snapshot
+// ctx.startArmiesByID keeps for the earlier resolution phases.
+func liveArmiesForPlayer(ctx *resolutionContext, ownerID models.PlayerID) []models.Army {
 	armies := make([]models.Army, 0)
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
-		army := ctx.startArmyAt(territoryID)
+		army := ctx.currentArmyAt(territoryID)
 		if army != nil && army.OwnerID == ownerID {
 			armies = append(armies, *army)
 		}

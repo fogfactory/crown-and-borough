@@ -70,7 +70,9 @@ const ValidationCodeNotAdjacent = "not_adjacent"
 // ValidationError describes an intrinsic chain validation error. OrderID is
 // empty only when the error applies to the chain header rather than one order.
 type ValidationError struct {
-	OrderID     models.OrderID
+	OrderID models.OrderID
+	// Line is the source line of the order, when it was just parsed.
+	Line        int
 	Code        string
 	Message     string
 	MessageKey  string `json:"-"`

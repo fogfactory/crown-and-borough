@@ -1,11 +1,6 @@
-export const HERALDIC_COLORS = [
-  '#1d4ed8',
-  '#b91c1c',
-  '#15803d',
-  '#d97706',
-  '#7c3aed',
-  '#374151',
-] as const
+import { HERALDIC_COLORS, HERALDIC_TEXT_COLORS } from '@/lib/map-palette'
+
+export { HERALDIC_COLORS, HERALDIC_TEXT_COLORS }
 
 export const REGION_PATTERNS = [
   'diagonal',
@@ -34,18 +29,22 @@ export const REGION_PATTERN_BACKGROUNDS: Record<RegionPattern, string> = {
 
 export interface RegionStyle {
   fill: string
+  /** The tint darkened for text on the map paper (chef-lieu names). */
+  text: string
   pattern: RegionPattern | null
 }
 
 export function regionStyle(index: number, total: number): RegionStyle {
   const fill = HERALDIC_COLORS[index % HERALDIC_COLORS.length]
+  const text = HERALDIC_TEXT_COLORS[index % HERALDIC_TEXT_COLORS.length]
   if (index < HERALDIC_COLORS.length || total <= HERALDIC_COLORS.length) {
-    return { fill, pattern: null }
+    return { fill, text, pattern: null }
   }
 
   const patternIndex = Math.floor(index / HERALDIC_COLORS.length) - 1
   return {
     fill,
+    text,
     pattern: REGION_PATTERNS[patternIndex % REGION_PATTERNS.length],
   }
 }

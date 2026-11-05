@@ -1,4 +1,5 @@
 import { GAME_ICON_GLYPHS, type GameIconGlyph } from '@/lib/game-icon-glyphs'
+import { ICON_GOLD, ICON_GREEN, MAP_INK, MAP_PARCHMENT } from '@/lib/map-palette'
 
 function glyph(name: string): GameIconGlyph {
   const found = GAME_ICON_GLYPHS[name]
@@ -29,20 +30,20 @@ export const CALAMITY_ICONS: Record<
   plague: {
     glyph: glyph('reaper-scythe'),
     count: 5,
-    fill: '#30291f',
+    fill: MAP_INK,
     opacity: 0.6,
   },
   bad_weather: {
     glyph: glyph('raining'),
     count: 4,
-    fill: '#fff8e7',
+    fill: MAP_PARCHMENT,
     opacity: 0.8,
   },
   famine: {
     glyph: glyph('desert-skull'),
     count: 3,
-    fill: '#fff8e7',
-    stroke: '#30291f',
+    fill: MAP_PARCHMENT,
+    stroke: MAP_INK,
     strokeWidth: 16,
     opacity: 0.9,
   },
@@ -68,16 +69,16 @@ export type CardIconKind = 'fair_weather' | 'abundant_harvest' | 'revolt'
 export const CARD_ICONS: Record<CardIconKind, CardIconStyle> = {
   fair_weather: {
     glyph: glyph('sun'),
-    fill: '#e3b341',
-    stroke: '#fff8e7',
+    fill: ICON_GOLD,
+    stroke: MAP_PARCHMENT,
     strokeWidth: 16,
     opacity: 0.95,
     count: 3,
   },
   abundant_harvest: {
     glyph: glyph('wheat'),
-    fill: '#4e7d3b',
-    stroke: '#30291f',
+    fill: ICON_GREEN,
+    stroke: MAP_INK,
     strokeWidth: 16,
     opacity: 0.95,
     count: 3,
@@ -85,8 +86,8 @@ export const CARD_ICONS: Record<CardIconKind, CardIconStyle> = {
   revolt: {
     glyph: glyph('uprising'),
     // The villager color comes from the player who drafted the card.
-    fill: '#30291f',
-    stroke: '#30291f',
+    fill: MAP_INK,
+    stroke: MAP_INK,
     strokeWidth: 14,
     opacity: 0.95,
     count: 3,

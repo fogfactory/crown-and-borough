@@ -17,6 +17,9 @@ func cloneGameState(source *models.GameState) *models.GameState {
 		clone.Territories[i].Adjacencies = cloneSlice(territory.Adjacencies)
 	}
 	clone.Nobles = cloneSlice(source.Nobles)
+	for i, noble := range source.Nobles {
+		clone.Nobles[i].Dignities = cloneSlice(noble.Dignities)
+	}
 	clone.Armies = make([]models.Army, len(source.Armies))
 	for i, army := range source.Armies {
 		clone.Armies[i] = army
@@ -40,18 +43,68 @@ func cloneGameState(source *models.GameState) *models.GameState {
 	clone.TerritoryStates = make(map[models.TerritoryID]models.TerritoryState, len(source.TerritoryStates))
 	for territoryID, state := range source.TerritoryStates {
 		copyState := state
-		if state.OwnerID != nil {
-			ownerID := *state.OwnerID
-			copyState.OwnerID = &ownerID
-		}
 		if state.Army != nil {
 			armyID := *state.Army
 			copyState.Army = &armyID
 		}
-		copyState.Infrastructures = cloneSlice(state.Infrastructures)
+		if state.Infrastructures != nil {
+			infrastructureID := *state.Infrastructures
+			copyState.Infrastructures = &infrastructureID
+		}
 		clone.TerritoryStates[territoryID] = copyState
 	}
+	if source.Fiefs != nil {
+		clone.Fiefs = make([]models.Fief, len(source.Fiefs))
+		for i, fief := range source.Fiefs {
+			clone.Fiefs[i] = fief
+			clone.Fiefs[i].Territories = cloneSlice(fief.Territories)
+			if fief.HolderNobleID != nil {
+				holderNobleID := *fief.HolderNobleID
+				clone.Fiefs[i].HolderNobleID = &holderNobleID
+			}
+		}
+	}
+	if source.Marriages != nil {
+		clone.Marriages = cloneSlice(source.Marriages)
+	}
+	if source.Claims != nil {
+		clone.Claims = cloneSlice(source.Claims)
+	}
+	if source.ExpiredClaims != nil {
+		clone.ExpiredClaims = cloneSlice(source.ExpiredClaims)
+	}
+	if source.Bishops != nil {
+		clone.Bishops = cloneSlice(source.Bishops)
+	}
+	if source.Cardinals != nil {
+		clone.Cardinals = cloneSlice(source.Cardinals)
+	}
+	if source.Pope != nil {
+		pope := *source.Pope
+		clone.Pope = &pope
+	}
+	if source.King != nil {
+		king := *source.King
+		clone.King = &king
+	}
+	if source.Queen != nil {
+		queen := *source.Queen
+		clone.Queen = &queen
+	}
+	if source.Excommunications != nil {
+		clone.Excommunications = cloneSlice(source.Excommunications)
+	}
+	if source.TaxedFiefs != nil {
+		clone.TaxedFiefs = cloneSlice(source.TaxedFiefs)
+	}
+	if source.TithedRegions != nil {
+		clone.TithedRegions = cloneSlice(source.TithedRegions)
+	}
+	if source.TrialRevoltWindows != nil {
+		clone.TrialRevoltWindows = cloneSlice(source.TrialRevoltWindows)
+	}
 	clone.SpecialDeck = cloneSpecialDeck(source.SpecialDeck)
+	clone.NobleDeck = cloneNobleDeck(source.NobleDeck)
 	if source.Auguries != nil {
 		clone.Auguries = make(map[int]models.YearAugury, len(source.Auguries))
 		for year, augury := range source.Auguries {

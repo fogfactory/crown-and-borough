@@ -10,15 +10,26 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
 import { GameLayout } from '@/components/GameLayout'
-import { GamePanelCard } from '@/components/GamePanelCard'
+import { GameDrawer, drawerPanelOf, type Panel } from '@/components/GameDrawer'
+import { useIsDesktop } from '@/lib/use-media-query'
+import { BugReportButton } from '@/components/BugReportDialog'
+import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
+import { ownTerritoriesFrame } from '@/lib/map-frame'
+import { useMapLinkState } from '@/lib/use-map-link-state'
+import { MapLinksProvider } from '@/components/MapLinks'
+import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
-import { OrdersPanel } from '@/components/OrdersPanel'
+import { TerritoryCartouche } from '@/components/TerritoryCartouche'
+import { TreasuryBar } from '@/components/TreasuryBar'
+import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
+import { RealmPanel } from '@/components/RealmPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
-import type { Panel } from '@/components/CommandReportRulesTabs'
+import { LineageDialog } from '@/components/LineageDialog'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
+import { Alert, alertToneClassName } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { HeaderPopover } from '@/components/ui/header-popover'
 import {
@@ -29,18 +40,19 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
-import { addNobleHeader, hasChainContent, stripNobleHeader } from '@/lib/order-text'
+import { stripNobleHeader } from '@/lib/order-text'
+import { buildOrdersBody } from '@/lib/orders-body'
+import { draftOrdersByNoble } from '@/lib/transfer-preview'
 import {
-  internalYear,
-  ownerName,
-  remainingTurns,
-  remainingYears,
-} from '@/lib/game-progress'
+  SimulationRejectedError,
+  type VictorySimulationRequest,
+} from '@/lib/use-victory-simulation'
+import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
+import { internalYear, ownerName, totalTurns } from '@/lib/game-progress'
 import { useGameIntentions } from '@/lib/use-game-intentions'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
-import { SEASON_LABEL_KEYS } from '@/lib/season'
+import { SEASON_LABEL_KEYS, SEASON_TINT_BG } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
-import { isWinterCosts } from '@/lib/winter-cost'
 import {
   normalizeGameSummary,
   normalizeStateData,
@@ -57,7 +69,8 @@ import type {
   StateData,
   SubmittedOrdersResponse,
   TurnReport,
-  WinterCosts,
+  OrdersPreview,
+  VictorySimulation,
 } from '@/types'
 
 interface Invitation {
@@ -121,6 +134,7 @@ function Lobby({
   onInvite,
   inviting,
   scores,
+  victory,
 }: {
   summary: GameSummary
   uid: string
@@ -129,17 +143,18 @@ function Lobby({
   onInvite: () => void
   inviting: boolean
   scores?: StateData['scores']
+  victory?: StateData['victory']
 }) {
   const { t } = useLanguage()
   return (
-    <Card className="border-[#b7a786] bg-[#fffaf0]">
+    <Card className="border-line bg-paper-50">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle className="font-serif text-2xl text-[#30291f]">
+            <CardTitle className="font-display text-2xl text-ink-900">
               {t('online.lobby')}
             </CardTitle>
-            <CardDescription className="mt-1 text-[#806f57]">
+            <CardDescription className="mt-1 text-ink-500">
               {summary.players.length} {t('app.players').toLowerCase()}
             </CardDescription>
           </div>
@@ -159,38 +174,36 @@ function Lobby({
       <CardContent className="space-y-4">
         <ul className="grid gap-2 sm:grid-cols-2">
           {summary.players.map((player) => (
-            <li key={player.id} className="rounded-md bg-[#f3ead9] px-3 py-2 text-sm">
+            <li key={player.id} className="rounded-md bg-paper-100 px-3 py-2 text-sm">
               <div className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full border border-[#30291f]/30"
+                  className="size-3 shrink-0 rounded-full border border-ink-900/30"
                   style={{ backgroundColor: player.color }}
                 />
                 <span className="min-w-0 flex-1 truncate">
                   {player.name || t('online.emptySlot')}
                 </span>
                 {(player.actorId === uid || player.id === currentPlayer) && (
-                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#a84632]">
+                  <span className="shrink-0 label-caps text-2xs font-bold text-brass-700">
                     {t('online.you')}
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-[#806f57]">
+              <p className="mt-1 label-caps text-2xs font-medium text-ink-500">
                 {player.submitted ? t('online.submitted') : t('online.waiting')}
               </p>
             </li>
           ))}
         </ul>
-        <Scoreboard players={summary.players} scores={scores} />
+        <Scoreboard players={summary.players} scores={scores} victory={victory} />
         {invitation && (
-          <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-3 text-sm">
-            <p className="font-semibold text-[#6d5118]">
+          <Alert tone="info" size="banner">
+            <p className="font-semibold">
               {t('home.invitationCode')}: {invitation.inviteCode}
             </p>
-            <p className="mt-1 break-all text-xs text-[#806f57]">
-              {invitation.inviteUrl}
-            </p>
-          </div>
+            <p className="mt-1 break-all text-xs text-ink-500">{invitation.inviteUrl}</p>
+          </Alert>
         )}
       </CardContent>
     </Card>
@@ -200,7 +213,7 @@ function Lobby({
 export function GamePage() {
   const { gameId } = useParams<{ gameId: string }>()
   const { user, getIdToken, signOut } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
   const navigate = useNavigate()
   const [summaryFromAPI, setSummaryFromAPI] = useState<GameSummary | null>(null)
   const [restView, setRestView] = useState<GameViewDocument | null>(null)
@@ -210,7 +223,6 @@ export function GamePage() {
 
   const [chainDrafts, setChainDrafts] = useState<Record<string, string>>({})
   const [winterDraft, setWinterDraft] = useState('')
-  const [winterCosts, setWinterCosts] = useState<WinterCosts | null>(null)
   const [serverSubmission, setServerSubmission] = useState<MySubmissionResponse | null>(
     null,
   )
@@ -220,8 +232,9 @@ export function GamePage() {
   const [specialDraft, setSpecialDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [confirmResolve, setConfirmResolve] = useState(false)
-  const [activePanel, setActivePanel] = useState<Panel>('command')
+  const [lineageOpen, setLineageOpen] = useState(false)
+  const desktop = useIsDesktop()
+  const [activePanel, setActivePanel] = useState<Panel>(desktop ? 'orders' : 'map')
   const [showOwnership, setShowOwnership] = useLocalStorageState(
     'cb.ownershipOverlay',
     true,
@@ -247,7 +260,6 @@ export function GamePage() {
     true,
   )
   const [showCards, setShowCards] = useLocalStorageState('cb.cardsOverlay', true)
-  const [mapFocusSignal, setMapFocusSignal] = useState(0)
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
   const submittedOrdersContextRef = useRef<string | null>(null)
@@ -264,7 +276,6 @@ export function GamePage() {
     setMap(null)
     setSelectedId(null)
     setServerSubmission(null)
-    setWinterCosts(null)
     setSubmittedOrders(null)
     setReport(null)
     setReportSummaries([])
@@ -281,11 +292,8 @@ export function GamePage() {
         { getIdToken },
         `/api/games/${encodedID}/my-submission`,
       ).catch(() => null),
-      apiRequest<unknown>({ getIdToken }, `/api/games/${encodedID}/balance`).catch(
-        () => null,
-      ),
     ])
-      .then(([detail, mapData, stateResponse, mySubmission, costsResponse]) => {
+      .then(([detail, mapData, stateResponse, mySubmission]) => {
         if (controller.signal.aborted) return
         const summary = normalizeGameSummary(
           detail as Record<string, unknown>,
@@ -300,7 +308,6 @@ export function GamePage() {
         if (mySubmission) {
           setServerSubmission(mySubmission)
         }
-        setWinterCosts(isWinterCosts(costsResponse) ? costsResponse : null)
       })
       .catch((loadFailure: unknown) => {
         if (controller.signal.aborted) return
@@ -506,6 +513,40 @@ export function GamePage() {
     [getIdToken],
   )
 
+  const ordersBody = useMemo(
+    () =>
+      state && playerID
+        ? buildOrdersBody(state, playerID, { chainDrafts, winterDraft, specialDraft })
+        : null,
+    [chainDrafts, playerID, specialDraft, state, winterDraft],
+  )
+  const previewRequest = useMemo<OrdersPreviewRequest | null>(() => {
+    if (!gameId || !playerID) return null
+    const path = `/api/games/${encodeURIComponent(gameId)}/orders/preview?lang=${language}`
+    return (body, signal) =>
+      apiRequest<OrdersPreview>({ getIdToken }, path, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        signal,
+      })
+  }, [gameId, getIdToken, language, playerID])
+  const { preview, body: previewedBody } = useOrdersPreview(ordersBody, previewRequest)
+  const simulationRequest = useMemo<VictorySimulationRequest | null>(() => {
+    if (!gameId || !playerID) return null
+    const path = `/api/games/${encodeURIComponent(gameId)}/victory/simulate`
+    return (actions, signal) =>
+      apiRequest<VictorySimulation>({ getIdToken }, path, {
+        method: 'POST',
+        body: JSON.stringify({ actions }),
+        signal,
+      }).catch((error: unknown) => {
+        throw error instanceof ApiError && error.status === 422
+          ? new SimulationRejectedError(error.message)
+          : error
+      })
+  }, [gameId, getIdToken, playerID])
+  const draftOrders = useMemo(() => draftOrdersByNoble(preview?.chains), [preview])
+
   const {
     selectedSupplyLine,
     sourceTerritoryId,
@@ -521,8 +562,9 @@ export function GamePage() {
     selectedId,
     state,
     selectedState,
-    chainDrafts,
+    draftOrders,
     ownerId: playerID,
+    specialDraft,
     basePath: gameId ? `/api/games/${encodeURIComponent(gameId)}` : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.network'),
@@ -536,9 +578,8 @@ export function GamePage() {
     state,
     map,
     playerID,
-    chainDrafts,
-    winterDraft,
-    winterCosts,
+    preview,
+    winterText: ordersBody?.winter[0]?.lines ?? '',
     spectator,
     submittedOrders,
   })
@@ -615,6 +656,7 @@ export function GamePage() {
     setSummaryFromAPI((current) => {
       if (!current) return current
       const submitted = new Set(response.submitted)
+      const remaining = new Set(response.remaining)
       return {
         ...current,
         turn: nextState.turn,
@@ -626,6 +668,9 @@ export function GamePage() {
         players: current.players.map((player) => ({
           ...player,
           submitted: submitted.has(player.id),
+          // A player absent from both lists has nothing left to submit this
+          // turn (see turn.Progress on the server).
+          required: submitted.has(player.id) || remaining.has(player.id),
         })),
       }
     })
@@ -665,34 +710,18 @@ export function GamePage() {
           { method: 'POST' },
         )
       } else {
-        const chains =
-          state.season === 'winter'
-            ? []
-            : state.nobles
-                .filter((noble) => noble.owner === playerID && noble.status !== 'dungeon')
-                .map((noble) => ({
-                  noble: noble.code,
-                  text: addNobleHeader(noble.code, chainDrafts[noble.code] ?? ''),
-                }))
-                .filter((chain) => hasChainContent(chain.noble, chain.text))
-        const winterLines = [winterDraft, state.season === 'winter' ? specialDraft : '']
-          .filter((text) => text.trim() !== '')
-          .join('\n')
-        const winter =
-          state.season === 'winter' && winterLines !== '' ? [{ lines: winterLines }] : []
-        const special =
-          state.season !== 'winter' && specialDraft.trim() !== ''
-            ? [{ text: specialDraft }]
-            : []
+        const body = buildOrdersBody(state, playerID!, {
+          chainDrafts,
+          winterDraft,
+          specialDraft,
+        })
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
-          `/api/games/${encodeURIComponent(gameId)}/orders`,
+          `/api/games/${encodeURIComponent(gameId)}/orders?lang=${language}`,
           {
             method: 'POST',
             body: JSON.stringify({
-              chains,
-              winter,
-              special,
+              ...body,
               revision: summary?.revision ?? view?.revision ?? 0,
             }),
           },
@@ -701,12 +730,11 @@ export function GamePage() {
           turn: state.turn,
           season: state.season,
           submitted: true,
-          chains,
-          winter: winter.length > 0 ? winter[0] : undefined,
+          chains: body.chains,
+          winter: body.winter[0],
         })
       }
       applyOrdersResponse(response)
-      setConfirmResolve(false)
     } catch (submitFailure) {
       if (submitFailure instanceof ApiError && submitFailure.status === 401) {
         await signOut().catch(() => undefined)
@@ -751,28 +779,51 @@ export function GamePage() {
     setActivePanel('rules')
   }
 
+  // An open order form takes the map's clicks for its active field.
+  const orderPicker = useRef<((territory: string) => void) | null>(null)
+  // Only while the orders are on screen: a form left open behind another
+  // bookmark or tab must not swallow the map's clicks.
+  const ordersShown = desktop
+    ? drawerPanelOf(activePanel) === 'orders'
+    : activePanel === 'orders'
+  const handleMapPick = (id: string) => {
+    if (!ordersShown || !orderPicker.current) return false
+    orderPicker.current(id)
+    return true
+  }
   const handleTerritorySelect = (id: string | null) => {
     setSelectedId(id)
-    if (id) {
-      setMapFocusSignal((signal) => signal + 1)
-    }
   }
+
+  const mapFrame =
+    desktop || !playerID || !state
+      ? undefined
+      : ownTerritoriesFrame(state, playerID, `${gameId}:${playerID}`)
+  const linkState = useMapLinkState({
+    map,
+    state,
+    selectedId,
+    baseFrame: mapFrame,
+    onSelect: setSelectedId,
+    // Phones show a linked territory or event on the map tab (charte
+    // § Identifiants); a code typed in an order keeps the Orders tab.
+    onShowMap: () => {
+      if (!desktop) setActivePanel('map')
+    },
+  })
 
   if (loadError) {
     return (
       <div className="space-y-4">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-brass-700"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
-        <p
-          role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-4 py-3 text-sm text-[#8d321e]"
-        >
+        <Alert role="alert" size="banner">
           {loadError}
-        </p>
+        </Alert>
       </div>
     )
   }
@@ -785,49 +836,79 @@ export function GamePage() {
       <div className="space-y-4">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-[#a84632]"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-brass-700"
         >
           <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
         </Link>
-        <p
-          role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-4 py-3 text-sm text-[#8d321e]"
-        >
+        <Alert role="alert" size="banner">
           {t('online.accessRevoked')}
-        </p>
+        </Alert>
       </div>
     )
   }
 
   if (!summary || !map || !state) {
     return (
-      <p className="py-20 text-center font-serif text-lg italic text-[#806f57]">
+      <p className="py-20 text-center font-display text-lg italic text-ink-500">
         {t('online.loading')}
       </p>
     )
   }
 
+  // On the phone map view the details show in a card over the map instead.
+  const detailsOnMap = !desktop && activePanel === 'map' && Boolean(selectedTerritory)
+  const territoryDetails = (
+    <SelectedTerritoryDetails
+      state={state}
+      selectedTerritory={selectedTerritory}
+      selectedState={selectedState}
+      selectedRegion={selectedRegion}
+      preferredPlayers={summary.players}
+      mapTerritories={map.territories}
+      selectedSupplyLine={selectedSupplyLine}
+      sourceTerritory={sourceTerritory}
+      supplyLoading={supplyLoading}
+      supplyError={supplyError}
+      transferTargets={transferTargets}
+      selectedTransferTarget={transferTarget}
+      onTransferTargetChange={setSelectedTransferTarget}
+      transferLine={transferLine}
+      transferLoading={transferLoading}
+      transferError={transferError}
+      onClose={() => setSelectedId(null)}
+    />
+  )
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        className={`flex shrink-0 items-center gap-x-3 gap-y-1 bg-paper-50 px-3 sm:px-4 ${desktop ? 'flex-wrap py-1.5' : 'h-14 gap-x-2'}`}
+      >
         <Link
           to="/"
           aria-label={t('online.backHome')}
-          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[#a84632]"
+          className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brass-700 ${desktop ? '' : 'size-11 justify-center'}`}
         >
           <IconArrowLeft aria-hidden="true" className="size-4" />
-          <span className="hidden min-[420px]:inline">{t('online.backHome')}</span>
+          {desktop && <span>{t('online.backHome')}</span>}
         </Link>
-        <h1 className="min-w-0 flex-1 truncate font-serif text-lg font-semibold text-[#30291f] sm:flex-none sm:text-2xl">
-          {summary.name}
-        </h1>
-        <p className="text-xs font-semibold text-[#30291f]">
-          {t('online.currentTurn', {
-            turn: state.turn,
+        {desktop && (
+          <h1 className="min-w-0 truncate font-display text-2xl font-semibold text-ink-900">
+            {summary.name}
+          </h1>
+        )}
+        <p
+          data-game-progress
+          className="min-w-0 truncate text-sm font-semibold text-ink-900"
+        >
+          {t(desktop ? 'app.progress' : 'app.progressShort', {
             season: t(SEASON_LABEL_KEYS[state.season]),
+            year: 1000 + internalYear(state),
+            turn: state.turn,
+            total: totalTurns(state, summary.yearCount),
           })}
         </p>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <HeaderPopover
             label={t('app.scores')}
             icon={<IconTrophy aria-hidden="true" className="size-4" />}
@@ -840,12 +921,45 @@ export function GamePage() {
               ),
             )}
           >
-            <Scoreboard players={state.players} scores={state.scores ?? summary.scores} />
+            <Scoreboard
+              players={state.players}
+              scores={state.scores ?? summary.scores}
+              victory={state.victory}
+              finished={state.finished}
+              winners={state.winners}
+              minorWinner={state.minorWinner}
+              activePlayer={playerID}
+            />
           </HeaderPopover>
+          {/* On phones the lineage opens from the Realm tab only. */}
+          <span className={desktop ? 'contents' : 'hidden'}>
+            <LineageDialog
+              open={lineageOpen}
+              onOpenChange={setLineageOpen}
+              players={state.players}
+              nobles={state.nobles}
+              deceased={state.deceased}
+              claims={state.claims}
+              defaultFocus={playerID}
+              fiefs={state.fiefs}
+              bishoprics={state.bishoprics}
+              cardinals={state.cardinals}
+              pope={state.pope}
+              king={state.king}
+              queen={state.queen}
+              queenDowager={state.queenDowager}
+              excommunicated={state.excommunicated}
+              marriages={state.marriages}
+              scores={state.scores ?? summary.scores}
+              victory={state.victory}
+              simulationRequest={simulationRequest}
+              simulationKey={`${state.turn}-${state.season}`}
+            />
+          </span>
           <HeaderPopover
             label={t('online.lobby')}
             icon={<IconUsersGroup aria-hidden="true" className="size-4" />}
-            hint={`${summary.players.filter((player) => player.submitted).length}/${summary.players.length}`}
+            hint={`${summary.players.filter((player) => player.required && player.submitted).length}/${summary.players.filter((player) => player.required).length}`}
           >
             <Lobby
               summary={summary}
@@ -855,231 +969,230 @@ export function GamePage() {
               onInvite={() => void createInvitation()}
               inviting={inviting}
               scores={state.scores ?? summary.scores}
+              victory={state.victory}
             />
           </HeaderPopover>
-          <SubmissionDots
-            players={summary.players.map((player) => ({
-              id: player.id,
-              name: player.name || player.id,
-              color: player.color,
-              submitted: player.submitted,
-              isYou: player.id === playerID,
-            }))}
-          />
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? 'border-[#a84632]/30 bg-[#f8e5dd] text-[#8d321e]' : 'border-[#376341]/30 bg-[#e8f1e3] text-[#376341]'}`}
-          >
-            {offline ? (
-              <IconWifiOff aria-hidden="true" className="size-3.5" />
-            ) : (
-              <IconWifi aria-hidden="true" className="size-3.5" />
-            )}
-            {offline ? t('online.networkOffline') : t('online.realtime')}
-          </span>
-          {summary.status === 'finished' && (
-            <span className="rounded-full border border-[#815f1e]/40 bg-[#f8e8ae]/60 px-2 py-1 text-xs font-semibold text-[#6d5118]">
+          {desktop && (
+            <SubmissionDots
+              players={summary.players.map((player) => ({
+                id: player.id,
+                name: player.name || player.id,
+                color: player.color,
+                submitted: player.submitted,
+                required: player.required,
+                isYou: player.id === playerID,
+              }))}
+            />
+          )}
+          {(desktop || offline) && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? alertToneClassName.error : alertToneClassName.success}`}
+            >
+              {offline ? (
+                <IconWifiOff aria-hidden="true" className="size-3.5" />
+              ) : (
+                <IconWifi aria-hidden="true" className="size-3.5" />
+              )}
+              {offline ? t('online.networkOffline') : t('online.realtime')}
+            </span>
+          )}
+          {desktop && summary.status === 'finished' && (
+            <span
+              className={`rounded-full border px-2 py-1 text-xs font-semibold ${alertToneClassName.info}`}
+            >
               {t('online.finished')}
             </span>
           )}
+          {!desktop && <BugReportButton />}
+          {(!desktop || (summary.status !== 'finished' && summary.canInvite)) && (
+            <GameMenu
+              language={!desktop}
+              resolution={
+                summary.status !== 'finished' && summary.canInvite
+                  ? {
+                      disabled: submitting,
+                      confirm: true,
+                      onResolve: () => submitOrders(true),
+                    }
+                  : undefined
+              }
+            />
+          )}
         </div>
       </div>
-      <p className="shrink-0 text-[11px] text-[#806f57]">
-        {t('app.year', { year: 1000 + internalYear(state) })} ·{' '}
-        {t('app.remainingYearsTurns', {
-          years: remainingYears(state, summary.yearCount),
-          turns: remainingTurns(state, summary.yearCount),
-        })}
-      </p>
-
-      {subscription.error &&
-        subscription.error.code !== 'permission-denied' &&
-        subscription.error.code !== 'not-member' && (
-          <p
-            role="status"
-            className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-2 text-sm text-[#6d5118]"
-          >
-            {t('online.realtimeError')}
-          </p>
+      <div
+        aria-hidden="true"
+        data-season-rule={state.season}
+        className={`h-[3px] shrink-0 ${SEASON_TINT_BG[state.season]}`}
+      />
+      <div className="shrink-0 space-y-2 px-3 pt-2 empty:hidden sm:px-4">
+        {subscription.error &&
+          subscription.error.code !== 'permission-denied' &&
+          subscription.error.code !== 'not-member' && (
+            <Alert tone="info" role="status">
+              {t('online.realtimeError')}
+            </Alert>
+          )}
+        {actionError && <Alert role="alert">{actionError}</Alert>}
+        {spectator && (
+          <Alert tone="info" size="banner">
+            <p className="font-semibold">{t('online.spectatorBanner')}</p>
+            <p className="mt-1">{t('online.spectatorDescription')}</p>
+          </Alert>
         )}
-      {actionError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-        >
-          {actionError}
-        </p>
-      )}
-      {spectator && (
-        <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-sm text-[#6d5118]">
-          <p className="font-semibold">{t('online.spectatorBanner')}</p>
-          <p className="mt-1">{t('online.spectatorDescription')}</p>
-        </div>
-      )}
-      {summary.winner && (
-        <div className="rounded-xl border border-[#815f1e]/50 bg-[#f8e8ae]/60 px-4 py-3 text-center text-sm font-semibold text-[#6d5118]">
-          {t('online.victory')}:{' '}
-          {ownerName(summary.winner, state, summary.players, summary.winner)}
-        </div>
-      )}
+        {summary.winner && (
+          <Alert tone="info" size="banner" className="text-center font-semibold">
+            {t('online.victory')}:{' '}
+            {ownerName(summary.winner, state, summary.players, summary.winner)}
+          </Alert>
+        )}
+      </div>
 
-      <GameLayout
-        map={
-          <MapViewer
-            map={map}
-            state={state}
-            supply={selectedSupplyLine}
-            onSelect={handleTerritorySelect}
-            intentions={intentions}
-            winterIntentions={winterIntentions}
-            showIntentions={showIntentions}
-            intentionsColor={intentionsColor}
-            onToggleIntentions={setShowIntentions}
-            showOwnership={showOwnership}
-            onToggleOwnership={setShowOwnership}
-            showRegions={showRegions}
-            onToggleRegions={setShowRegions}
-            showCalamities={showCalamities}
-            onToggleCalamities={setShowCalamities}
-            showCards={showCards}
-            onToggleCards={setShowCards}
-            specialOrders={
-              specialDraft.trim() !== '' && playerID
-                ? [{ player: playerID, text: specialDraft }]
-                : []
-            }
-          />
-        }
-        focusSignal={mapFocusSignal}
-      >
-        <GamePanelCard
-          activePanel={activePanel}
-          onPanelChange={setActivePanel}
-          subtitle={
-            currentSlot
-              ? `${currentSlot.name} · ${t('online.you')}`
-              : spectator
-                ? t('online.spectator')
-                : t('online.accessRevoked')
-          }
-          reportLabelExtra={
-            report ? (
-              <span className="ml-1 text-[#806f57]">· {report.header.turn}</span>
-            ) : null
-          }
-          command={
-            <>
-              <SelectedTerritoryDetails
+      <MapLinksProvider value={linkState.links}>
+        <OrderFormProvider
+          onPickerChange={(picker) => {
+            orderPicker.current = picker
+          }}
+        >
+          <GameLayout
+            view={activePanel}
+            mapOverlay={detailsOnMap ? territoryDetails : undefined}
+            map={
+              <MapViewer
+                map={map}
                 state={state}
-                selectedTerritory={selectedTerritory}
-                selectedState={selectedState}
-                selectedRegion={selectedRegion}
-                preferredPlayers={summary.players}
-                mapTerritories={map.territories}
-                selectedSupplyLine={selectedSupplyLine}
-                sourceTerritory={sourceTerritory}
-                supplyLoading={supplyLoading}
-                supplyError={supplyError}
-                transferTargets={transferTargets}
-                selectedTransferTarget={transferTarget}
-                onTransferTargetChange={setSelectedTransferTarget}
-                transferLine={transferLine}
-                transferLoading={transferLoading}
-                transferError={transferError}
+                supply={selectedSupplyLine}
+                onSelect={handleTerritorySelect}
+                onPick={handleMapPick}
+                selectionOverlay={
+                  desktop && selectedTerritory
+                    ? (anchor, size) => (
+                        <TerritoryCartouche
+                          anchor={anchor}
+                          size={size}
+                          onClose={() => setSelectedId(null)}
+                        >
+                          {territoryDetails}
+                        </TerritoryCartouche>
+                      )
+                    : undefined
+                }
+                selectedId={selectedId}
+                frame={linkState.frame}
+                highlightedId={linkState.highlightedId}
+                selectedNoble={linkState.selectedNoble}
+                eventMarks={linkState.eventMarks}
+                intentions={intentions}
+                winterIntentions={winterIntentions}
+                showIntentions={showIntentions}
+                intentionsColor={intentionsColor}
+                onToggleIntentions={setShowIntentions}
+                showOwnership={showOwnership}
+                onToggleOwnership={setShowOwnership}
+                showRegions={showRegions}
+                onToggleRegions={setShowRegions}
+                showCalamities={showCalamities}
+                onToggleCalamities={setShowCalamities}
+                showCards={showCards}
+                onToggleCards={setShowCards}
+                specialOrders={
+                  specialDraft.trim() !== '' && playerID
+                    ? [{ player: playerID, text: specialDraft }]
+                    : []
+                }
               />
-              {playerID ? (
-                <OrdersPanel
-                  state={state}
-                  player={playerID}
-                  chainDrafts={chainDrafts}
-                  winterDraft={winterDraft}
-                  specialDraft={specialDraft}
-                  winterCosts={winterCosts}
-                  map={map}
-                  submitted={Boolean(currentSlot?.submitted)}
-                  submitting={submitting}
-                  error={actionError}
-                  draftDiffers={draftDiffers}
-                  onChainChange={(noble, text) =>
-                    setChainDrafts((current) => ({ ...current, [noble]: text }))
-                  }
-                  onWinterChange={setWinterDraft}
-                  onSpecialChange={setSpecialDraft}
-                  onSubmit={() => void submitOrders()}
-                  onOpenRules={openRules}
-                  onRestoreFromServer={restoreFromServer}
-                />
-              ) : spectator ? (
-                <p className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 px-3 py-2 text-sm text-[#6d5118]">
-                  {t('online.spectatorReadOnly')}
-                </p>
-              ) : (
-                <p
-                  role="alert"
-                  className="rounded-lg border border-[#a84632]/30 bg-[#f8e5dd] px-3 py-2 text-sm text-[#8d321e]"
-                >
-                  {t('online.accessRevoked')}
-                </p>
-              )}
-              {summary.status !== 'finished' && summary.canInvite && (
-                <div className="space-y-2 border-t border-[#b7a786]/50 pt-4">
-                  {!confirmResolve ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      disabled={submitting}
-                      onClick={() => setConfirmResolve(true)}
-                    >
-                      {t('online.forceResolve')}
-                    </Button>
-                  ) : (
-                    <div className="rounded-lg border border-[#815f1e]/40 bg-[#f8e8ae]/50 p-3 text-sm text-[#6d5118]">
-                      <p>{t('online.forceResolveConfirm')}</p>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={submitting}
-                          onClick={() => void submitOrders(true)}
-                        >
-                          {t('online.forceResolve')}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setConfirmResolve(false)}
-                        >
-                          {t('online.cancel')}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          }
-          report={
-            <ReportPane
-              report={report}
-              map={map}
-              players={state.players}
-              summaries={reportSummaries}
-              loading={reportLoading}
-              error={reportError}
-              onSelectReport={(index) => void loadReport(index)}
+            }
+          >
+            <GameDrawer
+              activePanel={activePanel}
+              onPanelChange={setActivePanel}
+              season={state.season}
+              reportLabelExtra={
+                report ? (
+                  <span className="text-ink-500">· {report.header.turn}</span>
+                ) : null
+              }
+              footer={
+                playerID ? (
+                  <SealOrders
+                    state={state}
+                    player={playerID}
+                    winterDraft={winterDraft}
+                    specialDraft={specialDraft}
+                    submitted={Boolean(currentSlot?.submitted)}
+                    submitting={submitting}
+                    error={actionError}
+                    onSubmit={() => void submitOrders()}
+                  />
+                ) : null
+              }
+              panels={{
+                orders: (
+                  <>
+                    <TreasuryBar
+                      state={state}
+                      playerId={playerID}
+                      specialDraft={specialDraft}
+                    />
+                    {playerID ? (
+                      <OrdersPanel
+                        regions={map?.regions}
+                        mapTerritories={map?.territories}
+                        state={state}
+                        player={playerID}
+                        chainDrafts={chainDrafts}
+                        winterDraft={winterDraft}
+                        specialDraft={specialDraft}
+                        preview={preview}
+                        ordersBody={ordersBody}
+                        previewedBody={previewedBody}
+                        draftDiffers={draftDiffers}
+                        onChainChange={(noble, text) =>
+                          setChainDrafts((current) => ({ ...current, [noble]: text }))
+                        }
+                        onWinterChange={setWinterDraft}
+                        onSpecialChange={setSpecialDraft}
+                        onOpenRules={openRules}
+                        onRestoreFromServer={restoreFromServer}
+                      />
+                    ) : spectator ? (
+                      <Alert tone="info">{t('online.spectatorReadOnly')}</Alert>
+                    ) : (
+                      <Alert role="alert">{t('online.accessRevoked')}</Alert>
+                    )}
+                  </>
+                ),
+                report: (
+                  <ReportPane
+                    report={report}
+                    map={map}
+                    players={state.players}
+                    summaries={reportSummaries}
+                    loading={reportLoading}
+                    error={reportError}
+                    onSelectReport={(index) => void loadReport(index)}
+                  />
+                ),
+                realm: (
+                  <RealmPanel
+                    state={state}
+                    territories={map.territories}
+                    onOpenLineage={() => setLineageOpen(true)}
+                  />
+                ),
+                rules: (
+                  <RulesPanel
+                    gameId={gameId}
+                    tokenProvider={tokenProvider}
+                    targetSection={rulesNavigation?.section}
+                    navigationKey={rulesNavigation?.key}
+                  />
+                ),
+              }}
             />
-          }
-          rules={
-            <RulesPanel
-              gameId={gameId}
-              tokenProvider={tokenProvider}
-              targetSection={rulesNavigation?.section}
-              navigationKey={rulesNavigation?.key}
-            />
-          }
-        />
-      </GameLayout>
+          </GameLayout>
+        </OrderFormProvider>
+      </MapLinksProvider>
     </div>
   )
 }
