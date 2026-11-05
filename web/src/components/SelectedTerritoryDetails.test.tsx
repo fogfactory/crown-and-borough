@@ -147,7 +147,7 @@ describe('SelectedTerritoryDetails', () => {
           selectedState={{
             ...state.territories[0],
             army: null,
-            infrastructures: [{ type: 'village', level }],
+            infrastructures: [{ type: 'village', level, ruined: level === 0 }],
           }}
           selectedSupplyLine={null}
           sourceTerritory={null}

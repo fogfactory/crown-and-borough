@@ -506,6 +506,9 @@ func (g *GameState) Validate() error {
 		if minimumLevel := in.Type.MinLevel(); in.Level < minimumLevel {
 			return fmt.Errorf("models: infrastructure %q: level must be >= %d, got %d", in.ID, minimumLevel, in.Level)
 		}
+		if in.Ruined && in.Type != InfraTypeCastle {
+			return fmt.Errorf("models: infrastructure %q: only a castle can be ruined, got %q", in.ID, in.Type)
+		}
 		if terrs[in.TerritoryID] == nil {
 			return fmt.Errorf("models: infrastructure %q: unknown territory %q", in.ID, in.TerritoryID)
 		}

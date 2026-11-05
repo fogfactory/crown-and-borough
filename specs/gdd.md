@@ -586,7 +586,8 @@ jusqu'à hauteur de sa demande. Le surplus est perdu ; le reste constitue la
 demande à ravitailler.
 
 Les châteaux, villages et caches contrôlés contenant un stock positif sont les
-sources de ravitaillement. Une armée consomme en priorité le stock de sa case.
+sources de ravitaillement. Un château ou un village en ruine (section 7) n'en
+est pas une, sauf le château capitale d'un fief. Une armée consomme en priorité le stock de sa case.
 Le flux traverse les cases alliées, neutres ou contrôlées par un autre joueur et
 ne s'arrête que devant une case occupée par une armée adverse. Un château, un
 village ou un dépôt adverse sans armée ne bloque donc pas le flux. Une case
@@ -634,8 +635,9 @@ déplaçant l'armée ou en lui envoyant des ressources par transfert.
 exactement comme celui de n'importe quelle armée : si elle a atteint une
 source suffisante entre-temps, elle redevient valide dès ce tour. Si elle est
 encore en déficit alors qu'elle est déjà affamée, elle pille automatiquement
-l'infrastructure de sa case, si elle en occupe une : le bonus de pillage,
-diminué de sa demande résiduelle, peut la sortir de famine. Si le pillage est
+l'infrastructure de sa case si elle en occupe une qui n'est pas déjà en ruine
+(section 7) : le bonus de pillage, diminué de sa demande résiduelle, peut la
+sortir de famine. Si le pillage est
 insuffisant ou impossible, elle perd autant de troupes qu'il en faut pour
 revenir à sa valeur ravitaillée `s`, et n'est alors plus affamée. Si `s = 0`,
 elle disparaît : personne ne pouvant capturer ses nobles, ils meurent avec
@@ -672,7 +674,7 @@ Les ordres sont :
 | `S` | `XXX S YYY` ou `XXX S YYY - ZZZ` | Soutien défensif de `YYY`, ou soutien offensif de l'attaque `YYY` vers `ZZZ`. |
 | `H` | `H XXX` | Maintien sur `XXX`. |
 | `J` | `XXX J YYY` | Déplacement pacifique et jonction ; doit être le dernier ordre de la chaîne. Si une attaque alliée remporte le combat sur `YYY`, la jonction fusionne avec son vainqueur. |
-| `P` | `P XXX` | Détruit l'infrastructure de la case occupée et crédite le bonus de pillage à la source alliée la plus proche. |
+| `P` | `P XXX` | Pille l'infrastructure de la case occupée (la dégrade ou la détruit, voir section 7) et crédite le bonus de pillage à la source alliée la plus proche. |
 | `D` | `XXX D XXX YYY ...` | Dispersion pacifique : les destinations sont traitées dans leur ordre d'apparition, peuvent se répéter et reçoivent au plus une unité chacune ; les unités arrivées sur une même case sont empilées dans une seule armée, y compris lorsqu'elles viennent de plusieurs armées alliées. |
 | `T` | `XXX T YYY N` | Transfert d'action vers un château, un village ou une armée adverse via le réseau de ravitaillement. `N` est plafonné à `2^(taille - 1)`. |
 
@@ -791,7 +793,8 @@ membre d'un fief ou capitale d'un joueur, y compris neutre ou ennemi pour le
 retraité — défend contre une retraite et n'est jamais une destination valide ;
 un château vide **inerte** (ni fief, ni capitale, ni armée) redevient en
 revanche une destination valide de deuxième priorité, comme l'absence de
-château. Deux armées qui doivent reculer sur la même case vide sont détruites si
+château. Un château en ruine ne défend contre une retraite que s'il est la
+capitale d'un fief ; sinon il est inerte. Deux armées qui doivent reculer sur la même case vide sont détruites si
 aucune alternative ne subsiste. L'ordre de traitement des armées en retraite suit
 le trigramme croissant de leur case d'origine.
 
@@ -822,8 +825,42 @@ de tous ses membres au conquérant en une seule fois.
 |---|---|---|---:|
 | Moulin | Construction sur case vide contrôlée, adjacente à un château ou village (voisinage requis pour la construction seulement, pas pour l'amélioration) | `N` R par niveau, versés à une seule infrastructure : le château adjacent du même contrôleur, sinon le village adjacent du même contrôleur, sinon la case du moulin elle-même ; un moulin sans contrôleur produit toujours sur sa propre case, comme un village neutre (voir [economie.md](economie.md#moulins)) | 3 / 5 / 7 |
 | Dépôt de vivres | Aucune condition structurelle | +2 cases de portée de ravitaillement, seulement lorsqu'il est ancré ou occupé (voir ci-dessus) ; inerte sinon | 3 |
-| Château | Aucune | +1 défense tant qu'il reste ancré ou occupé (voir ci-dessus), sinon inerte ; verse le revenu territorial (§3) lorsqu'il est contrôlé ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) | 10 |
-| Village | Généré neutre, non constructible ; niveau de 0 à `village_max_level` (3), niveau 1 à la génération | Verse le revenu territorial, majoré de `village_income` R par niveau, une fois contrôlé ; produit `village_income` R par niveau et par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (comme le moulin, il ne devient jamais inerte) ; un village de niveau 0 ne produit rien | — |
+| Château | Aucune | +1 défense tant qu'il reste ancré ou occupé (voir ci-dessus), sinon inerte ; verse le revenu territorial (§3) lorsqu'il est contrôlé ; devient une cité (+2 défense au lieu de +1) lorsqu'il est la capitale d'un fief ([titres.md](titres.md#constitution-dun-fief)) ; en ruine, il n'apporte plus aucune défense (voir « Pillage et ruines ») | 10 |
+| Village | Généré neutre, non constructible ; niveau de 0 à `village_max_level` (3), niveau 1 à la génération | Verse le revenu territorial, majoré de `village_income` R par niveau, une fois contrôlé ; produit `village_income` R par niveau et par tour dans son propre stock tant qu'il reste neutre, qu'il n'ait jamais été tenu ou qu'il vienne d'être abandonné (comme le moulin, il ne devient jamais inerte) ; un village de niveau 0 est en ruine et ne produit rien | — |
+
+### Pillage et ruines
+
+Une case ne porte qu'une infrastructure, et un pillage (`P`, section 6) ne
+l'élimine pas toujours : il la dégrade selon son type.
+
+| Infrastructure pillée | Effet |
+|---|---|
+| Moulin | Perd 1 niveau ; un moulin de niveau 1 disparaît. |
+| Village fortifié | Sa muraille est détruite ; il garde son niveau. |
+| Village non fortifié | Perd 1 niveau ; à 0, il est **en ruine**. |
+| Château | Il est mis **en ruine**. |
+| Dépôt de vivres | Il disparaît. |
+
+Une ruine (château en ruine, village de niveau 0 sans muraille) ne peut pas
+être pillée. Un château en ruine n'apporte aucune valeur défensive et ne
+peut pas devenir la capitale d'un nouveau fief ni la capitale d'un joueur.
+La case d'une ruine se construit comme une case vide : toute construction
+d'hiver y remplace la ruine (son stock reste sur la case), sauf `C C` sur un
+château en ruine, qui le reconstruit sur place au coût d'un château ; comme
+un château neuf, ce château reconstruit devient la capitale de son joueur
+s'il n'en a pas. Sur le château en ruine capitale d'un fief, seul `C C` est
+accepté : toute autre construction y est refusée. Un
+château ou un village en ruine n'est pas une source de ravitaillement et ne
+reçoit plus ni le revenu territorial ni la production d'un moulin voisin, sauf si c'est le château capitale d'un fief : celui-ci reste capitale,
+le fief n'est pas dissous, la capitale du joueur est conservée si c'était
+elle, et il reste source de ravitaillement et point d'ancrage pour les
+retraites, mais sans valeur défensive.
+
+Le stock d'un château ou d'un village qui cesse ainsi d'être une source
+s'ajoute au butin du pillage : il est crédité, avec le bonus de pillage
+(`pillage_bonus`), à la source alliée la plus proche. Un château capitale de
+fief mis en ruine garde son stock. Un château en ruine qui n'est la capitale
+d'aucun fief cesse d'être la capitale de son joueur.
 
 Un moulin isolé (sans château ni village adjacent du même contrôleur) produit
 sur sa propre case ; cette case devient alors elle-même une source de

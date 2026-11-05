@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -97,6 +98,10 @@ var demoScenarios = map[string]struct {
 	"villages": {
 		description: "spring; the map's villages cycle through levels 0 (ruin), 1, 2 and 3",
 		apply:       forgeVillages,
+	},
+	"pillage": {
+		description: "spring; P1's barony F1 has its capital castle under a P1 army: P <army> pillages it (the castle falls into ruin, the fief and P1's capital stay). Three more P1 armies stand on a level-2 mill, a level-1 village and a fortified level-1 village (pillage degrades them), and free territories carry a ruined castle and a level-0 village (cannot be pillaged)",
+		apply:       forgePillage,
 	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
@@ -808,6 +813,84 @@ func forgeVillages(state *models.GameState) error {
 	}
 	if next == 0 {
 		return fmt.Errorf("the base game has no village")
+	}
+	return nil
+}
+
+// forgePillage turns the annexation scenario into a spring turn where pillage
+// can be tried on every kind of infrastructure: P1's fief capital, a mill, a
+// village and a fortified village each under a P1 army, plus a ruined castle
+// and a level-0 village to check that a ruin cannot be pillaged.
+func forgePillage(state *models.GameState) error {
+	if err := forgeAnnexation(state); err != nil {
+		return err
+	}
+	state.Season = models.SeasonSpring
+	state.Turn = 1
+	capitalID := playerCapitalTerritory(state, "P1")
+	p1 := ownedNobles(state, "P1")
+	if len(p1) < 2 {
+		return fmt.Errorf("the base game lacks P1 nobles")
+	}
+	nobleIDs := []models.NobleID{state.Nobles[p1[1]].ID, "N900"}
+	outposts := []models.Infrastructure{
+		{ID: "ZPM", Type: models.InfraTypeMill, Level: 2},
+		{ID: "ZPV", Type: models.InfraTypeVillage, Level: 1},
+		{ID: "ZPF", Type: models.InfraTypeVillage, Level: 1, Fortified: true},
+	}
+	index := 0
+	for _, army := range state.Armies {
+		if army.OwnerID != "P1" || index >= len(outposts) || army.TerritoryID == capitalID {
+			continue
+		}
+		if len(army.ID) < 2 || army.ID[:2] != "ZX" {
+			continue
+		}
+		outpost := outposts[index]
+		outpost.TerritoryID = army.TerritoryID
+		// The scenario replaces whatever the map already put there.
+		state.Infrastructures = slices.DeleteFunc(state.Infrastructures, func(existing models.Infrastructure) bool {
+			return existing.TerritoryID == army.TerritoryID
+		})
+		state.Infrastructures = append(state.Infrastructures, outpost)
+		territoryState := state.TerritoryStates[army.TerritoryID]
+		infrastructureID := outpost.ID
+		territoryState.Infrastructures = &infrastructureID
+		state.TerritoryStates[army.TerritoryID] = territoryState
+		if index < len(nobleIDs) {
+			for noble := range state.Nobles {
+				if state.Nobles[noble].ID == nobleIDs[index] {
+					state.Nobles[noble].LocationID = army.TerritoryID
+				}
+			}
+		}
+		fmt.Printf("demo pillage: %s (%s) under army %s on %s\n", outpost.ID, outpost.Type, army.ID, army.TerritoryID)
+		index++
+	}
+	ruins := []models.Infrastructure{
+		{ID: "ZPR", Type: models.InfraTypeCastle, Level: 1, Ruined: true},
+		{ID: "ZPZ", Type: models.InfraTypeVillage, Level: 0},
+	}
+	placed := 0
+	for _, territory := range state.Territories {
+		if placed >= len(ruins) {
+			break
+		}
+		if !isFreeTerritory(state, territory.ID) || state.TerritoryStates[territory.ID].Infrastructures != nil {
+			continue
+		}
+		ruin := ruins[placed]
+		ruin.TerritoryID = territory.ID
+		state.Infrastructures = append(state.Infrastructures, ruin)
+		territoryState := state.TerritoryStates[territory.ID]
+		infrastructureID := ruin.ID
+		territoryState.Infrastructures = &infrastructureID
+		state.TerritoryStates[territory.ID] = territoryState
+		fmt.Printf("demo pillage: ruin %s (%s) on %s\n", ruin.ID, ruin.Type, territory.ID)
+		placed++
+	}
+	if index < len(outposts) || placed < len(ruins) {
+		return fmt.Errorf("not enough room: %d outposts, %d ruins placed", index, placed)
 	}
 	return nil
 }

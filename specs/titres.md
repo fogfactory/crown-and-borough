@@ -175,12 +175,14 @@ la dissolution automatique de #194).
   qui le détient mais devient vacant.
 - **Capture du titulaire** (otage ou donjon) : aucun effet sur le fief ; le
   noble existe toujours, seul son statut change.
-- **Château de la capitale détruit** (pillage, y compris le pillage
-  automatique de famine) : le fief est **dissous immédiatement**, quelle que
-  soit la saison. Contrairement à une première intuition, il n'y a ni
-  suspension du bonus de cité ni délai d'attente : la perte du château qui
-  fait la capitale met fin au fief sur-le-champ. C'est la **seule** cause de
-  dissolution d'un fief.
+- **Château de la capitale pillé** (pillage, y compris le pillage
+  automatique de famine) : le château est mis en ruine mais reste la capitale
+  du fief, qui n'est pas dissous ; la capitale du joueur est conservée. Le
+  château en ruine n'apporte aucune défense (pas de bonus de cité), reste
+  une source de ravitaillement et un point d'ancrage pour les retraites, et
+  peut être reconstruit par `C C`. Un château en ruine ne peut pas devenir la
+  capitale d'un nouveau fief (`T F`). Le fief ne se dissout que si le château
+  de sa capitale disparaît ; seul `C C` peut être construit sur sa ruine.
 - **Fief de la couronne** : un fief dont le titulaire meurt sans héritier ni
   noble vivant chez son joueur passe à la couronne et n'est jamais attribué
   par défaut ; voir [politique.md](politique.md#héritage-dun-fief-sans-héritier).

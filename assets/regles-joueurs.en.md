@@ -315,7 +315,8 @@ dislodged.
 useful to occupy a chain line while waiting, especially in a loop
 (`(H XXX)`).
 
-`P XXX`: destroys the infrastructure on the occupied territory; a pillage
+`P XXX`: pillages the infrastructure on the occupied territory, which is
+degraded rather than destroyed (section 7, "Pillage and ruins"); a pillage
 bonus ({{pillage_bonus}} R) is credited to the nearest allied source, and may
 reduce famine (section 7).
 
@@ -410,7 +411,8 @@ orders.
   (see self-capture, section 5); an empty castle that is neither a fief
   member nor a player's capital is **inert** and gives no bonus (see "Fiefs",
   section 8); a fief capital's castle is a **city** and gives
-  **+{{city_defense_bonus}}** instead;
+  **+{{city_defense_bonus}}** instead; a castle **in ruins** gives no bonus,
+  even as a fief capital (section 7);
 - the **strictly unique** highest strength wins; a top tie produces a
   **standoff**, including on an empty territory;
 - you never dislodge your own army: an attack on a territory held by one of
@@ -463,7 +465,8 @@ ascending trigram. The attacker's origin territory is always excluded. An
 or enemy to the retreating army — defends against retreat and is never a
 valid destination; an empty **inert** castle (neither fief, nor capital, nor
 army) becomes a valid second-priority destination again, just like no castle
-at all. Two armies that must retreat to the same empty territory with no
+at all; a castle in ruins defends against retreat only if it is a fief's
+capital, otherwise it is inert. Two armies that must retreat to the same empty territory with no
 alternative are destroyed. Retreat resolution order follows the ascending
 trigram of their origin territory.
 
@@ -651,9 +654,9 @@ Its status is only recalculated at the next supply resolution, at the end of
 that following turn. If it reached a sufficient source in the meantime, it
 becomes valid again from that turn on. If it is still in deficit at that
 point, while already famished, it **pillages the infrastructure on its
-territory automatically**, if it occupies one: the pillage bonus, reduced by
-its residual demand, may cover the deficit. If pillage is insufficient or
-impossible, it **loses as many troops as needed to come back down to `s`** and
+territory automatically**, if it occupies one that is not in ruins: the
+pillage bonus, reduced by its residual demand, may cover the deficit. If
+pillage is insufficient or impossible, it **loses as many troops as needed to come back down to `s`** and
 is no longer famished. If `s = 0`, it **disappears**: its nobles **die with
 it** (nobody can capture them) and the territory keeps its controller.
 
@@ -679,9 +682,36 @@ conditions are detailed in section 8.
 |---|---|
 | Mill | `N` stockable R per level, credited to a single adjacent infrastructure under the same control (castle, else village, else itself); with no controller, on its own territory |
 | Supply depot | +{{depot_range_bonus}} territories of supply range while anchored or occupied; inert otherwise |
-| Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8) |
-| Village | Supply anchor after capture, receives territory income once controlled, plus {{village_income}} R per level (produces {{village_income}} R per level per turn into its own stock while neutral, never held, or just abandoned — like the mill, it never goes inert) |
+| Castle | +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise; supply anchor; receives territory income (section 7); becomes a city (+{{city_defense_bonus}}, not stacked) on a fief's capital (section 8); no defense in ruins |
+| Village | Supply anchor after capture, receives territory income once controlled, plus {{village_income}} R per level (produces {{village_income}} R per level per turn into its own stock while neutral, never held, or just abandoned — like the mill, it never goes inert); a level-0 village is in ruins and produces nothing |
 | Fortified village | Identical to a village (stock, production, income), and additionally gains +{{castle_defense_bonus}} defense while it stays anchored or occupied, inert otherwise (section 8) |
+
+### Pillage and Ruins
+
+A pillage (`P`) degrades the infrastructure on the territory instead of
+destroying it:
+
+| Pillaged infrastructure | Effect |
+|---|---|
+| Mill | Loses 1 level; a level-1 mill disappears |
+| Fortified village | Its wall is destroyed, with no loss of level |
+| Unfortified village | Loses 1 level; at 0, it is **in ruins** |
+| Castle | It is **in ruins** |
+| Supply depot | It disappears |
+
+A **ruin** (a castle in ruins, a level-0 village without a wall) cannot be
+pillaged. It is not a supply source, receives neither territory income nor
+mill production, and a castle in ruins gives no defense and can become neither
+a fief capital nor a player's capital. Its tile is built on like an empty
+tile: any build there replaces the ruin, except `C C` on a castle in ruins,
+which rebuilds it in place at the cost of a castle; if you have no capital,
+that rebuilt castle becomes yours, like a new castle. One exception: a castle
+in ruins that is a fief's capital
+remains the capital (the fief is not dissolved, nor is your capital), stays a
+supply source and a retreat anchor, with no defensive value, and only `C C`
+can be built there. The stock of a
+castle or village that stops being a source is added to the loot: it is
+credited, with the pillage bonus, to the nearest allied source.
 
 ---
 
@@ -975,9 +1005,11 @@ point is **automatically assigned** to the first noble in your line of
 succession, even a hostage or prisoner, with a warning in the report telling
 you to take back manual assignment next turn; with no living noble at all, it
 simply stays vacant — it is never dissolved for lack of assignment.
-If the capital's castle is destroyed (pillage, including
-automatic famine pillage), the fief is dissolved **immediately**, regardless
-of the season: this is the only way a fief is dissolved. Capturing the
+If the capital's castle is pillaged (pillage, including
+automatic famine pillage), it falls into ruin but remains the fief's capital,
+and the fief is not dissolved: the castle then loses all defensive value, stays
+a supply source and a retreat anchor, and `C C` rebuilds it. A castle in ruins
+cannot become the capital of a new fief. Capturing the
 titulaire (hostage or dungeon), by contrast, has no effect on the fief.
 
 ### Resource Vocabulary

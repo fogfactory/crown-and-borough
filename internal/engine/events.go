@@ -9,6 +9,17 @@ type Resolution struct {
 	Events []Event           `json:"events"`
 }
 
+// PillageEffect is what a pillage did to an infrastructure: it degrades it
+// instead of always destroying it.
+type PillageEffect string
+
+const (
+	PillageEffectDestroyed   PillageEffect = "destroyed"
+	PillageEffectDowngraded  PillageEffect = "downgraded"
+	PillageEffectUnfortified PillageEffect = "unfortified"
+	PillageEffectRuined      PillageEffect = "ruined"
+)
+
 // EventType identifies the kind of a resolution event.
 type EventType string
 
@@ -202,26 +213,28 @@ type Event struct {
 	SizeBefore        int                `json:"sizeBefore,omitempty"`
 	SizeAfter         int                `json:"sizeAfter,omitempty"`
 
-	InfrastructureID   models.InfraID             `json:"infrastructure,omitempty"`
-	InfrastructureType models.InfraType           `json:"infrastructureType,omitempty"`
-	Level              int                        `json:"level,omitempty"`
-	ResourceCredit     int                        `json:"resourceCredit,omitempty"`
-	ResourceAmount     int                        `json:"resourceAmount,omitempty"`
-	Partial            bool                       `json:"partial,omitempty"`
-	CreditTerritoryID  models.TerritoryID         `json:"creditTerritory,omitempty"`
-	Production         int                        `json:"production,omitempty"`
-	Demand             int                        `json:"demand,omitempty"`
-	Rations            map[models.TerritoryID]int `json:"rations,omitempty"`
-	StockConsumed      int                        `json:"stockConsumed,omitempty"`
-	StockBefore        int                        `json:"stockBefore,omitempty"`
-	StockAfter         int                        `json:"stockAfter,omitempty"`
-	ResourceSpent      int                        `json:"resourceSpent,omitempty"`
-	Cost               int                        `json:"cost,omitempty"`
-	Troops             int                        `json:"troops,omitempty"`
-	TroopsLost         int                        `json:"troopsLost,omitempty"`
-	RationsLost        int                        `json:"rationsLost,omitempty"`
-	SavedByPillage     bool                       `json:"savedByPillage,omitempty"`
-	Warned             bool                       `json:"warned,omitempty"`
+	InfrastructureID   models.InfraID   `json:"infrastructure,omitempty"`
+	InfrastructureType models.InfraType `json:"infrastructureType,omitempty"`
+	Level              int              `json:"level,omitempty"`
+	// PillageEffect is what a pillage did to the infrastructure it reached.
+	PillageEffect     PillageEffect              `json:"pillageEffect,omitempty"`
+	ResourceCredit    int                        `json:"resourceCredit,omitempty"`
+	ResourceAmount    int                        `json:"resourceAmount,omitempty"`
+	Partial           bool                       `json:"partial,omitempty"`
+	CreditTerritoryID models.TerritoryID         `json:"creditTerritory,omitempty"`
+	Production        int                        `json:"production,omitempty"`
+	Demand            int                        `json:"demand,omitempty"`
+	Rations           map[models.TerritoryID]int `json:"rations,omitempty"`
+	StockConsumed     int                        `json:"stockConsumed,omitempty"`
+	StockBefore       int                        `json:"stockBefore,omitempty"`
+	StockAfter        int                        `json:"stockAfter,omitempty"`
+	ResourceSpent     int                        `json:"resourceSpent,omitempty"`
+	Cost              int                        `json:"cost,omitempty"`
+	Troops            int                        `json:"troops,omitempty"`
+	TroopsLost        int                        `json:"troopsLost,omitempty"`
+	RationsLost       int                        `json:"rationsLost,omitempty"`
+	SavedByPillage    bool                       `json:"savedByPillage,omitempty"`
+	Warned            bool                       `json:"warned,omitempty"`
 	// SuppliedStrength is the size the rations an army reaches can feed.
 	SuppliedStrength int `json:"suppliedStrength,omitempty"`
 	// Destroyed marks an army that reached no ration and disappeared.

@@ -836,7 +836,7 @@ describe('MapViewer territorial overlays', () => {
           owner: 'P1',
           resources: 0,
           army: null,
-          infrastructures: [{ type: 'village', level }],
+          infrastructures: [{ type: 'village', level, ruined: level === 0 }],
         },
       ],
     })
@@ -851,6 +851,23 @@ describe('MapViewer territorial overlays', () => {
     ).not.toBeNull()
     expect(
       renderMap(map, villageState(1)).svg.querySelector('[data-ruined-marker]'),
+    ).toBeNull()
+  })
+
+  it('draws a pillaged castle as a ruin', () => {
+    const ruinedCastle = (ruined: boolean): StateData => ({
+      ...state,
+      territories: state.territories.map((territory, index) =>
+        index === 0
+          ? { ...territory, infrastructures: [{ type: 'castle', level: 1, ruined }] }
+          : territory,
+      ),
+    })
+    expect(
+      renderMap(map, ruinedCastle(true)).svg.querySelector('[data-ruined-marker]'),
+    ).not.toBeNull()
+    expect(
+      renderMap(map, ruinedCastle(false)).svg.querySelector('[data-ruined-marker]'),
     ).toBeNull()
   })
 

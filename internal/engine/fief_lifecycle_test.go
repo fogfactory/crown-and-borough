@@ -208,10 +208,10 @@ func TestNeutralRevoltNeverTransfersFief(t *testing.T) {
 	}
 }
 
-// TestDissolveFiefOnCapitalCastleLoss verifies that losing a fief capital's
-// castle to pillage dissolves the fief immediately (titres.md deliberately
-// chose immediate dissolution over suspending the city bonus).
-func TestDissolveFiefOnCapitalCastleLoss(t *testing.T) {
+// TestPillageRuinsFiefCapitalCastleAndKeepsFief verifies that pillaging a fief
+// capital's castle ruins it without dissolving the fief or clearing the
+// player's capital.
+func TestPillageRuinsFiefCapitalCastleAndKeepsFief(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB"),
@@ -221,6 +221,7 @@ func TestDissolveFiefOnCapitalCastleLoss(t *testing.T) {
 		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}},
 	)
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	setCapital(state, "P1", "I1")
 	addNoble(state, "N1", "HUG", "P1", "AAA")
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypePillage, PositionID: "AAA"})
 	holder := models.NobleID("N1")
@@ -236,12 +237,36 @@ func TestDissolveFiefOnCapitalCastleLoss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve(pillage) = %v", err)
 	}
-	if len(resolution.State.Fiefs) != 0 {
-		t.Fatalf("fiefs = %#v, want none (dissolved)", resolution.State.Fiefs)
+	if len(resolution.State.Fiefs) != 1 {
+		t.Fatalf("fiefs = %#v, want F1 kept", resolution.State.Fiefs)
 	}
-	dissolved := eventsOfType(resolution.Events, EventTypeFiefDissolved)
-	if len(dissolved) != 1 || dissolved[0].FiefID != "F1" || dissolved[0].Reason != "capital_castle_lost" {
-		t.Fatalf("dissolved events = %#v", dissolved)
+	if got := eventsOfType(resolution.Events, EventTypeFiefDissolved); len(got) != 0 {
+		t.Fatalf("dissolved events = %#v, want none", got)
+	}
+	if !resolution.State.Infrastructures[0].Ruined {
+		t.Errorf("castle = %#v, want ruined", resolution.State.Infrastructures[0])
+	}
+	if capital := resolution.State.Players[0].CapitalCastleID; capital == nil || *capital != "I1" {
+		t.Errorf("capital = %v, want I1 kept", capital)
+	}
+}
+
+// TestRemovingFiefCapitalCastleDissolvesFief verifies that a castle that
+// disappears outright still dissolves the fief it anchors.
+func TestRemovingFiefCapitalCastleDissolvesFief(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{territory("AAA", "AAA", "BBB"), territory("BBB", "BBB", "AAA")},
+		nil,
+	)
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
+		Territories: []models.TerritoryID{"AAA", "BBB"}, OwnerID: "P1",
+	}}
+	ctx := newResolutionContext(state, testBalance())
+	ctx.removeInfrastructure("I1")
+	if len(ctx.state.Fiefs) != 0 {
+		t.Fatalf("fiefs = %#v, want none (dissolved)", ctx.state.Fiefs)
 	}
 }
 

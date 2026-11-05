@@ -29,7 +29,7 @@ func (order transferOrder) Apply(ctx *ExecutionContext) {
 	}
 	targetState := resolution.state.TerritoryStates[winterOrder.TargetID]
 	targetControllerID, targetControlled := resolution.controllerAtStart(winterOrder.TargetID)
-	if !targetControlled || targetControllerID == playerID || !PlayerAlive(resolution.state, targetControllerID) || !resolution.hasSettlement(winterOrder.TargetID) {
+	if !targetControlled || targetControllerID == playerID || !PlayerAlive(resolution.state, targetControllerID) || !resolution.hasActiveSettlement(winterOrder.TargetID) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "transfer_target_not_settlement")
 		return
 	}

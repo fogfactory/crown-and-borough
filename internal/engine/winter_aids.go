@@ -232,7 +232,7 @@ func (ctx *resolutionContext) fiefAids(viewer models.PlayerID, aids *WinterAids)
 			current := queue[0]
 			queue = queue[1:]
 			site.Territories = append(site.Territories, current)
-			if infrastructure := ctx.infrastructureAt(current); infrastructure != nil && infrastructure.Type == models.InfraTypeCastle {
+			if infrastructure := ctx.infrastructureAt(current); infrastructure != nil && infrastructure.IsLiveCastle() {
 				site.Castles = append(site.Castles, current)
 			}
 			for _, neighbor := range ctx.sortedNeighbors(current) {

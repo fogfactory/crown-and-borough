@@ -68,6 +68,10 @@ func (order foundFiefOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "fief_capital_requires_castle")
 		return
 	}
+	if capitalInfrastructure.Ruined {
+		resolution.rejectWinterOrder(playerID, winterOrder, "fief_capital_ruined")
+		return
+	}
 	if !fiefGroupContiguous(resolution, territories) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "fief_not_contiguous")
 		return

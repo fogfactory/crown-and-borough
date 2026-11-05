@@ -100,7 +100,7 @@ func parseDeckOrderLine(line string, lineNumber int, game *models.GameState) (mo
 		// TER is a fief capital here, by exception to the usual "TER is a
 		// region's seed village" rule (titres.md "Taxe seigneuriale"):
 		// ownership of the targeted fief is checked later by CanPlay.
-		if !isFiefCapital(game, target) {
+		if !game.IsFiefCapital(target) {
 			error := parseMessage(lineNumber, ParseCodeSpecialRegion, i18n.DeckOrderRegionUnknown, fields[2])
 			return models.DeckOrder{}, &error
 		}
@@ -207,7 +207,7 @@ func parseIssuedTaxLine(fields []string, lineNumber int, game *models.GameState)
 	}
 	target := models.TerritoryID(fields[3])
 	tithe := isTitheCode(fields[1])
-	known := isFiefCapital(game, target) || isSpecialRegionSeed(game, target)
+	known := game.IsFiefCapital(target) || isSpecialRegionSeed(game, target)
 	if tithe {
 		known = isSpecialRegionSeed(game, target)
 	}
@@ -216,7 +216,7 @@ func parseIssuedTaxLine(fields []string, lineNumber int, game *models.GameState)
 		return models.DeckOrder{}, &error
 	}
 	// "P TX" on a bishopric seed that is no fief capital can only be a tithe.
-	tithe = tithe || !isFiefCapital(game, target)
+	tithe = tithe || !game.IsFiefCapital(target)
 	return models.DeckOrder{Type: models.DeckOrderTypePlay, Kind: models.CardKindSeigneurialTax, TargetNobleID: nobleID, TargetTerritoryID: target, Tithe: tithe}, nil
 }
 
@@ -242,18 +242,6 @@ func nobleIDByCode(game *models.GameState, code string) (models.NobleID, bool) {
 		}
 	}
 	return "", false
-}
-
-func isFiefCapital(game *models.GameState, territoryID models.TerritoryID) bool {
-	if game == nil {
-		return false
-	}
-	for _, fief := range game.Fiefs {
-		if fief.CapitalTerritoryID == territoryID {
-			return true
-		}
-	}
-	return false
 }
 
 func parseSpecialKind(value string, lineNumber int) (models.CardKind, *ParseError) {
