@@ -274,7 +274,8 @@ func royalAccordOnOtherSheet(game *models.GameState, playerID models.PlayerID, o
 func winterPaymentReserves(game *models.GameState, playerID models.PlayerID, winterOrders []models.WinterOrder) int {
 	settlements := make(map[models.InfraID]bool)
 	for _, infrastructure := range game.Infrastructures {
-		if game.IsActiveSettlement(infrastructure) {
+		// Like winterPaymentSources: a ruin still pays from whatever stock it holds.
+		if infrastructure.IsSettlement() {
 			settlements[infrastructure.ID] = true
 		}
 	}

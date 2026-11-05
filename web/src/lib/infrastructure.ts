@@ -1,13 +1,9 @@
 import type { Infrastructure } from '@/types'
 
-/** A level-0 village or a pillaged castle is a ruin: it shows no level. */
-export function isRuined(
-  infrastructure: Pick<Infrastructure, 'type' | 'level' | 'ruined'>,
-): boolean {
-  return (
-    (infrastructure.type === 'village' && infrastructure.level === 0) ||
-    (infrastructure.type === 'castle' && infrastructure.ruined === true)
-  )
+/** A ruin (pillaged castle, unfortified level-0 village) as the server
+ * flags it: it shows no level. */
+export function isRuined(infrastructure: Pick<Infrastructure, 'ruined'>): boolean {
+  return infrastructure.ruined === true
 }
 
 /** Lowest level of an infrastructure type, as in the engine's

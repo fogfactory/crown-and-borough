@@ -391,7 +391,7 @@ func (ctx *resolutionContext) removeInfrastructureWithStock(infrastructureID mod
 	if state.Infrastructures != nil && *state.Infrastructures == infrastructureID {
 		state.Infrastructures = nil
 	}
-	if !preserveStock && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage) {
+	if !preserveStock && infrastructure.IsSettlement() {
 		state.Resources = 0
 	}
 	ctx.state.TerritoryStates[infrastructure.TerritoryID] = state
@@ -419,15 +419,21 @@ func (ctx *resolutionContext) pillageInfrastructure(infrastructureID models.Infr
 		ctx.removeInfrastructure(infrastructureID)
 		return 0, PillageEffectDestroyed
 	case models.InfraTypeVillage:
+		effect = PillageEffectUnfortified
 		if infrastructure.Fortified {
 			infrastructure.Fortified = false
-			return 0, PillageEffectUnfortified
+		} else {
+			infrastructure.Level--
+			effect = PillageEffectDowngraded
 		}
-		infrastructure.Level--
-		if infrastructure.Level > 0 {
-			return 0, PillageEffectDowngraded
+		if !infrastructure.IsRuined() {
+			return 0, effect
 		}
-		return ctx.takeStock(infrastructure.TerritoryID), PillageEffectRuined
+		// A village that just fell into ruin hands its stock over as loot.
+		if effect == PillageEffectDowngraded {
+			effect = PillageEffectRuined
+		}
+		return ctx.takeStock(infrastructure.TerritoryID), effect
 	case models.InfraTypeCastle:
 		infrastructure.Ruined = true
 		if ctx.state.IsFiefCapital(infrastructure.TerritoryID) {

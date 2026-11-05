@@ -699,13 +699,17 @@ destroying it:
 | Castle | It is **in ruins** |
 | Supply depot | It disappears |
 
-A **ruin** (a castle in ruins, a level-0 village) cannot be pillaged.
-It is not a supply source, receives neither territory income nor mill
-production, and a castle in ruins gives no defense and can become neither a
-fief capital nor a player's capital, but `C C` rebuilds it in place at the
-cost of a castle. One exception: a castle in ruins that is a fief's capital
+A **ruin** (a castle in ruins, a level-0 village without a wall) cannot be
+pillaged. It is not a supply source, receives neither territory income nor
+mill production, and a castle in ruins gives no defense and can become neither
+a fief capital nor a player's capital. Its tile is built on like an empty
+tile: any build there replaces the ruin, except `C C` on a castle in ruins,
+which rebuilds it in place at the cost of a castle; if you have no capital,
+that rebuilt castle becomes yours, like a new castle. One exception: a castle
+in ruins that is a fief's capital
 remains the capital (the fief is not dissolved, nor is your capital), stays a
-supply source and a retreat anchor, with no defensive value. The stock of a
+supply source and a retreat anchor, with no defensive value, and only `C C`
+can be built there. The stock of a
 castle or village that stops being a source is added to the loot: it is
 credited, with the pillage bonus, to the nearest allied source.
 

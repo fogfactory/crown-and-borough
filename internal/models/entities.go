@@ -205,20 +205,27 @@ type Infrastructure struct {
 	Fortified   bool        `json:"fortified,omitempty"`
 	// Ruined only ever applies to a castle: a pillaged castle stays on its
 	// tile as a ruin that offers no defense and can no longer be pillaged. A
-	// village is a ruin at level 0 and needs no flag.
+	// village is a ruin at level 0 without a wall and needs no flag.
 	Ruined bool `json:"ruined,omitempty"`
 }
 
 // IsRuined reports whether the infrastructure is a ruin: a pillaged castle,
-// or a village that fell to level 0. A ruin can no longer be pillaged.
+// or an unfortified village that fell to level 0. A ruin can no longer be
+// pillaged.
 func (i Infrastructure) IsRuined() bool {
 	switch i.Type {
 	case InfraTypeCastle:
 		return i.Ruined
 	case InfraTypeVillage:
-		return i.Level == 0
+		return i.Level == 0 && !i.Fortified
 	}
 	return false
+}
+
+// IsSettlement reports whether the infrastructure is a castle or a village,
+// ruined or not.
+func (i Infrastructure) IsSettlement() bool {
+	return i.Type == InfraTypeCastle || i.Type == InfraTypeVillage
 }
 
 // IsLiveCastle reports whether the infrastructure is a castle that is not in
@@ -228,12 +235,8 @@ func (i Infrastructure) IsLiveCastle() bool {
 }
 
 // IsPillageable reports whether a pillage can still degrade the
-// infrastructure: a ruin has nothing left to take, except a fortified village
-// whose wall can still be destroyed.
+// infrastructure: a ruin has nothing left to take.
 func (i Infrastructure) IsPillageable() bool {
-	if i.Type == InfraTypeVillage && i.Fortified {
-		return true
-	}
 	return !i.IsRuined()
 }
 
@@ -260,7 +263,7 @@ func (g *GameState) IsActiveSettlement(infrastructure Infrastructure) bool {
 	case InfraTypeCastle:
 		return !infrastructure.Ruined || g.IsFiefCapital(infrastructure.TerritoryID)
 	case InfraTypeVillage:
-		return infrastructure.Level > 0
+		return !infrastructure.IsRuined()
 	}
 	return false
 }

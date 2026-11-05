@@ -842,9 +842,14 @@ l'élimine pas toujours : il la dégrade selon son type.
 | Dépôt de vivres | Il disparaît. |
 
 Une ruine (château en ruine, village de niveau 0 sans muraille) ne peut pas
-être pillée. Un château en ruine n'apporte aucune valeur défensive, ne
-peut pas devenir la capitale d'un nouveau fief ni la capitale d'un joueur,
-et un `C C` sur sa case le reconstruit sur place au coût d'un château. Un
+être pillée. Un château en ruine n'apporte aucune valeur défensive et ne
+peut pas devenir la capitale d'un nouveau fief ni la capitale d'un joueur.
+La case d'une ruine se construit comme une case vide : toute construction
+d'hiver y remplace la ruine (son stock reste sur la case), sauf `C C` sur un
+château en ruine, qui le reconstruit sur place au coût d'un château ; comme
+un château neuf, ce château reconstruit devient la capitale de son joueur
+s'il n'en a pas. Sur le château en ruine capitale d'un fief, seul `C C` est
+accepté : toute autre construction y est refusée. Un
 château ou un village en ruine n'est pas une source de ravitaillement et ne
 reçoit plus ni le revenu territorial ni la production d'un moulin voisin, sauf si c'est le château capitale d'un fief : celui-ci reste capitale,
 le fief n'est pas dissous, la capitale du joueur est conservée si c'était

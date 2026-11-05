@@ -923,7 +923,7 @@ func (ctx *resolutionContext) emitConsumptionEvents() {
 
 func (ctx *resolutionContext) hasSettlement(territoryID models.TerritoryID) bool {
 	infrastructure := ctx.infrastructureAt(territoryID)
-	return infrastructure != nil && (infrastructure.Type == models.InfraTypeCastle || infrastructure.Type == models.InfraTypeVillage)
+	return infrastructure != nil && infrastructure.IsSettlement()
 }
 
 // hasActiveSettlement is hasSettlement for a castle or village that still

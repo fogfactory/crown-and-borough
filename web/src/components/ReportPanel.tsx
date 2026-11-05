@@ -210,6 +210,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   ruined_infrastructure: 'reports.reason.ruined_infrastructure',
   fief_capital_ruined: 'reports.reason.fief_capital_ruined',
   capital_castle_ruined: 'reports.reason.capital_castle_ruined',
+  ruined_fief_capital_rebuild_only: 'reports.reason.ruined_fief_capital_rebuild_only',
   army_destroyed: 'reports.reason.army_destroyed',
   held: 'reports.reason.held',
   disperse_summary: 'reports.reason.disperse_summary',

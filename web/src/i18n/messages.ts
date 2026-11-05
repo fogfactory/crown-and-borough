@@ -1023,6 +1023,8 @@ const englishMessages = {
   'reports.reason.ruined_infrastructure': 'This ruin can no longer be pillaged.',
   'reports.reason.fief_capital_ruined': "The fief capital's castle is in ruins.",
   'reports.reason.capital_castle_ruined': 'A castle in ruins cannot be the capital.',
+  'reports.reason.ruined_fief_capital_rebuild_only':
+    "Only C C can be built on a fief capital's ruined castle.",
   'reports.reason.army_destroyed': 'Army destroyed',
   'reports.reason.held': 'Held',
   'reports.reason.disperse_summary': 'Dispersal resolved',
@@ -2436,6 +2438,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'reports.reason.ruined_infrastructure': 'Cette ruine ne peut plus être pillée.',
   'reports.reason.fief_capital_ruined': 'Le château de la capitale du fief est en ruine.',
   'reports.reason.capital_castle_ruined': 'Un château en ruine ne peut pas être la capitale.',
+  'reports.reason.ruined_fief_capital_rebuild_only':
+    "Seul C C peut être construit sur le château en ruine d'une capitale de fief.",
   'reports.reason.army_destroyed': 'Armée détruite',
   'reports.reason.held': 'Maintien',
   'reports.reason.disperse_summary': 'Dispersion résolue',

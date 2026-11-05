@@ -836,7 +836,7 @@ describe('MapViewer territorial overlays', () => {
           owner: 'P1',
           resources: 0,
           army: null,
-          infrastructures: [{ type: 'village', level }],
+          infrastructures: [{ type: 'village', level, ruined: level === 0 }],
         },
       ],
     })

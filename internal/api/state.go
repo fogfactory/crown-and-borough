@@ -214,7 +214,7 @@ type InfraView struct {
 	Type      models.InfraType `json:"type"`
 	Level     int              `json:"level"`
 	Fortified bool             `json:"fortified,omitempty"`
-	// Ruined marks a pillaged castle or a level-0 village.
+	// Ruined marks a pillaged castle or an unfortified level-0 village.
 	Ruined bool `json:"ruined,omitempty"`
 }
 

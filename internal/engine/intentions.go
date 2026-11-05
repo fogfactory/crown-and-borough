@@ -257,7 +257,7 @@ func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Ar
 			intent.recipientPlayer = targetArmy.OwnerID
 		} else {
 			targetControllerID, targetControlled := ctx.controllerAtStart(targetID)
-			if !targetControlled || targetControllerID == army.OwnerID || !PlayerAlive(ctx.state, targetControllerID) || !ctx.hasSettlement(targetID) {
+			if !targetControlled || targetControllerID == army.OwnerID || !PlayerAlive(ctx.state, targetControllerID) || !ctx.hasActiveSettlement(targetID) {
 				record.invalidate("invalid_transfer_destination")
 				return
 			}

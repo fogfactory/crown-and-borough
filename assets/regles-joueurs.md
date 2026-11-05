@@ -738,14 +738,18 @@ Un pillage (`P`) dégrade l'infrastructure de la case au lieu de la détruire :
 | Château | Il est **en ruine** |
 | Dépôt de vivres | Il disparaît |
 
-Une **ruine** (château en ruine, village de niveau 0) ne peut pas être
-pillée. Elle n'est pas une source de ravitaillement, ne reçoit ni revenu
+Une **ruine** (château en ruine, village de niveau 0 sans muraille) ne peut pas
+être pillée. Elle n'est pas une source de ravitaillement, ne reçoit ni revenu
 territorial ni production de moulin, et un château en ruine n'apporte aucune
-défense, ne peut devenir ni capitale d'un fief ni capitale de joueur, mais
-`C C` le reconstruit sur place au coût d'un château. Une exception : le
+défense et ne peut devenir ni capitale d'un fief ni capitale de joueur. Sa
+case se construit comme une case vide : toute construction y remplace la
+ruine, sauf `C C` sur un château en ruine, qui le reconstruit sur place au
+coût d'un château ; si tu n'as pas de capitale, ce château reconstruit
+devient la tienne, comme un château neuf. Une exception : le
 château en ruine qui est la capitale d'un fief reste la capitale (le fief
 n'est pas dissous, ta capitale non plus), reste une source de ravitaillement
-et un point d'ancrage pour les retraites, sans valeur défensive. Le stock d'un
+et un point d'ancrage pour les retraites, sans valeur défensive, et seul
+`C C` peut y être construit. Le stock d'un
 château ou d'un village qui cesse d'être une source s'ajoute au butin : il est
 crédité, avec le bonus de pillage, à la source alliée la plus proche.
 

@@ -195,7 +195,7 @@ export interface Infrastructure {
   level: number
   /** Only ever true on a village fortified by `C C` (#193). */
   fortified?: boolean
-  /** A pillaged castle or a level-0 village. */
+  /** A pillaged castle or an unfortified level-0 village. */
   ruined?: boolean
 }
 

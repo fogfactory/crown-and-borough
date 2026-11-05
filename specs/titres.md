@@ -182,7 +182,7 @@ la dissolution automatique de #194).
   une source de ravitaillement et un point d'ancrage pour les retraites, et
   peut être reconstruit par `C C`. Un château en ruine ne peut pas devenir la
   capitale d'un nouveau fief (`T F`). Le fief ne se dissout que si le château
-  de sa capitale disparaît.
+  de sa capitale disparaît ; seul `C C` peut être construit sur sa ruine.
 - **Fief de la couronne** : un fief dont le titulaire meurt sans héritier ni
   noble vivant chez son joueur passe à la couronne et n'est jamais attribué
   par défaut ; voir [politique.md](politique.md#héritage-dun-fief-sans-héritier).

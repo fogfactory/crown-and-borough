@@ -341,11 +341,11 @@ func (ctx *resolutionContext) winterDistances(startID models.TerritoryID) map[mo
 }
 
 func (ctx *resolutionContext) millCanBeBuiltAt(territoryID models.TerritoryID) bool {
-	if ctx.hasSettlement(territoryID) {
+	if ctx.hasActiveSettlement(territoryID) {
 		return true
 	}
 	for _, neighborID := range ctx.sortedNeighbors(territoryID) {
-		if ctx.hasSettlement(neighborID) {
+		if ctx.hasActiveSettlement(neighborID) {
 			return true
 		}
 	}

@@ -120,6 +120,13 @@ func TestPillageLootsTheStockOfAFallenSource(t *testing.T) {
 	if got := resolutionResources(still, "AAA"); got < 3 {
 		t.Errorf("stock of a village that stays a source = %d, want it kept", got)
 	}
+	walled := pillageScenario(t, models.Infrastructure{Type: models.InfraTypeVillage, Level: 0, Fortified: true}, 3)
+	if got := resolutionResources(walled, "BBB"); got != base+3 {
+		t.Errorf("capital stock after unwalling a level-0 village holding 3 = %d, want %d", got, base+3)
+	}
+	if got := resolutionResources(walled, "AAA"); got != 0 {
+		t.Errorf("stock of the unwalled level-0 village = %d, want 0", got)
+	}
 }
 
 func resolutionResources(resolution Resolution, id models.TerritoryID) int {
