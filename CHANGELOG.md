@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/fogfactory/crown-and-borough/compare/v1.0.0...v1.0.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **ci:** accept any quote style for version in smoke test ([c323cc2](https://github.com/fogfactory/crown-and-borough/commit/c323cc2bdf98b43dea67de1faf66acae648ab676))
+* **ci:** accept any quote style for version in smoke test ([93203fd](https://github.com/fogfactory/crown-and-borough/commit/93203fd5386d083b8732607c1655912717e6cb6d))
+
 ## [1.0.0](https://github.com/fogfactory/crown-and-borough/compare/v0.10.0...v1.0.0) (2026-11-06)
 
 
