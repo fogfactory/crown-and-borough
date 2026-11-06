@@ -11,6 +11,7 @@ import {
   IconLayoutSidebarRightCollapse,
   IconLayoutSidebarRightExpand,
   IconMap,
+  IconMessages,
   IconNews,
 } from '@tabler/icons-react'
 
@@ -22,17 +23,17 @@ import { cn } from '@/lib/utils'
 import type { Season } from '@/types'
 
 /** Bookmarks of the desktop drawer. */
-export const PANEL_ORDER = ['orders', 'report', 'realm', 'rules'] as const
-/** Tabs of the phone tab bar: the map has its own screen there. */
-export const PHONE_TAB_ORDER = ['map', ...PANEL_ORDER] as const
+export const PANEL_ORDER = ['orders', 'report', 'realm', 'chat', 'rules'] as const
 export type DrawerPanel = (typeof PANEL_ORDER)[number]
-export type Panel = (typeof PHONE_TAB_ORDER)[number]
+/** Tabs of the phone tab bar: the map has its own screen there. */
+export type Panel = 'map' | DrawerPanel
 
 const PANEL_LABEL_KEYS: Record<Panel, MessageKey> = {
   map: 'drawer.map',
   orders: 'drawer.orders',
   report: 'drawer.report',
   realm: 'drawer.realm',
+  chat: 'drawer.chat',
   rules: 'drawer.rules',
 }
 
@@ -44,6 +45,7 @@ const PANEL_ICONS: Record<
   orders: IconFeather,
   report: IconNews,
   realm: IconCrown,
+  chat: IconMessages,
   rules: IconBook,
 }
 
@@ -55,10 +57,15 @@ export function drawerPanelOf(panel: Panel): DrawerPanel {
 export interface GameDrawerProps {
   activePanel: Panel
   onPanelChange: (panel: Panel) => void
-  /** Panel contents, owned by the mode pages. */
-  panels: Record<DrawerPanel, ReactNode>
+  /**
+   * Panel contents, owned by the mode pages. The chat is online only: its
+   * bookmark exists when its contents are given.
+   */
+  panels: Record<Exclude<DrawerPanel, 'chat'>, ReactNode> & { chat?: ReactNode }
   /** Extra node inside the report bookmark (turn badge, "new" marker, …). */
   reportLabelExtra?: ReactNode
+  /** Extra node inside the chat bookmark (unread count). */
+  chatLabelExtra?: ReactNode
   /** Sticky footer: the main action (always on desktop, under Orders on phones). */
   footer?: ReactNode
   /** Current season: its interface tint marks the active bookmark. */
@@ -75,6 +82,11 @@ export interface GameDrawerProps {
 export function GameDrawer(props: GameDrawerProps) {
   const desktop = useIsDesktop()
   return desktop ? <DesktopDrawer {...props} /> : <PhoneDrawer {...props} />
+}
+
+/** The panels the mode provides, in bookmark order. */
+function panelsOf(panels: GameDrawerProps['panels']): DrawerPanel[] {
+  return PANEL_ORDER.filter((panel) => panel !== 'chat' || panels.chat != null)
 }
 
 /** Roving keyboard focus over a row or column of tabs. */
@@ -125,13 +137,13 @@ function PanelContents({
   panels,
   visible,
 }: {
-  panels: Record<DrawerPanel, ReactNode>
+  panels: GameDrawerProps['panels']
   visible: DrawerPanel | null
 }) {
   const { t } = useLanguage()
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4 sm:px-4 lg:pt-4">
-      {PANEL_ORDER.map((panel) => (
+      {panelsOf(panels).map((panel) => (
         <div
           key={panel}
           id={`${panel}-panel`}
@@ -163,6 +175,7 @@ function DesktopDrawer({
   onPanelChange,
   panels,
   reportLabelExtra,
+  chatLabelExtra,
   footer,
   season,
 }: GameDrawerProps) {
@@ -174,7 +187,8 @@ function DesktopDrawer({
     onPanelChange(panel)
     setCollapsed(false)
   }
-  const handleTabKeyDown = tabKeyHandler(PANEL_ORDER, active, selectPanel)
+  const order = panelsOf(panels)
+  const handleTabKeyDown = tabKeyHandler(order, active, selectPanel)
 
   return (
     <aside
@@ -193,7 +207,7 @@ function DesktopDrawer({
           aria-label={t('app.panelViews')}
           className="flex flex-col gap-1.5"
         >
-          {PANEL_ORDER.map((panel) => {
+          {order.map((panel) => {
             const selected = active === panel
             const Icon = PANEL_ICONS[panel]
             return (
@@ -218,6 +232,7 @@ function DesktopDrawer({
                 <Icon aria-hidden={true} className="size-3.5 shrink-0 rotate-180" />
                 <span>{t(PANEL_LABEL_KEYS[panel])}</span>
                 {panel === 'report' && reportLabelExtra}
+                {panel === 'chat' && chatLabelExtra}
               </button>
             )
           })}
@@ -260,11 +275,13 @@ function PhoneDrawer({
   onPanelChange,
   panels,
   reportLabelExtra,
+  chatLabelExtra,
   footer,
   season,
 }: GameDrawerProps) {
   const { t } = useLanguage()
-  const handleTabKeyDown = tabKeyHandler(PHONE_TAB_ORDER, activePanel, onPanelChange)
+  const phoneOrder: readonly Panel[] = ['map', ...panelsOf(panels)]
+  const handleTabKeyDown = tabKeyHandler(phoneOrder, activePanel, onPanelChange)
   const onMap = activePanel === 'map'
 
   return (
@@ -285,7 +302,7 @@ function PhoneDrawer({
         data-phone-tabs
         className="flex shrink-0 border-t border-line bg-paper-50 pb-[env(safe-area-inset-bottom)]"
       >
-        {PHONE_TAB_ORDER.map((panel) => {
+        {phoneOrder.map((panel) => {
           const selected = activePanel === panel
           const Icon = PANEL_ICONS[panel]
           return (
@@ -311,6 +328,7 @@ function PhoneDrawer({
               <span className="inline-flex items-center gap-1">
                 {t(PANEL_LABEL_KEYS[panel])}
                 {panel === 'report' && reportLabelExtra}
+                {panel === 'chat' && chatLabelExtra}
               </span>
             </button>
           )

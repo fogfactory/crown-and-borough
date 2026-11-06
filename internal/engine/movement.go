@@ -827,6 +827,12 @@ func applyDisperse(
 		} else {
 			groupID = ctx.allocateArmyID()
 			createdArmyIDs = append(createdArmyIDs, groupID)
+			// A splinter carries its parent's starving status (copied on
+			// the struct below) into every same-turn reader of
+			// ctx.famished: retreat host order and the second-deficit loss.
+			if ctx.famished[army.ID] {
+				ctx.famished[groupID] = true
+			}
 		}
 		groupSize := targetCounts[targetID]
 		if targetID == intent.source {
@@ -1424,8 +1430,16 @@ func (ctx *resolutionContext) sortTerritoriesBySupplyAndLex(owner models.PlayerI
 	})
 }
 
+// sortFriendlyHosts orders the friendly armies a retreat can merge into:
+// hosts that are not starving come before starving ones, then the smallest
+// first, then the closest to a controlled settlement, then by trigram. The
+// starving status is the one carried into this turn (ctx.famished): this
+// turn's ravitaillement only resolves after retreats.
 func (ctx *resolutionContext) sortFriendlyHosts(owner models.PlayerID, hostIDs []models.ArmyID) {
 	sort.Slice(hostIDs, func(i, j int) bool {
+		if starvedI, starvedJ := ctx.famished[hostIDs[i]], ctx.famished[hostIDs[j]]; starvedI != starvedJ {
+			return !starvedI
+		}
 		hostI := ctx.armiesByID[hostIDs[i]]
 		hostJ := ctx.armiesByID[hostIDs[j]]
 		sizeI := 0

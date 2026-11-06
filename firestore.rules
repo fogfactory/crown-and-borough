@@ -11,6 +11,13 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.memberUids;
     }
 
+    // The observer plays no house: the chat shows them every conversation. A
+    // creator who plays reads their own conversations like any player.
+    function observerOf(gameId) {
+      return signedIn()
+        && request.auth.uid == get(/databases/$(database)/documents/games/$(gameId)).data.get('spectatorUid', '');
+    }
+
     // Profiles are synchronized by the authenticated Go API. Clients may read
     // their own projection but may not forge an email, UID, or membership.
     match /players/{uid} {
@@ -38,6 +45,33 @@ service cloud.firestore {
       match /reports/{uid}/turns/{turn} {
         allow read: if memberOf(gameId) && request.auth.uid == uid;
         allow write: if false;
+      }
+
+      // Chat. Messages are written by the Go API only. The public room is
+      // readable by every member. A private conversation (key: the two house
+      // identifiers, sorted) is readable by its two participants, whose uids
+      // are on each message, and by the observer; clients query it with
+      // where("participantUids", "array-contains", uid).
+      match /chat_public/{messageId} {
+        allow read: if memberOf(gameId);
+        allow write: if false;
+      }
+
+      match /chat_private/{conversationKey}/messages/{messageId} {
+        allow read: if memberOf(gameId)
+          && (observerOf(gameId) || request.auth.uid in resource.data.participantUids);
+        allow write: if false;
+      }
+
+      // Read cursors, one document per player.
+      match /chat_reads/{uid} {
+        allow read: if memberOf(gameId) && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      // Rate-limit state: backend only.
+      match /chat_state/{uid} {
+        allow read, write: if false;
       }
 
       match /canonical/{document} {

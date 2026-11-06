@@ -264,8 +264,9 @@ accepté comme transitoire.
 ### Score de titres
 
 Chaque titre détenu rapporte **1 point, quel qu'il soit** : baronnie, comté, marquisat,
-duché, roi, ou [dignité](dames.md#dignités). Aucun titre religieux
-(évêque, cardinal, pape) ne rapporte de point de score. Il
+duché, roi ou pape. Les [dignités](dames.md#dignités) (bâtard, dignités des
+dames, carte de cardinal) et les titres d'évêque et de cardinal ne rapportent
+aucun point de score. Il
 n'y a pas de pondération par rang — un baron et un roi comptent chacun pour
 1 point de score, quelle que soit la différence de pouvoir en jeu par
 ailleurs (voix, revenus, bonus de titre).

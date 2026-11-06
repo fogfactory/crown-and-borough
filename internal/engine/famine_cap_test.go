@@ -347,3 +347,36 @@ func TestResolvePillageCoversOnlyTheDemandThePoolLeftUnfed(t *testing.T) {
 		t.Errorf("B = %+v, want it saved at size 4", b)
 	}
 }
+
+func TestResolveDispersedStarvingArmySplintersKeepTheSecondDeficit(t *testing.T) {
+	// Plain gives 3 rations: each three-troop half (4 rations) is supplied at
+	// 2. Both halves, including the one that gets a fresh army ID, are on
+	// their second consecutive deficit and lose the troop they cannot feed.
+	state := famineCapState(t, models.TerrainPlain, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 6, Starving: true, StarvingStrength: 1})
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addChain(t, state, "A1", "N1", models.Order{
+		Type: models.OrderTypeDisperse, PositionID: "AAA", TargetIDs: []models.TerritoryID{"BBB", "BBB", "BBB"},
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{"BBB": {"*"}},
+	})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for _, territoryID := range []models.TerritoryID{"AAA", "BBB"} {
+		found := false
+		for _, army := range resolution.State.Armies {
+			if army.TerritoryID != territoryID {
+				continue
+			}
+			found = true
+			if army.Size != 2 {
+				t.Errorf("army on %s = %+v, want it cut down to its supplied 2", territoryID, army)
+			}
+		}
+		if !found {
+			t.Errorf("no army on %s, want one half of the dispersion", territoryID)
+		}
+	}
+}

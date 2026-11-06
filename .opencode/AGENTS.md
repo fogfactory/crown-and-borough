@@ -127,6 +127,9 @@ Après toute modification des règles joueurs, relire `regles-joueurs.md` et
 - `make build` / `make run` / `make test` / `make vet` / `make clean`
 - `make web-dev` — front Vite en dev (dossier `web/`)
 - `npm run dev|build|lint` dans `web/`
+- `scripts/league-server.sh` + `go run ./cmd/botleague run <config>` — partie
+  online jouée uniquement par des agents (skill `crown-and-borough-league`,
+  spec `specs/bots.md`)
 
 ## Décisions de conception actées
 

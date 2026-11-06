@@ -471,6 +471,9 @@ global lorsqu'une autre partie est déjà active.
 | `POST` | `/api/games/{id}/victory/simulate` | Simulation de victoire sur un état hypothétique, sans rien enregistrer. Corps : `actions`, liste ordonnée appliquée à une copie de l'état — `kill` (`noble`), `marry` / `divorce` (`noble`, `other`), `claim` (`noble` héritier, `other` cible : prétention posée, honorée à la mort de la cible), `rank` (`fief`, capitale du fief : +1 rang comme un ordre `T R`, sans coût, sous réserve de la ligne de succession), `crown` (`noble` couronné, remplace le roi en place), `dethrone` (trône vacant, roi toujours en vie : hypothèse sans équivalent en jeu, puisque le mandat est viager et qu'un roi capturé garde la couronne). La tête active, le poids d'alliance et le score sont relus sur l'état projeté. Un décès retire le noble (mariage rompu, dignités perdues), transmet ses fiefs à l'héritier vivant d'une prétention, sinon les laisse vacants. Réponse : `current` et `projected` (par joueur : score, seuil et mode, statut `major`/`minor`/`failure`/`ongoing`, points manquants) et `state`, l'état projeté servi comme `state.json`, que la vue Lignée affiche telle quelle. Action impossible : `422`. |
 | `GET` | `/api/games/{id}/my-submission` | Renvoie la dernière soumission du tour courant pour le joueur connecté (chaînes et hiver) pour réhydrater les formulaires après refresh. |
 | `GET` | `/api/games/{id}/submitted-orders` | Renvoie les ordres déjà soumis du tour courant à l'hôte observateur uniquement, avec leur résolution à blanc (`preview`), afin d'afficher la couche d'intentions ; les joueurs ne peuvent pas lire les ordres des autres. |
+| `POST` | `/api/games/{id}/messages` | Écrit un message de chat au nom de la maison du joueur connecté. Corps : `channel` (`"public"` ou l'identifiant de la maison destinataire), `body` (500 caractères au plus, comptés en runes) et, pour un texte long découpé par le client, `batchId`, `part`, `parts` (ensemble cohérent, 8 morceaux au plus). Le serveur renseigne la maison auteur, l'horodatage et le tour courant ; aucune donnée de compte n'est stockée. Réponse `201` : `id`, `channel` (`"public"` ou la clé de conversation, les deux identifiants de maison triés et joints par `_`), `authorHouseId`, `body`, `createdAt`, `turn` (`number`, `season`, `year`) et les champs de lot. `429 rate_limited` au-delà d'un message par seconde et par joueur ; `400` `empty_message`, `message_too_long`, `invalid_batch`, `invalid_channel`, `invalid_recipient` ; `403 no_house` pour l'observateur. Un joueur éliminé écrit toujours ; une maison éliminée n'est destinataire que d'une conversation déjà ouverte. Aucun effet sur les ordres ni sur l'état de la partie. `404 chat_disabled` en hotseat. |
+| `POST` | `/api/games/{id}/messages/read` | Corps : `channel`. Avance le curseur de lecture du joueur sur ce canal (jamais en arrière) et renvoie `{channel, lastReadAt}`. |
+| `GET` | `/api/games/{id}/messages?channel=…&before=…&beforeId=…&limit=…` | Page de messages, du plus récent au plus ancien (50 par défaut, 100 au plus). Un joueur lit le salon public et ses propres conversations (`channel` = maison interlocutrice) ; l'observateur (qui ne joue aucune maison) lit aussi toute conversation par sa clé ; le créateur de la partie, s'il joue, n'a pas cet accès. Le curseur de la page suivante, `nextBefore` et `nextBeforeId`, se renvoie tel quel en `before` et `beforeId`. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté, ou complet pour l'hôte observateur. |
@@ -495,6 +498,23 @@ d'un hôte qui ne joue pas. Le document observateur ne contient qu'un pointeur
 vers le dernier rapport ; le rapport complet reste servi par REST. Les règles
 refusent les documents canoniques, les soumissions, les rapports non filtrés et
 les écritures clientes.
+
+Le chat ajoute à ces projections, sous `games/{id}/`, des documents écrits par
+le seul backend et lus par `onSnapshot` :
+
+| Document | Forme |
+|---|---|
+| `chat_public/{messageId}` | `authorHouseId`, `body`, `createdAt`, `turn` (`number`, `season`, `year`) et, pour un texte découpé, `batchId`, `part`, `parts` |
+| `chat_private/{clé}/messages/{messageId}` | mêmes champs, plus `participantUids` (les deux joueurs de la conversation) ; la clé est les deux identifiants de maison triés et joints par `_` |
+| `chat_reads/{uid}` | `channels.{canal}.lastReadAt`, lisible par son propriétaire |
+| `chat_state/{uid}` | horodatage du dernier message, pour la limite de débit ; inaccessible au client |
+
+Limites : un message compte 500 caractères au plus (runes), un joueur écrit au
+plus un message par seconde (`429 rate_limited`, en-tête `Retry-After`), un
+texte long compte 8 morceaux au plus et la lecture REST d'un canal rend 50
+messages par page par défaut (100 au plus). Les règles Firestore interdisent
+toute écriture cliente ; les conversations privées ne sont lisibles que par
+leurs deux participants et par l'observateur.
 Ces projections étant le contrat lu par le front, l'état projeté et les
 rapports ne contiennent jamais de tableau directement imbriqué dans un tableau,
 que Firestore refuse : une paire s'écrit en objet, par exemple les frontières

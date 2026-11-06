@@ -94,8 +94,9 @@ propriétaire d'origine conserve aussi le bonus (voir la Châtelaine).
 Le [bâtard](succession.md#bâtard) est une dignité de même nature, ouverte à
 tout noble et cumulable avec les autres.
 
-Une dignité compte comme n'importe quel titre dans le score (voir
-[titres.md § Score de titres](titres.md#score-de-titres)).
+Une dignité ne rapporte aucun point de score (voir
+[titres.md § Score de titres](titres.md#score-de-titres)) : sa valeur tient à
+ses effets en jeu.
 
 ### Dignités cachées
 

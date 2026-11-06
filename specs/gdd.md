@@ -132,7 +132,7 @@ pas une alliance. `D N NNN CCC` joue une carte de dignité sur n'importe quel no
 ou à un adversaire (`noble_already_<dignité>`, `dignity_female_only`, `noble_married` pour une dignité Bloquée, `dignity_region_required`). Un ordre rejeté est
 signalé dans le rapport avec son motif ; toutes les conditions sont
 vérifiées avant de consommer la carte, donc un ordre rejeté ne la consomme
-pas. La dignité de bâtard compte comme un titre dans le score. Une carte
+pas. Une dignité ne rapporte aucun point de score. Une carte
 jouée reste suivie tant que son noble vit ; à la mort de ce noble, sa carte de
 noble sort du jeu et une nouvelle carte de noble du même sexe (prénom encore
 libre, aucune s'il n'en reste pas) rejoint la défausse, tandis qu'une carte de
@@ -793,16 +793,17 @@ déterminée par ordre de priorité décroissant :
    simplement de façon positionnelle, y compris celle qu'il vient de quitter
    ce même tour, relève de cette deuxième priorité comme n'importe quelle
    autre case vide — seul l'ancrage donne la première priorité.
-3. Armée amie adjacente non délogée (priorité à la plus petite en troupes), avec
-   fusion : la taille de l'hôte augmente de `N − 1` si la retraitante a `N ≥ 2`
-   troupes, sinon de `1` (`N = 1` sans perte). Plusieurs armées retraitantes
-   fusionnent séquentiellement sur un même hôte ami sans collision destructive.
+3. Armée amie adjacente non délogée (priorité aux armées non affamées, puis à
+   la plus petite en troupes), avec fusion : la taille de l'hôte augmente de
+   `N − 1` si la retraitante a `N ≥ 2` troupes, sinon de `1` (`N = 1` sans
+   perte). Plusieurs armées retraitantes fusionnent séquentiellement sur un même
+   hôte ami sans collision destructive.
 
 À égalité dans un bucket, la destination la plus proche d'un château ou village
 contrôlé par le propriétaire du retraité l'emporte, puis l'ordre lexicographique
-(trigramme croissant). Pour les armées amies, le tri s'effectue par taille
-croissante, puis distance à la source contrôlée la plus proche, puis trigramme
-croissant.
+(trigramme croissant). Pour les armées amies, le tri s'effectue par armée non
+affamée d'abord, puis par taille croissante, puis distance à la source contrôlée
+la plus proche, puis trigramme croissant.
 
 La case d'origine de l'attaquant est toujours exclue. Un château **ancré** — 
 membre d'un fief ou capitale d'un joueur, y compris neutre ou ennemi pour le
@@ -920,8 +921,9 @@ joueurs.
 ### Score de titres
 
 Le score d'un joueur est son score de titres : chaque titre détenu rapporte
-1 point, quel que soit son rang (baronnie, comté, marquisat, duché, dignité, couronne ;
-aucun titre religieux ne compte), y compris un fief vacant tant qu'il n'est pas dissolu.
+1 point, quel que soit son rang (baronnie, comté, marquisat, duché, couronne,
+papauté), y compris un fief vacant tant qu'il n'est pas dissolu. Les dignités, ni
+l'évêché ni le cardinalat ne rapportent de point.
 Territoire, infrastructure, armée, noble et ressource ne rapportent rien par
 eux-mêmes.
 
