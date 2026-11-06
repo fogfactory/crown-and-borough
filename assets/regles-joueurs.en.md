@@ -619,6 +619,34 @@ eliminated. Nobles alone do not keep a player in the game.
 
 ---
 
+## 10. Messages between houses
+
+The game chat lets houses write to one another without going through orders.
+It exists in online games only: it is absent in hotseat.
+
+- **Channels.** The **public room** gathers every house. A **private
+  conversation** links two houses, and each pair of houses has just one;
+  there are no groups. You can open a new conversation with any house still
+  in play, and keep the existing ones even if the other house is eliminated.
+  An eliminated player can still write.
+- **Signature.** Each message is signed with the name of your house, with its
+  crest and colour. Your account never appears.
+- **Who reads what.** Everyone reads the public room. A private conversation
+  is read only by its two houses. The **host who plays no house**, the
+  observer, reads the room and every private conversation, without writing in
+  them: if you play in a game, know that what you write in private can be read
+  by that host. A host who plays a house reads like everyone else.
+- **History and unread.** History is kept; the latest 50 messages are shown,
+  and you can load older ones. A badge counts the unread messages of each
+  channel. Separators ("Spring 1011") mark the turns.
+- **Limits.** A message holds 500 characters at most, and you can send one per
+  second. A longer text, up to 4,000 characters, is split and sent piece by
+  piece; you can cancel it while it is being sent.
+- **Independent of orders.** Sending a message submits nothing and does not
+  change your submission: your orders remain to be submitted separately.
+
+---
+
 ## Appendix A — Order cheat sheet
 
 `XXX`, `YYY`, `ZZZ` are territories; `NNN`, `HHH` are nobles; `CCC` is a
