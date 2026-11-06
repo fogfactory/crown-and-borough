@@ -297,3 +297,17 @@ func TestNormalizeChainRewritesPositionHold(t *testing.T) {
 		t.Errorf("chain text = %q, want %q", chain.Text, want)
 	}
 }
+
+func TestParseDecisionAcceptsRawLineBreaksInStrings(t *testing.T) {
+	answer := "{\"orders\":{\"chains\":[{\"noble\":\"ELI\",\"text\":\"ELI\nCHL A HTC\"}]},\"memory\":\"line one\nline two\"}"
+	decision, err := parseDecision(answer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decision.Orders.Chains) != 1 || decision.Orders.Chains[0].Text != "ELI\nCHL A HTC" {
+		t.Errorf("chains = %+v", decision.Orders.Chains)
+	}
+	if decision.Memory != "line one\nline two" {
+		t.Errorf("memory = %q", decision.Memory)
+	}
+}
