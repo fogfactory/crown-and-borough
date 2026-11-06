@@ -138,6 +138,10 @@ func mustList(raw json.RawMessage) []any {
 
 var noblePrefix = regexp.MustCompile(`^[A-Z]{3}$`)
 
+// positionHold matches a hold written like an attack ("PVL H PVL"): the rules
+// put the symbol first ("H PVL").
+var positionHold = regexp.MustCompile(`^(\(?)[A-Z]{3} H ([A-Z]{3})(\)?)$`)
+
 // normalizeChain makes sure the text opens with the emitting noble's code,
 // the way the server reads a chain.
 func normalizeChain(chain ChainOrder) ChainOrder {
@@ -145,7 +149,7 @@ func normalizeChain(chain ChainOrder) ChainOrder {
 	lines := make([]string, 0)
 	for _, line := range strings.Split(strings.ReplaceAll(chain.Text, "\r", ""), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
+			lines = append(lines, positionHold.ReplaceAllString(line, "${1}H ${2}${3}"))
 		}
 	}
 	if len(lines) == 0 {

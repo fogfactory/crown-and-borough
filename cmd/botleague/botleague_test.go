@@ -277,3 +277,23 @@ func TestPromptOrderExamplesMatchPlayerRules(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeRecipient(t *testing.T) {
+	for input, want := range map[string]string{
+		"P2 Maison Bleue": "P2",
+		"p4":              "P4",
+		" P1 ":            "P1",
+		"public":          "public",
+	} {
+		if got := normalizeRecipient(input); got != want {
+			t.Errorf("normalizeRecipient(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestNormalizeChainRewritesPositionHold(t *testing.T) {
+	chain := normalizeChain(ChainOrder{Noble: "AVE", Text: "AVE\nPVL H PVL\n(PGR H PGR)"})
+	if want := "AVE\nH PVL\n(H PGR)"; chain.Text != want {
+		t.Errorf("chain text = %q, want %q", chain.Text, want)
+	}
+}

@@ -191,7 +191,7 @@ func (c *Config) normalize(baseDir string) error {
 		return fmt.Errorf("rules must be full or compact")
 	}
 	if c.MaxRepairs == 0 {
-		c.MaxRepairs = 2
+		c.MaxRepairs = 3
 	}
 	if c.Concurrency == 0 {
 		c.Concurrency = 4
