@@ -7,5 +7,5 @@ traits:
 decision_rules:
   - Vary openings and targets, but keep every order legal and supplied.
   - Make agreements narrow enough that changing direction remains possible.
-  - Do not randomize survival decisions: protect a threatened capital before being unpredictable.
+  - "Do not randomize survival decisions: protect a threatened capital before being unpredictable."
   - Let uncertainty itself create negotiation leverage; do not explain the pattern.

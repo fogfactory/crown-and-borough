@@ -1,0 +1,51 @@
+# Local league: the bots play on the emulator stack started by
+# scripts/league-server.sh, and you watch as the observer host.
+#
+#   scripts/league-server.sh start
+#   export OPENROUTER_API_KEY=...        # only for the providers you use
+#   go run ./cmd/botleague check .opencode/skills/crown-and-borough-league/league.example.yaml
+#   go run ./cmd/botleague run   .opencode/skills/crown-and-borough-league/league.example.yaml
+name: demo-league
+league_dir: ../../../league/demo-league   # memories, call logs, session (git-ignored)
+
+server:
+  url: http://localhost:8080
+  mode: emulator
+
+game:
+  create: true          # the observer host creates the game
+  name: "Ligue de démonstration"
+  seed: demo-1          # same seed = same map
+  years: 3              # 0 = server default (10); 3 years = 12 turns
+
+host:
+  email: admin@mail.com # sign in with it in the web app to watch
+
+rules: full             # or compact (smaller prompts for small-context models)
+negotiation_rounds: 1   # message-only rounds before the order round (0-3)
+max_repairs: 2          # fixes allowed after a rejected order
+concurrency: 3          # model calls in flight at once (free tiers rate-limit)
+
+# Providers are builtin: openrouter, zen (OpenCode Zen), ollama, mock.
+# Add or override with:
+# providers:
+#   lmstudio: { kind: openai, base_url: "http://localhost:1234/v1" }
+
+players:
+  - name: Maison Rouge
+    persona: conqueror
+    provider: openrouter
+    model: REPLACE/WITH-A-FREE-MODEL:free
+  - name: Maison Bleue
+    persona: diplomat
+    traits: { trust: low }      # override play_style / trust / tone
+    provider: zen
+    model: REPLACE-WITH-A-ZEN-MODEL
+  - name: Maison Verte
+    persona: turtle
+    provider: openrouter
+    model: REPLACE/WITH-ANOTHER-FREE-MODEL:free
+    temperature: 0.7
+  - name: Maison Or
+    persona: intriguer
+    provider: mock              # no API key: holds every noble, greets the table
