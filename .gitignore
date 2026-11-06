@@ -24,3 +24,6 @@ gha-creds-*.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Bot league runs
+league/
