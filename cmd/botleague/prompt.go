@@ -82,6 +82,7 @@ Income comes from territory, not from armies: each territory you hold pays ratio
 - "to" in a message is exactly "public" or the house id ("P2"), nothing else.
 - Noble-deck orders keep their literal letters and go in orders.winter. To recruit the noble card EMM on your castle VLP write "R N EMM VLP" (the letter N is part of the order: not "R EMM VLP", not "R JUL EMM VLP"); to draw a noble write "T N"; a marriage is "M N NNN MMM" (both nobles' codes, mirrored by the other house).
 - Play only cards that appear in your Hand in the state (a card you do not hold rejects your whole turn); a card you do not hold may be won or drawn later.
+- A revolt card (P RE TER) only works on a territory whose region has a bad harvest, whose fief or bishopric was taxed this or last season, or whose region saw a trial; weather cards (P BT / P RA) take the seat of a region. Cards are optional: when the server rejects a card line, DELETE that line instead of changing its target or trying another card, and resend the rest of your orders.
 - Leave orders.special empty unless you are sure of the exact shape and conditions of the card (for instance P TX needs a fief you hold, P RA / P BT take the seat of a region): one wrong line rejects your whole turn.
 The server is the authority: if it rejects your orders you will get its error and a chance to correct them. Correct only the line it names and resend the rest unchanged.
 
