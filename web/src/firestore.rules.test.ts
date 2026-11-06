@@ -7,7 +7,16 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  setDoc,
+  where,
+} from 'firebase/firestore'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -27,10 +36,36 @@ suite('Firestore security rules', () => {
     await environment.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore()
       await setDoc(doc(db, 'games/game-1'), {
-        memberUids: ['alice', 'host'],
+        memberUids: ['alice', 'carol', 'dan', 'host'],
+        ownerUid: 'host',
         spectatorUid: 'host',
         schemaVersion: 1,
       })
+      await setDoc(doc(db, 'games/game-1/chat_public/m1'), {
+        channel: 'public',
+        authorHouseId: 'P1',
+        body: 'hello',
+        createdAt: new Date('2026-01-01T12:00:00Z'),
+      })
+      await setDoc(doc(db, 'games/game-1/chat_private/P1_P2/messages/m2'), {
+        channel: 'P1_P2',
+        authorHouseId: 'P1',
+        body: 'secret',
+        createdAt: new Date('2026-01-01T12:00:01Z'),
+        participantUids: ['alice', 'carol'],
+      })
+      await setDoc(doc(db, 'games/game-1/chat_private/P1_P3/messages/m3'), {
+        channel: 'P1_P3',
+        authorHouseId: 'P1',
+        body: 'other secret',
+        createdAt: new Date('2026-01-01T12:00:02Z'),
+        participantUids: ['alice', 'dan'],
+      })
+      await setDoc(doc(db, 'games/game-1/chat_reads/alice'), {
+        uid: 'alice',
+        channels: {},
+      })
+      await setDoc(doc(db, 'games/game-1/chat_state/alice'), { lastSentAt: new Date() })
       await setDoc(doc(db, 'players/alice'), { uid: 'alice', displayName: 'Alice' })
       await setDoc(doc(db, 'games/game-1/views/alice'), { uid: 'alice', revision: 1 })
       await setDoc(doc(db, 'games/game-1/views/bob'), { uid: 'bob', revision: 1 })
@@ -93,6 +128,88 @@ suite('Firestore security rules', () => {
     await assertFails(
       setDoc(doc(alice, 'bugReports/game-t1-alice-abc123'), { gameViewJson: '{}' }),
     )
+  })
+
+  it('lets every member read the public chat room but nobody write it', async () => {
+    const carol = environment.authenticatedContext('carol').firestore()
+    const outsider = environment.authenticatedContext('mallory').firestore()
+    await assertSucceeds(getDoc(doc(carol, 'games/game-1/chat_public/m1')))
+    await assertSucceeds(getDocs(collection(carol, 'games/game-1/chat_public')))
+    await assertFails(getDoc(doc(outsider, 'games/game-1/chat_public/m1')))
+    await assertFails(
+      setDoc(doc(carol, 'games/game-1/chat_public/forged'), {
+        authorHouseId: 'P1',
+        body: 'forged',
+      }),
+    )
+  })
+
+  it('limits a private conversation to its participants and the host', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    const carol = environment.authenticatedContext('carol').firestore()
+    const dan = environment.authenticatedContext('dan').firestore()
+    const host = environment.authenticatedContext('host').firestore()
+    const outsider = environment.authenticatedContext('mallory').firestore()
+    const secret = 'games/game-1/chat_private/P1_P2/messages/m2'
+    await assertSucceeds(getDoc(doc(alice, secret)))
+    await assertSucceeds(getDoc(doc(carol, secret)))
+    await assertSucceeds(getDoc(doc(host, secret)))
+    await assertFails(getDoc(doc(dan, secret)))
+    await assertFails(getDoc(doc(outsider, secret)))
+  })
+
+  it('serves the paginated private conversation query only to a participant', async () => {
+    const messages = 'games/game-1/chat_private/P1_P2/messages'
+    const history = (
+      db: ReturnType<
+        ReturnType<RulesTestEnvironment['authenticatedContext']>['firestore']
+      >,
+    ) =>
+      query(
+        collection(db, messages),
+        where('participantUids', 'array-contains', 'carol'),
+        orderBy('createdAt', 'desc'),
+      )
+    const carol = environment.authenticatedContext('carol').firestore()
+    const dan = environment.authenticatedContext('dan').firestore()
+    const snapshot = await assertSucceeds(getDocs(history(carol)))
+    expect(snapshot.docs.map((entry) => entry.data().body)).toEqual(['secret'])
+    // Cleo cannot claim to be a participant, nor list the conversation bare.
+    await assertFails(getDocs(history(dan)))
+    await assertFails(getDocs(collection(dan, messages)))
+    // The host lists every conversation without any filter.
+    const host = environment.authenticatedContext('host').firestore()
+    await assertSucceeds(getDocs(collection(host, messages)))
+  })
+
+  it('denies every client write to private messages, cursors, and rate-limit state', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    const host = environment.authenticatedContext('host').firestore()
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/chat_private/P1_P2/messages/forged'), {
+        participantUids: ['alice', 'carol'],
+        body: 'forged',
+      }),
+    )
+    await assertFails(
+      setDoc(doc(host, 'games/game-1/chat_private/P1_P2/messages/m2'), {
+        body: 'edited',
+      }),
+    )
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/chat_reads/alice'), { channels: {} }),
+    )
+    await assertFails(getDoc(doc(alice, 'games/game-1/chat_state/alice')))
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/chat_state/alice'), { lastSentAt: new Date(0) }),
+    )
+  })
+
+  it('lets a player read only their own chat read cursors', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    const carol = environment.authenticatedContext('carol').firestore()
+    await assertSucceeds(getDoc(doc(alice, 'games/game-1/chat_reads/alice')))
+    await assertFails(getDoc(doc(carol, 'games/game-1/chat_reads/alice')))
   })
 
   it('restricts profiles to the authenticated uid', async () => {

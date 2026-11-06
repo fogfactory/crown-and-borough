@@ -107,6 +107,29 @@ logs, la région et l'activation d'un compte de facturation peuvent générer de
 coûts. Des alertes de budget et une documentation des quotas sont obligatoires
 avant le déploiement public.
 
+## Chat
+
+Le chat interne (salon public et conversations privées entre deux maisons) est
+disponible online uniquement ; les routes sont décrites dans
+[`architecture.md`](architecture.md). Les messages sont écrits par l'API Go,
+jamais par le client, et lus par `onSnapshot` sous `games/{gameId}/` :
+
+- `chat_public/{messageId}` : salon public, lisible par tous les membres ;
+- `chat_private/{clé}/messages/{messageId}` : conversation entre deux maisons,
+  dont la clé est leurs identifiants triés et joints par `_` (`P1_P3`). Chaque
+  message porte `participantUids` ; les règles l'autorisent aux deux
+  participants et à l'hôte (`ownerUid`), qui lit tout. Le client interroge une
+  conversation avec `where("participantUids", "array-contains", uid)` et
+  `orderBy("createdAt", "desc")` (index composite dans
+  `firestore.indexes.json`) ;
+- `chat_reads/{uid}` : curseurs de lecture `channels.{canal}` (`lastReadAt`),
+  lisibles par leur propriétaire ;
+- `chat_state/{uid}` : état de la limite d'un message par seconde, réservé au
+  backend (vérifié dans la même transaction que l'écriture du message).
+
+Les messages sont ordonnés par `createdAt` puis par identifiant ; la
+pagination par curseur reprend après le plus ancien message déjà reçu.
+
 Les fixtures distinguent volontairement les variantes de confidentialité afin
 que les sous-issues O2 à O8 puissent les réutiliser sans redéfinir le contrat.
 
