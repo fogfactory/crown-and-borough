@@ -210,9 +210,9 @@ func TestChatHistoryRouteIsolatesPrivateConversations(t *testing.T) {
 	if status, _ := list("mallory", "public"); status != http.StatusForbidden {
 		t.Fatalf("outsider = %d", status)
 	}
-	// The creator (alice, also P1) reads the other conversations by key.
-	if status, _ := list("alice", "P2_P3"); status != http.StatusOK {
-		t.Fatalf("host reading by key = %d", status)
+	// The creator plays P1: no more access than any player.
+	if status, _ := list("alice", "P2_P3"); status != http.StatusBadRequest {
+		t.Fatalf("playing creator reading by key = %d", status)
 	}
 }
 

@@ -37,7 +37,7 @@ suite('Firestore security rules', () => {
       const db = context.firestore()
       await setDoc(doc(db, 'games/game-1'), {
         memberUids: ['alice', 'carol', 'dan', 'host'],
-        ownerUid: 'host',
+        ownerUid: 'alice',
         spectatorUid: 'host',
         schemaVersion: 1,
       })
@@ -60,6 +60,13 @@ suite('Firestore security rules', () => {
         body: 'other secret',
         createdAt: new Date('2026-01-01T12:00:02Z'),
         participantUids: ['alice', 'dan'],
+      })
+      await setDoc(doc(db, 'games/game-1/chat_private/P2_P3/messages/m4'), {
+        channel: 'P2_P3',
+        authorHouseId: 'P2',
+        body: 'between others',
+        createdAt: new Date('2026-01-01T12:00:03Z'),
+        participantUids: ['carol', 'dan'],
       })
       await setDoc(doc(db, 'games/game-1/chat_reads/alice'), {
         uid: 'alice',
@@ -144,7 +151,7 @@ suite('Firestore security rules', () => {
     )
   })
 
-  it('limits a private conversation to its participants and the host', async () => {
+  it('limits a private conversation to its participants and the observer', async () => {
     const alice = environment.authenticatedContext('alice').firestore()
     const carol = environment.authenticatedContext('carol').firestore()
     const dan = environment.authenticatedContext('dan').firestore()
@@ -156,6 +163,16 @@ suite('Firestore security rules', () => {
     await assertSucceeds(getDoc(doc(host, secret)))
     await assertFails(getDoc(doc(dan, secret)))
     await assertFails(getDoc(doc(outsider, secret)))
+  })
+
+  it('gives the game creator who plays no more than any player', async () => {
+    // alice created the game and plays P1: she reads her own conversations only.
+    const alice = environment.authenticatedContext('alice').firestore()
+    const others = 'games/game-1/chat_private/P2_P3/messages'
+    await assertFails(getDoc(doc(alice, `${others}/m4`)))
+    await assertFails(getDocs(collection(alice, others)))
+    const host = environment.authenticatedContext('host').firestore()
+    await assertSucceeds(getDoc(doc(host, `${others}/m4`)))
   })
 
   it('serves the paginated private conversation query only to a participant', async () => {
@@ -177,7 +194,7 @@ suite('Firestore security rules', () => {
     // Cleo cannot claim to be a participant, nor list the conversation bare.
     await assertFails(getDocs(history(dan)))
     await assertFails(getDocs(collection(dan, messages)))
-    // The host lists every conversation without any filter.
+    // The observer lists every conversation without any filter.
     const host = environment.authenticatedContext('host').firestore()
     await assertSucceeds(getDocs(collection(host, messages)))
   })

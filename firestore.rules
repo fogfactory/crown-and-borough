@@ -11,10 +11,11 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.memberUids;
     }
 
-    // The game creator is the host: the chat shows them every conversation.
-    function hostOf(gameId) {
+    // The observer plays no house: the chat shows them every conversation. A
+    // creator who plays reads their own conversations like any player.
+    function observerOf(gameId) {
       return signedIn()
-        && request.auth.uid == get(/databases/$(database)/documents/games/$(gameId)).data.ownerUid;
+        && request.auth.uid == get(/databases/$(database)/documents/games/$(gameId)).data.get('spectatorUid', '');
     }
 
     // Profiles are synchronized by the authenticated Go API. Clients may read
@@ -49,7 +50,7 @@ service cloud.firestore {
       // Chat. Messages are written by the Go API only. The public room is
       // readable by every member. A private conversation (key: the two house
       // identifiers, sorted) is readable by its two participants, whose uids
-      // are on each message, and by the host; clients query it with
+      // are on each message, and by the observer; clients query it with
       // where("participantUids", "array-contains", uid).
       match /chat_public/{messageId} {
         allow read: if memberOf(gameId);
@@ -58,7 +59,7 @@ service cloud.firestore {
 
       match /chat_private/{conversationKey}/messages/{messageId} {
         allow read: if memberOf(gameId)
-          && (hostOf(gameId) || request.auth.uid in resource.data.participantUids);
+          && (observerOf(gameId) || request.auth.uid in resource.data.participantUids);
         allow write: if false;
       }
 

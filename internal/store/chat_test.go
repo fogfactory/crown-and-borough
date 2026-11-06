@@ -136,7 +136,7 @@ func TestChatRateLimitsEachPlayerToOneMessagePerSecond(t *testing.T) {
 	}
 }
 
-func TestChatPrivateConversationsAreSeenByTheirParticipantsAndTheHostOnly(t *testing.T) {
+func TestChatPrivateConversationsAreSeenByTheirParticipantsAndTheObserverOnly(t *testing.T) {
 	service, games, clock := newChatFixture(t)
 	ctx := context.Background()
 	// P3 stays in play for this test.
@@ -175,14 +175,20 @@ func TestChatPrivateConversationsAreSeenByTheirParticipantsAndTheHostOnly(t *tes
 	if _, err := history("mallory", key); !errors.Is(err, ErrNotMember) {
 		t.Fatalf("outsider = %v, want not member", err)
 	}
-	// The host reads every conversation by key.
+	// The game creator who plays a house gets no more than any player.
 	games.snapshot.Players = append(games.snapshot.Players, PlayerSlot{ID: "P5", ActorID: "host"})
 	games.snapshot.CreatedBy = "host"
+	if _, err := history("host", key); !errors.Is(err, ErrChatInvalidRecipient) {
+		t.Fatalf("playing creator reading %s = %v, want refusal", key, err)
+	}
+	// The observer, who plays no house, reads every conversation by key.
+	games.snapshot.Players = games.snapshot.Players[:len(games.snapshot.Players)-1]
+	games.snapshot.SpectatorUID = "host"
 	if messages, err := history("host", key); err != nil || len(messages) != 2 {
-		t.Fatalf("host sees %#v, %v", messages, err)
+		t.Fatalf("observer sees %#v, %v", messages, err)
 	}
 	if _, err := history("host", "P1_P9"); !errors.Is(err, ErrChatInvalidChannel) {
-		t.Fatalf("host on unknown key = %v", err)
+		t.Fatalf("observer on unknown key = %v", err)
 	}
 }
 
