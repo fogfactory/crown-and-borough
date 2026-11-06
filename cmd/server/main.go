@@ -221,6 +221,11 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 	})
 	mux.Handle("GET /api/rules", api.RulesHandler(options.Rules))
 	profiles, _ := options.Store.(store.ProfileStore)
+	// The chat is online only: hotseat has no accounts to sign messages for.
+	var chat *store.ChatService
+	if backend, ok := options.Store.(store.ChatBackend); ok && !options.Development {
+		chat = store.NewChatService(options.Store, backend)
+	}
 	games := api.NewGamesHandlerWithOptions(options.Store, options.Rules, api.GamesHandlerOptions{
 		Actor:            resolveActor,
 		Balance:          options.Balance,
@@ -229,6 +234,7 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 		StrictMembership: !options.Development,
 		InviteBaseURL:    os.Getenv("PUBLIC_APP_URL"),
 		CreatorGate:      options.CreatorGate,
+		Chat:             chat,
 	})
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)
