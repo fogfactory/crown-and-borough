@@ -131,6 +131,22 @@ jamais par le client, et lus par `onSnapshot` sous `games/{gameId}/` :
 Les messages sont ordonnés par `createdAt` puis par identifiant ; la
 pagination par curseur reprend après le plus ancien message déjà reçu.
 
+Règles de fonctionnement, détaillées dans [`chat.md`](chat.md) :
+
+- **Canaux.** Le salon public et une conversation privée par paire de
+  maisons ; pas de groupe libre. Les messages sont signés de la maison, jamais
+  du compte.
+- **Cloisonnement.** Un joueur lit le salon public et ses propres
+  conversations. Seul l'observateur, l'hôte d'une partie créée sans maison,
+  lit toutes les conversations, sans pouvoir écrire. Un hôte qui joue une
+  maison n'a aucun accès de plus que les autres joueurs.
+- **Historique.** Conservé sans purge ; le client lit les 50 derniers messages
+  de chaque canal et pagine vers le passé.
+- **Non-lus.** Comptés par canal à partir de `chat_reads/{uid}`, mis à jour
+  par `POST /api/games/{id}/messages/read`.
+- **Hotseat.** Aucune route de chat n'est montée : `404 chat_disabled`.
+- **Ordres.** Écrire un message ne soumet rien et ne modifie pas la partie.
+
 Les fixtures distinguent volontairement les variantes de confidentialité afin
 que les sous-issues O2 à O8 puissent les réutiliser sans redéfinir le contrat.
 

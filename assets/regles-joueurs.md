@@ -628,6 +628,35 @@ Une partie où personne ne détient de titre n'a aucun vainqueur.
 
 ---
 
+## 10. Messages entre maisons
+
+Le chat de la partie permet aux maisons de s'écrire sans passer par les
+ordres. Il n'existe qu'en partie online : il est absent en hotseat.
+
+- **Les canaux.** Le **salon public** réunit toutes les maisons. Une
+  **conversation privée** relie deux maisons, et chaque paire de maisons n'en
+  a qu'une ; il n'y a pas de groupe. Tu peux ouvrir une nouvelle conversation
+  avec toute maison encore en jeu, et continuer celles qui existent même si
+  l'interlocutrice est éliminée. Un joueur éliminé peut toujours écrire.
+- **La signature.** Chaque message est signé du nom de ta maison, avec son
+  blason et sa couleur. Ton compte n'apparaît jamais.
+- **Qui lit quoi.** Tout le monde lit le salon public. Une conversation privée
+  n'est lue que par ses deux maisons. L'**hôte qui ne joue aucune maison**,
+  l'observateur, lit le salon et toutes les conversations privées, sans y
+  écrire : si tu joues dans une partie, sache que ce que tu écris en privé
+  peut être lu par cet hôte. Un hôte qui joue une maison lit comme les autres.
+- **Historique et non-lus.** L'historique est conservé ; les 50 derniers
+  messages s'affichent, et tu peux charger les plus anciens. Une pastille
+  compte les messages non lus de chaque canal. Des séparateurs (« Printemps
+  1011 ») marquent les tours.
+- **Limites.** Un message compte 500 caractères au plus, et tu peux en
+  envoyer un par seconde. Un texte plus long, jusqu'à 4 000 caractères, est
+  découpé et envoyé morceau par morceau ; tu peux l'annuler en cours d'envoi.
+- **Indépendance vis-à-vis des ordres.** Envoyer un message ne soumet rien et
+  ne change pas ta soumission : tes ordres restent à soumettre séparément.
+
+---
+
 ## Annexe A — Aide-mémoire des ordres
 
 `XXX`, `YYY`, `ZZZ` désignent des territoires ; `NNN`, `HHH` des nobles ;

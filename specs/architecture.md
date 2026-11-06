@@ -498,6 +498,23 @@ d'un hôte qui ne joue pas. Le document observateur ne contient qu'un pointeur
 vers le dernier rapport ; le rapport complet reste servi par REST. Les règles
 refusent les documents canoniques, les soumissions, les rapports non filtrés et
 les écritures clientes.
+
+Le chat ajoute à ces projections, sous `games/{id}/`, des documents écrits par
+le seul backend et lus par `onSnapshot` :
+
+| Document | Forme |
+|---|---|
+| `chat_public/{messageId}` | `authorHouseId`, `body`, `createdAt`, `turn` (`number`, `season`, `year`) et, pour un texte découpé, `batchId`, `part`, `parts` |
+| `chat_private/{clé}/messages/{messageId}` | mêmes champs, plus `participantUids` (les deux joueurs de la conversation) ; la clé est les deux identifiants de maison triés et joints par `_` |
+| `chat_reads/{uid}` | `channels.{canal}.lastReadAt`, lisible par son propriétaire |
+| `chat_state/{uid}` | horodatage du dernier message, pour la limite de débit ; inaccessible au client |
+
+Limites : un message compte 500 caractères au plus (runes), un joueur écrit au
+plus un message par seconde (`429 rate_limited`, en-tête `Retry-After`), un
+texte long compte 8 morceaux au plus et la lecture REST d'un canal rend 50
+messages par page par défaut (100 au plus). Les règles Firestore interdisent
+toute écriture cliente ; les conversations privées ne sont lisibles que par
+leurs deux participants et par l'observateur.
 Ces projections étant le contrat lu par le front, l'état projeté et les
 rapports ne contiennent jamais de tableau directement imbriqué dans un tableau,
 que Firestore refuse : une paire s'écrit en objet, par exemple les frontières
