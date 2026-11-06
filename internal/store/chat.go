@@ -107,7 +107,7 @@ func (m ChatMessage) Cursor() ChatCursor { return ChatCursor{CreatedAt: m.Create
 
 // ChatHistoryRequest selects one page of a channel, newest first. Channel is
 // ChatPublicChannel, a house identifier (the private conversation with that
-// house) or, for the game host only, any conversation key. Before is the
+// house) or, for the game observer only, any conversation key. Before is the
 // cursor of the oldest message already held; the zero value starts from the
 // latest message.
 type ChatHistoryRequest struct {
@@ -219,24 +219,25 @@ func (c *ChatService) MarkRead(ctx context.Context, actor Actor, id GameID, chan
 }
 
 // History returns one page of a channel the actor may read: the public room,
-// the actor's own conversations and, for the game host, every conversation.
+// the actor's own conversations and, for the observer who plays no house,
+// every conversation.
 func (c *ChatService) History(ctx context.Context, actor Actor, id GameID, request ChatHistoryRequest) ([]ChatMessage, error) {
 	snapshot, err := c.load(ctx, actor, id, false)
 	if err != nil {
 		return nil, err
 	}
 	house, isPlayer := snapshot.PlayerFor(actor)
-	isHost := snapshot.CreatedBy == actor.ID || IsSpectator(snapshot.SpectatorUID, actor)
-	if !isPlayer && !isHost {
+	isObserver := IsSpectator(snapshot.SpectatorUID, actor)
+	if !isPlayer && !isObserver {
 		return nil, ErrNotMember
 	}
-	// A player reads their own conversations; the host also reads any pair.
-	key, err := "", error(ErrChatInvalidChannel)
+	// A player reads the public room and their own conversations, whoever
+	// created the game. Only the observer, who plays no house, reads any pair.
+	var key string
 	if isPlayer {
 		key, _, err = c.channelKey(snapshot, house, request.Channel)
-	}
-	if err != nil && isHost {
-		key, err = hostChannelKey(snapshot, request.Channel)
+	} else {
+		key, err = observerChannelKey(snapshot, request.Channel)
 	}
 	if err != nil {
 		return nil, err
@@ -299,9 +300,9 @@ func hasPlayer(snapshot GameSnapshot, id models.PlayerID) bool {
 	return slices.ContainsFunc(snapshot.Players, func(p PlayerSlot) bool { return p.ID == id })
 }
 
-// hostChannelKey accepts the public room or the key of a conversation between
+// observerChannelKey accepts the public room or the key of a conversation between
 // two houses of the game.
-func hostChannelKey(snapshot GameSnapshot, channel string) (string, error) {
+func observerChannelKey(snapshot GameSnapshot, channel string) (string, error) {
 	if channel == ChatPublicChannel {
 		return channel, nil
 	}

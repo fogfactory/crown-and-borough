@@ -118,7 +118,8 @@ jamais par le client, et lus par `onSnapshot` sous `games/{gameId}/` :
 - `chat_private/{clé}/messages/{messageId}` : conversation entre deux maisons,
   dont la clé est leurs identifiants triés et joints par `_` (`P1_P3`). Chaque
   message porte `participantUids` ; les règles l'autorisent aux deux
-  participants et à l'hôte (`ownerUid`), qui lit tout. Le client interroge une
+  participants et à l'observateur (`spectatorUid`), qui lit tout ; le créateur
+  d'une partie qui joue n'a pas d'autre accès que les autres joueurs. Le client interroge une
   conversation avec `where("participantUids", "array-contains", uid)` et
   `orderBy("createdAt", "desc")` (index composite dans
   `firestore.indexes.json`) ;
