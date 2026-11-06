@@ -13,6 +13,7 @@ réordonnancement.
 | Ravitaillement et famine | [`gdd.md`](gdd.md), sections 3 et 5 ; [`ravitaillement.md`](ravitaillement.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
 | Architecture | [`architecture.md`](architecture.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
 | Online | [`online.md`](online.md), [`online-plan.md`](online-plan.md), [`prompts/`](prompts/) | [Issue #2](https://github.com/fogfactory/crown-and-borough/issues/2), [Online Foundations](https://github.com/fogfactory/crown-and-borough/milestone/11), [Online Friends MVP](https://github.com/fogfactory/crown-and-borough/milestone/12), [Online Hosted](https://github.com/fogfactory/crown-and-borough/milestone/10) |
+| Chat | [`chat.md`](chat.md), [`online.md`](online.md) | [Issue #442](https://github.com/fogfactory/crown-and-borough/issues/442) |
 | Tests live | [`hotseat-live-test.md`](hotseat-live-test.md) | [Milestone v1](https://github.com/fogfactory/crown-and-borough/milestone/1) |
 | Charte graphique | [`charte-graphique.md`](charte-graphique.md) | [Refonte graphique](https://github.com/fogfactory/crown-and-borough/milestone/27) |
 

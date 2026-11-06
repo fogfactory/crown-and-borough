@@ -10,6 +10,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
 import { GameLayout } from '@/components/GameLayout'
+import { ChatPanel, ChatUnreadBadge } from '@/components/ChatPanel'
 import { GameDrawer, drawerPanelOf, type Panel } from '@/components/GameDrawer'
 import { useIsDesktop } from '@/lib/use-media-query'
 import { BugReportButton } from '@/components/BugReportDialog'
@@ -58,6 +59,7 @@ import {
   normalizeStateData,
   useGameSubscription,
 } from '@/lib/subscription'
+import { firebaseConfigured } from '@/lib/firebase'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type {
   GameSummary,
@@ -233,6 +235,7 @@ export function GamePage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [lineageOpen, setLineageOpen] = useState(false)
+  const [chatUnread, setChatUnread] = useState(0)
   const desktop = useIsDesktop()
   const [activePanel, setActivePanel] = useState<Panel>(desktop ? 'orders' : 'map')
   const [showOwnership, setShowOwnership] = useLocalStorageState(
@@ -1107,6 +1110,7 @@ export function GamePage() {
               activePanel={activePanel}
               onPanelChange={setActivePanel}
               season={state.season}
+              chatLabelExtra={<ChatUnreadBadge count={chatUnread} />}
               reportLabelExtra={
                 report ? (
                   <span className="text-ink-500">· {report.header.turn}</span>
@@ -1180,6 +1184,19 @@ export function GamePage() {
                     onOpenLineage={() => setLineageOpen(true)}
                   />
                 ),
+                chat:
+                  firebaseConfigured && user && gameId ? (
+                    <ChatPanel
+                      gameId={gameId}
+                      uid={user.uid}
+                      tokenProvider={tokenProvider}
+                      state={state}
+                      house={playerID}
+                      observer={summary.spectator === true}
+                      visible={activePanel === 'chat'}
+                      onUnreadChange={setChatUnread}
+                    />
+                  ) : undefined,
                 rules: (
                   <RulesPanel
                     gameId={gameId}
