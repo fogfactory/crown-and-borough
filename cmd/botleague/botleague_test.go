@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -309,5 +310,21 @@ func TestParseDecisionAcceptsRawLineBreaksInStrings(t *testing.T) {
 	}
 	if decision.Memory != "line one\nline two" {
 		t.Errorf("memory = %q", decision.Memory)
+	}
+}
+
+func TestOpenAIClientReportsAnUnreachableProvider(t *testing.T) {
+	previous := outageBudget
+	outageBudget = 0
+	defer func() { outageBudget = previous }()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "0")
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer server.Close()
+	client := &openAIClient{base: server.URL, model: "m", http: server.Client(), limiter: make(chan struct{}, 1)}
+	_, _, err := client.Complete(context.Background(), []Message{{Role: "user", Content: "hi"}})
+	if !errors.Is(err, errProviderUnavailable) {
+		t.Fatalf("err = %v, want errProviderUnavailable", err)
 	}
 }
