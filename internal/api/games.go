@@ -30,6 +30,7 @@ type GamesHandler struct {
 	strictMembership bool
 	inviteBaseURL    string
 	creatorGate      CreatorGate
+	chat             *store.ChatService
 	mux              *http.ServeMux
 }
 
@@ -41,6 +42,8 @@ type GamesHandlerOptions struct {
 	StrictMembership bool
 	InviteBaseURL    string
 	CreatorGate      CreatorGate
+	// Chat serves the message routes; nil (hotseat) answers them with 404.
+	Chat *store.ChatService
 }
 
 func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve ActorResolver) http.Handler {
@@ -66,6 +69,7 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 		strictMembership: options.StrictMembership,
 		inviteBaseURL:    options.InviteBaseURL,
 		creatorGate:      creatorGate,
+		chat:             options.Chat,
 	}
 	h.mux = h.routes()
 	return h
@@ -125,6 +129,9 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/games/{id}/reports", h.withActor(h.reportsList))
 	mux.HandleFunc("GET /api/games/{id}/reports/{index}", h.withActor(h.report))
 	mux.HandleFunc("GET /api/games/{id}/rules", h.withActor(h.getRules))
+	mux.HandleFunc("GET /api/games/{id}/messages", h.withActor(h.listMessages))
+	mux.HandleFunc("POST /api/games/{id}/messages", h.withActor(h.postMessage))
+	mux.HandleFunc("POST /api/games/{id}/messages/read", h.withActor(h.markChannelRead))
 	return mux
 }
 

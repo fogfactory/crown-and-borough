@@ -31,18 +31,14 @@ describe('FaqPanel', () => {
     expect(screen.getByText(/Pourquoi le risque de famine affiché/)).toBeInTheDocument()
     expect(screen.getByText(/Comment constituer un fief/)).toBeInTheDocument()
     expect(
-      screen.getByText(/attribué automatiquement au noble libre/),
+      screen.getByText(/attribué automatiquement en fin d’hiver/),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/Combien de temps dure le contrôle hors fief/),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText(/Comment fonctionne la carte Impôts/),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/D’où viennent les nouveaux villages/),
-    ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(18)
+    expect(screen.getByText(/Comment fonctionne la carte Impôts/)).toBeInTheDocument()
+    expect(screen.getByText(/D’où viennent les nouveaux villages/)).toBeInTheDocument()
+    expect(container.querySelectorAll('details')).toHaveLength(22)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -71,19 +67,15 @@ describe('FaqPanel', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/How does founding a fief work/)).toBeInTheDocument()
     expect(
-      screen.getByText(
-        /assigned automatically to the free noble with the smallest trigram/,
-      ),
+      screen.getByText(/assigned automatically at the end of winter/),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/How long does control last outside a fief/),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText(/How does the Tax card work/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/How does the Tax card work/)).toBeInTheDocument()
     expect(
       screen.getByText(/Where do the new villages that appear on their own come from/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(18)
+    expect(container.querySelectorAll('details')).toHaveLength(22)
   })
 })

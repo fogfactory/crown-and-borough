@@ -43,6 +43,7 @@ online à réaliser et à suivre par issue.
 | Boucle de jeu | Cycle printemps/été/automne/hiver, rapport de tour, partie initiale déterministe | Fait |
 | Front | Carte interactive, poste de commandement, sélection de joueur, ordres par noble, rapport et signalisation de l'hiver | Fait |
 | Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement, hôte observateur sans slot | Fait |
+| Chat interne | Salon public et conversations privées entre deux maisons, signés de la maison, historique paginé, non-lus par canal, séparateurs de tour, découpage des textes longs, observateur en lecture seule, absent en hotseat (voir [`chat.md`](chat.md)) | Fait |
 
 ## Contraintes et décisions v1
 

@@ -147,8 +147,8 @@ func TestDignityOrderConfersBastard(t *testing.T) {
 		t.Error("ResolveWinter mutated its input noble")
 	}
 	scores := ComputeScores(resolution.State, assetgen.Balance{})
-	if scores["P1"].Titles != 1 {
-		t.Errorf("P1 titles = %d, want the bastard dignity to count as one title", scores["P1"].Titles)
+	if scores["P1"].Titles != 0 {
+		t.Errorf("P1 titles = %d, want dignities to score nothing", scores["P1"].Titles)
 	}
 }
 

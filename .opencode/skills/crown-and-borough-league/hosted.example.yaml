@@ -1,0 +1,33 @@
+# League on a deployed server. The human host creates the game in the web app
+# with "Observe without playing" ticked, copies the invitation URL, and the
+# league joins the bots to it. Bots sign in with email links.
+#
+#   go run ./cmd/botleague run hosted.yaml
+# The first run asks Firebase to mail a link to every bot address and stops.
+# Paste each link into <league_dir>/links.txt (one per line, optionally
+# "email https://...") and run the same command again.
+name: hosted-league
+league_dir: ../../../league/hosted-league
+
+server:
+  url: https://YOUR-DEPLOYMENT.example.com
+  mode: hosted
+  api_key: YOUR_FIREBASE_WEB_API_KEY   # VITE_FIREBASE_API_KEY of the deployment
+
+game:
+  invite_url: "https://YOUR-DEPLOYMENT.example.com/join?gameId=...&inviteCode=..."
+
+negotiation_rounds: 1
+turn_timeout_minutes: 30   # the host force-resolves a stalled turn in the app
+
+players:
+  - name: Maison Rouge
+    email: you+rouge@example.com    # one inbox per bot (plus-addressing works)
+    persona: conqueror
+    provider: openrouter
+    model: REPLACE/WITH-A-FREE-MODEL:free
+  - name: Maison Bleue
+    email: you+bleue@example.com
+    persona: diplomat
+    provider: openrouter
+    model: REPLACE/WITH-ANOTHER-FREE-MODEL:free
