@@ -138,6 +138,10 @@ func mustList(raw json.RawMessage) []any {
 
 var noblePrefix = regexp.MustCompile(`^[A-Z]{3}$`)
 
+// positionHold matches a hold written like an attack ("PVL H PVL"): the rules
+// put the symbol first ("H PVL").
+var positionHold = regexp.MustCompile(`^(\(?)[A-Z]{3} H ([A-Z]{3})(\)?)$`)
+
 // normalizeChain makes sure the text opens with the emitting noble's code,
 // the way the server reads a chain.
 func normalizeChain(chain ChainOrder) ChainOrder {
@@ -145,7 +149,7 @@ func normalizeChain(chain ChainOrder) ChainOrder {
 	lines := make([]string, 0)
 	for _, line := range strings.Split(strings.ReplaceAll(chain.Text, "\r", ""), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
+			lines = append(lines, positionHold.ReplaceAllString(line, "${1}H ${2}${3}"))
 		}
 	}
 	if len(lines) == 0 {
@@ -171,7 +175,13 @@ func parseDecision(answer string) (Decision, error) {
 	var lastErr error
 	for _, candidate := range jsonCandidates(answer) {
 		var decision Decision
-		if err := json.Unmarshal([]byte(candidate), &decision); err != nil {
+		err := json.Unmarshal([]byte(candidate), &decision)
+		if err != nil {
+			// Models often leave raw line breaks inside strings (orders, memory).
+			decision = Decision{}
+			if retry := json.Unmarshal([]byte(escapeStringControls(candidate)), &decision); retry == nil {
+				return decision, nil
+			}
 			lastErr = err
 			continue
 		}
@@ -181,6 +191,35 @@ func parseDecision(answer string) (Decision, error) {
 		return Decision{}, fmt.Errorf("the answer is not valid JSON: %w", lastErr)
 	}
 	return Decision{}, errors.New("the answer holds no JSON object")
+}
+
+// escapeStringControls escapes the raw control characters (line breaks, tabs)
+// found inside JSON strings, which the format forbids.
+func escapeStringControls(text string) string {
+	var out strings.Builder
+	inString := false
+	for index := 0; index < len(text); index++ {
+		character := text[index]
+		switch {
+		case inString && character == '\\' && index+1 < len(text):
+			out.WriteByte(character)
+			index++
+			out.WriteByte(text[index])
+			continue
+		case character == '"':
+			inString = !inString
+		case inString && character == '\n':
+			out.WriteString(`\n`)
+			continue
+		case inString && character == '\r':
+			continue
+		case inString && character == '\t':
+			out.WriteString(`\t`)
+			continue
+		}
+		out.WriteByte(character)
+	}
+	return out.String()
 }
 
 // jsonCandidates lists the balanced {...} objects of a text, longest first.

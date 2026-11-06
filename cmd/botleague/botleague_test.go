@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -275,5 +276,55 @@ func TestPromptOrderExamplesMatchPlayerRules(t *testing.T) {
 		if !strings.Contains(rules, syntax) {
 			t.Errorf("the player rules no longer document %s (shown in the prompt as %q)", syntax, example)
 		}
+	}
+}
+
+func TestNormalizeRecipient(t *testing.T) {
+	for input, want := range map[string]string{
+		"P2 Maison Bleue": "P2",
+		"p4":              "P4",
+		" P1 ":            "P1",
+		"public":          "public",
+	} {
+		if got := normalizeRecipient(input); got != want {
+			t.Errorf("normalizeRecipient(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestNormalizeChainRewritesPositionHold(t *testing.T) {
+	chain := normalizeChain(ChainOrder{Noble: "AVE", Text: "AVE\nPVL H PVL\n(PGR H PGR)"})
+	if want := "AVE\nH PVL\n(H PGR)"; chain.Text != want {
+		t.Errorf("chain text = %q, want %q", chain.Text, want)
+	}
+}
+
+func TestParseDecisionAcceptsRawLineBreaksInStrings(t *testing.T) {
+	answer := "{\"orders\":{\"chains\":[{\"noble\":\"ELI\",\"text\":\"ELI\nCHL A HTC\"}]},\"memory\":\"line one\nline two\"}"
+	decision, err := parseDecision(answer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decision.Orders.Chains) != 1 || decision.Orders.Chains[0].Text != "ELI\nCHL A HTC" {
+		t.Errorf("chains = %+v", decision.Orders.Chains)
+	}
+	if decision.Memory != "line one\nline two" {
+		t.Errorf("memory = %q", decision.Memory)
+	}
+}
+
+func TestOpenAIClientReportsAnUnreachableProvider(t *testing.T) {
+	previous := outageBudget
+	outageBudget = 0
+	defer func() { outageBudget = previous }()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "0")
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer server.Close()
+	client := &openAIClient{base: server.URL, model: "m", http: server.Client(), limiter: make(chan struct{}, 1)}
+	_, _, err := client.Complete(context.Background(), []Message{{Role: "user", Content: "hi"}})
+	if !errors.Is(err, errProviderUnavailable) {
+		t.Fatalf("err = %v, want errProviderUnavailable", err)
 	}
 }

@@ -120,7 +120,9 @@ describe('ChatPanel', () => {
       P1_P4: channel([message('1', 'P4', 1, 'P1_P4')]),
     })
     renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: /Maison Dorian/ }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Rooms and conversations' }), {
+      target: { value: 'P1_P4' },
+    })
     expect(screen.getByLabelText('Your message')).toBeEnabled()
   })
 
@@ -134,7 +136,7 @@ describe('ChatPanel', () => {
     )
     const { onUnreadChange } = renderPanel()
     expect(onUnreadChange).toHaveBeenLastCalledWith(3)
-    expect(screen.getByRole('button', { name: /Public room/ })).toHaveTextContent('1')
+    expect(screen.getByRole('option', { name: 'Public room (1)' })).toBeInTheDocument()
   })
 
   it('marks the open channel read when the chat is on screen', () => {
@@ -155,9 +157,9 @@ describe('ChatPanel', () => {
       P2_P3: channel([message('1', 'P2', 1, 'P2_P3')]),
     })
     renderPanel({ house: null, observer: true })
-    fireEvent.click(
-      screen.getByRole('button', { name: /Maison Brieuc and Maison Cérès/ }),
-    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Rooms and conversations' }), {
+      target: { value: 'P2_P3' },
+    })
     expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument()
     expect(
       screen.getByText(/Read only: you are viewing the conversation of Maison Brieuc/),

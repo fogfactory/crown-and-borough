@@ -307,37 +307,25 @@ export function ChatPanel({
       className="flex min-h-0 flex-col gap-3"
     >
       <nav aria-label={t('chat.channels')} className="space-y-2">
-        <ul className="flex flex-wrap gap-1.5">
+        <label className="sr-only" htmlFor="chat-channel">
+          {t('chat.channels')}
+        </label>
+        <select
+          id="chat-channel"
+          className={cn(fieldClassName, 'w-full')}
+          value={open}
+          onChange={(event) => select(event.target.value)}
+        >
           {[PUBLIC_CHANNEL, ...privateChannels].map((key) => {
             const count = unread[key] ?? 0
-            const selected = key === open
-            const other = house && key !== PUBLIC_CHANNEL ? otherHouse(key, house) : null
-            const readOnly = key !== PUBLIC_CHANNEL && other === null
             return (
-              <li key={key}>
-                <button
-                  type="button"
-                  aria-current={selected ? 'true' : undefined}
-                  data-chat-channel={key}
-                  className={cn(
-                    'inline-flex min-h-9 items-center gap-1.5 rounded-md border px-2.5 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    selected
-                      ? 'border-brass-700 bg-brass-400 text-ink-900'
-                      : 'border-line bg-paper-100 text-ink-700 hover:bg-paper-50',
-                  )}
-                  onClick={() => select(key)}
-                >
-                  {other && (
-                    <HouseMark player={playerOf(other)} id={`chat-chip-${key}`} />
-                  )}
-                  {readOnly && <IconLock aria-hidden="true" className="size-3.5" />}
-                  <span>{channelLabel(key)}</span>
-                  <ChatUnreadBadge count={count} />
-                </button>
-              </li>
+              <option key={key} value={key} data-chat-channel={key}>
+                {channelLabel(key)}
+                {count > 0 ? ` (${count > 99 ? '99+' : count})` : ''}
+              </option>
             )
           })}
-        </ul>
+        </select>
         {house && (
           <div>
             <label className="sr-only" htmlFor="chat-new-conversation">

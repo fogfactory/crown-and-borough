@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -349,7 +350,7 @@ func (b *Bot) send(ctx context.Context, messages []OutMessage) {
 	sent := 0
 	for _, message := range messages {
 		body := strings.TrimSpace(message.Body)
-		to := strings.TrimSpace(message.To)
+		to := normalizeRecipient(message.To)
 		if body == "" || to == "" || sent >= maxMessagesPerCall {
 			continue
 		}
@@ -396,4 +397,17 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 	case <-time.After(d):
 		return nil
 	}
+}
+
+var houseID = regexp.MustCompile(`^(?i)p(\d+)\b`)
+
+// normalizeRecipient reduces what a model wrote in "to" ("P2 Maison Bleue",
+// "p2") to the house id the chat expects ("P2"); "public" and unknown values
+// are left as they are.
+func normalizeRecipient(to string) string {
+	to = strings.TrimSpace(to)
+	if match := houseID.FindStringSubmatch(to); match != nil {
+		return "P" + match[1]
+	}
+	return to
 }

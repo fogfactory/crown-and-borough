@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -95,8 +96,11 @@ func (c *openAIClient) Complete(ctx context.Context, messages []Message) (string
 	if err != nil {
 		return "", Usage{}, err
 	}
+	// A transport error, a 429 or a 5xx is the provider being unreachable, not
+	// the model answering badly: keep trying until the outage budget is spent.
 	var lastErr error
-	for attempt := 0; attempt < 6; attempt++ {
+	started := time.Now()
+	for attempt := 0; ; attempt++ {
 		if attempt > 0 {
 			if err := sleepCtx(ctx, backoff(attempt, lastErr)); err != nil {
 				return "", Usage{}, err
@@ -110,8 +114,10 @@ func (c *openAIClient) Complete(ctx context.Context, messages []Message) (string
 		if !retry {
 			return "", Usage{}, err
 		}
+		if time.Since(started) > outageBudget {
+			return "", Usage{}, fmt.Errorf("model %s: %w: %v", c.model, errProviderUnavailable, lastErr)
+		}
 	}
-	return "", Usage{}, fmt.Errorf("model %s: giving up: %w", c.model, lastErr)
 }
 
 // limitedOnce holds a concurrency slot only while a request is in flight, so
@@ -134,11 +140,18 @@ type retryAfterError struct {
 func (e *retryAfterError) Error() string { return e.err.Error() }
 func (e *retryAfterError) Unwrap() error { return e.err }
 
+// errProviderUnavailable marks a model call that kept failing on the network or
+// on 429/5xx for outageBudget: the league stops instead of passing turns.
+var errProviderUnavailable = errors.New("provider unavailable")
+
+// outageBudget is how long a call keeps retrying an unreachable provider.
+var outageBudget = 20 * time.Minute
+
 func backoff(attempt int, last error) time.Duration {
 	if retry, ok := last.(*retryAfterError); ok && retry.after > 0 {
 		return retry.after
 	}
-	base := time.Duration(1<<attempt) * 2 * time.Second
+	base := time.Duration(1<<min(attempt, 6)) * 2 * time.Second
 	return base + time.Duration(rand.Int63n(int64(time.Second)))
 }
 

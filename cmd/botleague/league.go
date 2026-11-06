@@ -35,6 +35,7 @@ type League struct {
 	rules      string
 	session    session
 	mu         sync.Mutex
+	outage     error // set when a provider stays unreachable: the run stops, no turn is passed
 }
 
 type session struct {
@@ -457,6 +458,13 @@ func (l *League) playTurn(ctx context.Context, detail GameDetail, reports map[st
 			report = reports[bot.house]
 		}
 		summary, err := bot.PlayOrders(ctx, state, report)
+		if errors.Is(err, errProviderUnavailable) {
+			l.logf("[%s] %v", bot.cfg.Name, err)
+			l.mu.Lock()
+			l.outage = err
+			l.mu.Unlock()
+			return nil
+		}
 		if err != nil {
 			l.logf("[%s] passes the turn: %v", bot.cfg.Name, err)
 			bot.Remember(fmt.Sprintf("%s: you could not submit valid orders (%v); the turn passed with no orders.", label, err))
@@ -469,6 +477,11 @@ func (l *League) playTurn(ctx context.Context, detail GameDetail, reports map[st
 		bot.Remember(fmt.Sprintf("%s: you submitted %s", label, summary))
 		return nil
 	})
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.outage != nil {
+		return fmt.Errorf("stopped before the turn resolved, run the same command to resume: %w", l.outage)
+	}
 	return nil
 }
 
