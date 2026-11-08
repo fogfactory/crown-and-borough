@@ -249,8 +249,8 @@ const PAWN_LEGEND: Array<{
 interface MapLegendProps {
   showIntentions?: boolean
   onToggleIntentions?: (show: boolean) => void
-  showOwnership?: boolean
-  onToggleOwnership?: (show: boolean) => void
+  showTerritoryColors?: boolean
+  onToggleTerritoryColors?: (show: boolean) => void
   showRegions?: boolean
   onToggleRegions?: (show: boolean) => void
   showCalamities?: boolean
@@ -262,8 +262,8 @@ interface MapLegendProps {
 export function MapLegend({
   showIntentions = true,
   onToggleIntentions,
-  showOwnership = true,
-  onToggleOwnership,
+  showTerritoryColors = false,
+  onToggleTerritoryColors,
   showRegions = false,
   onToggleRegions,
   showCalamities = true,
@@ -299,15 +299,15 @@ export function MapLegend({
             </span>
           </label>
         )}
-        {onToggleOwnership && (
+        {onToggleTerritoryColors && (
           <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
             <input
               type="checkbox"
-              checked={showOwnership}
-              onChange={(event) => onToggleOwnership(event.target.checked)}
+              checked={showTerritoryColors}
+              onChange={(event) => onToggleTerritoryColors(event.target.checked)}
               className="size-3.5 shrink-0 accent-brass-700"
             />
-            <span>{t('legend.ownership')}</span>
+            <span>{t('legend.territoryColors')}</span>
           </label>
         )}
         {onToggleRegions && (
