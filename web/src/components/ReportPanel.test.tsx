@@ -883,6 +883,7 @@ describe('ReportPanel event cards', () => {
     follow: vi.fn(),
     showEvent: vi.fn(),
     highlight: vi.fn(),
+    regionTerritories: (seed: string) => [seed],
     hasTerritory: () => true,
     territoryName: () => undefined,
     nobleName: () => undefined,
@@ -1006,6 +1007,50 @@ describe('ReportPanel event cards', () => {
     })
   })
 
+  it('lights the attackers and supporters of a combat with arrows to the fight', () => {
+    const fight: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'CHA',
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 3, defender: false },
+            { army: 'A3', owner: 'P3', force: 2, defender: true },
+          ],
+          supporters: ['A1'],
+          cutSupporters: ['A4'],
+          standoff: false,
+        },
+      ],
+      orders: [
+        { army: 'A1', type: 'support', source: 'ROS', targets: ['A2', 'CHA'], outcome: 'success' },
+        { army: 'A2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
+        { army: 'A4', type: 'support', source: 'VAL', targets: ['A3', 'CHA'], outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={fight} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = document.querySelector(
+      '[data-report-category="combats"] [data-event-card]',
+    ) as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(card)
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['CHA', 'BRU', 'ROS', 'VAL'],
+      arrows: [
+        ['BRU', 'CHA'],
+        ['ROS', 'CHA'],
+        ['VAL', 'CHA'],
+      ],
+    })
+  })
+
   it('leaves a name inside an event card to light its own territory', () => {
     render(
       <LanguageProvider initialLanguage="en">
@@ -1026,7 +1071,7 @@ describe('ReportPanel event cards', () => {
     fireEvent.focus(name)
     const territory = name.getAttribute('data-map-link')
     expect(links.highlight.mock.calls.length).toBeGreaterThan(0)
-    for (const [lit] of links.highlight.mock.calls) expect(lit).toBe(territory)
+    for (const [lit] of links.highlight.mock.calls) expect([lit].flat()).toEqual([territory])
     links.highlight.mockClear()
     fireEvent.mouseOver(card)
     expect(links.highlight).toHaveBeenCalledTimes(1)

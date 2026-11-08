@@ -617,10 +617,13 @@ recentre la carte, sans clic.
 marque-page : la carte se cadre sur le territoire et ses voisins, le
 sélectionne, et la fiche reste au poste de commandement jusqu'au cartouche
 ([Fiche de territoire](#fiche-de-territoire)). Le territoire survolé par un
-lien prend un liseré `brass-700` en tirets sur un voile `brass-400`. Survoler ou focaliser une carte d'événement du rapport éclaire de la même
+lien prend un liseré `brass-700` en tirets sur un voile `brass-400`. Une région citée (calamités annoncées, effets régionaux du rapport) est un lien
+vers son chef-lieu ; le survol éclaire toute la région. Survoler ou focaliser une carte d'événement du rapport éclaire de la même
 façon tous les territoires qu'elle cite et trace ses flèches : une région
 entière pour un effet régional, la source et le territoire ravitaillé
-reliés par une flèche pour un ravitaillement, l'origine et la cible pour un
+reliés par une flèche pour un ravitaillement, les attaquants et les
+soutiens d'un combat chacun sur son territoire d'origine avec une flèche
+vers le combat, l'origine et la cible pour un
 mouvement ou une attaque. Sur téléphone, « Voir » tient lieu de survol. Dans
 les listes déroulantes des formulaires, une région s'écrit comme un
 territoire (« Alpilles (ALP) ») et un fief comme dans le marque-page Royaume

@@ -28,6 +28,8 @@ export interface MapLinks {
    * between them) on the map, or nothing with null.
    */
   highlight: (what: string | string[] | EventMarks | null) => void
+  /** Territories of the region seeded at a territory; the seed alone if none. */
+  regionTerritories: (seed: string) => string[]
   /** Whether the territory exists on the map. */
   hasTerritory: (territory: string) => boolean
   /** Commune name of a territory. */
@@ -97,10 +99,13 @@ export function useMapHighlight() {
 
 function MapLink({
   territory,
+  lights,
   noble,
   children,
 }: {
   territory: string
+  /** Territories lit while hovered, when more than the linked one. */
+  lights?: string[]
   noble?: string
   children: ReactNode
 }) {
@@ -116,9 +121,9 @@ function MapLink({
         light.release()
         links.focus(territory, noble)
       }}
-      onMouseEnter={() => light.on(territory)}
+      onMouseEnter={() => light.on(lights ?? territory)}
       onMouseLeave={light.off}
-      onFocus={() => light.on(territory)}
+      onFocus={() => light.on(lights ?? territory)}
       onBlur={light.off}
     >
       {children}
@@ -130,11 +135,14 @@ function MapLink({
 export function TerritoryRef({
   id,
   name,
+  lights,
   className,
 }: {
   id: string
   /** Commune name; the code alone when unknown. */
   name?: string
+  /** A region's territories: all of them light up, the seat stays the target. */
+  lights?: string[]
   className?: string
 }) {
   const links = useMapLinks()
@@ -151,7 +159,20 @@ export function TerritoryRef({
     </span>
   )
   if (!links?.hasTerritory(id)) return label
-  return <MapLink territory={id}>{label}</MapLink>
+  return (
+    <MapLink territory={id} lights={lights}>
+      {label}
+    </MapLink>
+  )
+}
+
+/**
+ * A region written as its seed territory, « Rochepierre (RPI) »: hovering the
+ * link lights the whole region, following it selects the seed.
+ */
+export function RegionRef({ id, name }: { id: string; name?: string }) {
+  const links = useMapLinks()
+  return <TerritoryRef id={id} name={name} lights={links?.regionTerritories(id)} />
 }
 
 /**

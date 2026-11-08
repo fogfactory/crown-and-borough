@@ -104,6 +104,10 @@ export function useMapLinkState({
       ),
     [map],
   )
+  const regions = useMemo(
+    () => new Map((map?.regions ?? []).map((region) => [region.seed, region.territories])),
+    [map],
+  )
   const nobles = useMemo(
     () => new Map((state?.nobles ?? []).map((noble) => [noble.code, noble])),
     [state],
@@ -155,6 +159,8 @@ export function useMapLinkState({
           // same object so the map does not render again.
           return sameMarks(current, next) ? current : next
         }),
+      regionTerritories: (seed) =>
+        regions.get(seed) ?? [seed],
       hasTerritory: (id) => territoryNames.has(id),
       territoryName: (id) => territoryNames.get(id),
       nobleName: (code) => nobles.get(code)?.name ?? deceased.get(code),
@@ -164,7 +170,7 @@ export function useMapLinkState({
       },
       isDeceased: (code) => deceased.has(code),
     }
-  }, [territoryNames, nobles, deceased])
+  }, [territoryNames, regions, nobles, deceased])
 
   // A new base frame (another game or hotseat player) supersedes the link.
   const current = focus && focus.baseKey === baseFrame?.key ? focus : null

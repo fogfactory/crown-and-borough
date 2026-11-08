@@ -18,7 +18,7 @@ import {
   IconSwords,
 } from '@tabler/icons-react'
 
-import { NobleRef, TerritoryRef, useMapHighlight, useMapLinks } from '@/components/MapLinks'
+import { NobleRef, RegionRef, TerritoryRef, useMapHighlight, useMapLinks } from '@/components/MapLinks'
 import type { EventMarks } from '@/lib/map-frame'
 import { formatOrderLabel } from '@/lib/order-label'
 import { joinNodes, richTranslate } from '@/lib/rich-text'
@@ -35,6 +35,7 @@ import type {
   PlayerId,
   ReportArmy,
   CardReport,
+  CombatReport,
   FiefReport,
   MarriageReport,
   IncomeReport,
@@ -302,6 +303,18 @@ function territoryLabel(
 /** Territories of the region seeded at `seed`, or the seed alone off the map. */
 function regionTerritories(map: MapData | null, seed: string): string[] {
   return map?.regions?.find((region) => region.seed === seed)?.territories ?? [seed]
+}
+
+// A region is named by its seed territory; hovering the link lights it all.
+function regionLabel(
+  map: MapData | null,
+  seed: string | undefined,
+  t: Translate,
+): ReactNode {
+  if (!seed) return '—'
+  const territory = map?.territories.find((candidate) => candidate.id === seed)
+  if (!territory) return t('reports.unknownTerritory')
+  return <RegionRef id={territory.id} name={territory.name} />
 }
 
 // Display label of a noble: full name first, trigram as a complement, linked
@@ -709,7 +722,7 @@ function seasonEffectLabel(
   map: MapData | null,
   t: Translate,
 ): ReactNode {
-  const region = territoryLabel(map, effect.region, t)
+  const region = regionLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   switch (effect.kind) {
     case 'calamity_canceled':
@@ -745,7 +758,7 @@ function seasonEffectLine(
   t: Translate,
   index: number,
 ): SeasonEffectLine {
-  const region = territoryLabel(map, effect.region, t)
+  const region = regionLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   const key = `${effect.kind}-${effect.cardKind ?? ''}-${index}`
   const owner = effect.owner ?? t('reports.unknownPlayer')
@@ -1198,7 +1211,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         : (reportReason(combat.reason, t) ?? combat.reason)
                 }
                 aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
-                marks={{ territories: [combat.territory] }}
+                marks={combatMarks(report, combat)}
               />
             )
           })}
@@ -1883,6 +1896,30 @@ function orderArrows(
       : [[source, supported]]
   }
   return targets.map((target): [string, string] => [source, target])
+}
+
+/**
+ * What a combat draws: its territory, and every force committed to it, each
+ * on the territory it came from with an arrow to the fight. The attackers,
+ * the supporters whose help counted and those whose support was cut.
+ */
+function combatMarks(report: TurnReport, combat: CombatReport): EventMarks {
+  const territories = new Set([combat.territory])
+  const arrows: Array<[string, string]> = []
+  const armies = [
+    ...(combat.contenders ?? [])
+      .filter((contender) => !contender.defender)
+      .map((contender) => contender.army),
+    ...(combat.supporters ?? []),
+    ...(combat.cutSupporters ?? []),
+  ]
+  for (const army of new Set(armies)) {
+    const from = report.orders.find((order) => order.army === army && order.source)?.source
+    if (!from || from === combat.territory) continue
+    territories.add(from)
+    arrows.push([from, combat.territory])
+  }
+  return { territories: [...territories], arrows: arrows.length > 0 ? arrows : undefined }
 }
 
 /** A category of the report; the caller leaves out an empty one. */
