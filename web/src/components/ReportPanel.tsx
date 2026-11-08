@@ -1992,7 +1992,11 @@ function combatDetails(
   const defenders = contenders.filter((contender) => contender.defender)
   const force = (contender: (typeof contenders)[number]) =>
     [
-      t('reports.combat.force', { force: contender.force ?? '—' }) +
+      t(contender.supported ? 'reports.combat.forceSupported' : 'reports.combat.force', {
+        force: contender.force ?? '—',
+        base: (contender.force ?? 0) - (contender.supported ?? 0),
+        support: contender.supported ?? 0,
+      }) +
         (contender.nobleBonus ? t('reports.nobleBonus', { bonus: contender.nobleBonus }) : '') +
         (contender.tunnel ? t('reports.tunnelAttack') : ''),
       contender.defender && combat.castleBonus

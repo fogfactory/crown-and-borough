@@ -1062,7 +1062,7 @@ describe('ReportPanel event cards', () => {
           castleBonus: 1,
           contenders: [
             { army: 'A2', owner: 'P2', force: 3, nobleBonus: 1, defender: false },
-            { army: 'A3', owner: 'P3', force: 2, defender: true },
+            { army: 'A3', owner: 'P3', force: 3, supported: 2, defender: true },
           ],
           supporters: ['A1'],
           cutSupporters: ['A4'],
@@ -1098,6 +1098,7 @@ describe('ReportPanel event cards', () => {
     expect(more).toHaveTextContent('P2')
     expect(more).toHaveTextContent('force 3 (+1 noble)')
     expect(more).toHaveTextContent('fortification +1')
+    expect(more).toHaveTextContent('force 3 (1 own + 2 from supports)')
     expect(more).toHaveTextContent('· cut')
 
     // A click on the card's own text folds it back; its buttons act alone.

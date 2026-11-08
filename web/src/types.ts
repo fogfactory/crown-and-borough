@@ -928,6 +928,8 @@ export interface CombatContender {
   army?: string
   owner?: PlayerId
   force?: number
+  /** Part of the force that comes from the supports received. */
+  supported?: number
   nobleBonus?: number
   defender?: boolean
   /** The attack was carried by a tunnel card: it ignored the target's fortifications. */

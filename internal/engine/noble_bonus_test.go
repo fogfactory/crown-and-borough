@@ -141,6 +141,9 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 		if contender.Force != 4 {
 			t.Errorf("offensive contender = %#v, want attack plus two command bonuses", contender)
 		}
+		if contender.Supported != 2 {
+			t.Errorf("offensive contender supported = %d, want 2 from the support", contender.Supported)
+		}
 	})
 
 	t.Run("defensive support", func(t *testing.T) {
@@ -174,6 +177,11 @@ func TestResolveNobleCommandBonusInSupports(t *testing.T) {
 		contender := combatContenderForNobleBonus(t, resolution.Events, "BBB", "A2")
 		if contender.Force != 4 || contender.NobleBonus != 1 {
 			t.Errorf("defensive contender = %#v, want force 4 and noble bonus 1", contender)
+		}
+		// The supporter's size and command bonus are reported apart from the
+		// defender's own strength.
+		if contender.Supported != 2 {
+			t.Errorf("defensive contender supported = %d, want 2 from the support", contender.Supported)
 		}
 	})
 }
