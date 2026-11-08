@@ -109,14 +109,16 @@ describe('MapLegend', () => {
     expect(document.querySelectorAll('[data-region-pattern]').length).toBe(0)
   })
 
-  it('toggles the player control layer', () => {
+  it('toggles the player colours layer, off by default', () => {
     const onToggle = vi.fn()
     render(
       <LanguageProvider initialLanguage="fr">
-        <MapLegend showOwnership={false} onToggleOwnership={onToggle} />
+        <MapLegend onToggleTerritoryColors={onToggle} />
       </LanguageProvider>,
     )
-    fireEvent.click(screen.getByLabelText('Contrôle joueur'))
+    const checkbox = screen.getByLabelText('Couleurs des joueurs')
+    expect(checkbox).not.toBeChecked()
+    fireEvent.click(checkbox)
     expect(onToggle).toHaveBeenCalledWith(true)
   })
 

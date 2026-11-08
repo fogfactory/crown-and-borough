@@ -302,13 +302,14 @@ De bas en haut :
 2. Terrain gravé (`MapDecorations.tsx`).
 3. Évêchés : cadre et liseré (`MapRegionLayers.tsx`).
 4. Voile de saison, et neige en hiver.
-5. Zone de ravitaillement.
-6. Frontières franchissables, frontières infranchissables, contour extérieur.
-7. Sélection, au-dessus des frontières pour ne jamais être masquée.
-8. Ligne de ravitaillement, calamités et cartes jouées.
-9. Pièces : bâtiments, blasons, armées, nobles.
-10. Étiquettes : noms, codes, chefs-lieux.
-11. Intentions, ordres d'hiver et événement du rapport sélectionné.
+5. Couleurs des joueurs (calque optionnel, voir « Couleurs des joueurs »).
+6. Zone de ravitaillement.
+7. Frontières franchissables, frontières infranchissables, contour extérieur.
+8. Sélection, au-dessus des frontières pour ne jamais être masquée.
+9. Ligne de ravitaillement, calamités et cartes jouées.
+10. Pièces : bâtiments, blasons, armées, nobles.
+11. Étiquettes : noms, codes, chefs-lieux.
+12. Intentions, ordres d'hiver et événement du rapport sélectionné.
 
 ### Terrain gravé
 
@@ -391,7 +392,22 @@ L'évêché se lit par trois éléments :
   case d'un fief ou une capitale de joueur garde son blason, même quand son
   contrôleur y a une armée.
 - Un territoire neutre n'a pas de blason.
-- Le bouton de légende « Contrôle joueur » affiche ou masque les blasons.
+- Les blasons sont toujours affichés : aucun calque ne les masque.
+
+### Couleurs des joueurs (calque)
+
+- **Calque :** activable depuis la légende (« Couleurs des joueurs »,
+  `cb.territoryColorsOverlay`), masqué par défaut. Il se pose sous les
+  frontières, la sélection et les pièces, pour ne jamais les masquer.
+- **Territoire contrôlé** (case d'un fief ou capitale de joueur) : aplat de la
+  couleur du contrôleur, à 35 % d'opacité.
+- **Territoire occupé** par une armée qui n'est pas celle de son contrôleur :
+  larges bandes diagonales (45°) de la couleur de l'occupant, à 60 %
+  d'opacité. Entre les bandes, l'aplat du contrôleur reste visible ; un
+  territoire que personne ne contrôle (tenu par la seule armée) laisse le
+  papier de la carte.
+- Un territoire neutre n'a pas d'aplat ; une armée de rebelles y hachure à la
+  couleur neutre.
 
 **Précision.** Le blason est l'écu de 15 × 19 unités réduit à 80 %, soit
 12 × 15 unités ; il se plante à gauche du nom, sa pointe sur la ligne de
@@ -554,7 +570,7 @@ les cinq terrains, les icônes de frontière infranchissable et le pointillé
 franchissable, le blason, le blason grisé, le blason couronné d'un fief,
 l'armée (figurines et fanion), le pion
 de noble (libre, otage, au cachot, excommunié, et ses attributs de titre) et
-les bâtiments. Les boutons des calques (intentions, contrôle, évêchés,
+les bâtiments. Les boutons des calques (intentions, couleurs des joueurs, évêchés,
 calamités, cartes) accompagnent la légende.
 
 ## Écrans et composants

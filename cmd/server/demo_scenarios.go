@@ -1168,7 +1168,7 @@ func forgeArmies(state *models.GameState) error {
 	for _, fief := range state.Fiefs {
 		if fief.ID == "F1" {
 			for _, id := range fief.Territories {
-				if id != fief.CapitalTerritoryID && state.TerritoryStates[id].Army == nil {
+				if id != fief.CapitalTerritoryID {
 					member = id
 				}
 			}
@@ -1176,7 +1176,17 @@ func forgeArmies(state *models.GameState) error {
 		}
 	}
 	if member != "" {
-		place(member, "P2", 3)
+		// The annexation scenario may already stand a P1 army on the member:
+		// hand it to P2 so the member is occupied against its controller.
+		if armyID := state.TerritoryStates[member].Army; armyID != nil {
+			for index := range state.Armies {
+				if state.Armies[index].ID == *armyID {
+					state.Armies[index].OwnerID = "P2"
+				}
+			}
+		} else {
+			place(member, "P2", 3)
+		}
 	}
 	if p1Capital := playerCapitalTerritory(state, "P1"); p1Capital != "" && state.TerritoryStates[p1Capital].Army == nil {
 		place(p1Capital, "P1", 2)

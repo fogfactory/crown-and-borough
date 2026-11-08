@@ -4,7 +4,7 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { armyDrawingOwner, type ResolvedArms } from '@/lib/heraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
-import { centroid } from '@/lib/map-svg-geometry'
+import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import {
@@ -47,6 +47,99 @@ const ARMY_BELOW_BASELINE = 4
 
 /** Nobles sharing a territory stand side by side, this far apart. */
 const NOBLE_SPACING = 12
+
+const COLOR_WASH_OPACITY = 0.35
+const HATCH_OPACITY = 0.6
+/** Wide diagonal bands for occupied territories: stripe and period, in map units. */
+const HATCH_STRIPE = 8
+const HATCH_PERIOD = 18
+
+/**
+ * Each controller's colour as a solid wash over the territories they
+ * control (neutral excluded). A territory occupied by an army carries wide
+ * diagonal bands in the occupier's colour; between the bands the controller's
+ * wash shows through, or the bare map when nobody controls the territory.
+ */
+export function TerritoryColorLayer({
+  territories,
+  state,
+  playerColors,
+}: {
+  territories: Territory[]
+  state: StateData
+  playerColors: Map<string, string>
+}) {
+  const { t } = useLanguage()
+  const stateById = new Map(state.territories.map((entry) => [entry.id, entry]))
+  // Controlled in its own right: a fief member or capital, or a player's
+  // capital. Any other territory is held only by the army standing on it.
+  const anchored = new Set<string>([
+    ...(state.fiefs ?? []).flatMap((fief) => [fief.capital, ...fief.territories]),
+    ...state.players.flatMap((player) =>
+      player.capitalTerritory ? [player.capitalTerritory] : [],
+    ),
+  ])
+  const occupiers = new Set<string>()
+  const cells = territories.flatMap((territory) => {
+    const territoryState = stateById.get(territory.id)
+    const owner = anchored.has(territory.id) ? territoryState?.owner : undefined
+    const wash =
+      owner && owner !== NEUTRAL_PLAYER_ID ? playerColors.get(owner) : undefined
+    const armyOwner = territoryState?.army?.owner
+    const occupier = armyOwner && armyOwner !== owner ? armyOwner : undefined
+    if (occupier) occupiers.add(occupier)
+    return wash || occupier ? [{ territory, wash, occupier }] : []
+  })
+  const hatchId = (owner: string) => `territory-hatch-${owner.replace(/\W/g, '_')}`
+
+  return (
+    <g aria-label={t('map.territoryColors')} data-territory-colors pointerEvents="none">
+      <defs>
+        {Array.from(occupiers).map((owner) => (
+          <pattern
+            key={owner}
+            id={hatchId(owner)}
+            width={HATCH_PERIOD}
+            height={HATCH_PERIOD}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect
+              width={HATCH_PERIOD}
+              height={HATCH_STRIPE}
+              fill={playerColors.get(owner) ?? UNKNOWN_OWNER_COLOR}
+              fillOpacity={HATCH_OPACITY}
+            />
+          </pattern>
+        ))}
+      </defs>
+      {cells.map(({ territory, wash, occupier }) => {
+        const d = pointsToPath(territory.points)
+        return (
+          <g key={territory.id}>
+            {wash && (
+              <path
+                data-territory-color={territory.id}
+                d={d}
+                fill={wash}
+                fillOpacity={COLOR_WASH_OPACITY}
+                stroke="none"
+              />
+            )}
+            {occupier && (
+              <path
+                data-territory-occupied={territory.id}
+                d={d}
+                fill={`url(#${hatchId(occupier)})`}
+                stroke="none"
+              />
+            )}
+          </g>
+        )
+      })}
+    </g>
+  )
+}
 
 /**
  * A shield on every controlled territory, in its controller's arms; greyed
