@@ -26,6 +26,7 @@ import { joinNodes, richTranslate } from '@/lib/rich-text'
 import { formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { useMediaQuery } from '@/lib/use-media-query'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type {
   FiefTitle,
@@ -294,11 +295,12 @@ function territoryLabel(
   map: MapData | null,
   id: string | undefined,
   t: Translate,
+  Ref: typeof TerritoryRef | typeof RegionRef = TerritoryRef,
 ): ReactNode {
   if (!id) return '—'
   const territory = map?.territories.find((candidate) => candidate.id === id)
   if (!territory) return t('reports.unknownTerritory')
-  return <TerritoryRef id={territory.id} name={territory.name} />
+  return <Ref id={territory.id} name={territory.name} />
 }
 
 /** Territories of the region seeded at `seed`, or the seed alone off the map. */
@@ -312,10 +314,7 @@ function regionLabel(
   seed: string | undefined,
   t: Translate,
 ): ReactNode {
-  if (!seed) return '—'
-  const territory = map?.territories.find((candidate) => candidate.id === seed)
-  if (!territory) return t('reports.unknownTerritory')
-  return <RegionRef id={territory.id} name={territory.name} />
+  return territoryLabel(map, seed, t, RegionRef)
 }
 
 // Display label of a noble: full name first, trigram as a complement, linked
@@ -1055,10 +1054,16 @@ function groupSeasonEffects(
   effects.forEach((effect, index) => {
     const line = {
       ...seasonEffectLine(effect, map, t, index),
+      // A region-level effect lights its whole region; a line about one
+      // territory keeps to it (and the seat that names its region).
       territories: [
         effect.territory,
         effect.target,
-        ...(effect.region ? regionTerritories(map, effect.region) : []),
+        ...(effect.region
+          ? effect.territory
+            ? [effect.region]
+            : regionTerritories(map, effect.region)
+          : []),
       ].filter((id): id is string => Boolean(id)),
     }
     switch (effect.kind) {
@@ -1906,6 +1911,8 @@ function orderArrows(
 
 /** Territory an army set out from this turn, read from its order. */
 function armyOrigin(report: TurnReport, army: string | undefined): string | undefined {
+  // A castle-only defense has no army; hidden orders have none either.
+  if (!army) return undefined
   return report.orders.find((order) => order.army === army && order.source)?.source
 }
 
@@ -1963,14 +1970,17 @@ function combatDetails(
       <> · {territoryLabel(map, from, t)}</>
     ) : null
   }
-  const owner = (army: string | undefined, fallback?: string) =>
-    fallback ??
-    report.players.flatMap((player) => player.armies).find((entry) => entry.id === army)
-      ?.owner ??
-    report.orders.find((order) => order.army === army)?.owner ??
-    t('reports.unknownPlayer')
+  // The owner of an army, from the combat itself or else the report; a castle
+  // defending alone has no army and no owner.
+  const owner = (army: string | undefined, known?: string): string | undefined =>
+    known ||
+    (army
+      ? (report.players.flatMap((player) => player.armies).find((entry) => entry.id === army)
+          ?.owner ?? report.orders.find((order) => order.army === army)?.owner)
+      : undefined)
   const cut = new Set(combat.cutSupporters ?? [])
-  const supporters = [...(combat.supporters ?? []), ...(combat.cutSupporters ?? [])]
+  // A cut support still applies, so the engine lists it in both lists.
+  const supporters = [...new Set([...(combat.supporters ?? []), ...cut])]
   const bySide = (side: 'attack' | 'defense' | undefined) =>
     supporters.filter((army) => supportSide(report, army, combat) === side)
   const supportList = (title: string, armies: string[]) =>
@@ -1980,7 +1990,7 @@ function combatDetails(
         <ul className="list-disc pl-4">
           {armies.map((army) => (
             <li key={army}>
-              {owner(army)}
+              {owner(army) ?? t('reports.unknownPlayer')}
               {origin(army)}
               {cut.has(army) && t('reports.combat.cut')}
             </li>
@@ -2016,7 +2026,7 @@ function combatDetails(
           <ul className="list-disc pl-4">
             {attackers.map((contender, index) => (
               <li key={contender.army ?? index}>
-                {owner(contender.army, contender.owner)}
+                {owner(contender.army, contender.owner) ?? t('reports.unknownPlayer')}
                 {origin(contender.army)} · {force(contender)}
               </li>
             ))}
@@ -2029,7 +2039,10 @@ function combatDetails(
           <ul className="list-disc pl-4">
             {defenders.map((contender, index) => (
               <li key={contender.army ?? index}>
-                {owner(contender.army, contender.owner)} · {force(contender)}
+                {owner(contender.army, contender.owner)
+                  ? `${owner(contender.army, contender.owner)} · `
+                  : ''}
+                {force(contender)}
               </li>
             ))}
           </ul>
@@ -2117,6 +2130,9 @@ function EventCard({
   const titleId = useId()
   const moreId = useId()
   const [open, setOpen] = useState(false)
+  // A touch screen has no hover: it emulates one on a tap and never takes it
+  // back, which would leave the map lit.
+  const canHover = useMediaQuery('(hover: hover)')
   const light = useMapHighlight()
   const lit = marks?.territories.length ? marks : null
   // A name inside the card lights its own territory: the card leaves it be.
@@ -2134,18 +2150,19 @@ function EventCard({
       // Hovering or focusing the card lights all its territories; a name
       // inside it lights its own, and the card's set comes back when the
       // pointer leaves that name.
-      onMouseOver={lightAll}
+      onMouseOver={canHover ? lightAll : undefined}
       onFocus={lightAll}
       onMouseLeave={lightOff}
       onBlur={lightOff}
-      // A click on the card's own text unfolds it; links and buttons keep
-      // their own action.
+      // A click on the card's own text unfolds it; links, buttons, the
+      // unfolded detail and a text selection keep their own behaviour.
       onClick={
         more
           ? (event) => {
               if (
                 event.target instanceof Element &&
-                event.target.closest('button, a, summary') === null
+                event.target.closest('button, a, summary, [data-event-more]') === null &&
+                !window.getSelection()?.toString()
               ) {
                 setOpen((value) => !value)
               }

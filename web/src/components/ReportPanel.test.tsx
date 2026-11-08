@@ -1023,9 +1023,9 @@ describe('ReportPanel event cards', () => {
         },
       ],
       orders: [
-        { army: 'A1', type: 'support', source: 'ROS', targets: ['A2', 'CHA'], outcome: 'success' },
+        { army: 'A1', type: 'support', source: 'ROS', targets: ['BRU', 'CHA'], outcome: 'success' },
         { army: 'A2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
-        { army: 'A4', type: 'support', source: 'VAL', targets: ['A3', 'CHA'], outcome: 'success' },
+        { army: 'A4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
       ],
     }
     render(
@@ -1071,7 +1071,7 @@ describe('ReportPanel event cards', () => {
         },
       ],
       orders: [
-        { army: 'A1', owner: 'P1', type: 'support', source: 'ROS', targets: ['A2', 'CHA'], outcome: 'success' },
+        { army: 'A1', owner: 'P1', type: 'support', source: 'ROS', targets: ['BRU', 'CHA'], outcome: 'success' },
         { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
         { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
       ],
@@ -1106,6 +1106,93 @@ describe('ReportPanel event cards', () => {
     expect(card.querySelector('[data-event-more]')).toBeNull()
     fireEvent.click(within(card).getByRole('button', { name: 'Show' }))
     expect(card.querySelector('[data-event-more]')).toBeNull()
+  })
+
+  it('lists a cut support once, and a castle defending alone without an owner', () => {
+    const fight: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'CHA',
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 3, defender: false },
+            // A castle defends alone: no army, no owner.
+            { force: 2, defender: true },
+          ],
+          // A cut support still applies: the engine lists it in both lists.
+          supporters: ['A4'],
+          cutSupporters: ['A4'],
+          standoff: false,
+        },
+      ],
+      orders: [
+        { type: 'hold', source: 'ROS', outcome: 'success', visibility: 'hidden' },
+        { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
+        { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={fight} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = document.querySelector(
+      '[data-report-category="combats"] [data-event-card]',
+    ) as HTMLElement
+    fireEvent.click(within(card).getByRole('button', { name: 'Show the combat details' }))
+    const more = card.querySelector('[data-event-more]') as HTMLElement
+    expect(within(more).getAllByText(/· cut/)).toHaveLength(1)
+    const defender = within(more).getByRole('heading', { name: 'Defender' }).parentElement
+    expect(defender).not.toHaveTextContent('Unknown player')
+    expect(defender).toHaveTextContent('force 2')
+    // The hidden order is not taken for the castle's.
+    expect(defender).not.toHaveTextContent('ROS')
+
+    // A click inside the unfolded detail does not fold the card.
+    fireEvent.click(more)
+    expect(card.querySelector('[data-event-more]')).not.toBeNull()
+  })
+
+  it('keeps a line about one territory to it, and lights a regional effect whole', () => {
+    const value = { ...links, regionTerritories: () => ['ROS', 'BRU', 'CHA'] }
+    const regional: MapData = {
+      ...map,
+      regions: [{ id: 'R1', seed: 'ROS', territories: ['ROS', 'BRU', 'CHA'] }],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={value}>
+          <ReportPanel
+            report={{
+              ...report,
+              seasonEffects: [
+                { kind: 'calamity_canceled', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
+                { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', territory: 'BRU', productionLost: 1 },
+              ],
+            }}
+            map={regional}
+            players={players}
+          />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+    const [regionCard, territoryCard] = Array.from(
+      events.querySelectorAll<HTMLElement>('[data-event-card]'),
+    )
+    value.highlight.mockClear()
+    fireEvent.focus(within(regionCard).getByRole('button', { name: 'Show' }))
+    expect(value.highlight).toHaveBeenLastCalledWith(
+      expect.objectContaining({ territories: ['ROS', 'BRU', 'CHA'] }),
+    )
+    fireEvent.focus(within(territoryCard).getByRole('button', { name: 'Show' }))
+    expect(value.highlight).toHaveBeenLastCalledWith(
+      expect.objectContaining({ territories: ['BRU', 'ROS'] }),
+    )
   })
 
   it('lights the whole region named by a scheduled card', () => {
