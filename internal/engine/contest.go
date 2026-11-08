@@ -149,6 +149,7 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 		if result.defenderID != "" || result.castleBonus > 0 {
 			result.contenders = append(result.contenders, CombatContender{
 				ArmyID: result.defenderID, OwnerID: defenderOwnerID, Force: result.defense,
+				Supported:  result.defense - result.baseDefense,
 				NobleBonus: defenderNobleBonus, Defender: true,
 			})
 		}
@@ -162,7 +163,8 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 			attacker := ctx.startArmiesByID[armyID]
 			result.contenders = append(result.contenders, CombatContender{
 				ArmyID: armyID, OwnerID: attacker.OwnerID, Force: force, NobleBonus: nobleCommandBonus(ctx, attacker),
-				Tunnel: ctx.tunneledAttacks[armyID],
+				Supported: force - ctx.attacks[armyID].size - nobleCommandBonus(ctx, attacker),
+				Tunnel:    ctx.tunneledAttacks[armyID],
 			})
 			if adj.moves(armyID) {
 				result.winnerID = armyID

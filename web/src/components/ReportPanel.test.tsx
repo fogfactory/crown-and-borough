@@ -883,6 +883,7 @@ describe('ReportPanel event cards', () => {
     follow: vi.fn(),
     showEvent: vi.fn(),
     highlight: vi.fn(),
+    regionTerritories: (seed: string) => [seed],
     hasTerritory: () => true,
     territoryName: () => undefined,
     nobleName: () => undefined,
@@ -938,6 +939,317 @@ describe('ReportPanel event cards', () => {
         ['ROS', 'CHA'],
       ],
     })
+  })
+
+  it('lights every territory of an event card while it is hovered or focused', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const orders = document.querySelector('[data-report-category="orders"]') as HTMLElement
+    const card = within(orders).getAllByRole('button', { name: 'Show' })[0].closest(
+      '[data-event-card]',
+    ) as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(card)
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['ROS', 'BRU', 'CHA'],
+      arrows: [
+        ['BRU', 'CHA'],
+        ['ROS', 'CHA'],
+      ],
+    })
+    fireEvent.mouseLeave(card)
+    expect(links.highlight).toHaveBeenLastCalledWith(null)
+    fireEvent.focus(within(card).getByRole('button', { name: 'Show' }))
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['ROS', 'BRU', 'CHA'],
+      arrows: [
+        ['BRU', 'CHA'],
+        ['ROS', 'CHA'],
+      ],
+    })
+  })
+
+  it('lights the whole region of a regional effect and the supply line of a famine', () => {
+    const regional: MapData = {
+      ...map,
+      regions: [{ id: 'R1', seed: 'ROS', territories: ['ROS', 'BRU', 'CHA'] }],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={regional} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+    const plague = within(events).getAllByRole('button', { name: 'Show' })[0]
+    links.highlight.mockClear()
+    fireEvent.focus(plague)
+    expect(links.highlight).toHaveBeenLastCalledWith(
+      expect.objectContaining({ territories: expect.arrayContaining(['ROS', 'BRU', 'CHA']) }),
+    )
+
+    const supplied = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-event-card]'),
+    ).find((card) => card.textContent?.includes('source ROS')) as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(supplied)
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['ROS', 'BRU'],
+      arrows: [['ROS', 'BRU']],
+    })
+  })
+
+  it('lights the attackers and supporters of a combat with arrows to the fight', () => {
+    const fight: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'CHA',
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 3, defender: false },
+            { army: 'A3', owner: 'P3', force: 2, defender: true },
+          ],
+          supporters: ['A1'],
+          cutSupporters: ['A4'],
+          standoff: false,
+        },
+      ],
+      orders: [
+        { army: 'A1', type: 'support', source: 'ROS', targets: ['BRU', 'CHA'], outcome: 'success' },
+        { army: 'A2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
+        { army: 'A4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={fight} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = document.querySelector(
+      '[data-report-category="combats"] [data-event-card]',
+    ) as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(card)
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['CHA', 'BRU', 'ROS', 'VAL'],
+      arrows: [
+        ['BRU', 'CHA'],
+        ['ROS', 'CHA'],
+        ['VAL', 'CHA'],
+      ],
+    })
+  })
+
+  it('unfolds a combat card into its forces, supports and result', () => {
+    const fight: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'CHA',
+          baseDefense: 1,
+          defense: 2,
+          castleBonus: 1,
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 3, nobleBonus: 1, defender: false },
+            { army: 'A3', owner: 'P3', force: 3, supported: 2, defender: true },
+          ],
+          supporters: ['A1'],
+          cutSupporters: ['A4'],
+          winner: 'A2',
+          standoff: false,
+        },
+      ],
+      orders: [
+        { army: 'A1', owner: 'P1', type: 'support', source: 'ROS', targets: ['BRU', 'CHA'], outcome: 'success' },
+        { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
+        { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={fight} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = document.querySelector(
+      '[data-report-category="combats"] [data-event-card]',
+    ) as HTMLElement
+    expect(card.querySelector('[data-event-more]')).toBeNull()
+    const toggle = within(card).getByRole('button', { name: 'Show the combat details' })
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const more = card.querySelector('[data-event-more]') as HTMLElement
+    for (const heading of ['Attackers', 'Defender', 'Attack support', 'Defense support', 'Result']) {
+      expect(within(more).getByRole('heading', { name: heading })).toBeInTheDocument()
+    }
+    expect(more).toHaveTextContent('P2')
+    expect(more).toHaveTextContent('force 3 (+1 noble)')
+    expect(more).toHaveTextContent('fortification +1')
+    expect(more).toHaveTextContent('force 3 (1 own + 2 from supports)')
+    expect(more).toHaveTextContent('· cut')
+
+    // A click on the card's own text folds it back; its buttons act alone.
+    fireEvent.click(card.querySelector('.font-medium') as HTMLElement)
+    expect(card.querySelector('[data-event-more]')).toBeNull()
+    fireEvent.click(within(card).getByRole('button', { name: 'Show' }))
+    expect(card.querySelector('[data-event-more]')).toBeNull()
+  })
+
+  it('lists a cut support once, and a castle defending alone without an owner', () => {
+    const fight: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'CHA',
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 3, defender: false },
+            // A castle defends alone: no army, no owner.
+            { force: 2, defender: true },
+          ],
+          // A cut support still applies: the engine lists it in both lists.
+          supporters: ['A4'],
+          cutSupporters: ['A4'],
+          standoff: false,
+        },
+      ],
+      orders: [
+        { type: 'hold', source: 'ROS', outcome: 'success', visibility: 'hidden' },
+        { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
+        { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={fight} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = document.querySelector(
+      '[data-report-category="combats"] [data-event-card]',
+    ) as HTMLElement
+    fireEvent.click(within(card).getByRole('button', { name: 'Show the combat details' }))
+    const more = card.querySelector('[data-event-more]') as HTMLElement
+    expect(within(more).getAllByText(/· cut/)).toHaveLength(1)
+    const defender = within(more).getByRole('heading', { name: 'Defender' }).parentElement
+    expect(defender).not.toHaveTextContent('Unknown player')
+    expect(defender).toHaveTextContent('force 2')
+    // The hidden order is not taken for the castle's.
+    expect(defender).not.toHaveTextContent('ROS')
+
+    // A click inside the unfolded detail does not fold the card.
+    fireEvent.click(more)
+    expect(card.querySelector('[data-event-more]')).not.toBeNull()
+  })
+
+  it('keeps a line about one territory to it, and lights a regional effect whole', () => {
+    const value = { ...links, regionTerritories: () => ['ROS', 'BRU', 'CHA'] }
+    const regional: MapData = {
+      ...map,
+      regions: [{ id: 'R1', seed: 'ROS', territories: ['ROS', 'BRU', 'CHA'] }],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={value}>
+          <ReportPanel
+            report={{
+              ...report,
+              seasonEffects: [
+                { kind: 'calamity_canceled', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
+                { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', territory: 'BRU', productionLost: 1 },
+              ],
+            }}
+            map={regional}
+            players={players}
+          />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+    const [regionCard, territoryCard] = Array.from(
+      events.querySelectorAll<HTMLElement>('[data-event-card]'),
+    )
+    value.highlight.mockClear()
+    fireEvent.focus(within(regionCard).getByRole('button', { name: 'Show' }))
+    expect(value.highlight).toHaveBeenLastCalledWith(
+      expect.objectContaining({ territories: ['ROS', 'BRU', 'CHA'] }),
+    )
+    fireEvent.focus(within(territoryCard).getByRole('button', { name: 'Show' }))
+    expect(value.highlight).toHaveBeenLastCalledWith(
+      expect.objectContaining({ territories: ['BRU', 'ROS'] }),
+    )
+  })
+
+  it('lights the whole region named by a scheduled card', () => {
+    const value = { ...links, regionTerritories: () => ['ROS', 'BRU', 'CHA'] }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={value}>
+          <ReportPanel
+            report={{
+              ...report,
+              cards: [
+                {
+                  eventType: 'calamity_scheduled',
+                  kind: 'bad_weather',
+                  region: 'ROS',
+                  season: 'spring',
+                  outcome: 'success',
+                },
+              ],
+            }}
+            map={map}
+            players={players}
+          />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const cards = document.querySelector('[data-report-cards]') as HTMLElement
+    value.highlight.mockClear()
+    fireEvent.mouseEnter(within(cards).getByRole('button', { name: /Rosemont/ }))
+    expect(value.highlight).toHaveBeenLastCalledWith(['ROS', 'BRU', 'CHA'])
+  })
+
+  it('leaves a name inside an event card to light its own territory', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = Array.from(document.querySelectorAll('[data-event-card]')).find(
+      (candidate) =>
+        candidate.querySelector('[data-map-link]') &&
+        candidate.querySelector('[data-show-event]'),
+    ) as HTMLElement
+    const name = card.querySelector('[data-map-link]') as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(name)
+    fireEvent.focus(name)
+    const territory = name.getAttribute('data-map-link')
+    expect(links.highlight.mock.calls.length).toBeGreaterThan(0)
+    for (const [lit] of links.highlight.mock.calls) expect([lit].flat()).toEqual([territory])
+    links.highlight.mockClear()
+    fireEvent.mouseOver(card)
+    expect(links.highlight).toHaveBeenCalledTimes(1)
   })
 
   it('sets the rumors apart, in italics', () => {
