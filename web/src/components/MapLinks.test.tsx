@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   MapLinksProvider,
   NobleRef,
+  RegionRef,
   TerritoryRef,
   type MapLinks,
 } from '@/components/MapLinks'
@@ -15,6 +16,7 @@ function links(overrides: Partial<MapLinks> = {}): MapLinks {
     follow: vi.fn(),
     showEvent: vi.fn(),
     highlight: vi.fn(),
+    regionTerritories: (seed: string) => [seed],
     hasTerritory: (id) => ['RVE', 'RVN'].includes(id),
     territoryName: (id) => ({ RVE: 'Rochevent', RVN: 'Ravinval' })[id],
     nobleName: (code) => ({ RAI: 'Rainaud de Rochevent', DED: 'Gautier' })[code],
@@ -31,6 +33,19 @@ function renderWith(value: MapLinks, node: React.ReactNode) {
     </LanguageProvider>,
   )
 }
+
+describe('RegionRef', () => {
+  it('lights the whole region on hover and follows to its seed', () => {
+    const value = links({ regionTerritories: () => ['RVE', 'RVN', 'CHA'] })
+    renderWith(value, <RegionRef id="RVE" />)
+
+    const link = screen.getByRole('button', { name: 'Rochevent (RVE)' })
+    fireEvent.mouseEnter(link)
+    expect(value.highlight).toHaveBeenLastCalledWith(['RVE', 'RVN', 'CHA'])
+    fireEvent.click(link)
+    expect(value.focus).toHaveBeenCalledWith('RVE', undefined)
+  })
+})
 
 describe('TerritoryRef', () => {
   it('writes the name then the code, and links to the map', () => {

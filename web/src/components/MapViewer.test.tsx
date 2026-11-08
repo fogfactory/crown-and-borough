@@ -1824,6 +1824,26 @@ describe('MapViewer selection overlay', () => {
   })
 })
 
+describe('MapViewer hovered links and cards', () => {
+  it('lights the hovered territories and draws the arrows between them', () => {
+    const { container } = render(
+      <MapViewer
+        map={map}
+        state={state}
+        highlighted={{ territories: ['ROS', 'BRU'], arrows: [['ROS', 'BRU']] }}
+      />,
+    )
+
+    expect(container.querySelectorAll('[data-highlighted-territory]')).toHaveLength(2)
+    expect(container.querySelector('[data-event-arrow="ROS-BRU"]')).not.toBeNull()
+    const arrow = container.querySelector('[data-event-arrow="ROS-BRU"]')
+    // The arrow head's marker is defined in the map.
+    const markerId = arrow?.getAttribute('marker-end')?.match(/^url\(#(.+)\)$/)?.[1]
+    expect(markerId).toBeTruthy()
+    expect(container.querySelector(`marker[id="${markerId}"]`)).not.toBeNull()
+  })
+})
+
 describe('MapViewer report events', () => {
   it('outlines the event territories and arrows its moves', () => {
     const { container } = render(

@@ -14,6 +14,7 @@ const links: MapLinks = {
   follow: vi.fn(),
   showEvent: vi.fn(),
   highlight: vi.fn(),
+  regionTerritories: (seed) => [seed],
   hasTerritory: (id) => ['ROS', 'RVN'].includes(id),
   territoryName: (id) => ({ ROS: 'Rosemont', RVN: 'Ravinval' })[id],
   nobleName: () => undefined,
