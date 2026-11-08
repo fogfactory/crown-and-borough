@@ -513,7 +513,7 @@ function AppContent() {
           }
           selectedId={selectedId}
           frame={linkState.frame}
-          highlightedId={linkState.highlightedId}
+          highlighted={linkState.highlighted}
           selectedNoble={linkState.selectedNoble}
           eventMarks={linkState.eventMarks}
           intentions={intentions}

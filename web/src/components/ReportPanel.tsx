@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import {
   IconBell,
@@ -6,6 +6,7 @@ import {
   IconBuildingChurch,
   IconBuildingWarehouse,
   IconBuildingWindTurbine,
+  IconChevronDown,
   IconCloudStorm,
   IconCoins,
   IconCrown,
@@ -18,13 +19,14 @@ import {
   IconSwords,
 } from '@tabler/icons-react'
 
-import { NobleRef, TerritoryRef, useMapLinks } from '@/components/MapLinks'
+import { NobleRef, RegionRef, TerritoryRef, useMapHighlight, useMapLinks } from '@/components/MapLinks'
 import type { EventMarks } from '@/lib/map-frame'
 import { formatOrderLabel } from '@/lib/order-label'
 import { joinNodes, richTranslate } from '@/lib/rich-text'
 import { formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { useMediaQuery } from '@/lib/use-media-query'
 import type { MessageKey, Translate } from '@/i18n/messages'
 import type {
   FiefTitle,
@@ -35,6 +37,7 @@ import type {
   PlayerId,
   ReportArmy,
   CardReport,
+  CombatReport,
   FiefReport,
   MarriageReport,
   IncomeReport,
@@ -292,11 +295,26 @@ function territoryLabel(
   map: MapData | null,
   id: string | undefined,
   t: Translate,
+  Ref: typeof TerritoryRef | typeof RegionRef = TerritoryRef,
 ): ReactNode {
   if (!id) return '—'
   const territory = map?.territories.find((candidate) => candidate.id === id)
   if (!territory) return t('reports.unknownTerritory')
-  return <TerritoryRef id={territory.id} name={territory.name} />
+  return <Ref id={territory.id} name={territory.name} />
+}
+
+/** Territories of the region seeded at `seed`, or the seed alone off the map. */
+function regionTerritories(map: MapData | null, seed: string): string[] {
+  return map?.regions?.find((region) => region.seed === seed)?.territories ?? [seed]
+}
+
+// A region is named by its seed territory; hovering the link lights it all.
+function regionLabel(
+  map: MapData | null,
+  seed: string | undefined,
+  t: Translate,
+): ReactNode {
+  return territoryLabel(map, seed, t, RegionRef)
 }
 
 // Display label of a noble: full name first, trigram as a complement, linked
@@ -657,7 +675,7 @@ function fiefEventLabel(
 
 function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): ReactNode {
   const label = formatCardLabel(card.kind, t)
-  const region = territoryLabel(map, card.region, t)
+  const region = regionLabel(map, card.region, t)
   const player = card.player ?? t('reports.unknownPlayer')
   switch (card.eventType) {
     case 'deck_draw':
@@ -704,7 +722,7 @@ function seasonEffectLabel(
   map: MapData | null,
   t: Translate,
 ): ReactNode {
-  const region = territoryLabel(map, effect.region, t)
+  const region = regionLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   switch (effect.kind) {
     case 'calamity_canceled':
@@ -740,7 +758,7 @@ function seasonEffectLine(
   t: Translate,
   index: number,
 ): SeasonEffectLine {
-  const region = territoryLabel(map, effect.region, t)
+  const region = regionLabel(map, effect.region, t)
   const card = effect.cardKind ? formatCardLabel(effect.cardKind, t) : ''
   const key = `${effect.kind}-${effect.cardKind ?? ''}-${index}`
   const owner = effect.owner ?? t('reports.unknownPlayer')
@@ -1036,9 +1054,17 @@ function groupSeasonEffects(
   effects.forEach((effect, index) => {
     const line = {
       ...seasonEffectLine(effect, map, t, index),
-      territories: [effect.territory, effect.target, effect.region].filter(
-        (id): id is string => Boolean(id),
-      ),
+      // A region-level effect lights its whole region; a line about one
+      // territory keeps to it (and the seat that names its region).
+      territories: [
+        effect.territory,
+        effect.target,
+        ...(effect.region
+          ? effect.territory
+            ? [effect.region]
+            : regionTerritories(map, effect.region)
+          : []),
+      ].filter((id): id is string => Boolean(id)),
     }
     switch (effect.kind) {
       case 'calamity_applied':
@@ -1174,24 +1200,29 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         }`,
                     )
                     .join(' · ')
+            const detailText = (entry: CombatReport): ReactNode =>
+              entry.visibility === 'general'
+                ? entry.summary
+                : entry.standoff
+                  ? t('reports.standoff')
+                  : entry.winner
+                    ? richTranslate(t, 'reports.victory', {
+                        army: armyDescription(report, map, entry.winner, t),
+                      })
+                    : (reportReason(entry.reason, t) ?? entry.reason)
             return (
               <EventCard
                 key={`${combat.territory}-${index}`}
                 icon={<IconSwords />}
                 title={territoryLabel(map, combat.territory, t)}
-                detail={
-                  combat.visibility === 'general'
-                    ? combat.summary
-                    : combat.standoff
-                      ? t('reports.standoff')
-                      : combat.winner
-                        ? richTranslate(t, 'reports.victory', {
-                            army: armyDescription(report, map, combat.winner, t),
-                          })
-                        : (reportReason(combat.reason, t) ?? combat.reason)
-                }
+                detail={detailText(combat)}
                 aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
-                marks={{ territories: [combat.territory] }}
+                marks={combatMarks(report, combat)}
+                more={
+                  combat.visibility === 'general'
+                    ? undefined
+                    : combatDetails(report, map, combat, detailText(combat), t)
+                }
               />
             )
           })}
@@ -1308,7 +1339,16 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   )}
                 </>
               }
-              marks={{ territories: [line.territory] }}
+              marks={{
+                territories: line.source
+                  ? [line.source, line.territory]
+                  : [line.territory],
+                // The supply flows from its source to the army it feeds.
+                arrows:
+                  line.source && line.source !== line.territory
+                    ? [[line.source, line.territory]]
+                    : undefined,
+              }}
             />
           ))}
           {fiefs.map((fief, index) => (
@@ -1869,6 +1909,166 @@ function orderArrows(
   return targets.map((target): [string, string] => [source, target])
 }
 
+/** Territory an army set out from this turn, read from its order. */
+function armyOrigin(report: TurnReport, army: string | undefined): string | undefined {
+  // A castle-only defense has no army; hidden orders have none either.
+  if (!army) return undefined
+  return report.orders.find((order) => order.army === army && order.source)?.source
+}
+
+/**
+ * What a combat draws: its territory, and every force committed to it, each
+ * on the territory it came from with an arrow to the fight. The attackers,
+ * the supporters whose help counted and those whose support was cut.
+ */
+function combatMarks(report: TurnReport, combat: CombatReport): EventMarks {
+  const territories = new Set([combat.territory])
+  const arrows: Array<[string, string]> = []
+  const armies = [
+    ...(combat.contenders ?? [])
+      .filter((contender) => !contender.defender)
+      .map((contender) => contender.army),
+    ...(combat.supporters ?? []),
+    ...(combat.cutSupporters ?? []),
+  ]
+  for (const army of new Set(armies)) {
+    const from = armyOrigin(report, army)
+    if (!from || from === combat.territory) continue
+    territories.add(from)
+    arrows.push([from, combat.territory])
+  }
+  return { territories: [...territories], arrows: arrows.length > 0 ? arrows : undefined }
+}
+
+/**
+ * Which side a supporter backs, read from its order: `S supported dest`
+ * backs the attack into dest, `S territory` backs the defense of territory.
+ */
+function supportSide(
+  report: TurnReport,
+  army: string,
+  combat: CombatReport,
+): 'attack' | 'defense' | undefined {
+  const targets = report.orders.find((order) => order.army === army)?.targets ?? []
+  if (targets.length > 1 && targets[1] === combat.territory) return 'attack'
+  if (targets.length === 1 && targets[0] === combat.territory) return 'defense'
+  return undefined
+}
+
+/** The fold-out of a combat card: each side's forces, their supports, the result. */
+function combatDetails(
+  report: TurnReport,
+  map: MapData | null,
+  combat: CombatReport,
+  result: ReactNode,
+  t: Translate,
+): ReactNode {
+  const contenders = combat.contenders ?? []
+  const origin = (army: string | undefined) => {
+    const from = armyOrigin(report, army)
+    return from && from !== combat.territory ? (
+      <> · {territoryLabel(map, from, t)}</>
+    ) : null
+  }
+  // The owner of an army, from the combat itself or else the report; a castle
+  // defending alone has no army and no owner.
+  const owner = (army: string | undefined, known?: string): string | undefined =>
+    known ||
+    (army
+      ? (report.players.flatMap((player) => player.armies).find((entry) => entry.id === army)
+          ?.owner ?? report.orders.find((order) => order.army === army)?.owner)
+      : undefined)
+  const cut = new Set(combat.cutSupporters ?? [])
+  // A cut support still applies, so the engine lists it in both lists.
+  const supporters = [...new Set([...(combat.supporters ?? []), ...cut])]
+  const bySide = (side: 'attack' | 'defense' | undefined) =>
+    supporters.filter((army) => supportSide(report, army, combat) === side)
+  const supportList = (title: string, armies: string[]) =>
+    armies.length > 0 && (
+      <section>
+        <h5 className="font-semibold">{title}</h5>
+        <ul className="list-disc pl-4">
+          {armies.map((army) => (
+            <li key={army}>
+              {owner(army) ?? t('reports.unknownPlayer')}
+              {origin(army)}
+              {cut.has(army) && t('reports.combat.cut')}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  const attackers = contenders.filter((contender) => !contender.defender)
+  const defenders = contenders.filter((contender) => contender.defender)
+  const force = (contender: (typeof contenders)[number]) =>
+    [
+      t(contender.supported ? 'reports.combat.forceSupported' : 'reports.combat.force', {
+        force: contender.force ?? '—',
+        base: (contender.force ?? 0) - (contender.supported ?? 0),
+        support: contender.supported ?? 0,
+      }) +
+        (contender.nobleBonus ? t('reports.nobleBonus', { bonus: contender.nobleBonus }) : '') +
+        (contender.tunnel ? t('reports.tunnelAttack') : ''),
+      contender.defender && combat.castleBonus
+        ? t('reports.combat.castleBonus', { bonus: combat.castleBonus })
+        : '',
+      contender.tunnelForce !== undefined
+        ? t('reports.tunnelDefense', { force: contender.tunnelForce }).trim()
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  return (
+    <div className="space-y-2">
+      {attackers.length > 0 && (
+        <section>
+          <h5 className="font-semibold">{t('reports.combat.attackers')}</h5>
+          <ul className="list-disc pl-4">
+            {attackers.map((contender, index) => (
+              <li key={contender.army ?? index}>
+                {owner(contender.army, contender.owner) ?? t('reports.unknownPlayer')}
+                {origin(contender.army)} · {force(contender)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {defenders.length > 0 && (
+        <section>
+          <h5 className="font-semibold">{t('reports.combat.defenders')}</h5>
+          <ul className="list-disc pl-4">
+            {defenders.map((contender, index) => (
+              <li key={contender.army ?? index}>
+                {owner(contender.army, contender.owner)
+                  ? `${owner(contender.army, contender.owner)} · `
+                  : ''}
+                {force(contender)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {supportList(t('reports.combat.supportAttack'), bySide('attack'))}
+      {supportList(t('reports.combat.supportDefense'), bySide('defense'))}
+      {supportList(t('reports.combat.supportOther'), bySide(undefined))}
+      <section>
+        <h5 className="font-semibold">{t('reports.combat.result')}</h5>
+        <p>
+          {result}
+          {combat.dislodged && (
+            <>
+              {' · '}
+              {richTranslate(t, 'reports.combat.dislodged', {
+                army: armyDescription(report, map, combat.dislodged, t),
+              })}
+            </>
+          )}
+        </p>
+      </section>
+    </div>
+  )
+}
+
 /** A category of the report; the caller leaves out an empty one. */
 function EventCategory({
   id,
@@ -1912,6 +2112,7 @@ function EventCard({
   owner,
   tone = 'plain',
   marks,
+  more,
 }: {
   icon: ReactNode
   title: ReactNode
@@ -1921,14 +2122,54 @@ function EventCard({
   owner?: ReactNode
   tone?: keyof typeof CARD_TONES
   marks?: EventMarks
+  /** Folded under the card: a click on the card, or its chevron, unfolds it. */
+  more?: ReactNode
 }) {
   const { t } = useLanguage()
   const links = useMapLinks()
   const titleId = useId()
+  const moreId = useId()
+  const [open, setOpen] = useState(false)
+  // A touch screen has no hover: it emulates one on a tap and never takes it
+  // back, which would leave the map lit.
+  const canHover = useMediaQuery('(hover: hover)')
+  const light = useMapHighlight()
+  const lit = marks?.territories.length ? marks : null
+  // A name inside the card lights its own territory: the card leaves it be.
+  const onName = (event: SyntheticEvent) =>
+    event.target instanceof Element && event.target.closest('[data-map-link]') !== null
+  const lightAll = (event: SyntheticEvent) => {
+    if (lit && !onName(event)) light.on(lit)
+  }
+  const lightOff = () => {
+    if (lit) light.off()
+  }
   return (
     <article
       data-event-card
-      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${CARD_TONES[tone]}`}
+      // Hovering or focusing the card lights all its territories; a name
+      // inside it lights its own, and the card's set comes back when the
+      // pointer leaves that name.
+      onMouseOver={canHover ? lightAll : undefined}
+      onFocus={lightAll}
+      onMouseLeave={lightOff}
+      onBlur={lightOff}
+      // A click on the card's own text unfolds it; links, buttons, the
+      // unfolded detail and a text selection keep their own behaviour.
+      onClick={
+        more
+          ? (event) => {
+              if (
+                event.target instanceof Element &&
+                event.target.closest('button, a, summary, [data-event-more]') === null &&
+                !window.getSelection()?.toString()
+              ) {
+                setOpen((value) => !value)
+              }
+            }
+          : undefined
+      }
+      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${CARD_TONES[tone]} ${more ? 'cursor-pointer' : ''}`}
     >
       <span
         aria-hidden="true"
@@ -1944,9 +2185,34 @@ function EventCard({
           </div>
         </div>
         {detail && <div className="mt-0.5 text-xs opacity-80">{detail}</div>}
+        {more && open && (
+          <div
+            id={moreId}
+            data-event-more
+            className="mt-2 cursor-default border-t border-current/20 pt-2 text-xs"
+          >
+            {more}
+          </div>
+        )}
       </div>
       {aside && <div className="shrink-0 text-right text-xs">{aside}</div>}
-      {marks && links && marks.territories.length > 0 && (
+      {more && (
+        <button
+          type="button"
+          data-event-toggle
+          aria-expanded={open}
+          aria-controls={open ? moreId : undefined}
+          aria-label={t(open ? 'reports.combat.collapse' : 'reports.combat.expand')}
+          className="shrink-0 rounded p-0.5 max-lg:min-h-11"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <IconChevronDown
+            aria-hidden="true"
+            className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+      )}
+      {marks && links && lit && (
         <button
           type="button"
           data-show-event

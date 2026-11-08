@@ -154,11 +154,14 @@ const (
 // CombatContender is one independent attacking or defending force in a combat
 // event. An empty ArmyID denotes castle-only defense.
 type CombatContender struct {
-	ArmyID     models.ArmyID   `json:"army,omitempty"`
-	OwnerID    models.PlayerID `json:"owner,omitempty"`
-	Force      int             `json:"force"`
-	NobleBonus int             `json:"nobleBonus,omitempty"`
-	Defender   bool            `json:"defender"`
+	ArmyID  models.ArmyID   `json:"army,omitempty"`
+	OwnerID models.PlayerID `json:"owner,omitempty"`
+	Force   int             `json:"force"`
+	// Supported is the part of Force that comes from the supports the side
+	// received; the rest is the army's own strength, fortification and noble.
+	Supported  int  `json:"supported,omitempty"`
+	NobleBonus int  `json:"nobleBonus,omitempty"`
+	Defender   bool `json:"defender"`
 	// Tunnel marks an attack carried by a tunnel card: it ignored the
 	// fortifications of its target.
 	Tunnel bool `json:"tunnel,omitempty"`

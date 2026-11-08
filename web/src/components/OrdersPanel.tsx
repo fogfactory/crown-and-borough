@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/tooltip'
 import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
-import { TerritoryRef, useMapLinks } from '@/components/MapLinks'
+import { RegionRef, useMapLinks } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
 import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardName, shortCode } from '@/lib/card-hand'
 import { isSettlement } from '@/lib/supply'
@@ -294,7 +294,7 @@ function CalamityWarnings({ state }: { state: StateData }) {
             {richTranslate(t, announcement.ritual ? 'orders.calamityWarningItemOmens' : 'orders.calamityWarningItem', {
               card: formatCardLabel(announcement.kind, t),
               season: t(SEASON_LABEL_KEYS[announcement.season]),
-              region: <TerritoryRef id={announcement.region} />,
+              region: <RegionRef id={announcement.region} />,
             })}
           </li>
         ))}

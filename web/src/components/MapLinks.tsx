@@ -23,8 +23,13 @@ export interface MapLinks {
    * selection (charte-graphique.md § Rapport de tour).
    */
   showEvent: (marks: EventMarks) => void
-  /** Lights the territory on the map, or nothing with null. */
-  highlight: (territory: string | null) => void
+  /**
+   * Lights a territory, several, or a whole event (territories and the arrows
+   * between them) on the map, or nothing with null.
+   */
+  highlight: (what: string | string[] | EventMarks | null) => void
+  /** Territories of the region seeded at a territory; the seed alone if none. */
+  regionTerritories: (seed: string) => string[]
   /** Whether the territory exists on the map. */
   hasTerritory: (territory: string) => boolean
   /** Commune name of a territory. */
@@ -61,17 +66,12 @@ export function CodeTag({ code }: { code: string }) {
 const LINK_CLASS =
   'inline cursor-pointer rounded-sm p-0 text-left text-inherit underline decoration-brass-700 decoration-dotted underline-offset-2 hover:decoration-solid focus-visible:decoration-solid'
 
-function MapLink({
-  territory,
-  noble,
-  children,
-}: {
-  territory: string
-  noble?: string
-  children: ReactNode
-}) {
+/**
+ * Lights territories on the map for as long as the caller says so, and puts
+ * them out if the caller unmounts while they are lit.
+ */
+export function useMapHighlight() {
   const links = useMapLinks()
-  // Whether this link lit its territory, to put it out if it unmounts lit.
   const lit = useRef(false)
   const linksRef = useRef(links)
   linksRef.current = links
@@ -81,28 +81,50 @@ function MapLink({
     },
     [],
   )
+  return {
+    on: (what: string | string[] | EventMarks) => {
+      lit.current = true
+      links?.highlight(what)
+    },
+    off: () => {
+      lit.current = false
+      links?.highlight(null)
+    },
+    /** The caller is done lighting, as when a followed link takes over. */
+    release: () => {
+      lit.current = false
+    },
+  }
+}
+
+function MapLink({
+  territory,
+  lights,
+  noble,
+  children,
+}: {
+  territory: string
+  /** Territories lit while hovered, when more than the linked one. */
+  lights?: string[]
+  noble?: string
+  children: ReactNode
+}) {
+  const links = useMapLinks()
+  const light = useMapHighlight()
   if (!links) return <span>{children}</span>
-  const lightOn = () => {
-    lit.current = true
-    links.highlight(territory)
-  }
-  const lightOff = () => {
-    lit.current = false
-    links.highlight(null)
-  }
   return (
     <button
       type="button"
       data-map-link={territory}
       className={LINK_CLASS}
       onClick={() => {
-        lit.current = false
+        light.release()
         links.focus(territory, noble)
       }}
-      onMouseEnter={lightOn}
-      onMouseLeave={lightOff}
-      onFocus={lightOn}
-      onBlur={lightOff}
+      onMouseEnter={() => light.on(lights ?? territory)}
+      onMouseLeave={light.off}
+      onFocus={() => light.on(lights ?? territory)}
+      onBlur={light.off}
     >
       {children}
     </button>
@@ -113,11 +135,14 @@ function MapLink({
 export function TerritoryRef({
   id,
   name,
+  lights,
   className,
 }: {
   id: string
   /** Commune name; the code alone when unknown. */
   name?: string
+  /** A region's territories: all of them light up, the seat stays the target. */
+  lights?: string[]
   className?: string
 }) {
   const links = useMapLinks()
@@ -134,7 +159,20 @@ export function TerritoryRef({
     </span>
   )
   if (!links?.hasTerritory(id)) return label
-  return <MapLink territory={id}>{label}</MapLink>
+  return (
+    <MapLink territory={id} lights={lights}>
+      {label}
+    </MapLink>
+  )
+}
+
+/**
+ * A region written as its seed territory, « Rochepierre (RPI) »: hovering the
+ * link lights the whole region, following it selects the seed.
+ */
+export function RegionRef({ id, name }: { id: string; name?: string }) {
+  const links = useMapLinks()
+  return <TerritoryRef id={id} name={name} lights={links?.regionTerritories(id)} />
 }
 
 /**
