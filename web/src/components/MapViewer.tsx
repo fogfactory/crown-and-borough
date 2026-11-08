@@ -36,6 +36,7 @@ import type { WinterIntention } from '@/lib/winter-overlay'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import { NEUTRAL_PLAYER_ID } from '@/types'
 import type { EventMarks, MapFrame } from '@/lib/map-frame'
+import { EventArrows } from '@/components/MapEventArrows'
 import { boundsOf, centroid, pointsToPath } from '@/lib/map-svg-geometry'
 import { armyDrawingOwner, resolveArmsByOwner } from '@/lib/heraldry'
 import { nobleAttributesByCode } from '@/lib/noble-attributes'
@@ -85,7 +86,7 @@ export interface ScreenBox {
 /** Width of the brass halo inside a selected territory, in map units. */
 const SELECTION_HALO_WIDTH = 8
 
-const NO_HIGHLIGHT: readonly string[] = []
+const NO_HIGHLIGHT: EventMarks = { territories: [] }
 
 interface MapViewerProps {
   map: MapData
@@ -101,8 +102,8 @@ interface MapViewerProps {
   onPick?: (id: string) => boolean
   /** Pans and zooms onto these territories each time its key changes. */
   frame?: MapFrame
-  /** Territories lit while a link or a report event is hovered (charte § Identifiants). */
-  highlightedIds?: readonly string[]
+  /** Territories lit, and arrows drawn, while a link or a report event is hovered (charte § Identifiants). */
+  highlighted?: EventMarks
   /** Noble whose pawn wears the selection halo. */
   selectedNoble?: string | null
   /** Report event drawn on the map: its territories outlined, its moves arrowed. */
@@ -141,7 +142,7 @@ export function MapViewer({
   selectedId: controlledSelectedId,
   onPick,
   frame,
-  highlightedIds = NO_HIGHLIGHT,
+  highlighted = NO_HIGHLIGHT,
   selectedNoble = null,
   eventMarks = null,
   selectionOverlay,
@@ -544,7 +545,7 @@ export function MapViewer({
 
             <g aria-label={t('map.selection')} pointerEvents="none">
               {map.territories.map((territory) => {
-                if (highlightedIds.includes(territory.id) && territory.id !== selectedId) {
+                if (highlighted.territories.includes(territory.id) && territory.id !== selectedId) {
                   return (
                     <path
                       key={territory.id}
@@ -587,23 +588,15 @@ export function MapViewer({
                   </g>
                 )
               })}
+              <EventArrows
+                arrows={highlighted.arrows}
+                territories={map.territories}
+                scale={annotationScale}
+              />
             </g>
 
             {eventMarks && (
               <g aria-label={t('map.reportEvent')} pointerEvents="none" data-event-marks>
-                <defs>
-                  <marker
-                    id="event-arrow"
-                    viewBox="0 0 10 10"
-                    refX="9"
-                    refY="5"
-                    markerWidth="5"
-                    markerHeight="5"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M0,0 L10,5 L0,10 z" fill={SELECTION_STROKE} />
-                  </marker>
-                </defs>
                 {map.territories
                   .filter((territory) => eventMarks.territories.includes(territory.id))
                   .map((territory) => (
@@ -619,27 +612,11 @@ export function MapViewer({
                       vectorEffect="non-scaling-stroke"
                     />
                   ))}
-                {(eventMarks.arrows ?? []).map(([from, to], index) => {
-                  const start = map.territories.find((territory) => territory.id === from)
-                  const end = map.territories.find((territory) => territory.id === to)
-                  if (!start || !end) return null
-                  const [x1, y1] = centroid(start.points)
-                  const [x2, y2] = centroid(end.points)
-                  return (
-                    <line
-                      key={`${from}-${to}-${index}`}
-                      data-event-arrow={`${from}-${to}`}
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={SELECTION_STROKE}
-                      strokeWidth={3 * annotationScale}
-                      strokeLinecap="round"
-                      markerEnd="url(#event-arrow)"
-                    />
-                  )
-                })}
+                <EventArrows
+                  arrows={eventMarks.arrows}
+                  territories={map.territories}
+                  scale={annotationScale}
+                />
               </g>
             )}
 

@@ -299,6 +299,11 @@ function territoryLabel(
   return <TerritoryRef id={territory.id} name={territory.name} />
 }
 
+/** Territories of the region seeded at `seed`, or the seed alone off the map. */
+function regionTerritories(map: MapData | null, seed: string): string[] {
+  return map?.regions?.find((region) => region.seed === seed)?.territories ?? [seed]
+}
+
 // Display label of a noble: full name first, trigram as a complement, linked
 // to the territory where it stands when the viewer knows it.
 function nobleLabel(code: string | undefined, name: string | undefined): ReactNode {
@@ -1036,9 +1041,11 @@ function groupSeasonEffects(
   effects.forEach((effect, index) => {
     const line = {
       ...seasonEffectLine(effect, map, t, index),
-      territories: [effect.territory, effect.target, effect.region].filter(
-        (id): id is string => Boolean(id),
-      ),
+      territories: [
+        effect.territory,
+        effect.target,
+        ...(effect.region ? regionTerritories(map, effect.region) : []),
+      ].filter((id): id is string => Boolean(id)),
     }
     switch (effect.kind) {
       case 'calamity_applied':
@@ -1308,7 +1315,16 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                   )}
                 </>
               }
-              marks={{ territories: [line.territory] }}
+              marks={{
+                territories: line.source
+                  ? [line.source, line.territory]
+                  : [line.territory],
+                // The supply flows from its source to the army it feeds.
+                arrows:
+                  line.source && line.source !== line.territory
+                    ? [[line.source, line.territory]]
+                    : undefined,
+              }}
             />
           ))}
           {fiefs.map((fief, index) => (
@@ -1926,15 +1942,15 @@ function EventCard({
   const links = useMapLinks()
   const titleId = useId()
   const light = useMapHighlight()
-  const territories = marks?.territories.length ? marks.territories : null
+  const lit = marks?.territories.length ? marks : null
   // A name inside the card lights its own territory: the card leaves it be.
   const onName = (event: SyntheticEvent) =>
     event.target instanceof Element && event.target.closest('[data-map-link]') !== null
   const lightAll = (event: SyntheticEvent) => {
-    if (territories && !onName(event)) light.on(territories)
+    if (lit && !onName(event)) light.on(lit)
   }
   const lightOff = () => {
-    if (territories) light.off()
+    if (lit) light.off()
   }
   return (
     <article
@@ -1964,7 +1980,7 @@ function EventCard({
         {detail && <div className="mt-0.5 text-xs opacity-80">{detail}</div>}
       </div>
       {aside && <div className="shrink-0 text-right text-xs">{aside}</div>}
-      {marks && links && territories && (
+      {marks && links && lit && (
         <button
           type="button"
           data-show-event

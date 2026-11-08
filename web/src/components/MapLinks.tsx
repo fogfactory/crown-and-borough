@@ -23,8 +23,11 @@ export interface MapLinks {
    * selection (charte-graphique.md § Rapport de tour).
    */
   showEvent: (marks: EventMarks) => void
-  /** Lights one territory or several on the map, or nothing with null. */
-  highlight: (territories: string | string[] | null) => void
+  /**
+   * Lights a territory, several, or a whole event (territories and the arrows
+   * between them) on the map, or nothing with null.
+   */
+  highlight: (what: string | string[] | EventMarks | null) => void
   /** Whether the territory exists on the map. */
   hasTerritory: (territory: string) => boolean
   /** Commune name of a territory. */
@@ -77,9 +80,9 @@ export function useMapHighlight() {
     [],
   )
   return {
-    on: (territories: string | string[]) => {
+    on: (what: string | string[] | EventMarks) => {
       lit.current = true
-      links?.highlight(territories)
+      links?.highlight(what)
     },
     off: () => {
       lit.current = false

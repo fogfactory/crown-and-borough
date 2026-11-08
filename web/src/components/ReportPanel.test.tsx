@@ -955,11 +955,55 @@ describe('ReportPanel event cards', () => {
     ) as HTMLElement
     links.highlight.mockClear()
     fireEvent.mouseOver(card)
-    expect(links.highlight).toHaveBeenLastCalledWith(['ROS', 'BRU', 'CHA'])
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['ROS', 'BRU', 'CHA'],
+      arrows: [
+        ['BRU', 'CHA'],
+        ['ROS', 'CHA'],
+      ],
+    })
     fireEvent.mouseLeave(card)
     expect(links.highlight).toHaveBeenLastCalledWith(null)
     fireEvent.focus(within(card).getByRole('button', { name: 'Show' }))
-    expect(links.highlight).toHaveBeenLastCalledWith(['ROS', 'BRU', 'CHA'])
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['ROS', 'BRU', 'CHA'],
+      arrows: [
+        ['BRU', 'CHA'],
+        ['ROS', 'CHA'],
+      ],
+    })
+  })
+
+  it('lights the whole region of a regional effect and the supply line of a famine', () => {
+    const regional: MapData = {
+      ...map,
+      regions: [{ id: 'R1', seed: 'ROS', territories: ['ROS', 'BRU', 'CHA'] }],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={regional} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+    const plague = within(events).getAllByRole('button', { name: 'Show' })[0]
+    links.highlight.mockClear()
+    fireEvent.focus(plague)
+    expect(links.highlight).toHaveBeenLastCalledWith(
+      expect.objectContaining({ territories: expect.arrayContaining(['ROS', 'BRU', 'CHA']) }),
+    )
+
+    const supplied = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-event-card]'),
+    ).find((card) => card.textContent?.includes('source ROS')) as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(supplied)
+    expect(links.highlight).toHaveBeenLastCalledWith({
+      territories: ['ROS', 'BRU'],
+      arrows: [['ROS', 'BRU']],
+    })
   })
 
   it('leaves a name inside an event card to light its own territory', () => {

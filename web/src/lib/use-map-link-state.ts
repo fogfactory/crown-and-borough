@@ -24,13 +24,32 @@ interface MapLinkState {
   links: MapLinks
   /** Frame to hand to the map: the last followed link, else the base frame. */
   frame?: MapFrame
-  highlightedIds: string[]
+  /** What a hovered link or card lights: territories and arrows. */
+  highlighted: EventMarks
   selectedNoble: string | null
   /** Report event drawn on the map, until the selection changes. */
   eventMarks: EventMarks | null
 }
 
-const NO_IDS: string[] = []
+const NO_MARKS: EventMarks = { territories: [] }
+
+function toMarks(what: string | string[] | EventMarks | null): EventMarks {
+  if (what === null) return NO_MARKS
+  if (typeof what === 'string') return { territories: [what] }
+  return Array.isArray(what) ? { territories: what } : what
+}
+
+function sameMarks(a: EventMarks, b: EventMarks): boolean {
+  const arrows = (marks: EventMarks) => marks.arrows ?? []
+  return (
+    a.territories.length === b.territories.length &&
+    a.territories.every((id, index) => id === b.territories[index]) &&
+    arrows(a).length === arrows(b).length &&
+    arrows(a).every(
+      ([from, to], index) => from === arrows(b)[index][0] && to === arrows(b)[index][1],
+    )
+  )
+}
 
 interface Focus {
   frame: MapFrame
@@ -54,7 +73,7 @@ export function useMapLinkState({
   onShowMap,
 }: MapLinkStateOptions): MapLinkState {
   const [focus, setFocus] = useState<Focus | null>(null)
-  const [highlightedIds, setHighlightedIds] = useState<string[]>(NO_IDS)
+  const [highlighted, setHighlighted] = useState<EventMarks>(NO_MARKS)
   const [shown, setShown] = useState<{
     marks: EventMarks
     selectedId: string | null
@@ -106,7 +125,7 @@ export function useMapLinkState({
         noble,
         baseKey: latest.current.baseKey,
       })
-      setHighlightedIds(NO_IDS)
+      setHighlighted(NO_MARKS)
     }
     const select = (territory: string, noble?: string) => {
       frameOn([territory], 'link', noble)
@@ -129,15 +148,12 @@ export function useMapLinkState({
         })
         latest.current.onShowMap?.()
       },
-      highlight: (territories) =>
-        setHighlightedIds((current) => {
-          const next = territories === null ? NO_IDS : [territories].flat()
+      highlight: (what) =>
+        setHighlighted((current) => {
+          const next = toMarks(what)
           // mouseover repeats while the pointer crosses a card: keep the
-          // same array so the map does not render again.
-          return current.length === next.length &&
-            current.every((id, index) => id === next[index])
-            ? current
-            : next
+          // same object so the map does not render again.
+          return sameMarks(current, next) ? current : next
         }),
       hasTerritory: (id) => territoryNames.has(id),
       territoryName: (id) => territoryNames.get(id),
@@ -155,7 +171,7 @@ export function useMapLinkState({
   return {
     links,
     frame: current?.frame ?? baseFrame,
-    highlightedIds,
+    highlighted,
     // The event stays drawn until the selection or the turn changes.
     eventMarks:
       shown && shown.selectedId === selectedId && shown.turn === state?.turn
