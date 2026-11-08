@@ -1082,7 +1082,7 @@ export function GamePage() {
                 }
                 selectedId={selectedId}
                 frame={linkState.frame}
-                highlightedId={linkState.highlightedId}
+                highlightedIds={linkState.highlightedIds}
                 selectedNoble={linkState.selectedNoble}
                 eventMarks={linkState.eventMarks}
                 intentions={intentions}

@@ -23,8 +23,8 @@ export interface MapLinks {
    * selection (charte-graphique.md § Rapport de tour).
    */
   showEvent: (marks: EventMarks) => void
-  /** Lights the territory on the map, or nothing with null. */
-  highlight: (territory: string | null) => void
+  /** Lights one territory or several on the map, or nothing with null. */
+  highlight: (territories: string | string[] | null) => void
   /** Whether the territory exists on the map. */
   hasTerritory: (territory: string) => boolean
   /** Commune name of a territory. */
@@ -61,6 +61,37 @@ export function CodeTag({ code }: { code: string }) {
 const LINK_CLASS =
   'inline cursor-pointer rounded-sm p-0 text-left text-inherit underline decoration-brass-700 decoration-dotted underline-offset-2 hover:decoration-solid focus-visible:decoration-solid'
 
+/**
+ * Lights territories on the map for as long as the caller says so, and puts
+ * them out if the caller unmounts while they are lit.
+ */
+export function useMapHighlight() {
+  const links = useMapLinks()
+  const lit = useRef(false)
+  const linksRef = useRef(links)
+  linksRef.current = links
+  useEffect(
+    () => () => {
+      if (lit.current) linksRef.current?.highlight(null)
+    },
+    [],
+  )
+  return {
+    on: (territories: string | string[]) => {
+      lit.current = true
+      links?.highlight(territories)
+    },
+    off: () => {
+      lit.current = false
+      links?.highlight(null)
+    },
+    /** The caller is done lighting, as when a followed link takes over. */
+    release: () => {
+      lit.current = false
+    },
+  }
+}
+
 function MapLink({
   territory,
   noble,
@@ -71,38 +102,21 @@ function MapLink({
   children: ReactNode
 }) {
   const links = useMapLinks()
-  // Whether this link lit its territory, to put it out if it unmounts lit.
-  const lit = useRef(false)
-  const linksRef = useRef(links)
-  linksRef.current = links
-  useEffect(
-    () => () => {
-      if (lit.current) linksRef.current?.highlight(null)
-    },
-    [],
-  )
+  const light = useMapHighlight()
   if (!links) return <span>{children}</span>
-  const lightOn = () => {
-    lit.current = true
-    links.highlight(territory)
-  }
-  const lightOff = () => {
-    lit.current = false
-    links.highlight(null)
-  }
   return (
     <button
       type="button"
       data-map-link={territory}
       className={LINK_CLASS}
       onClick={() => {
-        lit.current = false
+        light.release()
         links.focus(territory, noble)
       }}
-      onMouseEnter={lightOn}
-      onMouseLeave={lightOff}
-      onFocus={lightOn}
-      onBlur={lightOff}
+      onMouseEnter={() => light.on(territory)}
+      onMouseLeave={light.off}
+      onFocus={() => light.on(territory)}
+      onBlur={light.off}
     >
       {children}
     </button>

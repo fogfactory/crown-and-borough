@@ -940,6 +940,54 @@ describe('ReportPanel event cards', () => {
     })
   })
 
+  it('lights every territory of an event card while it is hovered or focused', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const orders = document.querySelector('[data-report-category="orders"]') as HTMLElement
+    const card = within(orders).getAllByRole('button', { name: 'Show' })[0].closest(
+      '[data-event-card]',
+    ) as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(card)
+    expect(links.highlight).toHaveBeenLastCalledWith(['ROS', 'BRU', 'CHA'])
+    fireEvent.mouseLeave(card)
+    expect(links.highlight).toHaveBeenLastCalledWith(null)
+    fireEvent.focus(within(card).getByRole('button', { name: 'Show' }))
+    expect(links.highlight).toHaveBeenLastCalledWith(['ROS', 'BRU', 'CHA'])
+  })
+
+  it('leaves a name inside an event card to light its own territory', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={report} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = Array.from(document.querySelectorAll('[data-event-card]')).find(
+      (candidate) =>
+        candidate.querySelector('[data-map-link]') &&
+        candidate.querySelector('[data-show-event]'),
+    ) as HTMLElement
+    const name = card.querySelector('[data-map-link]') as HTMLElement
+    links.highlight.mockClear()
+    fireEvent.mouseOver(name)
+    fireEvent.focus(name)
+    const territory = name.getAttribute('data-map-link')
+    expect(links.highlight.mock.calls.length).toBeGreaterThan(0)
+    for (const [lit] of links.highlight.mock.calls) expect(lit).toBe(territory)
+    links.highlight.mockClear()
+    fireEvent.mouseOver(card)
+    expect(links.highlight).toHaveBeenCalledTimes(1)
+  })
+
   it('sets the rumors apart, in italics', () => {
     const { container } = render(
       <LanguageProvider initialLanguage="fr">

@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, type ReactNode, type SyntheticEvent } from 'react'
 
 import {
   IconBell,
@@ -18,7 +18,7 @@ import {
   IconSwords,
 } from '@tabler/icons-react'
 
-import { NobleRef, TerritoryRef, useMapLinks } from '@/components/MapLinks'
+import { NobleRef, TerritoryRef, useMapHighlight, useMapLinks } from '@/components/MapLinks'
 import type { EventMarks } from '@/lib/map-frame'
 import { formatOrderLabel } from '@/lib/order-label'
 import { joinNodes, richTranslate } from '@/lib/rich-text'
@@ -1925,9 +1925,27 @@ function EventCard({
   const { t } = useLanguage()
   const links = useMapLinks()
   const titleId = useId()
+  const light = useMapHighlight()
+  const territories = marks?.territories.length ? marks.territories : null
+  // A name inside the card lights its own territory: the card leaves it be.
+  const onName = (event: SyntheticEvent) =>
+    event.target instanceof Element && event.target.closest('[data-map-link]') !== null
+  const lightAll = (event: SyntheticEvent) => {
+    if (territories && !onName(event)) light.on(territories)
+  }
+  const lightOff = () => {
+    if (territories) light.off()
+  }
   return (
     <article
       data-event-card
+      // Hovering or focusing the card lights all its territories; a name
+      // inside it lights its own, and the card's set comes back when the
+      // pointer leaves that name.
+      onMouseOver={lightAll}
+      onFocus={lightAll}
+      onMouseLeave={lightOff}
+      onBlur={lightOff}
       className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${CARD_TONES[tone]}`}
     >
       <span
@@ -1946,7 +1964,7 @@ function EventCard({
         {detail && <div className="mt-0.5 text-xs opacity-80">{detail}</div>}
       </div>
       {aside && <div className="shrink-0 text-right text-xs">{aside}</div>}
-      {marks && links && marks.territories.length > 0 && (
+      {marks && links && territories && (
         <button
           type="button"
           data-show-event

@@ -85,6 +85,8 @@ export interface ScreenBox {
 /** Width of the brass halo inside a selected territory, in map units. */
 const SELECTION_HALO_WIDTH = 8
 
+const NO_HIGHLIGHT: readonly string[] = []
+
 interface MapViewerProps {
   map: MapData
   state: StateData
@@ -99,8 +101,8 @@ interface MapViewerProps {
   onPick?: (id: string) => boolean
   /** Pans and zooms onto these territories each time its key changes. */
   frame?: MapFrame
-  /** Territory lit while a link to it is hovered (charte § Identifiants). */
-  highlightedId?: string | null
+  /** Territories lit while a link or a report event is hovered (charte § Identifiants). */
+  highlightedIds?: readonly string[]
   /** Noble whose pawn wears the selection halo. */
   selectedNoble?: string | null
   /** Report event drawn on the map: its territories outlined, its moves arrowed. */
@@ -139,7 +141,7 @@ export function MapViewer({
   selectedId: controlledSelectedId,
   onPick,
   frame,
-  highlightedId = null,
+  highlightedIds = NO_HIGHLIGHT,
   selectedNoble = null,
   eventMarks = null,
   selectionOverlay,
@@ -542,7 +544,7 @@ export function MapViewer({
 
             <g aria-label={t('map.selection')} pointerEvents="none">
               {map.territories.map((territory) => {
-                if (territory.id === highlightedId && territory.id !== selectedId) {
+                if (highlightedIds.includes(territory.id) && territory.id !== selectedId) {
                   return (
                     <path
                       key={territory.id}

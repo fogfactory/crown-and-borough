@@ -45,11 +45,17 @@ describe('useMapLinkState', () => {
     expect(result.current.links.nobleName('OLD')).toBe('Ancien')
 
     act(() => result.current.links.highlight('ROS'))
-    expect(result.current.highlightedId).toBe('ROS')
+    expect(result.current.highlightedIds).toEqual(['ROS'])
+
+    act(() => result.current.links.highlight(['ROS', 'BRU']))
+    expect(result.current.highlightedIds).toEqual(['ROS', 'BRU'])
+    const lit = result.current.highlightedIds
+    act(() => result.current.links.highlight(['ROS', 'BRU']))
+    expect(result.current.highlightedIds).toBe(lit)
 
     act(() => result.current.links.focus('BRU', 'JEA'))
     expect(onSelect).toHaveBeenCalledWith('BRU')
-    expect(result.current.highlightedId).toBeNull()
+    expect(result.current.highlightedIds).toEqual([])
     expect(result.current.frame).toMatchObject({
       territories: ['BRU'],
       padding: FOCUS_FRAME_PADDING,

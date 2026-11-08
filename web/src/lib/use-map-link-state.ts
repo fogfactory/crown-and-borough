@@ -24,11 +24,13 @@ interface MapLinkState {
   links: MapLinks
   /** Frame to hand to the map: the last followed link, else the base frame. */
   frame?: MapFrame
-  highlightedId: string | null
+  highlightedIds: string[]
   selectedNoble: string | null
   /** Report event drawn on the map, until the selection changes. */
   eventMarks: EventMarks | null
 }
+
+const NO_IDS: string[] = []
 
 interface Focus {
   frame: MapFrame
@@ -52,7 +54,7 @@ export function useMapLinkState({
   onShowMap,
 }: MapLinkStateOptions): MapLinkState {
   const [focus, setFocus] = useState<Focus | null>(null)
-  const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  const [highlightedIds, setHighlightedIds] = useState<string[]>(NO_IDS)
   const [shown, setShown] = useState<{
     marks: EventMarks
     selectedId: string | null
@@ -104,7 +106,7 @@ export function useMapLinkState({
         noble,
         baseKey: latest.current.baseKey,
       })
-      setHighlightedId(null)
+      setHighlightedIds(NO_IDS)
     }
     const select = (territory: string, noble?: string) => {
       frameOn([territory], 'link', noble)
@@ -127,7 +129,16 @@ export function useMapLinkState({
         })
         latest.current.onShowMap?.()
       },
-      highlight: setHighlightedId,
+      highlight: (territories) =>
+        setHighlightedIds((current) => {
+          const next = territories === null ? NO_IDS : [territories].flat()
+          // mouseover repeats while the pointer crosses a card: keep the
+          // same array so the map does not render again.
+          return current.length === next.length &&
+            current.every((id, index) => id === next[index])
+            ? current
+            : next
+        }),
       hasTerritory: (id) => territoryNames.has(id),
       territoryName: (id) => territoryNames.get(id),
       nobleName: (code) => nobles.get(code)?.name ?? deceased.get(code),
@@ -144,7 +155,7 @@ export function useMapLinkState({
   return {
     links,
     frame: current?.frame ?? baseFrame,
-    highlightedId,
+    highlightedIds,
     // The event stays drawn until the selection or the turn changes.
     eventMarks:
       shown && shown.selectedId === selectedId && shown.turn === state?.turn
