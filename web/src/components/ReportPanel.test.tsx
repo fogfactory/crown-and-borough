@@ -1051,6 +1051,62 @@ describe('ReportPanel event cards', () => {
     })
   })
 
+  it('unfolds a combat card into its forces, supports and result', () => {
+    const fight: TurnReport = {
+      ...report,
+      combats: [
+        {
+          territory: 'CHA',
+          baseDefense: 1,
+          defense: 2,
+          castleBonus: 1,
+          contenders: [
+            { army: 'A2', owner: 'P2', force: 3, nobleBonus: 1, defender: false },
+            { army: 'A3', owner: 'P3', force: 2, defender: true },
+          ],
+          supporters: ['A1'],
+          cutSupporters: ['A4'],
+          winner: 'A2',
+          standoff: false,
+        },
+      ],
+      orders: [
+        { army: 'A1', owner: 'P1', type: 'support', source: 'ROS', targets: ['A2', 'CHA'], outcome: 'success' },
+        { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
+        { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ReportPanel report={fight} map={map} players={players} />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const card = document.querySelector(
+      '[data-report-category="combats"] [data-event-card]',
+    ) as HTMLElement
+    expect(card.querySelector('[data-event-more]')).toBeNull()
+    const toggle = within(card).getByRole('button', { name: 'Show the combat details' })
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const more = card.querySelector('[data-event-more]') as HTMLElement
+    for (const heading of ['Attackers', 'Defender', 'Attack support', 'Defense support', 'Result']) {
+      expect(within(more).getByRole('heading', { name: heading })).toBeInTheDocument()
+    }
+    expect(more).toHaveTextContent('P2')
+    expect(more).toHaveTextContent('force 3 (+1 noble)')
+    expect(more).toHaveTextContent('fortification +1')
+    expect(more).toHaveTextContent('· cut')
+
+    // A click on the card's own text folds it back; its buttons act alone.
+    fireEvent.click(card.querySelector('.font-medium') as HTMLElement)
+    expect(card.querySelector('[data-event-more]')).toBeNull()
+    fireEvent.click(within(card).getByRole('button', { name: 'Show' }))
+    expect(card.querySelector('[data-event-more]')).toBeNull()
+  })
+
   it('lights the whole region named by a scheduled card', () => {
     const value = { ...links, regionTerritories: () => ['ROS', 'BRU', 'CHA'] }
     render(

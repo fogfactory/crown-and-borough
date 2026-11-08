@@ -1,4 +1,4 @@
-import { useId, type ReactNode, type SyntheticEvent } from 'react'
+import { useId, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import {
   IconBell,
@@ -6,6 +6,7 @@ import {
   IconBuildingChurch,
   IconBuildingWarehouse,
   IconBuildingWindTurbine,
+  IconChevronDown,
   IconCloudStorm,
   IconCoins,
   IconCrown,
@@ -1194,24 +1195,29 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                         }`,
                     )
                     .join(' · ')
+            const detailText = (entry: CombatReport): ReactNode =>
+              entry.visibility === 'general'
+                ? entry.summary
+                : entry.standoff
+                  ? t('reports.standoff')
+                  : entry.winner
+                    ? richTranslate(t, 'reports.victory', {
+                        army: armyDescription(report, map, entry.winner, t),
+                      })
+                    : (reportReason(entry.reason, t) ?? entry.reason)
             return (
               <EventCard
                 key={`${combat.territory}-${index}`}
                 icon={<IconSwords />}
                 title={territoryLabel(map, combat.territory, t)}
-                detail={
-                  combat.visibility === 'general'
-                    ? combat.summary
-                    : combat.standoff
-                      ? t('reports.standoff')
-                      : combat.winner
-                        ? richTranslate(t, 'reports.victory', {
-                            army: armyDescription(report, map, combat.winner, t),
-                          })
-                        : (reportReason(combat.reason, t) ?? combat.reason)
-                }
+                detail={detailText(combat)}
                 aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
                 marks={combatMarks(report, combat)}
+                more={
+                  combat.visibility === 'general'
+                    ? undefined
+                    : combatDetails(report, map, combat, detailText(combat), t)
+                }
               />
             )
           })}
@@ -1898,6 +1904,11 @@ function orderArrows(
   return targets.map((target): [string, string] => [source, target])
 }
 
+/** Territory an army set out from this turn, read from its order. */
+function armyOrigin(report: TurnReport, army: string | undefined): string | undefined {
+  return report.orders.find((order) => order.army === army && order.source)?.source
+}
+
 /**
  * What a combat draws: its territory, and every force committed to it, each
  * on the territory it came from with an arrow to the fight. The attackers,
@@ -1914,12 +1925,131 @@ function combatMarks(report: TurnReport, combat: CombatReport): EventMarks {
     ...(combat.cutSupporters ?? []),
   ]
   for (const army of new Set(armies)) {
-    const from = report.orders.find((order) => order.army === army && order.source)?.source
+    const from = armyOrigin(report, army)
     if (!from || from === combat.territory) continue
     territories.add(from)
     arrows.push([from, combat.territory])
   }
   return { territories: [...territories], arrows: arrows.length > 0 ? arrows : undefined }
+}
+
+/**
+ * Which side a supporter backs, read from its order: `S supported dest`
+ * backs the attack into dest, `S territory` backs the defense of territory.
+ */
+function supportSide(
+  report: TurnReport,
+  army: string,
+  combat: CombatReport,
+): 'attack' | 'defense' | undefined {
+  const targets = report.orders.find((order) => order.army === army)?.targets ?? []
+  if (targets.length > 1 && targets[1] === combat.territory) return 'attack'
+  if (targets.length === 1 && targets[0] === combat.territory) return 'defense'
+  return undefined
+}
+
+/** The fold-out of a combat card: each side's forces, their supports, the result. */
+function combatDetails(
+  report: TurnReport,
+  map: MapData | null,
+  combat: CombatReport,
+  result: ReactNode,
+  t: Translate,
+): ReactNode {
+  const contenders = combat.contenders ?? []
+  const origin = (army: string | undefined) => {
+    const from = armyOrigin(report, army)
+    return from && from !== combat.territory ? (
+      <> · {territoryLabel(map, from, t)}</>
+    ) : null
+  }
+  const owner = (army: string | undefined, fallback?: string) =>
+    fallback ??
+    report.players.flatMap((player) => player.armies).find((entry) => entry.id === army)
+      ?.owner ??
+    report.orders.find((order) => order.army === army)?.owner ??
+    t('reports.unknownPlayer')
+  const cut = new Set(combat.cutSupporters ?? [])
+  const supporters = [...(combat.supporters ?? []), ...(combat.cutSupporters ?? [])]
+  const bySide = (side: 'attack' | 'defense' | undefined) =>
+    supporters.filter((army) => supportSide(report, army, combat) === side)
+  const supportList = (title: string, armies: string[]) =>
+    armies.length > 0 && (
+      <section>
+        <h5 className="font-semibold">{title}</h5>
+        <ul className="list-disc pl-4">
+          {armies.map((army) => (
+            <li key={army}>
+              {owner(army)}
+              {origin(army)}
+              {cut.has(army) && t('reports.combat.cut')}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  const attackers = contenders.filter((contender) => !contender.defender)
+  const defenders = contenders.filter((contender) => contender.defender)
+  const force = (contender: (typeof contenders)[number]) =>
+    [
+      t('reports.combat.force', { force: contender.force ?? '—' }) +
+        (contender.nobleBonus ? t('reports.nobleBonus', { bonus: contender.nobleBonus }) : '') +
+        (contender.tunnel ? t('reports.tunnelAttack') : ''),
+      contender.defender && combat.castleBonus
+        ? t('reports.combat.castleBonus', { bonus: combat.castleBonus })
+        : '',
+      contender.tunnelForce !== undefined
+        ? t('reports.tunnelDefense', { force: contender.tunnelForce }).trim()
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  return (
+    <div className="space-y-2">
+      {attackers.length > 0 && (
+        <section>
+          <h5 className="font-semibold">{t('reports.combat.attackers')}</h5>
+          <ul className="list-disc pl-4">
+            {attackers.map((contender, index) => (
+              <li key={contender.army ?? index}>
+                {owner(contender.army, contender.owner)}
+                {origin(contender.army)} · {force(contender)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {defenders.length > 0 && (
+        <section>
+          <h5 className="font-semibold">{t('reports.combat.defenders')}</h5>
+          <ul className="list-disc pl-4">
+            {defenders.map((contender, index) => (
+              <li key={contender.army ?? index}>
+                {owner(contender.army, contender.owner)} · {force(contender)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {supportList(t('reports.combat.supportAttack'), bySide('attack'))}
+      {supportList(t('reports.combat.supportDefense'), bySide('defense'))}
+      {supportList(t('reports.combat.supportOther'), bySide(undefined))}
+      <section>
+        <h5 className="font-semibold">{t('reports.combat.result')}</h5>
+        <p>
+          {result}
+          {combat.dislodged && (
+            <>
+              {' · '}
+              {richTranslate(t, 'reports.combat.dislodged', {
+                army: armyDescription(report, map, combat.dislodged, t),
+              })}
+            </>
+          )}
+        </p>
+      </section>
+    </div>
+  )
 }
 
 /** A category of the report; the caller leaves out an empty one. */
@@ -1965,6 +2095,7 @@ function EventCard({
   owner,
   tone = 'plain',
   marks,
+  more,
 }: {
   icon: ReactNode
   title: ReactNode
@@ -1974,10 +2105,14 @@ function EventCard({
   owner?: ReactNode
   tone?: keyof typeof CARD_TONES
   marks?: EventMarks
+  /** Folded under the card: a click on the card, or its chevron, unfolds it. */
+  more?: ReactNode
 }) {
   const { t } = useLanguage()
   const links = useMapLinks()
   const titleId = useId()
+  const moreId = useId()
+  const [open, setOpen] = useState(false)
   const light = useMapHighlight()
   const lit = marks?.territories.length ? marks : null
   // A name inside the card lights its own territory: the card leaves it be.
@@ -1999,7 +2134,21 @@ function EventCard({
       onFocus={lightAll}
       onMouseLeave={lightOff}
       onBlur={lightOff}
-      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${CARD_TONES[tone]}`}
+      // A click on the card's own text unfolds it; links and buttons keep
+      // their own action.
+      onClick={
+        more
+          ? (event) => {
+              if (
+                event.target instanceof Element &&
+                event.target.closest('button, a, summary') === null
+              ) {
+                setOpen((value) => !value)
+              }
+            }
+          : undefined
+      }
+      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${CARD_TONES[tone]} ${more ? 'cursor-pointer' : ''}`}
     >
       <span
         aria-hidden="true"
@@ -2015,8 +2164,33 @@ function EventCard({
           </div>
         </div>
         {detail && <div className="mt-0.5 text-xs opacity-80">{detail}</div>}
+        {more && open && (
+          <div
+            id={moreId}
+            data-event-more
+            className="mt-2 cursor-default border-t border-current/20 pt-2 text-xs"
+          >
+            {more}
+          </div>
+        )}
       </div>
       {aside && <div className="shrink-0 text-right text-xs">{aside}</div>}
+      {more && (
+        <button
+          type="button"
+          data-event-toggle
+          aria-expanded={open}
+          aria-controls={open ? moreId : undefined}
+          aria-label={t(open ? 'reports.combat.collapse' : 'reports.combat.expand')}
+          className="shrink-0 rounded p-0.5 max-lg:min-h-11"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <IconChevronDown
+            aria-hidden="true"
+            className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+      )}
       {marks && links && lit && (
         <button
           type="button"

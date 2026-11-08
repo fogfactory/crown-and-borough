@@ -1105,6 +1105,11 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
   événement le sélectionne, cadre la carte sur les territoires concernés et y
   dessine l'événement (déplacement, combat, retraite…) jusqu'à la sélection
   suivante.
+- **Combat :** la carte d'un combat se déplie d'un clic sur son texte ou sur
+  son chevron : attaquants (joueur, territoire d'origine, force), défenseur
+  (force, bonus de fortification), soutiens à l'attaque et à la défense (un
+  soutien coupé est signalé) et résultat (vainqueur, armée délogée). Un
+  combat que le joueur ne connaît qu'en gros n'a pas de détail.
 - **Résultats répétitifs :** les résultats d'une même nature (conservation
   d'hiver, revenus, production…) forment une seule carte de synthèse
   (« Conservation : 4 stocks divisés par deux »), dépliable sur la liste
