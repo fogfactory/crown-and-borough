@@ -1051,6 +1051,37 @@ describe('ReportPanel event cards', () => {
     })
   })
 
+  it('lights the whole region named by a scheduled card', () => {
+    const value = { ...links, regionTerritories: () => ['ROS', 'BRU', 'CHA'] }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={value}>
+          <ReportPanel
+            report={{
+              ...report,
+              cards: [
+                {
+                  eventType: 'calamity_scheduled',
+                  kind: 'bad_weather',
+                  region: 'ROS',
+                  season: 'spring',
+                  outcome: 'success',
+                },
+              ],
+            }}
+            map={map}
+            players={players}
+          />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+
+    const cards = document.querySelector('[data-report-cards]') as HTMLElement
+    value.highlight.mockClear()
+    fireEvent.mouseEnter(within(cards).getByRole('button', { name: /Rosemont/ }))
+    expect(value.highlight).toHaveBeenLastCalledWith(['ROS', 'BRU', 'CHA'])
+  })
+
   it('leaves a name inside an event card to light its own territory', () => {
     render(
       <LanguageProvider initialLanguage="en">

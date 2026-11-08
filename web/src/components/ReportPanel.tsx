@@ -675,7 +675,7 @@ function fiefEventLabel(
 
 function cardEventLabel(card: CardReport, map: MapData | null, t: Translate): ReactNode {
   const label = formatCardLabel(card.kind, t)
-  const region = territoryLabel(map, card.region, t)
+  const region = regionLabel(map, card.region, t)
   const player = card.player ?? t('reports.unknownPlayer')
   switch (card.eventType) {
     case 'deck_draw':
