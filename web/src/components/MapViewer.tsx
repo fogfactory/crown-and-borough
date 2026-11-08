@@ -26,6 +26,7 @@ import { MapSvgDefs } from '@/components/MapSvgDefs'
 import {
   LiveLayer,
   OwnershipLayer,
+  TerritoryColorLayer,
   TerritoryLabels,
 } from '@/components/MapTerritoryLayers'
 import { WinterOrdersOverlay } from '@/components/MapWinterOrdersOverlay'
@@ -118,8 +119,9 @@ interface MapViewerProps {
   showIntentions?: boolean
   intentionsColor?: string
   onToggleIntentions?: (show: boolean) => void
-  showOwnership?: boolean
-  onToggleOwnership?: (show: boolean) => void
+  /** Colours controlled and occupied territories by player (hidden by default). */
+  showTerritoryColors?: boolean
+  onToggleTerritoryColors?: (show: boolean) => void
   showRegions?: boolean
   onToggleRegions?: (show: boolean) => void
   showCalamities?: boolean
@@ -147,8 +149,8 @@ export function MapViewer({
   showIntentions = false,
   intentionsColor = PLAYER_RED,
   onToggleIntentions,
-  showOwnership = true,
-  onToggleOwnership,
+  showTerritoryColors = false,
+  onToggleTerritoryColors,
   showRegions = false,
   onToggleRegions,
   showCalamities = true,
@@ -474,6 +476,13 @@ export function MapViewer({
                 ))}
               </g>
             )}
+            {showTerritoryColors && (
+              <TerritoryColorLayer
+                territories={map.territories}
+                state={state}
+                playerColors={playerColors}
+              />
+            )}
 
             {supplyReachable.size > 0 && (
               <g aria-label={t('map.supplyZone')} pointerEvents="none">
@@ -670,15 +679,13 @@ export function MapViewer({
 
             <CalamityIconLayer icons={calamityIcons} />
             <CardIconLayer icons={cardIcons} />
-            {showOwnership && (
-              <OwnershipLayer
-                territories={map.territories}
-                state={state}
-                annotationScale={annotationScale}
-                fiefs={state.fiefs ?? []}
-                labelLayouts={labelLayouts}
-              />
-            )}
+            <OwnershipLayer
+              territories={map.territories}
+              state={state}
+              annotationScale={annotationScale}
+              fiefs={state.fiefs ?? []}
+              labelLayouts={labelLayouts}
+            />
             <LiveLayer
               territories={map.territories}
               state={state}
@@ -745,7 +752,7 @@ export function MapViewer({
         {selectionOverlay && selectedAnchor && selectionOverlay(selectedAnchor, svgSize)}
 
         {(onToggleIntentions ||
-          onToggleOwnership ||
+          onToggleTerritoryColors ||
           onToggleRegions ||
           onToggleCalamities ||
           onToggleCards) && (
@@ -780,8 +787,8 @@ export function MapViewer({
                 <MapLegend
                   showIntentions={showIntentions}
                   onToggleIntentions={onToggleIntentions}
-                  showOwnership={showOwnership}
-                  onToggleOwnership={onToggleOwnership}
+                  showTerritoryColors={showTerritoryColors}
+                  onToggleTerritoryColors={onToggleTerritoryColors}
                   showRegions={showRegions}
                   onToggleRegions={onToggleRegions}
                   showCalamities={showCalamities}

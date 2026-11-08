@@ -68,7 +68,6 @@ function renderMap(
   showIntentions = true,
   intentionsColor = '#a84632',
   showRegions = false,
-  showOwnership = true,
   winterIntentions: WinterIntention[] = [],
 ) {
   const result = render(
@@ -82,7 +81,6 @@ function renderMap(
       showIntentions={showIntentions}
       intentionsColor={intentionsColor}
       showRegions={showRegions}
-      showOwnership={showOwnership}
     />,
   )
   const svg = result.container.querySelector(
@@ -97,6 +95,16 @@ function renderMap(
   }
 
   return { ...result, firstTerritory, onSelect, svg }
+}
+
+function renderMapWithColors(testState: StateData) {
+  const result = render(
+    <MapViewer map={map} state={testState} onSelect={vi.fn()} showTerritoryColors />,
+  )
+  const svg = result.container.querySelector(
+    'svg[aria-label="Territory map"]',
+  ) as SVGSVGElement
+  return { ...result, svg }
 }
 
 function pointerPosition(
@@ -277,7 +285,6 @@ describe('MapViewer winter overlay', () => {
       true,
       '#a84632',
       false,
-      true,
       winterIntentions,
     )
 
@@ -345,7 +352,6 @@ describe('MapViewer winter overlay', () => {
       true,
       '#a84632',
       false,
-      true,
       winterIntentions,
     )
 
@@ -358,6 +364,86 @@ describe('MapViewer winter overlay', () => {
 })
 
 describe('MapViewer territorial overlays', () => {
+  describe('player colour layer', () => {
+    const players = [
+      { id: 'P1', name: 'One', color: '#112233' },
+      { id: 'P2', name: 'Two', color: '#445566' },
+    ] as StateData['players']
+    const fiefs = [
+      { capital: 'ROS', title: 'barony', owner: 'P1', territories: ['ROS'] },
+    ] as StateData['fiefs']
+    const withArmy = (id: string, owner: string): StateData['territories'] =>
+      state.territories.map((territory) =>
+        territory.id === id
+          ? { ...territory, army: { owner, size: 3, chain: null } }
+          : territory,
+      ) as StateData['territories']
+
+    it('is hidden unless enabled', () => {
+      const { svg } = renderMap(map, { ...state, players, fiefs })
+      expect(svg.querySelector('[data-territory-colors]')).toBeNull()
+    })
+
+    it('washes controlled territories in their controller colour', () => {
+      const { svg } = renderMapWithColors({ ...state, players, fiefs })
+      expect(svg.querySelector('[data-territory-color="ROS"]')).toHaveAttribute(
+        'fill',
+        '#112233',
+      )
+      // BRU is neither a fief nor a player capital, and no army holds it.
+      expect(svg.querySelector('[data-territory-color="BRU"]')).toBeNull()
+      expect(svg.querySelector('[data-territory-occupied]')).toBeNull()
+    })
+
+    it('hatches in the occupier colour over the controller wash', () => {
+      const { svg } = renderMapWithColors({
+        ...state,
+        players,
+        fiefs,
+        territories: withArmy('ROS', 'P2'),
+      })
+      expect(svg.querySelector('[data-territory-color="ROS"]')).toHaveAttribute(
+        'fill',
+        '#112233',
+      )
+      expect(svg.querySelector('[data-territory-occupied="ROS"]')).toHaveAttribute(
+        'fill',
+        'url(#territory-hatch-P2)',
+      )
+      expect(svg.querySelector('pattern#territory-hatch-P2 rect')).toHaveAttribute(
+        'fill',
+        '#445566',
+      )
+    })
+
+    it('sits under the borders, the selection and the shields', () => {
+      const { svg } = renderMapWithColors({ ...state, players, fiefs })
+      const colors = svg.querySelector('[data-territory-colors]')
+      const targets = [
+        svg.querySelector('g[aria-label="Borders"]'),
+        svg.querySelector('g[aria-label="Selection"]'),
+        svg.querySelector('[data-ownership-badge="P1"]'),
+      ]
+      for (const target of targets) {
+        expect(target).toBeInTheDocument()
+        expect(colors?.compareDocumentPosition(target as Node)).toBe(
+          Node.DOCUMENT_POSITION_FOLLOWING,
+        )
+      }
+    })
+
+    it('hatches an uncontrolled territory held by an army without any wash', () => {
+      const { svg } = renderMapWithColors({
+        ...state,
+        players,
+        fiefs,
+        territories: withArmy('BRU', 'P2'),
+      })
+      expect(svg.querySelector('[data-territory-occupied="BRU"]')).toBeInTheDocument()
+      expect(svg.querySelector('[data-territory-color="BRU"]')).toBeNull()
+    })
+  })
+
   it('renders canonical territory trigrams from territory ids', () => {
     renderMap()
 
@@ -557,22 +643,6 @@ describe('MapViewer territorial overlays', () => {
     expect(svg.querySelectorAll('[data-ownership-badge="P2"]').length).toBe(1)
     const controlLayer = svg.querySelector('g[aria-label="Territorial control"]')
     expect(controlLayer?.querySelector('path[stroke-opacity="0.55"]')).toBeNull()
-  })
-
-  it('hides ownership badges when the player control layer is off', () => {
-    const { svg } = renderMap(
-      map,
-      state,
-      vi.fn(),
-      null,
-      [],
-      true,
-      '#a84632',
-      false,
-      false,
-    )
-
-    expect(svg.querySelectorAll('[data-ownership-badge]').length).toBe(0)
   })
 
   it('crowns the fief capital shield and marks members with its trigram', () => {

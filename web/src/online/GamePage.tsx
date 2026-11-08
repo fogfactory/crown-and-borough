@@ -238,9 +238,9 @@ export function GamePage() {
   const [chatUnread, setChatUnread] = useState(0)
   const desktop = useIsDesktop()
   const [activePanel, setActivePanel] = useState<Panel>(desktop ? 'orders' : 'map')
-  const [showOwnership, setShowOwnership] = useLocalStorageState(
-    'cb.ownershipOverlay',
-    true,
+  const [showTerritoryColors, setShowTerritoryColors] = useLocalStorageState(
+    'cb.territoryColorsOverlay',
+    false,
   )
   const [showRegions, setShowRegions] = useLocalStorageState('cb.regionsOverlay', true)
   const [rulesNavigation, setRulesNavigation] = useState<{
@@ -1090,8 +1090,8 @@ export function GamePage() {
                 showIntentions={showIntentions}
                 intentionsColor={intentionsColor}
                 onToggleIntentions={setShowIntentions}
-                showOwnership={showOwnership}
-                onToggleOwnership={setShowOwnership}
+                showTerritoryColors={showTerritoryColors}
+                onToggleTerritoryColors={setShowTerritoryColors}
                 showRegions={showRegions}
                 onToggleRegions={setShowRegions}
                 showCalamities={showCalamities}
