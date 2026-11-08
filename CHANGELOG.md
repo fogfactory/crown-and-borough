@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.0](https://github.com/fogfactory/crown-and-borough/compare/v1.0.0...v1.1.0) (2026-11-08)
+
+
+### Features
+
+* **map:** add player colours layer ([beac740](https://github.com/fogfactory/crown-and-borough/commit/beac74009f33f79b21e3e2aabdfcd132cf8b89dc))
+* **map:** add player colours layer, keep shields always visible ([13564bc](https://github.com/fogfactory/crown-and-borough/commit/13564bcd8f5be33486eb1176fd486c69121a1fff))
+* **report:** unfold a combat card into its forces, supports and result ([ecff0f0](https://github.com/fogfactory/crown-and-borough/commit/ecff0f077a5df23041adbcde333e3ca02182b98a)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+
+
+### Bug Fixes
+
+* **report:** draw arrows and whole regions when hovering an event card ([3d499e7](https://github.com/fogfactory/crown-and-borough/commit/3d499e7399e6ce24d4ab2231c3df8aa17708f657)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+* **report:** harden the combat detail and the hover lighting ([84315a8](https://github.com/fogfactory/crown-and-borough/commit/84315a86e6f4eba5419024b0368cee587098a9ca)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+* **report:** light every territory of an event card on hover ([7def8e1](https://github.com/fogfactory/crown-and-borough/commit/7def8e15c7460e428f697e28d574e58314fc8df0)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+* **report:** light the whole region named by a card line ([7a66966](https://github.com/fogfactory/crown-and-borough/commit/7a66966572c408ce1a5aa5f99122676cb00727bd)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+* **report:** light, arrow and detail the forces of report events ([b370f80](https://github.com/fogfactory/crown-and-borough/commit/b370f80dedd40a1bef893b47211eb2ca69b3867d))
+* **report:** show every force of a combat and light whole regions from links ([f951ca1](https://github.com/fogfactory/crown-and-borough/commit/f951ca1f3bd872fefb1ab678c831154df401918f)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+* **report:** split a combat side's force into its own strength and its supports ([2160586](https://github.com/fogfactory/crown-and-borough/commit/216058609659b7f769f54d6689117dab0415179e)), closes [#209](https://github.com/fogfactory/crown-and-borough/issues/209)
+
 ## [1.0.0](https://github.com/fogfactory/crown-and-borough/compare/v0.10.0...v1.0.0) (2026-11-06)
 
 
