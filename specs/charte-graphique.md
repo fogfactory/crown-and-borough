@@ -87,7 +87,7 @@ peuvent être amendés en revue sans remettre en cause le choix qu'ils servent.
 | 31 | Lignée et alliances | Arbre généalogique | Maisons compactes, page dédiée, restyle de l'actuel |
 | 32 | Résultats répétitifs du rapport | Carte de synthèse et encadré des rumeurs | Filtrage seul, « chez vous » d'abord, tableau |
 | 33 | Identifiants hors des ordres | Libellé complet suivi du code entre parenthèses ; code seul uniquement dans les feuilles d'ordres et pour les territoires ordinaires de la carte | Codes seuls partout |
-| 34 | Liens vers la carte | Un clic sur un territoire ou un noble cité dans le rapport ou le poste de commandement cadre la carte sur lui | Aucun lien |
+| 34 | Liens vers la carte | Un clic sur un territoire ou un noble cité dans le rapport, le poste de commandement ou un message de la messagerie cadre la carte sur lui | Aucun lien |
 
 ## Couleurs
 
@@ -605,6 +605,22 @@ Ailleurs, ils accompagnent un nom, ils ne le remplacent pas.
 - **Style du lien :** le texte garde sa couleur, souligné d'un pointillé
   `brass-700` ; au survol, le soulignement devient plein et le territoire
   visé s'éclaire sur la carte.
+- **Messagerie :** dans les messages des joueurs, un nom de commune de la
+  carte ou un nom de noble vivant (prénom seul, nom porté avec ou sans
+  forme d'adresse : « Hugon », « Hugon de Rochevent », « Baron Hugon de
+  Rochevent »), ainsi que le trigramme d'un territoire ou d'un noble vivant
+  (« RVE », « HUO »), devient un lien, écrit tel que le joueur l'a tapé, sans
+  code ajouté. Un trigramme ne se reconnaît qu'en capitales. Un trigramme
+  partagé par un territoire et un noble (les codes ne sont uniques que dans
+  leur catégorie) les cite tous deux. La correspondance est exacte, majuscules comprises (seul l'article
+  initial d'une commune, « les Saules », s'écrit aussi en minuscule) et ne
+  porte que sur des mots entiers : « Saint-Rochevent » ou « Rocheventais »
+  ne citent pas Rochevent, « d'Hautebourg » cite Hautebourg. Le nom le plus
+  long l'emporte. Un nom porté par plusieurs (nobles homonymes, noble et
+  commune) éclaire au survol tous leurs territoires et, au clic, cadre la
+  carte sur l'ensemble sans rien sélectionner. Seule l'identité publique
+  d'un noble est reconnue, jamais une identité secrète ; les nobles morts
+  ne sont pas liés.
 
 **Précision.** Un noble dont la position n'est pas connue du joueur (vue
 privée, [information.md](information.md)) ou mort n'a pas de lien : son nom

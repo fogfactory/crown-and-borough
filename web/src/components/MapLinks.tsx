@@ -97,13 +97,18 @@ export function useMapHighlight() {
   }
 }
 
+/**
+ * A link to the map. One territory: following it frames and selects it (with
+ * the noble's halo). Several: following it frames them together and draws
+ * them, selecting none.
+ */
 function MapLink({
   territory,
   lights,
   noble,
   children,
 }: {
-  territory: string
+  territory: string | string[]
   /** Territories lit while hovered, when more than the linked one. */
   lights?: string[]
   noble?: string
@@ -112,22 +117,61 @@ function MapLink({
   const links = useMapLinks()
   const light = useMapHighlight()
   if (!links) return <span>{children}</span>
+  const lit = lights ?? territory
   return (
     <button
       type="button"
-      data-map-link={territory}
+      data-map-link={typeof territory === 'string' ? territory : territory.join(' ')}
       className={LINK_CLASS}
       onClick={() => {
         light.release()
-        links.focus(territory, noble)
+        if (typeof territory === 'string') links.focus(territory, noble)
+        else links.showEvent({ territories: territory })
       }}
-      onMouseEnter={() => light.on(lights ?? territory)}
+      onMouseEnter={() => light.on(lit)}
       onMouseLeave={light.off}
-      onFocus={() => light.on(lights ?? territory)}
+      onFocus={() => light.on(lit)}
       onBlur={light.off}
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * A name a player wrote (chat), kept as written and linked to the map: a
+ * commune frames its territory, a noble the territory where it stands. A name
+ * borne by several (homonymous nobles, or a noble and a commune) lights all
+ * their territories and frames them together. Without a known place, it stays
+ * text.
+ */
+export function MapMention({
+  territory,
+  nobles,
+  children,
+}: {
+  territory?: string
+  nobles: string[]
+  children: ReactNode
+}) {
+  const links = useMapLinks()
+  if (!links) return <>{children}</>
+  const own = territory && links.hasTerritory(territory) ? territory : undefined
+  const located = nobles.flatMap((code) => {
+    const at = links.nobleTerritory(code)
+    return at ? [{ code, at }] : []
+  })
+  const territories = [...new Set([own, ...located.map((noble) => noble.at)])].filter(
+    (id): id is string => id !== undefined,
+  )
+  if (territories.length === 0) return <>{children}</>
+  if (territories.length > 1) return <MapLink territory={territories}>{children}</MapLink>
+  // A lone noble gets its halo; a commune, even with a noble standing there, does not.
+  const noble = !own && located.length === 1 ? located[0].code : undefined
+  return (
+    <MapLink territory={territories[0]} noble={noble}>
+      {children}
+    </MapLink>
   )
 }
 
