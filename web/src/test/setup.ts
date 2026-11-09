@@ -35,8 +35,3 @@ Object.defineProperty(SVGElement.prototype, 'getBoundingClientRect', {
 SVGElement.prototype.setPointerCapture = () => undefined
 SVGElement.prototype.releasePointerCapture = () => undefined
 SVGElement.prototype.hasPointerCapture = () => true
-
-// Radix Select (pointer capture, scrolling) in jsdom.
-HTMLElement.prototype.hasPointerCapture = () => false
-HTMLElement.prototype.setPointerCapture = () => undefined
-HTMLElement.prototype.releasePointerCapture = () => undefined

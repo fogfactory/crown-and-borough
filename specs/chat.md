@@ -49,8 +49,14 @@ ergonomie que les autres onglets, voir [`charte-graphique.md`](charte-graphique.
 - Les conversations privées existantes (au moins un message) sont listées,
   la plus récente en premier, avec le blason de l'interlocuteur. Une
   conversation avec une maison éliminée reste visible et utilisable.
-- Une liste « Nouvelle conversation » ne propose que les maisons encore en
-  jeu avec lesquelles il n'y a pas encore de conversation.
+- Les canaux se choisissent dans un sélecteur (liste déroulante accessible au
+  clavier) : chaque entrée, ainsi que le déclencheur pour le canal ouvert,
+  montre le blason de la maison suivi de son nom et de son nombre de
+  non-lus ; le salon public n'a pas de blason, et une paire vue par
+  l'observateur en montre deux.
+- Une liste « Nouvelle conversation », de même forme (blason et nom), ne
+  propose que les maisons encore en jeu avec lesquelles il n'y a pas encore
+  de conversation.
 - L'observateur voit toutes les paires de maisons, chacune avec un cadenas et
   la mention « Lecture seule » ; le champ de saisie est remplacé par une
   note.

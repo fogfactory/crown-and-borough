@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -104,29 +105,44 @@ function messageTime(message: ChatMessage, locale: string): string {
     : date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
-function HouseMark({ player, id }: { player: Player | undefined; id: string }) {
+/** A house's shield. Several can be mounted at once (list, trigger), so ids come from useId. */
+function HouseMark({
+  player,
+  className,
+}: {
+  player: Player | undefined
+  className?: string
+}) {
+  const id = useId()
   if (!player) return null
-  return <ShieldIcon id={id} arms={playerArms(player)} />
+  return <ShieldIcon id={id} arms={playerArms(player)} className={className} />
 }
 
-/** A selector entry: the arms of the house(s) concerned, then the label. */
+// Field height (40px) on desktop, 44px touch target on phones (charte graphique).
+const SELECT_TRIGGER_CLASS = 'w-full data-[size=default]:h-11 lg:data-[size=default]:h-10'
+const SELECT_CONTENT_CLASS = 'w-(--radix-select-trigger-width)'
+// Rows keep a 44px touch target on phones; the label may shrink and truncate.
+const SELECT_ITEM_CLASS = 'max-lg:min-h-11 *:[span]:last:min-w-0'
+
+/** A selector entry: the arms of the house(s) concerned, the label, then the unread suffix. */
 function ChannelOption({
-  id,
   houses,
   label,
+  suffix,
   playerOf,
 }: {
-  id: string
   houses: string[]
   label: string
+  suffix?: string
   playerOf: (id: string) => Player | undefined
 }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       {houses.map((houseId) => (
-        <HouseMark key={houseId} player={playerOf(houseId)} id={`${id}-${houseId}`} />
+        <HouseMark key={houseId} player={playerOf(houseId)} className="size-5 shrink-0" />
       ))}
       <span className="truncate">{label}</span>
+      {suffix && <span className="shrink-0">{suffix}</span>}
     </span>
   )
 }
@@ -247,32 +263,25 @@ export function ChatPanel({
     visible,
   ])
 
-  const channelLabel = useCallback(
-    (key: string) => {
-      if (key === PUBLIC_CHANNEL) return t('chat.public')
-      const houses = conversationHouses(key)
-      if (!houses) return key
-      const other = house ? otherHouse(key, house) : null
-      return other
-        ? houseName(other)
-        : t('chat.conversationBetween', {
-            first: houseName(houses[0]),
-            second: houseName(houses[1]),
-          })
-    },
-    [house, houseName, t],
-  )
+  /** Houses a channel concerns for this reader: the other one, or both for the observer. */
+  const channelHouses = (key: string): string[] => {
+    const houses = conversationHouses(key)
+    if (!houses) return []
+    const other = house ? otherHouse(key, house) : null
+    return other ? [other] : houses
+  }
 
-  /** Houses whose arms illustrate a channel (none for the public room). */
-  const channelHouses = useCallback(
-    (key: string): string[] => {
-      const houses = conversationHouses(key)
-      if (!houses) return []
-      const other = house ? otherHouse(key, house) : null
-      return other ? [other] : [houses[0], houses[1]]
-    },
-    [house],
-  )
+  const channelLabel = (key: string) => {
+    if (key === PUBLIC_CHANNEL) return t('chat.public')
+    const [first, second] = channelHouses(key)
+    if (!first) return key
+    return second
+      ? t('chat.conversationBetween', {
+          first: houseName(first),
+          second: houseName(second),
+        })
+      : houseName(first)
+  }
 
   const privateChannels = useMemo(() => {
     const latest = (key: string) => channels[key]?.messages.at(-1)?.createdAt ?? ''
@@ -366,24 +375,22 @@ export function ChatPanel({
     >
       <nav aria-label={t('chat.channels')} className="space-y-2">
         <Select value={open} onValueChange={select}>
-          <SelectTrigger
-            id="chat-channel"
-            aria-label={t('chat.channels')}
-            className="h-9 w-full"
-          >
+          <SelectTrigger aria-label={t('chat.channels')} className={SELECT_TRIGGER_CLASS}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent position="popper" className="w-(--radix-select-trigger-width)">
+          <SelectContent
+            position="popper"
+            aria-label={t('chat.channels')}
+            className={SELECT_CONTENT_CLASS}
+          >
             {[PUBLIC_CHANNEL, ...privateChannels].map((key) => {
               const count = unread[key] ?? 0
               return (
-                <SelectItem key={key} value={key} data-chat-channel={key}>
+                <SelectItem key={key} value={key} className={SELECT_ITEM_CLASS}>
                   <ChannelOption
-                    id={`chat-opt-${key}`}
                     houses={channelHouses(key)}
-                    label={`${channelLabel(key)}${
-                      count > 0 ? ` (${count > 99 ? '99+' : count})` : ''
-                    }`}
+                    label={channelLabel(key)}
+                    suffix={count > 0 ? ` (${count > 99 ? '99+' : count})` : undefined}
                     playerOf={playerOf}
                   />
                 </SelectItem>
@@ -391,45 +398,45 @@ export function ChatPanel({
             })}
           </SelectContent>
         </Select>
-        {house && (
-          <div>
-            {newConversationTargets.length > 0 ? (
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value) select(conversationKey(house, value))
-                }}
+        {house &&
+          (newConversationTargets.length > 0 ? (
+            <Select
+              value=""
+              onValueChange={(value) => {
+                if (value) select(conversationKey(house, value))
+              }}
+            >
+              <SelectTrigger
+                aria-label={t('chat.newConversation')}
+                className={SELECT_TRIGGER_CLASS}
               >
-                <SelectTrigger
-                  id="chat-new-conversation"
-                  aria-label={t('chat.newConversation')}
-                  className="h-9 w-full"
-                >
-                  <SelectValue placeholder={t('chat.newConversationPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent
-                  position="popper"
-                  className="w-(--radix-select-trigger-width)"
-                >
-                  {newConversationTargets.map((player) => (
-                    <SelectItem key={player.id} value={player.id}>
-                      <ChannelOption
-                        id={`chat-new-${player.id}`}
-                        houses={[player.id]}
-                        label={houseName(player.id)}
-                        playerOf={playerOf}
-                      />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              privateChannels.length === 0 && (
-                <p className="text-xs text-ink-500">{t('chat.noHouses')}</p>
-              )
-            )}
-          </div>
-        )}
+                <SelectValue placeholder={t('chat.newConversationPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                aria-label={t('chat.newConversation')}
+                className={SELECT_CONTENT_CLASS}
+              >
+                {newConversationTargets.map((player) => (
+                  <SelectItem
+                    key={player.id}
+                    value={player.id}
+                    className={SELECT_ITEM_CLASS}
+                  >
+                    <ChannelOption
+                      houses={[player.id]}
+                      label={houseName(player.id)}
+                      playerOf={playerOf}
+                    />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            privateChannels.length === 0 && (
+              <p className="text-xs text-ink-500">{t('chat.noHouses')}</p>
+            )
+          ))}
       </nav>
 
       <MessageList
@@ -722,7 +729,7 @@ function MessageList({
             )}
           >
             <header className="flex items-center gap-1.5 text-xs">
-              <HouseMark player={playerOf(item.authorHouseId)} id={`chat-${item.key}`} />
+              <HouseMark player={playerOf(item.authorHouseId)} />
               <span className="font-semibold text-ink-900">
                 {houseName(item.authorHouseId)}
                 {own && (

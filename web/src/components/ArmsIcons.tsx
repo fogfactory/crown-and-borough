@@ -59,10 +59,18 @@ export function ControlShieldIcon({
 }
 
 /** A shield in the given arms: the house of a noble or a player. */
-export function ShieldIcon({ id, arms }: { id: string; arms: ResolvedArms }) {
+export function ShieldIcon({
+  id,
+  arms,
+  className = 'h-5 w-6 shrink-0',
+}: {
+  id: string
+  arms: ResolvedArms
+  className?: string
+}) {
   return (
     <svg
-      className="h-5 w-6 shrink-0"
+      className={className}
       viewBox="-10 -11 20 22"
       aria-hidden="true"
       data-shield-icon

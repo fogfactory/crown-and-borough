@@ -51,15 +51,24 @@ const state = {
   fiefs: [],
 } as unknown as StateData
 
-function openSelect(name: string) {
-  const trigger = screen.getByRole('combobox', { name })
-  fireEvent.keyDown(trigger, { key: 'Enter' })
+const CHANNELS = 'Rooms and conversations'
+const NEW_CONVERSATION = 'New conversation'
+
+function trigger(name: string) {
+  return screen.getByRole('combobox', { name })
 }
 
-function chooseChannel(key: string) {
-  openSelect('Rooms and conversations')
-  const option = document.querySelector(`[data-chat-channel="${key}"]`) as HTMLElement
-  fireEvent.click(option)
+function openSelect(name: string) {
+  fireEvent.click(trigger(name))
+}
+
+function chooseOption(select: string, option: string | RegExp) {
+  openSelect(select)
+  fireEvent.click(screen.getByRole('option', { name: option }))
+}
+
+function shields(element: HTMLElement) {
+  return element.querySelectorAll('[data-shield-icon]')
 }
 
 function setChat(
@@ -117,10 +126,44 @@ describe('ChatPanel', () => {
       P1_P4: channel([]),
     })
     renderPanel()
-    openSelect('New conversation')
+    expect(trigger(NEW_CONVERSATION)).toHaveTextContent('Write to a house…')
+    openSelect(NEW_CONVERSATION)
     const options = screen.getAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual(['Maison Brieuc'])
-    expect(options[0].querySelector('[data-shield-icon]')).not.toBeNull()
+    expect(shields(options[0])).toHaveLength(1)
+  })
+
+  it('shows the shield and name of the active conversation in the trigger', () => {
+    setChat({
+      public: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+    })
+    renderPanel()
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+    expect(shields(trigger(CHANNELS))).toHaveLength(0)
+    chooseOption(CHANNELS, /^Maison Cérès/)
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Cérès')
+    expect(shields(trigger(CHANNELS))).toHaveLength(1)
+  })
+
+  it('names both lists and gives every entry its house shield', () => {
+    setChat({
+      public: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+    })
+    renderPanel()
+    openSelect(CHANNELS)
+    const list = screen.getByRole('listbox', { name: CHANNELS })
+    const [publicRoom, conversation] = within(list).getAllByRole('option')
+    expect(shields(publicRoom)).toHaveLength(0)
+    expect(shields(conversation)).toHaveLength(1)
+  })
+
+  it('opens the channel list with the keyboard', () => {
+    setChat({ public: channel([]) })
+    renderPanel()
+    fireEvent.keyDown(trigger(CHANNELS), { key: 'ArrowDown' })
+    expect(screen.getByRole('listbox', { name: CHANNELS })).toBeInTheDocument()
   })
 
   it('keeps an existing conversation with an eliminated house usable', () => {
@@ -129,7 +172,9 @@ describe('ChatPanel', () => {
       P1_P4: channel([message('1', 'P4', 1, 'P1_P4')]),
     })
     renderPanel()
-    chooseChannel('P1_P4')
+    chooseOption(CHANNELS, /^Maison Dorian/)
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Dorian')
+    expect(screen.getByRole('log', { name: /Maison Dorian/ })).toBeInTheDocument()
     expect(screen.getByLabelText('Your message')).toBeEnabled()
   })
 
@@ -143,8 +188,10 @@ describe('ChatPanel', () => {
     )
     const { onUnreadChange } = renderPanel()
     expect(onUnreadChange).toHaveBeenLastCalledWith(3)
-    openSelect('Rooms and conversations')
-    expect(screen.getByRole('option', { name: 'Public room (1)' })).toBeInTheDocument()
+    openSelect(CHANNELS)
+    expect(
+      screen.getByRole('option', { name: /^Public room\s*\(1\)/ }),
+    ).toBeInTheDocument()
   })
 
   it('marks the open channel read when the chat is on screen', () => {
@@ -165,7 +212,8 @@ describe('ChatPanel', () => {
       P2_P3: channel([message('1', 'P2', 1, 'P2_P3')]),
     })
     renderPanel({ house: null, observer: true })
-    chooseChannel('P2_P3')
+    chooseOption(CHANNELS, 'Maison Brieuc and Maison Cérès')
+    expect(shields(trigger(CHANNELS))).toHaveLength(2)
     expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument()
     expect(
       screen.getByText(/Read only: you are viewing the conversation of Maison Brieuc/),
