@@ -124,15 +124,11 @@ func ComputeScores(state *models.GameState, balance assetgen.Balance) map[models
 // (specs/succession.md § Poids d'alliance). A marriage that is the active head
 // of both houses is a full alliance: no individual bonus, the two scores are
 // combined for the joint victory instead. Every other active alliance is an
-// influence marriage: each house gains the title count of the spouse's house,
-// which counts toward a solo win or a win through another head. Bonuses use
-// the spouse house's own title count, never a bonus-inflated score, so
-// marriages cannot feed each other.
+// influence marriage: each house gains the titles held by the other house's
+// spouse, which count toward a solo win or a win through another head. Bonuses
+// use the spouse's own titles, never a bonus-inflated score, so marriages
+// cannot feed each other.
 func applyMarriageBonuses(state *models.GameState, balance assetgen.Balance, scores map[models.PlayerID]ScoreBreakdown) {
-	titles := make(map[models.PlayerID]int, len(scores))
-	for playerID, score := range scores {
-		titles[playerID] = score.Titles
-	}
 	for _, marriage := range state.Marriages {
 		houseA, houseB := marriageHouses(state, marriage)
 		if houseA == houseB {
@@ -141,14 +137,32 @@ func applyMarriageBonuses(state *models.GameState, balance assetgen.Balance, sco
 		if category, ok := MarriageCategory(state, balance, marriage); !ok || category == AllianceHead {
 			continue
 		}
-		for _, side := range [2][2]models.PlayerID{{houseA, houseB}, {houseB, houseA}} {
-			player, spouse := side[0], side[1]
-			if score, exists := scores[player]; exists {
-				score.Alliance += titles[spouse]
-				scores[player] = score
+		for _, side := range [2]struct {
+			player models.PlayerID
+			spouse models.NobleID
+		}{{houseA, marriage.NobleB}, {houseB, marriage.NobleA}} {
+			if score, exists := scores[side.player]; exists {
+				score.Alliance += nobleTitleCount(state, side.spouse)
+				scores[side.player] = score
 			}
 		}
 	}
+}
+
+// nobleTitleCount is the number of titles a noble holds: one per fief they
+// hold, plus the crown if king. The pope cannot marry, so the papacy never
+// counts here.
+func nobleTitleCount(state *models.GameState, id models.NobleID) int {
+	count := 0
+	for _, fief := range state.Fiefs {
+		if fief.HolderNobleID != nil && *fief.HolderNobleID == id {
+			count++
+		}
+	}
+	if state.King != nil && *state.King == id {
+		count++
+	}
+	return count
 }
 
 // Victory modes a player is currently evaluated under.

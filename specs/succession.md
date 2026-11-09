@@ -292,7 +292,7 @@ seuil. Chaque alliance est soit **tête**, soit **secondaire** :
 | Catégorie | Définition | Effet |
 |---|---|---|
 | Tête | Alliance retenue comme tête active de ses deux maisons (voir [Tête active](#tête-active)) | Alliance complète : score additionné, victoire commune possible (voir [titres.md § Victoire majeure, victoire mineure, échec](titres.md#victoire-majeure-victoire-mineure-échec)) |
-| Secondaire | Toute autre alliance | Mariage d'influence : les titres de la famille du conjoint s'ajoutent au score, sans victoire commune |
+| Secondaire | Toute autre alliance | Mariage d'influence : les titres détenus par le conjoint s'ajoutent au score, sans victoire commune |
 
 ### Tête active
 
