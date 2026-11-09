@@ -934,8 +934,9 @@ Les mariages ajustent ce score (voir
   complète : aucun bonus individuel, les deux scores s'additionnent pour la
   victoire commune ;
 - tout autre mariage entre deux maisons est un mariage d'influence : chaque
-  maison gagne le nombre de titres de la maison du conjoint (jamais son score
-  bonifié). Le bonus est affiché à part (`alliance`).
+  maison gagne les titres détenus par le conjoint de l'autre maison (un par
+  fief dont il est titulaire, +1 s'il est roi ; jamais son
+  score bonifié). Le bonus est affiché à part (`alliance`).
 
 Voir [titres.md § Score de titres](titres.md#score-de-titres) pour le détail.
 

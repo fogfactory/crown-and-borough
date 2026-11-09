@@ -43,6 +43,10 @@ var demoScenarios = map[string]struct {
 		description: "winter (see the winter scenario), four houses to try the lineage tree: P1 is married to P2 (twice, at different ranks), P3 and P4, an ended marriage joins P3 and P4, and four claims whose stems cross",
 		apply:       forgeLineage,
 	},
+	"influence": {
+		description: "winter (see the winter scenario), to check the influence marriage bonus: P1 holds one fief (ZIA, married to the king ZIC of P3: head marriage), P2 holds two fiefs (ZIB is married to P1's ZID, an influence marriage; ZIE is single), P3's king ZIC holds one fief. P1 gains the fiefs of ZIB only (1), not P2's whole house (2)",
+		apply:       forgeInfluence,
+	},
 	"dissolution": {
 		description: "winter (see the winter scenario), plus two marriages: ZEL (P1, the pope's house) with ZRO (P2), and ZCA (P2) with ZGU (P3); P1 can marry free nobles of P4",
 		apply:       forgeDissolution,
@@ -586,6 +590,94 @@ func forgeLineage(state *models.GameState) error {
 		{Heir: "N963", Target: "N953", Spouse: "N961", Turn: 4},
 	}
 	fmt.Println("demo lineage: open the lineage window; P1 is married to P2 (twice), P3 and P4, P3-P4 ended, four claims")
+	return nil
+}
+
+// forgeInfluence gives each house titled nobles and marriages to check the
+// influence bonus, which counts the titles of the spouse only, not of the
+// whole allied house.
+func forgeInfluence(state *models.GameState) error {
+	if err := forgeWinter(state); err != nil {
+		return err
+	}
+	location := state.Nobles[ownedNobles(state, "P1")[0]].LocationID
+	for _, noble := range []struct {
+		id, code, name, owner string
+		sex                   models.Sex
+	}{
+		{"N970", "ZIA", "Hermine", "P1", models.SexFemale},
+		{"N971", "ZIB", "Isabeau", "P2", models.SexFemale},
+		{"N972", "ZIC", "Charles", "P3", models.SexMale},
+		{"N973", "ZID", "Gontran", "P1", models.SexMale},
+		{"N974", "ZIE", "Jehan", "P2", models.SexMale},
+	} {
+		state.Nobles = append(state.Nobles, models.Noble{
+			ID: models.NobleID(noble.id), Code: noble.code, Name: noble.name, Sex: noble.sex,
+			OwnerID: models.PlayerID(noble.owner), LocationID: location, Status: models.NobleStatusFree,
+		})
+	}
+	king := models.NobleID("N972")
+	state.King = &king
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	found := func(id models.FiefID, player models.PlayerID, holder models.NobleID) error {
+		var members []models.TerritoryID
+		for _, territory := range state.Territories {
+			owner, controlled := state.TerritoryController(territory.ID)
+			if controlled && owner == player && !inFief[territory.ID] && len(members) < models.FiefMinTerritories {
+				members = append(members, territory.ID)
+			}
+		}
+		// Top up with free territories held by a one-troop army.
+		for _, territory := range state.Territories {
+			if len(members) >= models.FiefMinTerritories {
+				break
+			}
+			if inFief[territory.ID] || containsTerritory(members, territory.ID) || !isFreeTerritory(state, territory.ID) {
+				continue
+			}
+			armyID := models.ArmyID(fmt.Sprintf("ZI%d", state.NextArmyID))
+			state.NextArmyID++
+			state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: player, TerritoryID: territory.ID, Size: 1})
+			territoryState := state.TerritoryStates[territory.ID]
+			territoryState.Army = &armyID
+			state.TerritoryStates[territory.ID] = territoryState
+			members = append(members, territory.ID)
+		}
+		if len(members) < models.FiefMinTerritories {
+			return fmt.Errorf("no room for fief %s of %s", id, player)
+		}
+		for _, member := range members {
+			inFief[member] = true
+		}
+		state.Fiefs = append(state.Fiefs, models.Fief{
+			ID: id, Title: models.FiefTitleBarony, CapitalTerritoryID: members[0],
+			Territories: members, OwnerID: player, HolderNobleID: &holder,
+		})
+		return nil
+	}
+	for _, fief := range []struct {
+		id     models.FiefID
+		player models.PlayerID
+		holder models.NobleID
+	}{
+		{"FZIA1", "P1", "N970"},
+		{"FZIB1", "P2", "N971"}, {"FZIE1", "P2", "N974"},
+		{"FZIC1", "P3", "N972"},
+	} {
+		if err := found(fief.id, fief.player, fief.holder); err != nil {
+			return err
+		}
+	}
+	state.Marriages = []models.Marriage{
+		{NobleA: "N970", NobleB: "N972", Turn: 1},
+		{NobleA: "N973", NobleB: "N971", Turn: 2},
+	}
+	fmt.Println("demo influence: P1 (ZIA, 1 fief) is married to the king ZIC (P3, head); P1's ZID is married to ZIB (P2, 1 of P2's 2 fiefs): P1 alliance bonus 1")
 	return nil
 }
 

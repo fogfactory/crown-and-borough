@@ -26,7 +26,7 @@ foi.
 - **L'hiver, on bâtit.** Pas de combat en hiver : on y construit, on fonde des
   fiefs, on marie ses nobles et on élit évêques, pape et roi.
 - **Le mariage est une arme.** Un mariage de tête unit deux maisons pour une
-  victoire commune ; les autres mariages t'apportent l'influence de ton
+  victoire commune ; les autres mariages t'apportent l'influence des titres de ton
   conjoint.
 
 ---
@@ -383,7 +383,8 @@ deux mêmes maisons.
   s'additionnent pour une **victoire commune**, mais aucune des deux maisons
   ne peut gagner seule.
 - **Les autres mariages** sont des **mariages d'influence** : chaque maison
-  gagne autant de points que l'autre maison a de titres.
+  gagne autant de points que les titres détenus par le conjoint de l'autre
+  maison : 1 par fief dont il est titulaire, +1 s'il est roi.
 - Le mariage d'un bâtard n'est pas une alliance.
 
 La vue **Lignée et alliances** montre les familles, les mariages, les
@@ -593,8 +594,8 @@ circulent dans les mains.
 
 - de tes **titres** : 1 point par fief (vacant compris), 1 pour la couronne
   et 1 pour la papauté ;
-- de tes **mariages d'influence** : les titres de chaque maison alliée par un
-  mariage secondaire ;
+- de tes **mariages d'influence** : les titres détenus par le conjoint de chaque maison
+  alliée par un mariage secondaire ;
 - de l'influence de ton **allié de tête**, si tu en as un.
 
 Les dignités, les évêchés, les cardinalats, les territoires, les armées et
