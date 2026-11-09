@@ -135,8 +135,6 @@ function Lobby({
   invitation,
   onInvite,
   inviting,
-  scores,
-  victory,
 }: {
   summary: GameSummary
   uid: string
@@ -144,8 +142,6 @@ function Lobby({
   invitation: Invitation | null
   onInvite: () => void
   inviting: boolean
-  scores?: StateData['scores']
-  victory?: StateData['victory']
 }) {
   const { t } = useLanguage()
   return (
@@ -198,7 +194,6 @@ function Lobby({
             </li>
           ))}
         </ul>
-        <Scoreboard players={summary.players} scores={scores} victory={victory} />
         {invitation && (
           <Alert tone="info" size="banner">
             <p className="font-semibold">
@@ -971,8 +966,6 @@ export function GamePage() {
               invitation={invitation}
               onInvite={() => void createInvitation()}
               inviting={inviting}
-              scores={state.scores ?? summary.scores}
-              victory={state.victory}
             />
           </HeaderPopover>
           {desktop && (
