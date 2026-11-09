@@ -7,6 +7,7 @@ import { buildOrdersBody } from '@/lib/orders-body'
 import type { Noble, OrdersPreview, Region, StateData, Territory } from '@/types'
 import { withText } from '@/test/text'
 
+
 /** Picks the first card of the hand fan, which shows its play controls. */
 function pickHandCard(code?: string) {
   const card = document.querySelector<HTMLElement>(
@@ -60,11 +61,7 @@ function renderWithPreview(
   season: StateData['season'],
   preview: OrdersPreview,
   language: 'fr' | 'en' = 'fr',
-  drafts: {
-    nobles?: Noble[]
-    chainDrafts?: Record<string, string>
-    winterDraft?: string
-  } = {},
+  drafts: { nobles?: Noble[]; chainDrafts?: Record<string, string>; winterDraft?: string } = {},
 ) {
   return render(
     <LanguageProvider initialLanguage={language}>
@@ -92,20 +89,14 @@ describe('OrdersPanel seasonal presentation', () => {
     expect(heading.querySelector('svg')).toBeInTheDocument()
     // One summary line; the full help waits behind the "?" button.
     expect(
-      screen.getByText(
-        'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
-      ),
+      screen.getByText('Investissements directs seulement : ni chaînes ni mouvement de troupes.'),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByText(/Investissements directs uniquement/),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Investissements directs uniquement/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: "Aide : Ordres d'hiver" }))
     expect(screen.getByText(/Investissements directs uniquement/)).toBeInTheDocument()
     expect(screen.getByText(/sans chaînes ni mouvements militaires/)).toBeInTheDocument()
     // The full help names no order syntax: it lives in the input templates.
-    expect(screen.getByText(/Investissements directs uniquement/)).not.toHaveTextContent(
-      /D C/,
-    )
+    expect(screen.getByText(/Investissements directs uniquement/)).not.toHaveTextContent(/D C/)
     expect(screen.queryByLabelText('Ordres de cartes spéciales')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText(/D C BT/)).toBeInTheDocument()
     expect(
@@ -140,27 +131,16 @@ describe('OrdersPanel seasonal presentation', () => {
   })
 
   it('lists the server messages of malformed winter lines', () => {
-    renderWithPreview(
-      'winter',
-      {
-        errors: [],
-        chains: [],
-        winter: [
-          { line: 1, status: 'invalid', message: 'Ordre d’hiver inconnu' },
-          {
-            line: 2,
-            status: 'applied',
-            type: 'recruit_troop',
-            territory: 'ROS',
-            cost: 1,
-          },
-          { line: 3, status: 'invalid', message: 'Code de territoire inconnu : ZZZ' },
-        ],
-        winterCost: { spent: 1, available: 25 },
-      },
-      'fr',
-      { winterDraft: 'X\nR ROS\nB ZZZ' },
-    )
+    renderWithPreview('winter', {
+      errors: [],
+      chains: [],
+      winter: [
+        { line: 1, status: 'invalid', message: 'Ordre d’hiver inconnu' },
+        { line: 2, status: 'applied', type: 'recruit_troop', territory: 'ROS', cost: 1 },
+        { line: 3, status: 'invalid', message: 'Code de territoire inconnu : ZZZ' },
+      ],
+      winterCost: { spent: 1, available: 25 },
+    }, 'fr', { winterDraft: 'X\nR ROS\nB ZZZ' })
 
     const errors = screen.getByRole('alert', {
       name: "Erreurs de syntaxe des ordres d'hiver",
@@ -206,35 +186,16 @@ describe('OrdersPanel seasonal presentation', () => {
 
   it('drops the line of an error once its chain changed, until the next preview', () => {
     const nobles: Noble[] = [
-      {
-        id: 'N1',
-        code: 'HUG',
-        name: 'Hugues',
-        owner: 'P1',
-        location: 'ROS',
-        status: 'free',
-      },
+      { id: 'N1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
     ]
     const preview: OrdersPreview = {
-      errors: [
-        {
-          source: 'chain',
-          noble: 'HUG',
-          line: 2,
-          code: 'not_adjacent',
-          message: 'pas adjacent',
-        },
-      ],
+      errors: [{ source: 'chain', noble: 'HUG', line: 2, code: 'not_adjacent', message: 'pas adjacent' }],
       chains: [],
       winter: [],
     }
     const spring: StateData = { ...state, season: 'spring', nobles }
     const sent = (draft: string) =>
-      buildOrdersBody(spring, 'P1', {
-        chainDrafts: { HUG: draft },
-        winterDraft: '',
-        specialDraft: '',
-      })
+      buildOrdersBody(spring, 'P1', { chainDrafts: { HUG: draft }, winterDraft: '', specialDraft: '' })
     const panel = (draft: string) => (
       <LanguageProvider initialLanguage="fr">
         <OrdersPanel
@@ -258,46 +219,32 @@ describe('OrdersPanel seasonal presentation', () => {
 
     rerender(panel('H ROS\nM BRU'))
     expect(document.querySelectorAll('[data-order-error-line]')).toHaveLength(0)
-    const errors = screen.getByRole('alert', {
-      name: 'Erreurs de la chaîne de Hugues (HUG)',
-    })
+    const errors = screen.getByRole('alert', { name: 'Erreurs de la chaîne de Hugues (HUG)' })
     expect(errors).toHaveTextContent('pas adjacent')
     expect(errors).not.toHaveTextContent('Ligne')
   })
 
   it('shows chain errors found by the server while the player types', () => {
-    renderWithPreview(
-      'spring',
-      {
-        errors: [
-          {
-            source: 'chain',
-            noble: 'HUG',
-            line: 2,
-            code: 'not_adjacent',
-            message: 'BRU n’est pas adjacent',
-          },
-          { source: 'winter', code: 'winter_out_of_season', message: 'hors saison' },
-        ],
-        chains: [],
-        winter: [],
-      },
-      'fr',
-      {
-        nobles: [
-          {
-            id: 'N1',
-            code: 'HUG',
-            name: 'Hugues',
-            owner: 'P1',
-            location: 'ROS',
-            status: 'free',
-          },
-        ],
-        // Sent as "HUG\nM BRU\nH ROS": the server line 2 is the draft line 1.
-        chainDrafts: { HUG: 'M BRU\nH ROS' },
-      },
-    )
+    renderWithPreview('spring', {
+      errors: [
+        {
+          source: 'chain',
+          noble: 'HUG',
+          line: 2,
+          code: 'not_adjacent',
+          message: 'BRU n’est pas adjacent',
+        },
+        { source: 'winter', code: 'winter_out_of_season', message: 'hors saison' },
+      ],
+      chains: [],
+      winter: [],
+    }, 'fr', {
+      nobles: [
+        { id: 'N1', code: 'HUG', name: 'Hugues', owner: 'P1', location: 'ROS', status: 'free' },
+      ],
+      // Sent as "HUG\nM BRU\nH ROS": the server line 2 is the draft line 1.
+      chainDrafts: { HUG: 'M BRU\nH ROS' },
+    })
 
     const errors = screen.getByRole('alert', {
       name: 'Erreurs de la chaîne de Hugues (HUG)',
@@ -437,9 +384,7 @@ describe('OrdersPanel seasonal presentation', () => {
     )
 
     // A forecast is a warning, not an alert.
-    expect(
-      screen.getByText('Calamités à venir').closest('[data-calamity-forecast]'),
-    ).toHaveClass('bg-warning-100')
+    expect(screen.getByText('Calamités à venir').closest('[data-calamity-forecast]')).toHaveClass('bg-warning-100')
     expect(screen.getByText(withText(/Peste \(PE\) — Été dans ROS/))).toBeInTheDocument()
     expect(
       screen.getByText(withText(/Mauvaise récolte \(MR\) — Hiver dans BOI/)),
@@ -713,35 +658,16 @@ describe('OrdersPanel noble deck (winter)', () => {
     const onWinterChange = renderDeck('# note')
     pickHandCard('BAS')
     fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
-    fireEvent.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: "Ajouter l'ordre" }),
-    )
-    expect(onWinterChange).toHaveBeenCalledWith(
-      '# note\nD N HUG BAS # Bâtard pour Hugues\n',
-    )
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: "Ajouter l'ordre" }))
+    expect(onWinterChange).toHaveBeenCalledWith('# note\nD N HUG BAS # Bâtard pour Hugues\n')
   })
 
   it('offers a dignity card on any eligible noble, opponents included, own first', () => {
     const onWinterChange = renderDeck('', vi.fn(), {
       ...deckState,
       nobles: [
-        {
-          id: 'n2',
-          code: 'ANN',
-          name: 'Anne',
-          owner: 'P2',
-          location: 'BRU',
-          status: 'free',
-        },
-        {
-          id: 'n3',
-          code: 'BOB',
-          name: 'Bob',
-          owner: 'P2',
-          location: 'BRU',
-          status: 'free',
-          dignities: ['bastard'],
-        },
+        { id: 'n2', code: 'ANN', name: 'Anne', owner: 'P2', location: 'BRU', status: 'free' },
+        { id: 'n3', code: 'BOB', name: 'Bob', owner: 'P2', location: 'BRU', status: 'free', dignities: ['bastard'] },
         ...deckState.nobles,
       ],
     })
@@ -762,35 +688,9 @@ describe('OrdersPanel noble deck (winter)', () => {
     renderDeck('', vi.fn(), {
       ...deckState,
       nobles: [
-        {
-          id: 'n2',
-          code: 'ANN',
-          name: 'Anne',
-          owner: 'P2',
-          location: 'BRU',
-          status: 'free',
-          sex: 'female',
-        },
-        {
-          id: 'n3',
-          code: 'EVE',
-          name: 'Eve',
-          owner: 'P1',
-          location: 'ROS',
-          status: 'free',
-          sex: 'female',
-          dignities: ['astrologer'],
-        },
-        {
-          id: 'n4',
-          code: 'FAY',
-          name: 'Faye',
-          owner: 'P1',
-          location: 'ROS',
-          status: 'free',
-          sex: 'female',
-          dignities: ['spy'],
-        },
+        { id: 'n2', code: 'ANN', name: 'Anne', owner: 'P2', location: 'BRU', status: 'free', sex: 'female' },
+        { id: 'n3', code: 'EVE', name: 'Eve', owner: 'P1', location: 'ROS', status: 'free', sex: 'female', dignities: ['astrologer'] },
+        { id: 'n4', code: 'FAY', name: 'Faye', owner: 'P1', location: 'ROS', status: 'free', sex: 'female', dignities: ['spy'] },
         ...deckState.nobles,
       ],
       nobleHand: [{ id: 'c9', kind: 'dignity', code: 'SOR', dignity: 'witch' }],
@@ -838,9 +738,7 @@ describe('OrdersPanel noble deck (winter)', () => {
         .map((o) => o.textContent),
     ).toEqual(['Anne (ANN)'])
     fireEvent.click(within(dialog).getByRole('button', { name: "Ajouter l'ordre" }))
-    expect(onWinterChange).toHaveBeenCalledWith(
-      'C N HUG ANN # prétention sur Anne par Hugues\n',
-    )
+    expect(onWinterChange).toHaveBeenCalledWith('C N HUG ANN # prétention sur Anne par Hugues\n')
   })
 
   it('offers the card orders outside winter, without draw nor discard', () => {
@@ -866,10 +764,7 @@ describe('OrdersPanel noble deck (winter)', () => {
   it('disables the discard of a card already used by a draft line', () => {
     renderDeck('D C ALB\nD N HUG BAS\n')
     // A card discarded by the sheet is greyed and struck through in the fan.
-    expect(document.querySelector('[data-hand-card="ALB"]')).toHaveAttribute(
-      'data-discarded',
-      'true',
-    )
+    expect(document.querySelector('[data-hand-card="ALB"]')).toHaveAttribute('data-discarded', 'true')
     pickHandCard('ALB')
     expect(screen.getByRole('button', { name: 'Défausser' })).toBeDisabled()
     pickHandCard('BAS')
@@ -895,9 +790,7 @@ describe('OrdersPanel winter elections', () => {
           state={{
             ...state,
             season: 'winter',
-            bishoprics: [
-              { region: 'R1', name: 'Ros', seed: 'AAA', territories: ['AAA'] },
-            ],
+            bishoprics: [{ region: 'R1', name: 'Ros', territories: ['AAA'] }],
             openElections: [
               {
                 kind: 'bishop',
@@ -914,34 +807,14 @@ describe('OrdersPanel winter elections', () => {
                   { code: 'ZEM', name: 'Sieur Bertrand', owner: 'P2' },
                 ],
               },
-              {
-                kind: 'pope',
-                required: 2,
-                voices: 0,
-                voiceSources: [],
-                candidates: [],
-                eligible: [],
-              },
+              { kind: 'pope', required: 2, voices: 0, voiceSources: [], candidates: [], eligible: [] },
               {
                 kind: 'king',
                 minVotes: 3,
                 voices: 2,
                 voiceSources: [
-                  {
-                    kind: 'title',
-                    noble: 'HUG',
-                    nobleName: 'Sieur Hugues de Ros',
-                    title: 'bishop',
-                    territory: 'AAA',
-                    votes: 1,
-                  },
-                  {
-                    kind: 'fief',
-                    noble: 'OTO',
-                    nobleName: 'Baron Oton',
-                    territory: 'BBB',
-                    votes: 1,
-                  },
+                  { kind: 'title', noble: 'HUG', nobleName: 'Sieur Hugues de Ros', title: 'bishop', territory: 'AAA', votes: 1 },
+                  { kind: 'fief', noble: 'OTO', nobleName: 'Baron Oton', territory: 'BBB', votes: 1 },
                 ],
                 candidates: [{ code: 'OTO', name: 'Baron Oton', owner: 'P1' }],
                 eligible: [{ code: 'OTO', name: 'Baron Oton', owner: 'P1' }],
@@ -965,14 +838,10 @@ describe('OrdersPanel winter elections', () => {
     renderElections()
     expect(screen.getByText('Elections this winter')).toBeTruthy()
     expect(screen.getByText('Bishopric of Ros (seat AAA)')).toBeTruthy()
-    expect(
-      screen.getByText('Relative majority. Candidacy: K E NNN AAA. Vote: V E NNN AAA'),
-    ).toBeTruthy()
+    expect(screen.getByText('Relative majority. Candidacy: K E NNN AAA. Vote: V E NNN AAA')).toBeTruthy()
     expect(screen.getByText('Your voices: 3')).toBeTruthy()
     expect(screen.getByText(/Absolute majority: 2 voices/)).toBeTruthy()
-    expect(
-      screen.getByText('A title won this winter serves from next winter on.'),
-    ).toBeTruthy()
+    expect(screen.getByText('A title won this winter serves from next winter on.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Help: Elections this winter' }))
     expect(screen.getByText(/can only be used next winter/)).toBeTruthy()
   })
@@ -991,9 +860,7 @@ describe('OrdersPanel winter elections', () => {
     const onWinterChange = vi.fn()
     renderElections(onWinterChange)
     fireEvent.click(screen.getAllByRole('button', { name: 'Vote (V)' })[0])
-    fireEvent.change(screen.getByLabelText('Candidate code'), {
-      target: { value: 'ZEM' },
-    })
+    fireEvent.change(screen.getByLabelText('Candidate code'), { target: { value: 'ZEM' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('V E ZEM AAA # vote ZEM\n')
   })
@@ -1002,12 +869,8 @@ describe('OrdersPanel winter elections', () => {
     const onWinterChange = vi.fn()
     renderElections(onWinterChange)
     expect(screen.getByText('Royal election')).toBeTruthy()
-    expect(
-      screen.getByText(/at least 3 voices and the blessing of the clergy/),
-    ).toBeTruthy()
-    expect(
-      screen.getByText(/Clergy among your voices: 1 \(cardinal or pope: no\)/),
-    ).toBeTruthy()
+    expect(screen.getByText(/at least 3 voices and the blessing of the clergy/)).toBeTruthy()
+    expect(screen.getByText(/Clergy among your voices: 1 \(cardinal or pope: no\)/)).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: 'Candidacy (K)' })[2])
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('K R OTO # candidacy Baron Oton\n')
@@ -1024,15 +887,7 @@ describe('OrdersPanel winter elections', () => {
 
 describe('OrdersPanel title and card order dialogs', () => {
   const nobles: Noble[] = [
-    {
-      id: 'n1',
-      code: 'POP',
-      name: 'Sieur Pie',
-      firstName: 'Pie',
-      owner: 'P1',
-      location: 'AAA',
-      status: 'free',
-    },
+    { id: 'n1', code: 'POP', name: 'Sieur Pie', firstName: 'Pie', owner: 'P1', location: 'AAA', status: 'free' },
     { id: 'n2', code: 'LEO', name: 'Leon', owner: 'P2', location: 'BBB', status: 'free' },
     { id: 'n3', code: 'ABE', name: 'Abel', owner: 'P2', location: 'BBB', status: 'free' },
   ]
@@ -1099,9 +954,7 @@ describe('OrdersPanel title and card order dialogs', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Lift an excommunication' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenLastCalledWith(
-      'X L ABE # lift excommunication of Abel\n',
-    )
+    expect(onWinterChange).toHaveBeenLastCalledWith('X L ABE # lift excommunication of Abel\n')
   })
 
   it('offers no papal order to a player who is not the pope', () => {
@@ -1114,9 +967,7 @@ describe('OrdersPanel title and card order dialogs', () => {
 
   it('lets a bishop buy a cardinal', () => {
     const onWinterChange = renderWinter({
-      bishoprics: [
-        { region: 'R1', name: 'Ros', seed: 'AAA', territories: ['AAA'], bishop: 'POP' },
-      ],
+      bishoprics: [{ region: 'R1', name: 'Ros', territories: ['AAA'], bishop: 'POP' }],
       winterAids: { ...aids, buyableCardinals: ['POP'] },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Buy a cardinal' }))
@@ -1139,14 +990,8 @@ describe('OrdersPanel title and card order dialogs', () => {
   it('lets a cardinal inquire into a dead noble at the cost of the title it bore', () => {
     const onWinterChange = renderWinter({
       cardinals: ['POP'],
-      deceased: [
-        { code: 'VIC', name: 'Victor', owner: 'P2', cause: 'assassination', turn: 1 },
-      ],
-      winterAids: {
-        ...aids,
-        inquirers: ['POP'],
-        inquiryCosts: { ...aids.inquiryCosts, VIC: 4 },
-      },
+      deceased: [{ code: 'VIC', name: 'Victor', owner: 'P2', cause: 'assassination', turn: 1 }],
+      winterAids: { ...aids, inquirers: ['POP'], inquiryCosts: { ...aids.inquiryCosts, VIC: 4 } },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Investigate a noble' }))
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'VIC' } })
@@ -1162,9 +1007,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Put a noble on trial' }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^J POP [A-Z]{3} # put .* on trial\n$/),
-    )
+    expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^J POP [A-Z]{3} # put .* on trial\n$/))
   })
 
   it('founds a fief from a connected group and prices it', () => {
@@ -1211,52 +1054,29 @@ describe('OrdersPanel title and card order dialogs', () => {
 
   it('annexes a free territory to a fief and prices it', () => {
     const onWinterChange = renderWinter({
-      winterAids: {
-        ...aids,
-        ownFiefs: [ownFief],
-        annexCostPerTerritory: 2,
-        rankCostPerTerritory: 2,
-      },
+      winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Annex a territory' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Annex DDD · cost 2 R')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenCalledWith(
-      'T X POP AAA DDD # annex DDD to fief AAA\n',
-    )
+    expect(onWinterChange).toHaveBeenCalledWith('T X POP AAA DDD # annex DDD to fief AAA\n')
   })
 
   it('raises a fief by one rank, once per fief', () => {
     const onWinterChange = renderWinter({
-      winterAids: {
-        ...aids,
-        ownFiefs: [ownFief],
-        annexCostPerTerritory: 2,
-        rankCostPerTerritory: 2,
-      },
+      winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Raise a fief by one rank' }))
     const dialog = screen.getByRole('dialog')
-    expect(
-      within(dialog).getByText('Barony → County · 3 territories · cost 6 R'),
-    ).toBeTruthy()
+    expect(within(dialog).getByText('Barony → County · 3 territories · cost 6 R')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenCalledWith(
-      'T R POP AAA # raise fief AAA to County\n',
-    )
+    expect(onWinterChange).toHaveBeenCalledWith('T R POP AAA # raise fief AAA to County\n')
   })
 
   it('offers no rank change once the fief rose in the draft', () => {
     renderWinter(
-      {
-        winterAids: {
-          ...aids,
-          ownFiefs: [ownFief],
-          annexCostPerTerritory: 2,
-          rankCostPerTerritory: 2,
-        },
-      },
+      { winterAids: { ...aids, ownFiefs: [ownFief], annexCostPerTerritory: 2, rankCostPerTerritory: 2 } },
       vi.fn(),
       'winter',
       'T R POP AAA # raise fief AAA to County\n',
@@ -1265,15 +1085,10 @@ describe('OrdersPanel title and card order dialogs', () => {
   })
 
   it('hides the buy-cardinal order once it is on the sheet', () => {
-    renderWinter(
-      {
-        winterAids: { ...aids, buyableCardinals: ['POP'] },
-        // the sheet below already carries the order
-      },
-      vi.fn(),
-      'winter',
-      'N C POP # buy cardinal Sieur Pie\n',
-    )
+    renderWinter({
+      winterAids: { ...aids, buyableCardinals: ['POP'] },
+      // the sheet below already carries the order
+    }, vi.fn(), 'winter', 'N C POP # buy cardinal Sieur Pie\n')
     expect(screen.queryByRole('button', { name: /Buy a cardinal/ })).toBeNull()
   })
 
@@ -1281,9 +1096,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     const onWinterChange = renderWinter({ specialHand: ['fair_weather'] })
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
-    expect(onWinterChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^D C BT # discard /),
-    )
+    expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^D C BT # discard /))
   })
 
   it('shows the calamity a bonus card cancels in the chosen region', () => {
@@ -1295,9 +1108,7 @@ describe('OrdersPanel title and card order dialogs', () => {
             season: 'spring',
             nobles,
             specialHand: ['fair_weather'],
-            announcements: [
-              { kind: 'bad_weather', season: 'summer', region: 'AAA', year: 1001 },
-            ],
+            announcements: [{ kind: 'bad_weather', season: 'summer', region: 'AAA', year: 1001 }],
           }}
           player="P1"
           regions={[
@@ -1317,9 +1128,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play .*\(P\)$/ }))
     const dialog = screen.getByRole('dialog')
-    const options = within(dialog)
-      .getAllByRole('option')
-      .map((o) => o.textContent)
+    const options = within(dialog).getAllByRole('option').map((o) => o.textContent)
     expect(options[0]).toContain('AAA')
     expect(options[0]).toContain('cancels a calamity')
     expect(within(dialog).getByText(/^Cancels: Bad weather/)).toBeTruthy()
@@ -1357,14 +1166,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       {
         specialHand: ['revolt'],
         revoltTargets: ['CCC'],
-        fiefs: [
-          {
-            capital: 'FFF',
-            title: 'barony',
-            territories: ['FFF', 'GGG', 'HHH'],
-            owner: 'P2',
-          },
-        ],
+        fiefs: [{ capital: 'FFF', title: 'barony', territories: ['FFF', 'GGG', 'HHH'], owner: 'P2' }],
       },
       'P TX FFF\n',
     )
@@ -1382,43 +1184,26 @@ describe('OrdersPanel title and card order dialogs', () => {
       specialHand: ['revolt'],
       revoltTargets: ['BBB', 'CCC'],
       territories: [
-        {
-          id: 'CCC',
-          owner: 'P2',
-          resources: 0,
-          army: { owner: 'P2', size: 3, chain: null, starving: true },
-          infrastructures: [],
-        },
+        { id: 'CCC', owner: 'P2', resources: 0, army: { owner: 'P2', size: 3, chain: null, starving: true }, infrastructures: [] },
       ],
     })
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Revolt/ }))
     const dialog = screen.getByRole('dialog')
-    expect(
-      within(dialog)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['BBB', 'CCC · starving army'])
+    expect(within(dialog).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'BBB',
+      'CCC · starving army',
+    ])
     fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'CCC' } })
-    expect(
-      within(dialog).getByText(/Starving army of 3 troops: it turns neutral/),
-    ).toBeTruthy()
+    expect(within(dialog).getByText(/Starving army of 3 troops: it turns neutral/)).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
-    expect(onSpecialChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^P RE CCC # .*on the starving army at CCC\n$/),
-    )
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P RE CCC # .*on the starving army at CCC\n$/))
   })
 
   const pope: Noble = { ...nobles[0], religiousTitle: 'pope' }
   const bishoprics = [
-    {
-      region: 'AAA',
-      name: 'Ros',
-      seed: 'AAA',
-      territories: ['AAA', 'BBB'],
-      bishop: 'POP',
-    },
-    { region: 'CCC', name: 'Cor', seed: 'AAA', territories: ['CCC'] },
+    { region: 'AAA', name: 'Ros', territories: ['AAA', 'BBB'], bishop: 'POP' },
+    { region: 'CCC', name: 'Cor', territories: ['CCC'] },
   ]
 
   it('writes the pope’s tithe without asking for a bishopric', () => {
@@ -1433,9 +1218,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(within(dialog).getByText(/tithe on every bishopric/)).toBeTruthy()
     expect(within(dialog).queryByText('Target (fief capital or bishopric)')).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
-    expect(onSpecialChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^P DI POP # .*every bishopric\n$/),
-    )
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P DI POP # .*every bishopric\n$/))
   })
 
   it('asks a cardinal which bishopric to tithe', () => {
@@ -1447,47 +1230,23 @@ describe('OrdersPanel title and card order dialogs', () => {
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(
-      within(dialog).getByLabelText('Target (fief capital or bishopric)'),
-      { target: { value: 'CCC' } },
-    )
+    fireEvent.change(within(dialog).getByLabelText('Target (fief capital or bishopric)'), { target: { value: 'CCC' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
-    expect(onSpecialChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^P DI POP CCC # /),
-    )
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P DI POP CCC # /))
   })
 
   it('lets the king tax a fief he does not hold', () => {
-    const king: Noble = {
-      ...nobles[0],
-      id: 'n9',
-      code: 'KNG',
-      name: 'Roi',
-      firstName: 'Robert',
-    }
+    const king: Noble = { ...nobles[0], id: 'n9', code: 'KNG', name: 'Roi', firstName: 'Robert' }
     const fiefs = [
-      {
-        capital: 'FFF',
-        title: 'barony' as const,
-        territories: ['FFF', 'GGG', 'HHH'],
-        owner: 'P2',
-        holder: 'LEO',
-      },
+      { capital: 'FFF', title: 'barony' as const, territories: ['FFF', 'GGG', 'HHH'], owner: 'P2', holder: 'LEO' },
     ]
-    const onSpecialChange = renderAction({
-      specialHand: ['seigneurial_tax'],
-      nobles: [king, ...nobles.slice(1)],
-      king: 'KNG',
-      fiefs,
-    })
+    const onSpecialChange = renderAction({ specialHand: ['seigneurial_tax'], nobles: [king, ...nobles.slice(1)], king: 'KNG', fiefs })
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Tax/ }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText(/royal tax on any fief/)).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
-    expect(onSpecialChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^P TX KNG FFF # /),
-    )
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P TX KNG FFF # /))
   })
 
   it('opens every territory of every bishopric to a revolt after the pope’s drafted tithe', () => {
@@ -1511,16 +1270,8 @@ describe('OrdersPanel title and card order dialogs', () => {
   })
 
   it('writes the tunneled attack and the escape of a detained noble', () => {
-    const territory = (
-      id: string,
-      owner: string | null,
-      army: { owner: string; size: number; chain: null } | null,
-    ) => ({
-      id,
-      owner,
-      resources: 0,
-      army,
-      infrastructures: [],
+    const territory = (id: string, owner: string | null, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
     })
     const onSpecialChange = renderAction({
       specialHand: ['tunnel'],
@@ -1531,21 +1282,13 @@ describe('OrdersPanel title and card order dialogs', () => {
       nobles: [{ ...nobles[0], id: 'N9', code: 'JAI', owner: 'P1', status: 'hostage' }],
     })
     pickHandCard()
-    fireEvent.click(
-      screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Attack origin'), {
-      target: { value: 'AAA' },
-    })
-    fireEvent.change(within(dialog).getByLabelText('Attack target'), {
-      target: { value: 'BBB' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Attack target'), { target: { value: 'BBB' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P SO AAA - BBB/))
-    expect(
-      screen.getByRole('button', { name: /^Play Tunnel \(SO\): free a noble/ }),
-    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): free a noble/ })).toBeTruthy()
   })
 
   it('writes the assassination order from a free noble on a noble of another player', () => {
@@ -1557,18 +1300,10 @@ describe('OrdersPanel title and card order dialogs', () => {
       ],
     })
     pickHandCard()
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /^Play Assassination \(AS\): assassinate a noble/,
-      }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Assassination \(AS\): assassinate a noble/ }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), {
-      target: { value: 'AAA' },
-    })
-    fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), {
-      target: { value: 'JAI' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), { target: { value: 'JAI' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P AS AAA JAI/))
   })
@@ -1584,12 +1319,8 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Assassination \(AS\)/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), {
-      target: { value: 'AAA' },
-    })
-    fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), {
-      target: { value: 'JAI' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Commissioner (your free noble)'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Noble to assassinate'), { target: { value: 'JAI' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^P AS AAA JAI/))
   })
@@ -1605,9 +1336,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       ],
     })
     pickHandCard()
-    fireEvent.click(
-      screen.getByRole('button', { name: /^Play Justice \(JU\): try a noble/ }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Justice \(JU\): try a noble/ }))
     const dialog = screen.getByRole('dialog')
     const options = within(dialog)
       .getAllByRole('option')
@@ -1615,9 +1344,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     expect(options).toContain('AAA')
     expect(options).toContain('JAI')
     expect(options).not.toContain('KIN')
-    fireEvent.change(within(dialog).getByLabelText('Noble to try'), {
-      target: { value: 'JAI' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Noble to try'), { target: { value: 'JAI' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P JU JAI/))
   })
@@ -1633,58 +1360,31 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Justice \(JU\)/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Play' }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Noble to try'), {
-      target: { value: 'JAI' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Noble to try'), { target: { value: 'JAI' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith(expect.stringMatching(/^P JU JAI/))
   })
 
   it('offers only the territories next to the origin as tunneled attack targets', () => {
-    const territory = (
-      id: string,
-      army: { owner: string; size: number; chain: null } | null,
-    ) => ({
-      id,
-      owner: 'P1',
-      resources: 0,
-      army,
-      infrastructures: [],
+    const territory = (id: string, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner: 'P1', resources: 0, army, infrastructures: [],
     })
     const mapTerritory = (id: string, adjacencies: string[]) => ({
-      id,
-      name: id,
-      terrain: 'plain' as const,
-      village: false,
-      points: [],
-      adjacencies,
-      impassable: [],
+      id, name: id, terrain: 'plain' as const, village: false, points: [], adjacencies, impassable: [],
     })
     renderAction(
       {
         specialHand: ['tunnel'],
-        territories: [
-          territory('AAA', { owner: 'P1', size: 2, chain: null }),
-          territory('BBB', null),
-          territory('CCC', null),
-        ],
+        territories: [territory('AAA', { owner: 'P1', size: 2, chain: null }), territory('BBB', null), territory('CCC', null)],
       },
       '',
       vi.fn(),
-      [
-        mapTerritory('AAA', ['BBB']),
-        mapTerritory('BBB', ['AAA', 'CCC']),
-        mapTerritory('CCC', ['BBB']),
-      ],
+      [mapTerritory('AAA', ['BBB']), mapTerritory('BBB', ['AAA', 'CCC']), mapTerritory('CCC', ['BBB'])],
     )
     pickHandCard()
-    fireEvent.click(
-      screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Attack origin'), {
-      target: { value: 'AAA' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
     expect(
       within(dialog)
         .getAllByRole('option')
@@ -1694,35 +1394,18 @@ describe('OrdersPanel title and card order dialogs', () => {
   })
 
   it('writes the ambush on a planned attack', () => {
-    const territory = (
-      id: string,
-      owner: string | null,
-      army: { owner: string; size: number; chain: null } | null,
-    ) => ({
-      id,
-      owner,
-      resources: 0,
-      army,
-      infrastructures: [],
+    const territory = (id: string, owner: string | null, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
     })
     const onSpecialChange = renderAction({
       specialHand: ['ambush'],
-      territories: [
-        territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }),
-        territory('BBB', 'P2', null),
-      ],
+      territories: [territory('AAA', 'P1', { owner: 'P1', size: 2, chain: null }), territory('BBB', 'P2', null)],
     })
     pickHandCard()
-    fireEvent.click(
-      screen.getByRole('button', { name: /^Play Ambush \(EM\): ambush on an attack/ }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /^Play Ambush \(EM\): ambush on an attack/ }))
     const dialog = screen.getByRole('dialog')
-    fireEvent.change(within(dialog).getByLabelText('Attack origin'), {
-      target: { value: 'AAA' },
-    })
-    fireEvent.change(within(dialog).getByLabelText('Attack target'), {
-      target: { value: 'BBB' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Attack origin'), { target: { value: 'AAA' } })
+    fireEvent.change(within(dialog).getByLabelText('Attack target'), { target: { value: 'BBB' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P EM AAA BBB/))
   })
@@ -1738,37 +1421,21 @@ describe('OrdersPanel title and card order dialogs', () => {
       specialHand: ['seigneurial_tax', 'tunnel', 'ambush'],
       fiefs: [{ capital: 'FFF', title: 'barony', territories: ['FFF'], owner: 'P1' }],
       territories: [
-        {
-          id: 'AAA',
-          owner: 'P1',
-          resources: 0,
-          army: { owner: 'P1', size: 2, chain: null },
-          infrastructures: [],
-        },
+        { id: 'AAA', owner: 'P1', resources: 0, army: { owner: 'P1', size: 2, chain: null }, infrastructures: [] },
       ],
     })
     // Each card of the fan offers its own play orders once picked.
     pickHandCard('TX')
     expect(screen.getByRole('button', { name: /^Play Tax \(TX\)/ })).toBeTruthy()
     pickHandCard('SO')
-    expect(
-      screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ }),
-    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Play Tunnel \(SO\): tunneled attack/ })).toBeTruthy()
     pickHandCard('EM')
     expect(screen.getAllByRole('button', { name: /^Play Ambush \(EM\)/ })).toHaveLength(1)
   })
 
   it('offers the armies of other players, not the neutral ones, as the origin of an ambush', () => {
-    const territory = (
-      id: string,
-      owner: string,
-      army: { owner: string; size: number; chain: null } | null,
-    ) => ({
-      id,
-      owner,
-      resources: 0,
-      army,
-      infrastructures: [],
+    const territory = (id: string, owner: string, army: { owner: string; size: number; chain: null } | null) => ({
+      id, owner, resources: 0, army, infrastructures: [],
     })
     renderAction({
       specialHand: ['ambush'],
@@ -1782,11 +1449,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play Ambush \(EM\)/ }))
     const origin = within(screen.getByRole('dialog')).getByLabelText('Attack origin')
-    expect(
-      within(origin)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['AAA', 'BBB'])
+    expect(within(origin).getAllByRole('option').map((o) => o.textContent)).toEqual(['AAA', 'BBB'])
   })
 
   it('hides the revolt card when no territory is eligible', () => {
@@ -1803,9 +1466,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Strike a calamity off' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getAllByRole('option')).toHaveLength(3)
-    fireEvent.change(within(dialog).getByLabelText('Calamity to strike'), {
-      target: { value: '2' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Calamity to strike'), { target: { value: '2' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('V C POP 2 # strike calamity 2\n')
   })
@@ -1817,24 +1478,18 @@ describe('OrdersPanel title and card order dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ritual' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('It would strike the region of AAA.')).toBeTruthy()
-    fireEvent.change(within(dialog).getByLabelText('Calamity or season'), {
-      target: { value: 'MT' },
-    })
+    fireEvent.change(within(dialog).getByLabelText('Calamity or season'), { target: { value: 'MT' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith('S R POP MT # ritual: call Bad weather\n')
 
     fireEvent.click(screen.getByRole('button', { name: 'Ritual' }))
     const second = screen.getByRole('dialog')
-    fireEvent.change(within(second).getByLabelText('Effect'), {
-      target: { value: 'season' },
-    })
+    fireEvent.change(within(second).getByLabelText('Effect'), { target: { value: 'season' } })
     expect(
       within(within(second).getByLabelText('Calamity or season')).getAllByRole('option'),
     ).toHaveLength(3)
     fireEvent.click(within(second).getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenLastCalledWith(
-      expect.stringMatching(/^S R POP 1 # ritual: fix /),
-    )
+    expect(onWinterChange).toHaveBeenLastCalledWith(expect.stringMatching(/^S R POP 1 # ritual: fix /))
   })
 
   it('offers no ritual without a Witch, or once one is on the sheet', () => {
@@ -1845,13 +1500,7 @@ describe('OrdersPanel title and card order dialogs', () => {
   it('words the announcement of a ritual calamity differently', () => {
     renderAction({
       announcements: [
-        {
-          kind: 'bad_weather',
-          season: 'summer',
-          region: 'AAA',
-          year: 1001,
-          ritual: true,
-        },
+        { kind: 'bad_weather', season: 'summer', region: 'AAA', year: 1001, ritual: true },
         { kind: 'famine', season: 'autumn', region: 'BBB', year: 1001 },
       ],
     })
@@ -1863,10 +1512,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     renderWinter(
       {
         pope: 'POP',
-        nobles: [
-          { ...nobles[0], dignities: ['astrologer', 'witch'] },
-          ...nobles.slice(1),
-        ],
+        nobles: [{ ...nobles[0], dignities: ['astrologer', 'witch'] }, ...nobles.slice(1)],
         calamityForecast: ['plague'],
         winterAids: {
           ...aids,
@@ -1878,12 +1524,7 @@ describe('OrdersPanel title and card order dialogs', () => {
       vi.fn(),
       'spring',
     )
-    for (const name of [
-      /Excommunicate/,
-      /Buy a cardinal/,
-      /Strike a calamity/,
-      /Ritual \(S R\)/,
-    ]) {
+    for (const name of [/Excommunicate/, /Buy a cardinal/, /Strike a calamity/, /Ritual \(S R\)/]) {
       expect(screen.queryByRole('button', { name })).toBeNull()
     }
   })
@@ -1909,9 +1550,7 @@ describe('OrdersPanel title and card order dialogs', () => {
     pickHandCard()
     fireEvent.click(screen.getByRole('button', { name: /^Play .*\(P\)$/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
-    expect(onSpecialChange).toHaveBeenCalledWith(
-      expect.stringMatching(/^P BT AAA # .* on AAA\n$/),
-    )
+    expect(onSpecialChange).toHaveBeenCalledWith(expect.stringMatching(/^P BT AAA # .* on AAA\n$/))
   })
 })
 
@@ -1921,14 +1560,8 @@ describe('revolt appeasement orders', () => {
     season: 'spring',
     appeasementCostBase: 2,
     bishoprics: [
-      {
-        region: 'AAA',
-        name: 'Aaa',
-        seed: 'AAA',
-        territories: ['AAA', 'BBB'],
-        bishop: 'RAI',
-      },
-      { region: 'CCC', name: 'Ccc', seed: 'AAA', territories: ['CCC'] },
+      { region: 'AAA', name: 'Aaa', territories: ['AAA', 'BBB'], bishop: 'RAI' },
+      { region: 'CCC', name: 'Ccc', territories: ['CCC'] },
     ],
     territories: [
       {
@@ -1982,9 +1615,7 @@ describe('revolt appeasement orders', () => {
   it('offers the rite in the cleric region and the paid way only in their bishopric', () => {
     const onSpecialChange = renderAppease()
     // One button per cleric; the dialog picks the way.
-    fireEvent.click(
-      screen.getByRole('button', { name: /Bishop Rainaud · Appease a revolt/ }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /Bishop Rainaud · Appease a revolt/ }))
     fireEvent.change(screen.getByLabelText('Way'), { target: { value: 'paid' } })
     // Only BBB (the bishopric) is offered, with its 2^3 price.
     expect(screen.getByText('Cost: 8 R')).toBeInTheDocument()
@@ -1996,8 +1627,6 @@ describe('revolt appeasement orders', () => {
 
   it('offers nothing in winter', () => {
     renderAppease(vi.fn(), { ...appeaseState, season: 'winter' })
-    expect(
-      screen.queryByRole('button', { name: /Appease a revolt/ }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Appease a revolt/ })).not.toBeInTheDocument()
   })
 })

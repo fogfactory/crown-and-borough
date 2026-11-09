@@ -263,7 +263,6 @@ type NobleCardView struct {
 type BishopricView struct {
 	Region      models.RegionID      `json:"region"`
 	Name        string               `json:"name"`
-	Seed        models.TerritoryID   `json:"seed"`
 	Territories []models.TerritoryID `json:"territories"`
 	Bishop      *models.NobleCode    `json:"bishop,omitempty"`
 }
@@ -831,7 +830,7 @@ func headSuccessor(state *models.GameState, balance assetgen.Balance, player mod
 func projectReligion(state *models.GameState, codes map[models.NobleID]models.NobleCode) ([]BishopricView, []models.NobleCode, *models.NobleCode, []ExcommunicationView) {
 	bishoprics := make([]BishopricView, 0, len(state.Regions))
 	for _, region := range state.Regions {
-		bishopric := BishopricView{Region: region.ID, Name: region.Name, Seed: region.Seed, Territories: append([]models.TerritoryID(nil), region.Territories...)}
+		bishopric := BishopricView{Region: region.ID, Name: region.Name, Territories: append([]models.TerritoryID(nil), region.Territories...)}
 		if bishop, exists := state.BishopOf(region.ID); exists {
 			code := codes[bishop]
 			bishopric.Bishop = &code

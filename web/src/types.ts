@@ -232,8 +232,6 @@ export type ReligiousTitle = 'bishop' | 'cardinal' | 'pope'
 export interface Bishopric {
   region: string
   name: string
-  /** Seed territory of the region: where the map frames the bishopric. */
-  seed: string
   territories: string[]
   bishop?: string
 }
@@ -407,10 +405,24 @@ export interface MapData {
 }
 
 export type Tincture =
-  'gules' | 'azure' | 'vert' | 'purpure' | 'sable' | 'tenne' | 'celeste' | 'murrey'
+  | 'gules'
+  | 'azure'
+  | 'vert'
+  | 'purpure'
+  | 'sable'
+  | 'tenne'
+  | 'celeste'
+  | 'murrey'
 export type Metal = 'or' | 'argent'
 export type Charge =
-  'bend' | 'fess' | 'chevron' | 'cross' | 'saltire' | 'pale' | 'chief' | 'bordure'
+  | 'bend'
+  | 'fess'
+  | 'chevron'
+  | 'cross'
+  | 'saltire'
+  | 'pale'
+  | 'chief'
+  | 'bordure'
 
 /** A player's generated coat of arms: a field of a tincture, a charge of a metal. */
 export interface Arms {
@@ -532,10 +544,7 @@ export interface Marriage {
   /** Players for whom this marriage is the active head. */
   activeHeadFor?: PlayerId[]
   /** For each house this is the active head of: the marriage that would take over if it ended. */
-  headSuccessors?: Array<{
-    player: PlayerId
-    marriage?: { nobleA: string; nobleB: string }
-  }>
+  headSuccessors?: Array<{ player: PlayerId; marriage?: { nobleA: string; nobleB: string } }>
 }
 
 /** A pretension staked by `heir` on the titles of `target`. */
@@ -593,11 +602,7 @@ export interface StateData {
   /** Winter only: the possible winter orders of the viewer. */
   winterAids?: WinterAids
   /** Hands revealed by a spy held hostage by their owner. */
-  spiedHands?: Array<{
-    player: PlayerId
-    specialHand: CardKind[]
-    nobleHand: NobleCard[]
-  }>
+  spiedHands?: Array<{ player: PlayerId; specialHand: CardKind[]; nobleHand: NobleCard[] }>
   nobleHand?: NobleCard[]
   /** Cards left in the shared noble draw pile. */
   nobleDeckSize?: number

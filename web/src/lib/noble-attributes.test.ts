@@ -81,9 +81,7 @@ describe('nobleAttributesByCode', () => {
         nobles: [noble('PAP'), noble('CAR'), noble('EVE'), noble('EXC'), noble('RAS')],
         pope: 'PAP',
         cardinals: ['PAP', 'CAR'],
-        bishoprics: [
-          { region: 'R1', name: 'Ros', seed: 'AAA', territories: [], bishop: 'EVE' },
-        ],
+        bishoprics: [{ region: 'R1', name: 'Ros', territories: [], bishop: 'EVE' }],
         excommunicated: [{ noble: 'EXC', reason: 'papal', turn: 1 }],
       }),
     )

@@ -47,8 +47,8 @@ const state: StateData = {
   pope: 'PAP',
   cardinals: [],
   bishoprics: [
-    { region: 'R1', name: 'Alpilles', seed: 'AAA', territories: [], bishop: 'BIS' },
-    { region: 'R2', name: 'Brisecote', seed: 'AAA', territories: [] },
+    { region: 'R1', name: 'Alpilles', territories: [], bishop: 'BIS' },
+    { region: 'R2', name: 'Brisecote', territories: [] },
   ],
 }
 
@@ -93,12 +93,6 @@ describe('RealmPanel', () => {
       'Alpilles : Anselme (BIS)',
     )
     expect(container.querySelector('[data-bishopric="R2"]')).toHaveTextContent('vacant')
-  })
-
-  it('links a bishopric name to the map', () => {
-    const { container } = renderPanel(state)
-    // Without a map provider the name stays plain text.
-    expect(container.querySelector('[data-bishopric="R1"] button')).toBeNull()
   })
 
   it('shows a dowager queen as regent of a vacant throne', () => {
