@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   MapLinksProvider,
+  MapMention,
   NobleRef,
   RegionRef,
   TerritoryRef,
@@ -99,5 +100,48 @@ describe('NobleRef', () => {
       'title',
       'position inconnue',
     )
+  })
+})
+
+describe('MapMention', () => {
+  it('keeps the written name and follows a commune', () => {
+    const value = links()
+    renderWith(
+      value,
+      <MapMention territory="RVE" nobles={[]}>
+        Rochevent
+      </MapMention>,
+    )
+    const link = screen.getByRole('button', { name: 'Rochevent' })
+    fireEvent.mouseEnter(link)
+    expect(value.highlight).toHaveBeenLastCalledWith('RVE')
+    fireEvent.click(link)
+    expect(value.focus).toHaveBeenCalledWith('RVE', undefined)
+  })
+
+  it('follows a noble to where it stands, with its halo', () => {
+    const value = links()
+    renderWith(value, <MapMention nobles={['RAI']}>Rainaud</MapMention>)
+    fireEvent.click(screen.getByRole('button', { name: 'Rainaud' }))
+    expect(value.focus).toHaveBeenCalledWith('RVE', 'RAI')
+  })
+
+  it('frames every bearer of a shared name', () => {
+    const value = links({
+      nobleTerritory: (code) => ({ RAI: 'RVE', RA2: 'RVN' })[code],
+    })
+    renderWith(value, <MapMention nobles={['RAI', 'RA2', 'ZZZ']}>Rainaud</MapMention>)
+    const link = screen.getByRole('button', { name: 'Rainaud' })
+    fireEvent.mouseEnter(link)
+    expect(value.highlight).toHaveBeenLastCalledWith(['RVE', 'RVN'])
+    fireEvent.click(link)
+    expect(value.showEvent).toHaveBeenCalledWith({ territories: ['RVE', 'RVN'] })
+    expect(value.focus).not.toHaveBeenCalled()
+  })
+
+  it('stays text without a known place', () => {
+    renderWith(links(), <MapMention nobles={['ZZZ']}>Inconnu</MapMention>)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByText('Inconnu')).toBeInTheDocument()
   })
 })

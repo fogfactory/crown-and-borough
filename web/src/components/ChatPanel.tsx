@@ -10,6 +10,7 @@ import {
 import { IconLock, IconSend } from '@tabler/icons-react'
 
 import { ShieldIcon } from '@/components/ArmsIcons'
+import { MapMention } from '@/components/MapLinks'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { fieldClassName } from '@/components/ui/input'
@@ -33,19 +34,26 @@ import {
   unreadCount,
   type ChatMessage,
 } from '@/lib/chat'
+import {
+  buildMentionIndex,
+  tokenizeMentions,
+  type MentionIndex,
+} from '@/lib/chat-mentions'
 import { markChatRead, postChatMessage } from '@/lib/chat-api'
 import { playerArms } from '@/lib/heraldry'
 import { playerDisplayName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useChat, type ChatSubscriptionSpec } from '@/lib/use-chat'
 import { cn } from '@/lib/utils'
-import type { Player, PlayerId, StateData } from '@/types'
+import type { MapData, Player, PlayerId, StateData } from '@/types'
 
 interface ChatPanelProps {
   gameId: string
   uid: string
   tokenProvider: TokenProvider
   state: StateData
+  /** Communes named in messages link to the map. */
+  map?: MapData | null
   /** The reader's house; null for the observer, who plays none. */
   house: PlayerId | null
   /** The observer plays no house and reads every conversation. */
@@ -99,6 +107,7 @@ export function ChatPanel({
   uid,
   tokenProvider,
   state,
+  map,
   house,
   observer,
   visible,
@@ -130,6 +139,15 @@ export function ChatPanel({
     [state.players],
   )
   const playerOf = useCallback((id: string) => playersById.get(id), [playersById])
+  // Names a message may cite: built once per map and state, read at render.
+  const mentions = useMemo(
+    () =>
+      buildMentionIndex({
+        territories: map?.territories ?? [],
+        nobles: state.nobles ?? [],
+      }),
+    [map, state.nobles],
+  )
 
   // Every conversation the reader may see: their own, and for the observer all pairs.
   const privateKeys = useMemo(() => {
@@ -372,6 +390,7 @@ export function ChatPanel({
         language={language}
         houseName={houseName}
         playerOf={playerOf}
+        mentions={mentions}
         emptyText={
           open === PUBLIC_CHANNEL
             ? t('chat.emptyPublic')
@@ -481,6 +500,24 @@ export function ChatPanel({
   )
 }
 
+/** A message's text, with the communes and nobles it names linked to the map. */
+function MessageBody({ body, mentions }: { body: string; mentions: MentionIndex }) {
+  const segments = useMemo(() => tokenizeMentions(body, mentions), [body, mentions])
+  return segments.map((segment, index) =>
+    segment.kind === 'text' ? (
+      segment.text
+    ) : (
+      <MapMention
+        key={index}
+        territory={segment.target.territory}
+        nobles={segment.target.nobles}
+      >
+        {segment.text}
+      </MapMention>
+    ),
+  )
+}
+
 interface MessageListProps {
   channel: string
   label: string
@@ -495,6 +532,7 @@ interface MessageListProps {
   language: string
   houseName: (id: string) => string
   playerOf: (id: string) => Player | undefined
+  mentions: MentionIndex
   emptyText: string
   onLoadMore: () => void
 }
@@ -513,6 +551,7 @@ function MessageList({
   language,
   houseName,
   playerOf,
+  mentions,
   emptyText,
   onLoadMore,
 }: MessageListProps) {
@@ -650,7 +689,7 @@ function MessageList({
                     : undefined
                 }
               >
-                {message.body}
+                <MessageBody body={message.body} mentions={mentions} />
               </p>
             ))}
           </article>

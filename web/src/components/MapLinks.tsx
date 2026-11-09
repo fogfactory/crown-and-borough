@@ -131,6 +131,64 @@ function MapLink({
   )
 }
 
+/**
+ * A name a player wrote (chat), kept as written and linked to the map: a
+ * commune frames its territory, a noble the territory where it stands. A name
+ * borne by several (homonymous nobles, or a noble and a commune) lights all
+ * their territories and frames them together. Without a known place, it stays
+ * text.
+ */
+export function MapMention({
+  territory,
+  nobles,
+  children,
+}: {
+  territory?: string
+  nobles: string[]
+  children: ReactNode
+}) {
+  const links = useMapLinks()
+  const light = useMapHighlight()
+  if (!links) return <>{children}</>
+  const own = territory && links.hasTerritory(territory) ? territory : undefined
+  const located = nobles.flatMap((code) => {
+    const at = links.nobleTerritory(code)
+    return at ? [{ code, at }] : []
+  })
+  const territories = [
+    ...new Set([...(own ? [own] : []), ...located.map((noble) => noble.at)]),
+  ]
+  if (territories.length === 0) return <>{children}</>
+  const target = own
+    ? located.length === 0 && { at: own, code: undefined }
+    : located.length === 1 && located[0]
+  if (target) {
+    return (
+      <MapLink territory={target.at} noble={target.code}>
+        <span data-chat-mention>{children}</span>
+      </MapLink>
+    )
+  }
+  return (
+    <button
+      type="button"
+      data-map-link={territories.join(' ')}
+      data-chat-mention
+      className={LINK_CLASS}
+      onClick={() => {
+        light.release()
+        links.showEvent({ territories })
+      }}
+      onMouseEnter={() => light.on(territories)}
+      onMouseLeave={light.off}
+      onFocus={() => light.on(territories)}
+      onBlur={light.off}
+    >
+      {children}
+    </button>
+  )
+}
+
 /** A territory written in full, « Rochevent (RVE) », linked to the map. */
 export function TerritoryRef({
   id,
