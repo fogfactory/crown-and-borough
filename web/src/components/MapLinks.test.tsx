@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   MapLinksProvider,
   NobleRef,
+  RegionLabel,
   RegionRef,
   TerritoryRef,
   type MapLinks,
@@ -44,6 +45,30 @@ describe('RegionRef', () => {
     expect(value.highlight).toHaveBeenLastCalledWith(['RVE', 'RVN', 'CHA'])
     fireEvent.click(link)
     expect(value.focus).toHaveBeenCalledWith('RVE', undefined)
+  })
+})
+
+describe('RegionLabel', () => {
+  it('lights the region on hover and focus, and frames the seed on click', () => {
+    const value = links({ regionTerritories: () => ['RVE', 'RVN'] })
+    renderWith(value, <RegionLabel seed="RVE">Alpilles</RegionLabel>)
+
+    const link = screen.getByRole('button', { name: 'Alpilles' })
+    fireEvent.mouseEnter(link)
+    expect(value.highlight).toHaveBeenLastCalledWith(['RVE', 'RVN'])
+    fireEvent.mouseLeave(link)
+    expect(value.highlight).toHaveBeenLastCalledWith(null)
+    fireEvent.focus(link)
+    expect(value.highlight).toHaveBeenLastCalledWith(['RVE', 'RVN'])
+    fireEvent.blur(link)
+    fireEvent.click(link)
+    expect(value.focus).toHaveBeenCalledWith('RVE', undefined)
+  })
+
+  it('stays plain text when the seed is not on the map', () => {
+    renderWith(links(), <RegionLabel seed="ZZZ">Alpilles</RegionLabel>)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByText('Alpilles')).toBeInTheDocument()
   })
 })
 
