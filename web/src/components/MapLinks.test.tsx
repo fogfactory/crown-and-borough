@@ -139,6 +139,19 @@ describe('MapMention', () => {
     expect(value.focus).not.toHaveBeenCalled()
   })
 
+  it('follows a commune without halo when its namesake stands there', () => {
+    const value = links()
+    renderWith(
+      value,
+      <MapMention territory="RVE" nobles={['RAI']}>
+        Rochevent
+      </MapMention>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Rochevent' }))
+    expect(value.focus).toHaveBeenCalledWith('RVE', undefined)
+    expect(value.showEvent).not.toHaveBeenCalled()
+  })
+
   it('stays text without a known place', () => {
     renderWith(links(), <MapMention nobles={['ZZZ']}>Inconnu</MapMention>)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()

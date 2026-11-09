@@ -86,19 +86,23 @@ map=$(api "$bruno" GET "/api/games/$game_id/map")
 state=$(api "$bruno" GET "/api/games/$game_id/state")
 
 # Material for the messages, read from the forged game.
-pick() { jq -nr --argjson map "$map" --argjson state "$state" --arg alice "$alice_house" "$1"; }
+pick() {
+	jq -nr --argjson map "$map" --argjson state "$state" --arg alice "$alice_house" \
+		--arg held "${held:-}" "$1"
+}
 alice_noble=$(pick '[$state.nobles[] | select(.owner == $alice)][0]')
 alice_first=$(jq -r .firstName <<<"$alice_noble")
 alice_name=$(jq -r .name <<<"$alice_noble")
 alice_code=$(jq -r .code <<<"$alice_noble")
-held=$(pick '$state.territories[] | select(.owner == $alice) | .id' | head -1)
-held_name=$(pick "\$map.territories[] | select(.id == \"$held\") | .name")
-vowel=$(pick '[$map.territories[] | select(.name | test("^[AEIOUHÉ]"))][0].name // "Hautebourg"')
+held=$(pick 'first($state.territories[] | select(.owner == $alice) | .id)')
+held_name=$(pick '$map.territories[] | select(.id == $held) | .name')
+vowel=$(pick '[$map.territories[] | select(.name | test("^[AEIOUHÉ]"))][0].name // empty')
 hyphen=$(pick '[$map.territories[] | select(.name | test("-"))][0].name // empty')
-other=$(pick "[\$map.territories[] | select(.id != \"$held\")][3]")
+other=$(pick '[$map.territories[] | select(.id != $held)][3]')
 other_name=$(jq -r .name <<<"$other")
 other_code=$(jq -r .id <<<"$other")
 shared=$(pick '[$state.nobles[].code] as $nobles | [$map.territories[] | select(.id as $id | $nobles | index($id))][0].id // empty')
+
 lower_held=$(tr '[:upper:]' '[:lower:]' <<<"$held_name")
 lower_code=$(tr '[:upper:]' '[:lower:]' <<<"$held")
 
@@ -109,7 +113,9 @@ post() {
 		"$(jq -n --arg channel "$1" --arg body "$2" '{channel: $channel, body: $body}')" >/dev/null
 }
 
-post public "Nos armées passeront à $other_name, près d'$vowel.${hyphen:+ Rendez-vous ensuite à $hyphen.}"
+near=""
+[ -n "$vowel" ] && near=", près d'$vowel"
+post public "Nos armées passeront à $other_name$near.${hyphen:+ Rendez-vous ensuite à $hyphen.}"
 post public "$alice_first tient $held_name ($held). Que $alice_name ($alice_code) se méfie : nous marchons de $other_code vers $held."
 post "$alice_house" "Message privé : $alice_first, retirez-vous de $held_name avant l'été."
 post "$alice_house" "Rien de ceci ne doit être lié : Saint-$held_name, ${held_name}ais, $lower_held, $lower_code, ${held}X, ${alice_first}net."

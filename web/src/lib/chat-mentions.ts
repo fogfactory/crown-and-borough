@@ -4,6 +4,8 @@
  * Detection runs on the client, on the plain text: the message stays text.
  */
 
+import { escapeRegExp } from '@/lib/utils'
+
 /** What a written name stands for: a territory, nobles, or both. */
 export interface MentionTarget {
   /** Territory whose commune bears the name. */
@@ -39,17 +41,12 @@ const WORD_CHAR = '[\\p{L}\\p{N}\\p{M}-]'
 
 const ARTICLE = /^(Le|La|Les) |^L['’]/
 
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 /**
  * Spellings of a name: itself, and for a commune opening on an article
  * (« Les Saules »), the article in lower case as written mid-sentence.
  */
 function spellings(name: string): string[] {
-  const match = ARTICLE.exec(name)
-  if (!match) return [name]
+  if (!ARTICLE.test(name)) return [name]
   return [name, name[0].toLowerCase() + name.slice(1)]
 }
 
@@ -64,7 +61,7 @@ function spellings(name: string): string[] {
 export function buildMentionIndex({ territories, nobles }: MentionSources): MentionIndex {
   const targets = new Map<string, MentionTarget>()
   const add = (name: string, apply: (target: MentionTarget) => void) => {
-    const trimmed = name.trim()
+    const trimmed = name.normalize('NFC').trim()
     if (!trimmed) return
     for (const spelling of spellings(trimmed)) {
       let target = targets.get(spelling)
@@ -83,10 +80,15 @@ export function buildMentionIndex({ territories, nobles }: MentionSources): Ment
     }
   }
   for (const noble of nobles) {
-    const firstName = noble.firstName || noble.name.split(' ')[0]
-    const names = new Set([noble.name, firstName, noble.code])
-    const at = noble.name.indexOf(`${firstName} `)
-    if (at > 0) names.add(noble.name.slice(at))
+    const names = new Set([noble.name, noble.code])
+    // Without its first name, the displayed name opens on a form of address
+    // (« Baron »), never to be indexed alone.
+    const firstName = noble.firstName
+    if (firstName) {
+      names.add(firstName)
+      const at = noble.name.indexOf(`${firstName} `)
+      if (at > 0) names.add(noble.name.slice(at))
+    }
     for (const name of names) {
       add(name, (target) => {
         if (!target.nobles.includes(noble.code)) target.nobles.push(noble.code)
@@ -108,10 +110,12 @@ export function buildMentionIndex({ territories, nobles }: MentionSources): Ment
  * Splits a message into plain text and names of the index. Matching is exact
  * (case included, apart from a commune's leading article) and the longest
  * name wins: « Hugon de Rochevent » is one noble, not a first name and a
- * commune.
+ * commune. The text is read in its composed Unicode form, as the names are,
+ * so a name typed with decomposed accents is found too.
  */
-export function tokenizeMentions(text: string, index: MentionIndex): MentionSegment[] {
-  if (!index.pattern || !text) return text ? [{ kind: 'text', text }] : []
+export function tokenizeMentions(raw: string, index: MentionIndex): MentionSegment[] {
+  const text = raw.normalize('NFC')
+  if (!index.pattern) return text ? [{ kind: 'text', text }] : []
   const segments: MentionSegment[] = []
   let last = 0
   for (const match of text.matchAll(index.pattern)) {

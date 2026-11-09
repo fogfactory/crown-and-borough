@@ -107,6 +107,21 @@ describe('tokenizeMentions', () => {
     ])
   })
 
+  it('finds names typed with decomposed accents', () => {
+    expect(mentions('Agne\u0300s')).toEqual(['Agnès → |AGN|AG2'])
+  })
+
+  it('never indexes a form of address without a first name', () => {
+    const bare = buildMentionIndex({
+      territories: [],
+      nobles: [{ code: 'HUO', name: 'Baron Hugon de Rochevent' }],
+    })
+    expect(tokenizeMentions('Baron, Hugon', bare)).toEqual([
+      { kind: 'text', text: 'Baron, Hugon' },
+    ])
+    expect(tokenizeMentions('HUO', bare)[0].kind).toBe('mention')
+  })
+
   it('leaves text alone without names', () => {
     const empty = buildMentionIndex({ territories: [], nobles: [] })
     expect(tokenizeMentions('Rochevent', empty)).toEqual([

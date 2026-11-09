@@ -1,6 +1,4 @@
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+import { escapeRegExp } from '@/lib/utils'
 
 /**
  * Index (0-based) of the line of `text` that is the typed header of the noble:

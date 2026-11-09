@@ -223,7 +223,7 @@ describe('ChatPanel', () => {
       </LanguageProvider>,
     )
     const log = screen.getByRole('log', { name: /Public room/ })
-    expect(log.querySelectorAll('[data-chat-mention]')).toHaveLength(2)
+    expect(log.querySelectorAll('[data-map-link]')).toHaveLength(2)
     fireEvent.click(within(log).getByRole('button', { name: 'Hugon' }))
     expect(links.focus).toHaveBeenCalledWith('AAA', 'HUO')
     fireEvent.click(within(log).getByRole('button', { name: 'Rochevent' }))
