@@ -51,6 +51,17 @@ const state = {
   fiefs: [],
 } as unknown as StateData
 
+function openSelect(name: string) {
+  const trigger = screen.getByRole('combobox', { name })
+  fireEvent.keyDown(trigger, { key: 'Enter' })
+}
+
+function chooseChannel(key: string) {
+  openSelect('Rooms and conversations')
+  const option = document.querySelector(`[data-chat-channel="${key}"]`) as HTMLElement
+  fireEvent.click(option)
+}
+
 function setChat(
   channels: UseChatResult['channels'],
   lastRead: UseChatResult['lastRead'] = {},
@@ -106,13 +117,10 @@ describe('ChatPanel', () => {
       P1_P4: channel([]),
     })
     renderPanel()
-    const options = within(screen.getByLabelText('New conversation')).getAllByRole(
-      'option',
-    )
-    expect(options.map((option) => option.textContent)).toEqual([
-      'Write to a house…',
-      'Maison Brieuc',
-    ])
+    openSelect('New conversation')
+    const options = screen.getAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual(['Maison Brieuc'])
+    expect(options[0].querySelector('[data-shield-icon]')).not.toBeNull()
   })
 
   it('keeps an existing conversation with an eliminated house usable', () => {
@@ -121,9 +129,7 @@ describe('ChatPanel', () => {
       P1_P4: channel([message('1', 'P4', 1, 'P1_P4')]),
     })
     renderPanel()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Rooms and conversations' }), {
-      target: { value: 'P1_P4' },
-    })
+    chooseChannel('P1_P4')
     expect(screen.getByLabelText('Your message')).toBeEnabled()
   })
 
@@ -137,6 +143,7 @@ describe('ChatPanel', () => {
     )
     const { onUnreadChange } = renderPanel()
     expect(onUnreadChange).toHaveBeenLastCalledWith(3)
+    openSelect('Rooms and conversations')
     expect(screen.getByRole('option', { name: 'Public room (1)' })).toBeInTheDocument()
   })
 
@@ -158,9 +165,7 @@ describe('ChatPanel', () => {
       P2_P3: channel([message('1', 'P2', 1, 'P2_P3')]),
     })
     renderPanel({ house: null, observer: true })
-    fireEvent.change(screen.getByRole('combobox', { name: 'Rooms and conversations' }), {
-      target: { value: 'P2_P3' },
-    })
+    chooseChannel('P2_P3')
     expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument()
     expect(
       screen.getByText(/Read only: you are viewing the conversation of Maison Brieuc/),
