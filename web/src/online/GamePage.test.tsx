@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -574,5 +574,25 @@ describe('GamePage notices', () => {
     renderGame()
     expect(await screen.findByText('You are observing this game.')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps scores out of the players panel', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.endsWith('/api/games/GAME1/map'))
+          return Promise.resolve(jsonResponse(map))
+        if (url.endsWith('/api/games/GAME1/state')) {
+          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+        }
+        return Promise.resolve(jsonResponse({ spectator: true }))
+      }),
+    )
+    renderGame()
+    await screen.findByText('You are observing this game.')
+    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByText(/scores/i)).not.toBeInTheDocument()
   })
 })
