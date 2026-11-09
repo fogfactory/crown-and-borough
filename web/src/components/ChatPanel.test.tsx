@@ -181,6 +181,21 @@ describe('ChatPanel', () => {
     expect(trigger(CHANNELS)).toHaveTextContent('Maison Brieuc')
   })
 
+  it('keeps focus on the new conversation trigger when its list is closed without a pick', async () => {
+    setChat({
+      public: channel([]),
+      P1_P2: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+      P1_P4: channel([]),
+    })
+    renderPanel()
+    openSelect(NEW_CONVERSATION)
+    fireEvent.keyDown(screen.getByRole('listbox', { name: NEW_CONVERSATION }), {
+      key: 'Escape',
+    })
+    await waitFor(() => expect(trigger(NEW_CONVERSATION)).toHaveFocus())
+  })
+
   it('opens the channel list with the keyboard', () => {
     setChat({ public: channel([]) })
     renderPanel()

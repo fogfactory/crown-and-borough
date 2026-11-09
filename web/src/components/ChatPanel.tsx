@@ -120,9 +120,8 @@ function HouseMark({
 
 // Field height (40px) on desktop, 44px touch target on phones (charte graphique).
 const SELECT_TRIGGER_CLASS = 'w-full data-[size=default]:h-11 lg:data-[size=default]:h-10'
-const SELECT_CONTENT_CLASS = 'w-(--radix-select-trigger-width)'
 // Rows keep a 44px touch target on phones; the label may shrink and truncate.
-const SELECT_ITEM_CLASS = 'max-lg:min-h-11 *:[span]:last:min-w-0'
+const SELECT_ITEM_CLASS = 'max-lg:min-h-11'
 
 /** A selector entry: the arms of the house(s) concerned, the label, then the unread suffix. */
 function ChannelOption({
@@ -351,12 +350,11 @@ export function ChatPanel({
     [houseName, newConversationTargets, playerOf],
   )
 
-  // The trigger is named by its label and its value, so a screen reader announces
-  // the open conversation. Focus returns to it when the new-conversation list
-  // (which disappears after its last pick) closes.
-  const channelLabelId = useId()
-  const channelValueId = useId()
+  // Picking a house opens its conversation, and the new-conversation list may
+  // vanish with its last target: focus then moves to the channel trigger.
+  // Closing the list without a pick keeps Radix's default focus restore.
   const channelTrigger = useRef<HTMLButtonElement>(null)
+  const pickedNewConversation = useRef(false)
 
   const canWrite = house !== null && isOwnChannel(open, house)
   const draft = drafts[open] ?? ''
@@ -420,22 +418,15 @@ export function ChatPanel({
       className="flex min-h-0 flex-col gap-3"
     >
       <nav aria-label={t('chat.channels')} className="space-y-2">
-        <span id={channelLabelId} className="sr-only">
-          {t('chat.channels')}
-        </span>
         <Select value={open} onValueChange={select}>
           <SelectTrigger
             ref={channelTrigger}
-            aria-labelledby={`${channelLabelId} ${channelValueId}`}
+            aria-label={`${t('chat.channels')} ${channelLabel(open)}`}
             className={SELECT_TRIGGER_CLASS}
           >
-            <SelectValue id={channelValueId} />
+            <SelectValue />
           </SelectTrigger>
-          <SelectContent
-            position="popper"
-            aria-label={t('chat.channels')}
-            className={SELECT_CONTENT_CLASS}
-          >
+          <SelectContent position="popper" aria-label={t('chat.channels')}>
             {channelItems}
           </SelectContent>
         </Select>
@@ -444,7 +435,9 @@ export function ChatPanel({
             <Select
               value=""
               onValueChange={(value) => {
-                if (value) select(conversationKey(house, value))
+                if (!value) return
+                pickedNewConversation.current = true
+                select(conversationKey(house, value))
               }}
             >
               <SelectTrigger
@@ -456,8 +449,9 @@ export function ChatPanel({
               <SelectContent
                 position="popper"
                 aria-label={t('chat.newConversation')}
-                className={SELECT_CONTENT_CLASS}
                 onCloseAutoFocus={(event) => {
+                  if (!pickedNewConversation.current) return
+                  pickedNewConversation.current = false
                   event.preventDefault()
                   channelTrigger.current?.focus()
                 }}
