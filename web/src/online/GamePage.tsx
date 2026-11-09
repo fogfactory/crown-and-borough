@@ -1191,6 +1191,7 @@ export function GamePage() {
                       uid={user.uid}
                       tokenProvider={tokenProvider}
                       state={state}
+                      map={map}
                       house={playerID}
                       observer={summary.spectator === true}
                       visible={activePanel === 'chat'}
