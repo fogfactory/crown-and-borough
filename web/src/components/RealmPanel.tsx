@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { IconBuildingChurch, IconCrown, IconHierarchy2 } from '@tabler/icons-react'
 
-import { TerritoryRef } from '@/components/MapLinks'
+import { RegionLabel, TerritoryRef } from '@/components/MapLinks'
 import { NobleHolder } from '@/components/NobleHolder'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -125,7 +125,10 @@ export function RealmPanel({ state, territories = [], onOpenLineage }: RealmPane
               <ul className="space-y-0.5">
                 {bishoprics.map((bishopric) => (
                   <li key={bishopric.region} data-bishopric={bishopric.region}>
-                    <span className="font-semibold">{bishopric.name}</span> :{' '}
+                    <RegionLabel seed={bishopric.region} className="font-semibold">
+                      {bishopric.name}
+                    </RegionLabel>
+                    {' : '}
                     {holder(bishopric.bishop)}
                   </li>
                 ))}

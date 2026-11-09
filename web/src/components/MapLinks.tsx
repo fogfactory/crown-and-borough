@@ -220,6 +220,29 @@ export function RegionRef({ id, name }: { id: string; name?: string }) {
 }
 
 /**
+ * A region written as a label of the caller's own (a bishopric name): the
+ * link lights the whole region on hover and frames its seed territory.
+ */
+export function RegionLabel({
+  seed,
+  className,
+  children,
+}: {
+  seed: string
+  className?: string
+  children: ReactNode
+}) {
+  const links = useMapLinks()
+  const label = <span className={className}>{children}</span>
+  if (!links?.hasTerritory(seed)) return label
+  return (
+    <MapLink territory={seed} lights={links.regionTerritories(seed)}>
+      {label}
+    </MapLink>
+  )
+}
+
+/**
  * A noble written in full, « Rainaud de Rochevent (RAI) », linked to the
  * territory where it stands. A dead noble, or one whose position the viewer
  * does not know, stays plain text with a tooltip.

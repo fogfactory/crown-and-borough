@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -14,6 +15,13 @@ import { MapMention } from '@/components/MapLinks'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { fieldClassName } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { ApiError, type TokenProvider } from '@/lib/api'
 import {
@@ -97,9 +105,45 @@ function messageTime(message: ChatMessage, locale: string): string {
     : date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
-function HouseMark({ player, id }: { player: Player | undefined; id: string }) {
+/** A house's shield. Several can be mounted at once (list, trigger), so ids come from useId. */
+function HouseMark({
+  player,
+  className,
+}: {
+  player: Player | undefined
+  className?: string
+}) {
+  const id = useId()
   if (!player) return null
-  return <ShieldIcon id={id} arms={playerArms(player)} />
+  return <ShieldIcon id={id} arms={playerArms(player)} className={className} />
+}
+
+// Field height (40px) on desktop, 44px touch target on phones (charte graphique).
+const SELECT_TRIGGER_CLASS = 'w-full data-[size=default]:h-11 lg:data-[size=default]:h-10'
+// Rows keep a 44px touch target on phones; the label may shrink and truncate.
+const SELECT_ITEM_CLASS = 'max-lg:min-h-11'
+
+/** A selector entry: the arms of the house(s) concerned, the label, then the unread suffix. */
+function ChannelOption({
+  houses,
+  label,
+  suffix,
+  playerOf,
+}: {
+  houses: string[]
+  label: string
+  suffix?: string
+  playerOf: (id: string) => Player | undefined
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {houses.map((houseId) => (
+        <HouseMark key={houseId} player={playerOf(houseId)} className="size-5 shrink-0" />
+      ))}
+      <span className="truncate">{label}</span>
+      {suffix && <span className="shrink-0">{suffix}</span>}
+    </span>
+  )
 }
 
 export function ChatPanel({
@@ -218,20 +262,30 @@ export function ChatPanel({
     visible,
   ])
 
+  /** Houses a channel concerns for this reader: the other one, or both for the observer. */
+  const channelHouses = useCallback(
+    (key: string): string[] => {
+      const houses = conversationHouses(key)
+      if (!houses) return []
+      const other = house ? otherHouse(key, house) : null
+      return other ? [other] : houses
+    },
+    [house],
+  )
+
   const channelLabel = useCallback(
     (key: string) => {
       if (key === PUBLIC_CHANNEL) return t('chat.public')
-      const houses = conversationHouses(key)
-      if (!houses) return key
-      const other = house ? otherHouse(key, house) : null
-      return other
-        ? houseName(other)
-        : t('chat.conversationBetween', {
-            first: houseName(houses[0]),
-            second: houseName(houses[1]),
+      const [first, second] = channelHouses(key)
+      if (!first) return key
+      return second
+        ? t('chat.conversationBetween', {
+            first: houseName(first),
+            second: houseName(second),
           })
+        : houseName(first)
     },
-    [house, houseName, t],
+    [channelHouses, houseName, t],
   )
 
   const privateChannels = useMemo(() => {
@@ -262,6 +316,45 @@ export function ChatPanel({
     setOpen(channel)
     setOpened((current) => new Set(current).add(channel))
   }
+
+  // The closed Select still renders its items: keep their elements stable so that
+  // typing in the composer does not rebuild every shield.
+  const channelItems = useMemo(
+    () =>
+      [PUBLIC_CHANNEL, ...privateChannels].map((key) => {
+        const count = unread[key] ?? 0
+        return (
+          <SelectItem key={key} value={key} className={SELECT_ITEM_CLASS}>
+            <ChannelOption
+              houses={channelHouses(key)}
+              label={channelLabel(key)}
+              suffix={count > 0 ? ` (${count > 99 ? '99+' : count})` : undefined}
+              playerOf={playerOf}
+            />
+          </SelectItem>
+        )
+      }),
+    [channelHouses, channelLabel, playerOf, privateChannels, unread],
+  )
+  const newConversationItems = useMemo(
+    () =>
+      newConversationTargets.map((player) => (
+        <SelectItem key={player.id} value={player.id} className={SELECT_ITEM_CLASS}>
+          <ChannelOption
+            houses={[player.id]}
+            label={houseName(player.id)}
+            playerOf={playerOf}
+          />
+        </SelectItem>
+      )),
+    [houseName, newConversationTargets, playerOf],
+  )
+
+  // Picking a house opens its conversation, and the new-conversation list may
+  // vanish with its last target: focus then moves to the channel trigger.
+  // Closing the list without a pick keeps Radix's default focus restore.
+  const channelTrigger = useRef<HTMLButtonElement>(null)
+  const pickedNewConversation = useRef(false)
 
   const canWrite = house !== null && isOwnChannel(open, house)
   const draft = drafts[open] ?? ''
@@ -325,54 +418,52 @@ export function ChatPanel({
       className="flex min-h-0 flex-col gap-3"
     >
       <nav aria-label={t('chat.channels')} className="space-y-2">
-        <label className="sr-only" htmlFor="chat-channel">
-          {t('chat.channels')}
-        </label>
-        <select
-          id="chat-channel"
-          className={cn(fieldClassName, 'w-full')}
-          value={open}
-          onChange={(event) => select(event.target.value)}
-        >
-          {[PUBLIC_CHANNEL, ...privateChannels].map((key) => {
-            const count = unread[key] ?? 0
-            return (
-              <option key={key} value={key} data-chat-channel={key}>
-                {channelLabel(key)}
-                {count > 0 ? ` (${count > 99 ? '99+' : count})` : ''}
-              </option>
-            )
-          })}
-        </select>
-        {house && (
-          <div>
-            <label className="sr-only" htmlFor="chat-new-conversation">
-              {t('chat.newConversation')}
-            </label>
-            {newConversationTargets.length > 0 ? (
-              <select
-                id="chat-new-conversation"
-                className={cn(fieldClassName, 'w-full')}
-                value=""
-                onChange={(event) => {
-                  if (event.target.value)
-                    select(conversationKey(house, event.target.value))
+        <Select value={open} onValueChange={select}>
+          <SelectTrigger
+            ref={channelTrigger}
+            aria-label={`${t('chat.channels')} ${channelLabel(open)}`}
+            className={SELECT_TRIGGER_CLASS}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" aria-label={t('chat.channels')}>
+            {channelItems}
+          </SelectContent>
+        </Select>
+        {house &&
+          (newConversationTargets.length > 0 ? (
+            <Select
+              value=""
+              onValueChange={(value) => {
+                if (!value) return
+                pickedNewConversation.current = true
+                select(conversationKey(house, value))
+              }}
+            >
+              <SelectTrigger
+                aria-label={t('chat.newConversation')}
+                className={SELECT_TRIGGER_CLASS}
+              >
+                <SelectValue placeholder={t('chat.newConversationPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                aria-label={t('chat.newConversation')}
+                onCloseAutoFocus={(event) => {
+                  if (!pickedNewConversation.current) return
+                  pickedNewConversation.current = false
+                  event.preventDefault()
+                  channelTrigger.current?.focus()
                 }}
               >
-                <option value="">{t('chat.newConversationPlaceholder')}</option>
-                {newConversationTargets.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {houseName(player.id)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              privateChannels.length === 0 && (
-                <p className="text-xs text-ink-500">{t('chat.noHouses')}</p>
-              )
-            )}
-          </div>
-        )}
+                {newConversationItems}
+              </SelectContent>
+            </Select>
+          ) : (
+            privateChannels.length === 0 && (
+              <p className="text-xs text-ink-500">{t('chat.noHouses')}</p>
+            )
+          ))}
       </nav>
 
       <MessageList
@@ -665,7 +756,7 @@ function MessageList({
             )}
           >
             <header className="flex items-center gap-1.5 text-xs">
-              <HouseMark player={playerOf(item.authorHouseId)} id={`chat-${item.key}`} />
+              <HouseMark player={playerOf(item.authorHouseId)} />
               <span className="font-semibold text-ink-900">
                 {houseName(item.authorHouseId)}
                 {own && (
