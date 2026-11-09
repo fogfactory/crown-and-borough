@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ChatPanel } from '@/components/ChatPanel'
@@ -55,7 +55,7 @@ const CHANNELS = 'Rooms and conversations'
 const NEW_CONVERSATION = 'New conversation'
 
 function trigger(name: string) {
-  return screen.getByRole('combobox', { name })
+  return screen.getByRole('combobox', { name: new RegExp(`^${name}`) })
 }
 
 function openSelect(name: string) {
@@ -157,6 +157,28 @@ describe('ChatPanel', () => {
     const [publicRoom, conversation] = within(list).getAllByRole('option')
     expect(shields(publicRoom)).toHaveLength(0)
     expect(shields(conversation)).toHaveLength(1)
+  })
+
+  it('names the trigger with the open conversation for screen readers', () => {
+    setChat({ public: channel([]) })
+    renderPanel()
+    expect(
+      screen.getByRole('combobox', { name: 'Rooms and conversations Public room' }),
+    ).toBeInTheDocument()
+  })
+
+  it('returns focus to the channel trigger after the last new conversation is picked', async () => {
+    setChat({
+      public: channel([]),
+      P1_P2: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+      P1_P4: channel([]),
+    })
+    renderPanel()
+    chooseOption(NEW_CONVERSATION, 'Maison Brieuc')
+    expect(screen.queryByRole('combobox', { name: NEW_CONVERSATION })).toBeNull()
+    await waitFor(() => expect(trigger(CHANNELS)).toHaveFocus())
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Brieuc')
   })
 
   it('opens the channel list with the keyboard', () => {

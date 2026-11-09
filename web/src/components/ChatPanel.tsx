@@ -264,24 +264,30 @@ export function ChatPanel({
   ])
 
   /** Houses a channel concerns for this reader: the other one, or both for the observer. */
-  const channelHouses = (key: string): string[] => {
-    const houses = conversationHouses(key)
-    if (!houses) return []
-    const other = house ? otherHouse(key, house) : null
-    return other ? [other] : houses
-  }
+  const channelHouses = useCallback(
+    (key: string): string[] => {
+      const houses = conversationHouses(key)
+      if (!houses) return []
+      const other = house ? otherHouse(key, house) : null
+      return other ? [other] : houses
+    },
+    [house],
+  )
 
-  const channelLabel = (key: string) => {
-    if (key === PUBLIC_CHANNEL) return t('chat.public')
-    const [first, second] = channelHouses(key)
-    if (!first) return key
-    return second
-      ? t('chat.conversationBetween', {
-          first: houseName(first),
-          second: houseName(second),
-        })
-      : houseName(first)
-  }
+  const channelLabel = useCallback(
+    (key: string) => {
+      if (key === PUBLIC_CHANNEL) return t('chat.public')
+      const [first, second] = channelHouses(key)
+      if (!first) return key
+      return second
+        ? t('chat.conversationBetween', {
+            first: houseName(first),
+            second: houseName(second),
+          })
+        : houseName(first)
+    },
+    [channelHouses, houseName, t],
+  )
 
   const privateChannels = useMemo(() => {
     const latest = (key: string) => channels[key]?.messages.at(-1)?.createdAt ?? ''
@@ -311,6 +317,46 @@ export function ChatPanel({
     setOpen(channel)
     setOpened((current) => new Set(current).add(channel))
   }
+
+  // The closed Select still renders its items: keep their elements stable so that
+  // typing in the composer does not rebuild every shield.
+  const channelItems = useMemo(
+    () =>
+      [PUBLIC_CHANNEL, ...privateChannels].map((key) => {
+        const count = unread[key] ?? 0
+        return (
+          <SelectItem key={key} value={key} className={SELECT_ITEM_CLASS}>
+            <ChannelOption
+              houses={channelHouses(key)}
+              label={channelLabel(key)}
+              suffix={count > 0 ? ` (${count > 99 ? '99+' : count})` : undefined}
+              playerOf={playerOf}
+            />
+          </SelectItem>
+        )
+      }),
+    [channelHouses, channelLabel, playerOf, privateChannels, unread],
+  )
+  const newConversationItems = useMemo(
+    () =>
+      newConversationTargets.map((player) => (
+        <SelectItem key={player.id} value={player.id} className={SELECT_ITEM_CLASS}>
+          <ChannelOption
+            houses={[player.id]}
+            label={houseName(player.id)}
+            playerOf={playerOf}
+          />
+        </SelectItem>
+      )),
+    [houseName, newConversationTargets, playerOf],
+  )
+
+  // The trigger is named by its label and its value, so a screen reader announces
+  // the open conversation. Focus returns to it when the new-conversation list
+  // (which disappears after its last pick) closes.
+  const channelLabelId = useId()
+  const channelValueId = useId()
+  const channelTrigger = useRef<HTMLButtonElement>(null)
 
   const canWrite = house !== null && isOwnChannel(open, house)
   const draft = drafts[open] ?? ''
@@ -374,28 +420,23 @@ export function ChatPanel({
       className="flex min-h-0 flex-col gap-3"
     >
       <nav aria-label={t('chat.channels')} className="space-y-2">
+        <span id={channelLabelId} className="sr-only">
+          {t('chat.channels')}
+        </span>
         <Select value={open} onValueChange={select}>
-          <SelectTrigger aria-label={t('chat.channels')} className={SELECT_TRIGGER_CLASS}>
-            <SelectValue />
+          <SelectTrigger
+            ref={channelTrigger}
+            aria-labelledby={`${channelLabelId} ${channelValueId}`}
+            className={SELECT_TRIGGER_CLASS}
+          >
+            <SelectValue id={channelValueId} />
           </SelectTrigger>
           <SelectContent
             position="popper"
             aria-label={t('chat.channels')}
             className={SELECT_CONTENT_CLASS}
           >
-            {[PUBLIC_CHANNEL, ...privateChannels].map((key) => {
-              const count = unread[key] ?? 0
-              return (
-                <SelectItem key={key} value={key} className={SELECT_ITEM_CLASS}>
-                  <ChannelOption
-                    houses={channelHouses(key)}
-                    label={channelLabel(key)}
-                    suffix={count > 0 ? ` (${count > 99 ? '99+' : count})` : undefined}
-                    playerOf={playerOf}
-                  />
-                </SelectItem>
-              )
-            })}
+            {channelItems}
           </SelectContent>
         </Select>
         {house &&
@@ -416,20 +457,12 @@ export function ChatPanel({
                 position="popper"
                 aria-label={t('chat.newConversation')}
                 className={SELECT_CONTENT_CLASS}
+                onCloseAutoFocus={(event) => {
+                  event.preventDefault()
+                  channelTrigger.current?.focus()
+                }}
               >
-                {newConversationTargets.map((player) => (
-                  <SelectItem
-                    key={player.id}
-                    value={player.id}
-                    className={SELECT_ITEM_CLASS}
-                  >
-                    <ChannelOption
-                      houses={[player.id]}
-                      label={houseName(player.id)}
-                      playerOf={playerOf}
-                    />
-                  </SelectItem>
-                ))}
+                {newConversationItems}
               </SelectContent>
             </Select>
           ) : (
