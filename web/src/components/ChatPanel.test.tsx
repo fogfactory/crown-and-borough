@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ChatPanel } from '@/components/ChatPanel'
@@ -50,6 +50,26 @@ const state = {
   ],
   fiefs: [],
 } as unknown as StateData
+
+const CHANNELS = 'Rooms and conversations'
+const NEW_CONVERSATION = 'New conversation'
+
+function trigger(name: string) {
+  return screen.getByRole('combobox', { name: new RegExp(`^${name}`) })
+}
+
+function openSelect(name: string) {
+  fireEvent.click(trigger(name))
+}
+
+function chooseOption(select: string, option: string | RegExp) {
+  openSelect(select)
+  fireEvent.click(screen.getByRole('option', { name: option }))
+}
+
+function shields(element: HTMLElement) {
+  return element.querySelectorAll('[data-shield-icon]')
+}
 
 function setChat(
   channels: UseChatResult['channels'],
@@ -106,13 +126,81 @@ describe('ChatPanel', () => {
       P1_P4: channel([]),
     })
     renderPanel()
-    const options = within(screen.getByLabelText('New conversation')).getAllByRole(
-      'option',
-    )
-    expect(options.map((option) => option.textContent)).toEqual([
-      'Write to a house…',
-      'Maison Brieuc',
-    ])
+    expect(trigger(NEW_CONVERSATION)).toHaveTextContent('Write to a house…')
+    openSelect(NEW_CONVERSATION)
+    const options = screen.getAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual(['Maison Brieuc'])
+    expect(shields(options[0])).toHaveLength(1)
+  })
+
+  it('shows the shield and name of the active conversation in the trigger', () => {
+    setChat({
+      public: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+    })
+    renderPanel()
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+    expect(shields(trigger(CHANNELS))).toHaveLength(0)
+    chooseOption(CHANNELS, /^Maison Cérès/)
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Cérès')
+    expect(shields(trigger(CHANNELS))).toHaveLength(1)
+  })
+
+  it('names both lists and gives every entry its house shield', () => {
+    setChat({
+      public: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+    })
+    renderPanel()
+    openSelect(CHANNELS)
+    const list = screen.getByRole('listbox', { name: CHANNELS })
+    const [publicRoom, conversation] = within(list).getAllByRole('option')
+    expect(shields(publicRoom)).toHaveLength(0)
+    expect(shields(conversation)).toHaveLength(1)
+  })
+
+  it('names the trigger with the open conversation for screen readers', () => {
+    setChat({ public: channel([]) })
+    renderPanel()
+    expect(
+      screen.getByRole('combobox', { name: 'Rooms and conversations Public room' }),
+    ).toBeInTheDocument()
+  })
+
+  it('returns focus to the channel trigger after the last new conversation is picked', async () => {
+    setChat({
+      public: channel([]),
+      P1_P2: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+      P1_P4: channel([]),
+    })
+    renderPanel()
+    chooseOption(NEW_CONVERSATION, 'Maison Brieuc')
+    expect(screen.queryByRole('combobox', { name: NEW_CONVERSATION })).toBeNull()
+    await waitFor(() => expect(trigger(CHANNELS)).toHaveFocus())
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Brieuc')
+  })
+
+  it('keeps focus on the new conversation trigger when its list is closed without a pick', async () => {
+    setChat({
+      public: channel([]),
+      P1_P2: channel([]),
+      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+      P1_P4: channel([]),
+    })
+    renderPanel()
+    openSelect(NEW_CONVERSATION)
+    fireEvent.keyDown(screen.getByRole('listbox', { name: NEW_CONVERSATION }), {
+      key: 'Escape',
+    })
+    await waitFor(() => expect(trigger(NEW_CONVERSATION)).toHaveFocus())
+  })
+
+  it('opens the channel list with the keyboard', () => {
+    setChat({ public: channel([]) })
+    renderPanel()
+    fireEvent.keyDown(trigger(CHANNELS), { key: 'ArrowDown' })
+    expect(screen.getByRole('listbox', { name: CHANNELS })).toBeInTheDocument()
   })
 
   it('keeps an existing conversation with an eliminated house usable', () => {
@@ -121,9 +209,9 @@ describe('ChatPanel', () => {
       P1_P4: channel([message('1', 'P4', 1, 'P1_P4')]),
     })
     renderPanel()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Rooms and conversations' }), {
-      target: { value: 'P1_P4' },
-    })
+    chooseOption(CHANNELS, /^Maison Dorian/)
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Dorian')
+    expect(screen.getByRole('log', { name: /Maison Dorian/ })).toBeInTheDocument()
     expect(screen.getByLabelText('Your message')).toBeEnabled()
   })
 
@@ -137,7 +225,10 @@ describe('ChatPanel', () => {
     )
     const { onUnreadChange } = renderPanel()
     expect(onUnreadChange).toHaveBeenLastCalledWith(3)
-    expect(screen.getByRole('option', { name: 'Public room (1)' })).toBeInTheDocument()
+    openSelect(CHANNELS)
+    expect(
+      screen.getByRole('option', { name: /^Public room\s*\(1\)/ }),
+    ).toBeInTheDocument()
   })
 
   it('marks the open channel read when the chat is on screen', () => {
@@ -158,9 +249,8 @@ describe('ChatPanel', () => {
       P2_P3: channel([message('1', 'P2', 1, 'P2_P3')]),
     })
     renderPanel({ house: null, observer: true })
-    fireEvent.change(screen.getByRole('combobox', { name: 'Rooms and conversations' }), {
-      target: { value: 'P2_P3' },
-    })
+    chooseOption(CHANNELS, 'Maison Brieuc and Maison Cérès')
+    expect(shields(trigger(CHANNELS))).toHaveLength(2)
     expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument()
     expect(
       screen.getByText(/Read only: you are viewing the conversation of Maison Brieuc/),
