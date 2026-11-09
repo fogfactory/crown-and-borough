@@ -26,7 +26,7 @@ reference.
 - **Winter is for building.** There is no fighting in winter: you build,
   found fiefs, marry your nobles and elect bishops, popes and kings.
 - **Marriage is a weapon.** A head marriage joins two houses for a shared
-  victory; your other marriages bring you your spouse's influence.
+  victory; your other marriages bring you the influence of your spouse's titles.
 
 ---
 
@@ -381,7 +381,8 @@ same two houses.
   **full alliance**: the two scores add up toward a **shared victory**, but
   neither house can win alone.
 - **The other marriages** are **influence marriages**: each house gains as
-  many points as the other house has titles.
+  many points as the titles held by the other house's spouse: 1 per fief
+  they hold, plus 1 if they are king.
 - A bastard's marriage is not an alliance.
 
 The **Lineage and alliances** view shows the families, marriages and claims,
@@ -585,8 +586,8 @@ around in players' hands.
 
 - your **titles**: 1 point per fief (vacant ones included), 1 for the crown
   and 1 for the papacy;
-- your **influence marriages**: the titles of each house allied to you by a
-  secondary marriage;
+- your **influence marriages**: the titles held by the spouse of each house allied to
+  you by a secondary marriage;
 - your **head ally's** influence, if you have one.
 
 Dignities, bishoprics, cardinalates, territories, armies and resources score

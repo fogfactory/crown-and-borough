@@ -278,7 +278,8 @@ pour le calcul du poids d'alliance et des catégories tête/secondaire.
 Un mariage qui est la tête active des deux familles est une alliance complète :
 pas de bonus individuel, les scores s'additionnent pour la victoire commune.
 Tout autre mariage est un mariage d'influence : chaque famille gagne en bonus
-le nombre de titres de la famille du conjoint (jamais son score bonifié), ce qui
+les titres détenus par le conjoint de l'autre famille (un par fief dont il est
+titulaire, +1 s'il est roi ; jamais son score bonifié), ce qui
 compte pour gagner seul ou via une autre tête. Le bonus est affiché à part
 (`alliance`). Les seuils de victoire de `assets/balance.yaml` (50 %/66 % du
 territoire) ont été relevés à 75 %/90 % pour tenir compte de ces bonus.
