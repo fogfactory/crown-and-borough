@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.2.0](https://github.com/fogfactory/crown-and-borough/compare/v1.1.0...v1.2.0) (2026-11-09)
+
+
+### Features
+
+* **web:** link territory and noble names in chat messages to the map ([9a2a04b](https://github.com/fogfactory/crown-and-borough/commit/9a2a04bef158c2e1e99cf6e98dfe28769e680973))
+* **web:** link territory and noble names in chat messages to the map ([c2a9acc](https://github.com/fogfactory/crown-and-borough/commit/c2a9accf1c36ebeeaf12cadb62d6d6269d9e20e4)), closes [#567](https://github.com/fogfactory/crown-and-borough/issues/567)
+
+
+### Bug Fixes
+
+* **chat:** keep focus and screen reader context in selectors ([b78fd21](https://github.com/fogfactory/crown-and-borough/commit/b78fd214d35185782fe2a391bd505a26dd338974))
+* **chat:** polish conversation selectors after review ([9bce0a3](https://github.com/fogfactory/crown-and-borough/commit/9bce0a32d46b1502539474a2c015540302e85c04))
+* **chat:** restore focus to the opened trigger unless a house was picked ([6057fcf](https://github.com/fogfactory/crown-and-borough/commit/6057fcf6fe7d106898beaea84487049978b399fe))
+* **chat:** show house arms in conversation selectors ([ccf9f97](https://github.com/fogfactory/crown-and-borough/commit/ccf9f97fbe527d73bce013a779d890d2069c3068))
+* **chat:** show house arms in conversation selectors ([538719f](https://github.com/fogfactory/crown-and-borough/commit/538719f7dc68b79b8625d1d3a60c261c03758c76)), closes [#564](https://github.com/fogfactory/crown-and-borough/issues/564)
+* **docs:** regenerate lineage and winter rules screenshots ([9998f65](https://github.com/fogfactory/crown-and-borough/commit/9998f6561e50b8ec97458c0668631188cdccbc45))
+* **docs:** show male clergy in the rules realm screenshots ([485a590](https://github.com/fogfactory/crown-and-borough/commit/485a590ad46a08f44a499e0c490f1ef622ec47a6))
+* **docs:** show male clergy in the rules realm screenshots ([feab7fa](https://github.com/fogfactory/crown-and-borough/commit/feab7fa881123f43aac3a5d123609910967bd5cf)), closes [#560](https://github.com/fogfactory/crown-and-borough/issues/560)
+* **engine:** count only the spouse's titles in influence marriages ([b8ff98c](https://github.com/fogfactory/crown-and-borough/commit/b8ff98ce8279c45f7d6a2a2c71ab1064d1715af3))
+* **engine:** count only the spouse's titles in influence marriages ([675561e](https://github.com/fogfactory/crown-and-borough/commit/675561e6f99a04386426ea2b45bcca223ea813a4)), closes [#577](https://github.com/fogfactory/crown-and-borough/issues/577)
+* **web:** highlight a bishopric on the map when hovering its name ([042f741](https://github.com/fogfactory/crown-and-borough/commit/042f741251765bfe021a67aff53c27bda4f1a993))
+* **web:** highlight a bishopric on the map when hovering its name ([4449ceb](https://github.com/fogfactory/crown-and-borough/commit/4449cebfe88ee61da2c91ce48e9608bde4420d16))
+* **web:** link a bishopric to its seed territory ([294e58a](https://github.com/fogfactory/crown-and-borough/commit/294e58a2cdc58f77d5d18a87491c77aed3906650))
+* **web:** remove duplicate scores from the players panel ([24499d8](https://github.com/fogfactory/crown-and-borough/commit/24499d8096f3438dd83c2f97ef6752022b1e8729))
+* **web:** remove duplicate scores from the players panel ([b5fbb41](https://github.com/fogfactory/crown-and-borough/commit/b5fbb413bef74ed0bf5294d46139b0956e0bf041))
+
+
+### Refactoring
+
+* **web:** simplify chat map links and harden mention matching ([1c8303d](https://github.com/fogfactory/crown-and-borough/commit/1c8303de2cebe63664bf90aa5684f9810cf92bf1))
+
 ## [1.1.0](https://github.com/fogfactory/crown-and-borough/compare/v1.0.0...v1.1.0) (2026-11-08)
 
 
