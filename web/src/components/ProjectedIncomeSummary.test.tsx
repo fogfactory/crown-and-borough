@@ -256,7 +256,7 @@ describe('ProjectedIncomeSummary', () => {
             religiousTitle: 'pope',
           },
         ],
-        bishoprics: [{ region: 'BRU', name: 'Bru', territories: ['BRU'] }],
+        bishoprics: [{ region: 'BRU', name: 'Bru', seed: 'AAA', territories: ['BRU'] }],
       }
       render(
         <LanguageProvider initialLanguage="en">

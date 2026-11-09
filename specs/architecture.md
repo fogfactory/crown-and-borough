@@ -237,7 +237,7 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
     }
   ],
   "bishoprics": [
-    { "region": "ROS", "name": "Rosemont", "territories": ["ROS", "BOI"], "bishop": "HUG" }
+    { "region": "ROS", "name": "Rosemont", "seed": "ROS", "territories": ["ROS", "BOI"], "bishop": "HUG" }
   ],
   "cardinals": ["HUG"],
   "pope": "HUG",
@@ -246,7 +246,7 @@ L'état projeté sépare la couche dynamique du `GameState` de stockage :
 ```
 
 Les titres religieux sont publics. `bishoprics` liste tous les évêchés (les
-régions de la carte) ; `bishop` est absent quand l'évêché est vacant.
+régions de la carte, `seed` étant le territoire-siège que la carte cadre) ; `bishop` est absent quand l'évêché est vacant.
 `cardinals` et `pope` désignent des nobles par leur code ; `excommunicated`
 donne la raison (`ex_officio` ou `papal`). Un noble titré porte aussi `religiousTitle` (`bishop`, `cardinal` ou `pope`,
 le plus haut). Un noble au cachot ou excommunié ne vote pas et n'exerce pas

@@ -125,7 +125,7 @@ export function RealmPanel({ state, territories = [], onOpenLineage }: RealmPane
               <ul className="space-y-0.5">
                 {bishoprics.map((bishopric) => (
                   <li key={bishopric.region} data-bishopric={bishopric.region}>
-                    <RegionLabel seed={bishopric.region} className="font-semibold">
+                    <RegionLabel seed={bishopric.seed} className="font-semibold">
                       {bishopric.name}
                     </RegionLabel>
                     {' : '}

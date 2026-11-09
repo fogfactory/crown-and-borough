@@ -1426,7 +1426,9 @@ describe('MapViewer noble affiliation', () => {
         },
       ],
       cardinals: ['JEA'],
-      bishoprics: [{ region: 'R1', name: 'Ros', territories: [], bishop: 'JEA' }],
+      bishoprics: [
+        { region: 'R1', name: 'Ros', seed: 'AAA', territories: [], bishop: 'JEA' },
+      ],
     })
     const [titled, prisoner] = nobleMarkers(svg)
 

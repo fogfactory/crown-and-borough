@@ -79,7 +79,9 @@ describe('lineage', () => {
     const houses = buildHouses(players, nobles, [], [], [], {
       pope: 'LUC',
       cardinals: ['LUC'],
-      bishoprics: [{ region: 'R1', name: 'Alpilles', territories: [], bishop: 'LUC' }],
+      bishoprics: [
+        { region: 'R1', name: 'Alpilles', seed: 'AAA', territories: [], bishop: 'LUC' },
+      ],
     })
     const member = houses[0].members.find((entry) => entry.code === 'LUC')
     expect(member?.religious).toEqual([
@@ -206,7 +208,6 @@ const marriage = (
   activeHeadFor: kind === 'head' ? ['P1'] : [],
 })
 
-
 const ROW = MEDALLION_W + COUPLE_GAP
 
 /** Houses, marriages and claims laid out; spouses are `[a, b, kind?]`. */
@@ -240,9 +241,7 @@ function expectSound(
     expect(layout.x.get(right)! - layout.x.get(left)!).toBe(ROW)
   }
   for (const row of layout.order) {
-    const spans = row
-      .map((code) => placed.boxes.get(code)!)
-      .sort((a, b) => a.x - b.x)
+    const spans = row.map((code) => placed.boxes.get(code)!).sort((a, b) => a.x - b.x)
     spans.forEach((box, index) => {
       expect(box.x).toBeGreaterThanOrEqual(0)
       if (index > 0) expect(box.x).toBeGreaterThanOrEqual(spans[index - 1].x + box.w)
@@ -333,10 +332,13 @@ describe('layoutTree', () => {
 
   it('stands a noble between two married nobles of its house beside the first, as a sibling', () => {
     // A2 comes between A1 and A3, who both marry: it joins the tree of A1.
-    const { layout, placed } = build({ P1: ['A1', 'A2', 'A3', 'A4'], P2: ['B1'], P3: ['C1'] }, [
-      ['A1', 'B1'],
-      ['A3', 'C1'],
-    ])
+    const { layout, placed } = build(
+      { P1: ['A1', 'A2', 'A3', 'A4'], P2: ['B1'], P3: ['C1'] },
+      [
+        ['A1', 'B1'],
+        ['A3', 'C1'],
+      ],
+    )
     const row = (code: string) => layout.rowOf.get(code)!
     expect(row('A2')).toBe(row('A1'))
     // On the outer side of the couple, a sibling gap away from A1, not between the spouses.
@@ -453,7 +455,9 @@ describe('layoutTree', () => {
     expect(layout.rowOf.get('C1')).toBe(layout.rowOf.get('A1')! + 1)
     const d = placed.claims[0].d
     const target = placed.boxes.get('A1')!
-    expect(d.startsWith(`M${target.x + MEDALLION_W / 2},${target.y + target.h}`)).toBe(true)
+    expect(d.startsWith(`M${target.x + MEDALLION_W / 2},${target.y + target.h}`)).toBe(
+      true,
+    )
     expectSound(layout, placed, ['A1', 'B1', 'C1'], claims)
   })
 
@@ -634,7 +638,10 @@ describe('layoutTree', () => {
 
   it('sends the deceased of a house with a tree below it', () => {
     const houses = buildHouses(
-      [{ id: 'P1', name: 'P1', color: '#888', succession: ['A1', 'A2'] }, ...players.slice(1, 2)],
+      [
+        { id: 'P1', name: 'P1', color: '#888', succession: ['A1', 'A2'] },
+        ...players.slice(1, 2),
+      ],
       [noble('A1', 'P1'), noble('A2', 'P1'), noble('B1', 'P2')],
       [{ code: 'D1', name: 'D1', owner: 'P1', cause: 'execution', turn: 1 }],
       [],
@@ -671,7 +678,9 @@ describe('layoutTree', () => {
       list: ClaimRef[],
       focus: string | null,
     ) => {
-      const houses = world(Object.fromEntries(keys.map((key) => [key, spec[key as 'P1']])))
+      const houses = world(
+        Object.fromEntries(keys.map((key) => [key, spec[key as 'P1']])),
+      )
       const links = buildLinks(
         houses,
         marriages.map(([a, b, kind]) => marriage(a, b, kind ?? 'secondary', 2)),
@@ -690,7 +699,9 @@ describe('layoutTree', () => {
     const keys = ['P1', 'P2', 'P3', 'P4']
     for (const focus of [null, 'P3']) {
       const base = dump(keys, raw, claims, focus)
-      expect(dump([...keys].reverse(), [...raw].reverse(), [...claims].reverse(), focus)).toBe(base)
+      expect(
+        dump([...keys].reverse(), [...raw].reverse(), [...claims].reverse(), focus),
+      ).toBe(base)
       expect(dump(['P3', 'P1', 'P4', 'P2'], [...raw].reverse(), claims, focus)).toBe(base)
     }
   })
@@ -764,9 +775,11 @@ describe('layoutTree', () => {
   })
 
   it('draws only the nobles it is given: no claim, no stem', () => {
-    const { layout } = build({ P1: ['A1'], P2: ['B1'] }, [['A1', 'B1']], [
-      { heir: 'GONE', target: 'A1', spouse: 'B1' },
-    ])
+    const { layout } = build(
+      { P1: ['A1'], P2: ['B1'] },
+      [['A1', 'B1']],
+      [{ heir: 'GONE', target: 'A1', spouse: 'B1' }],
+    )
     expect(layout.stems).toHaveLength(0)
     expect(layout.rows).toBe(1)
   })
@@ -783,7 +796,9 @@ describe('placeTree', () => {
     const b1 = placed.boxes.get('B1')!
     expect(a2.y).toBe(b1.y)
     const [{ d }] = placed.marriages
-    expect(d).toBe(`M${a2.x + MEDALLION_W},${a2.y + MEDALLION_ANCHOR_Y} L${b1.x},${b1.y + MEDALLION_ANCHOR_Y}`)
+    expect(d).toBe(
+      `M${a2.x + MEDALLION_W},${a2.y + MEDALLION_ANCHOR_Y} L${b1.x},${b1.y + MEDALLION_ANCHOR_Y}`,
+    )
     const a1 = placed.boxes.get('A1')!
     expect(a1.h - a2.h).toBe(3 * MEDALLION_LINE_H + 4)
   })
@@ -817,7 +832,8 @@ describe('placeTree', () => {
     )
     const a1 = placed.boxes.get('A1')!
     const bar = a1.y + a1.h + 16
-    for (const { d } of placed.claims) expect(d).toMatch(new RegExp(` V${bar} H[\\d.]+ V`))
+    for (const { d } of placed.claims)
+      expect(d).toMatch(new RegExp(` V${bar} H[\\d.]+ V`))
     // A second lane sits one lane step lower.
     const lowered = placeTree(
       { ...layout, stems: layout.stems.map((stem) => ({ ...stem, lanes: [1] })) },
