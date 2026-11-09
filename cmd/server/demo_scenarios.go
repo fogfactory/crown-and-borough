@@ -200,9 +200,22 @@ func forgeWinter(state *models.GameState) error {
 	state.Cardinals = []models.NobleID{pope, cardinal}
 	state.Pope = &pope
 	state.Excommunications = []models.Excommunication{{Noble: excommunicated, Reason: models.ExcommunicationPapal, By: pope}}
-	// P1's second noble becomes a lady astrologer; a Witch joins P1's court.
-	state.Nobles[p1[1]].Sex = models.SexFemale
-	state.Nobles[p1[1]].Dignities = []models.Dignity{models.DignityAstrologer}
+	// Church titles are male-only: the pope, the bishop, the cardinal and the
+	// excommunicated noble are men. A lady astrologer and a Witch join P1's court.
+	maleNames := []string{"Gilbert", "Aymeric", "Bertrand", "Thibaut"}
+	for turn, id := range []models.NobleID{pope, bishop, cardinal, excommunicated} {
+		for index := range state.Nobles {
+			if state.Nobles[index].ID == id && state.Nobles[index].Sex != models.SexMale {
+				state.Nobles[index].Sex = models.SexMale
+				state.Nobles[index].Name = maleNames[turn]
+			}
+		}
+	}
+	state.Nobles = append(state.Nobles, models.Noble{
+		ID: "N901", Code: "ZAS", Name: "Astrid", Sex: models.SexFemale, OwnerID: "P1",
+		LocationID: state.Nobles[p1[1]].LocationID, Status: models.NobleStatusFree,
+		Dignities: []models.Dignity{models.DignityAstrologer},
+	})
 	state.Nobles = append(state.Nobles, models.Noble{
 		ID: "N900", Code: "ZOE", Name: "Zoé", Sex: models.SexFemale, OwnerID: "P1",
 		LocationID: state.Nobles[p1[0]].LocationID, Status: models.NobleStatusFree,
