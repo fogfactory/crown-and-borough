@@ -301,23 +301,51 @@ func marriageScoreState() *models.GameState {
 	return state
 }
 
-func TestComputeScoresInfluenceMarriageGivesSpouseHouseTitles(t *testing.T) {
+func TestComputeScoresInfluenceMarriageGivesSpouseTitles(t *testing.T) {
 	balance := allianceBalance()
 	p1, p2 := models.PlayerID("P1"), models.PlayerID("P2")
 	state := marriageScoreState()
-	// N1-N3 is the head (weight 4): each house also counts the titles of its
+	// N5 holds the three P2 baronies and N2 holds one P1 fief.
+	n5, n2 := models.NobleID("N5"), models.NobleID("N2")
+	for i := range state.Fiefs {
+		if state.Fiefs[i].OwnerID == "P2" {
+			state.Fiefs[i].HolderNobleID = &n5
+		}
+	}
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "F2", OwnerID: "P1", HolderNobleID: &n2, Title: models.FiefTitleBarony})
+	// N1-N3 is the head (weight 4): each house also counts the total of its
 	// partner (Ally). N2-N5 (weight 2) is secondary and gives each house the
-	// titles of the other (Alliance).
+	// titles held by the other's spouse (Alliance).
 	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3", Turn: 1}, {NobleA: "N2", NobleB: "N5", Turn: 2}}
 	if c, ok := MarriageCategory(state, balance, state.Marriages[1]); !ok || c != AllianceSecondary {
 		t.Fatalf("setup: category = %q, want secondary", c)
 	}
 	scores := ComputeScores(state, balance)
-	if got, want := scores[p1], (ScoreBreakdown{Titles: 1, Alliance: 3, Ally: 4, Total: 8}); got != want {
+	if got, want := scores[p1], (ScoreBreakdown{Titles: 2, Alliance: 3, Ally: 4, Total: 9}); got != want {
 		t.Errorf("P1 = %#v, want %#v", got, want)
 	}
-	if got, want := scores[p2], (ScoreBreakdown{Titles: 3, Alliance: 1, Ally: 4, Total: 8}); got != want {
+	if got, want := scores[p2], (ScoreBreakdown{Titles: 3, Alliance: 1, Ally: 5, Total: 9}); got != want {
 		t.Errorf("P2 = %#v, want %#v", got, want)
+	}
+}
+
+func TestNobleTitleCountCountsEveryFiefAndTheCrown(t *testing.T) {
+	state := marriageScoreState()
+	n5 := models.NobleID("N5")
+	for i := range state.Fiefs {
+		if state.Fiefs[i].OwnerID == "P2" {
+			state.Fiefs[i].HolderNobleID = &n5
+		}
+	}
+	if got := nobleTitleCount(state, "N5"); got != 3 {
+		t.Fatalf("three fiefs: count = %d, want 3", got)
+	}
+	state.King = &n5
+	if got := nobleTitleCount(state, "N5"); got != 4 {
+		t.Fatalf("three fiefs and the crown: count = %d, want 4", got)
+	}
+	if got := nobleTitleCount(state, "N4"); got != 0 {
+		t.Fatalf("landless noble: count = %d, want 0", got)
 	}
 }
 
@@ -353,12 +381,12 @@ func TestComputeScoresNonActiveHeadIsInfluenceMarriage(t *testing.T) {
 		t.Fatalf("setup: second marriage category = %q, want secondary", c)
 	}
 	scores := ComputeScores(state, balance)
-	// P1 has 2 titles and P2 has 5.
-	if got := scores["P1"].Alliance; got != 5 {
-		t.Errorf("P1 alliance bonus = %d, want 5", got)
+	// N4 and N2 each hold one fief: the bonus is the spouse's, not the house's.
+	if got := scores["P1"].Alliance; got != 1 {
+		t.Errorf("P1 alliance bonus = %d, want 1", got)
 	}
-	if got := scores["P2"].Alliance; got != 2 {
-		t.Errorf("P2 alliance bonus = %d, want 2", got)
+	if got := scores["P2"].Alliance; got != 1 {
+		t.Errorf("P2 alliance bonus = %d, want 1", got)
 	}
 }
 
@@ -478,9 +506,15 @@ func TestTiedUnitsShareMajorVictory(t *testing.T) {
 func TestAllyShareIsPartnerOwnScoreWithoutRecursion(t *testing.T) {
 	state, balance := victoryMarriageState(3, 1)
 	scores := ComputeScores(state, balance)
-	// P2: 1 title + 3 from the influence marriage with P3 (3 titles later).
-	state.Fiefs = append(state.Fiefs, models.Fief{ID: "P3-F0", OwnerID: "P3", Title: models.FiefTitleBarony},
-		models.Fief{ID: "P3-F1", OwnerID: "P3", Title: models.FiefTitleBarony}, models.Fief{ID: "P3-F2", OwnerID: "P3", Title: models.FiefTitleBarony})
+	// P2: 1 title + 3 from the influence marriage with P3 (N5 holds 3 fiefs).
+	n5, n4 := models.NobleID("N5"), models.NobleID("N4")
+	state.Fiefs = append(state.Fiefs, models.Fief{ID: "P3-F0", OwnerID: "P3", HolderNobleID: &n5, Title: models.FiefTitleBarony},
+		models.Fief{ID: "P3-F1", OwnerID: "P3", HolderNobleID: &n5, Title: models.FiefTitleBarony}, models.Fief{ID: "P3-F2", OwnerID: "P3", HolderNobleID: &n5, Title: models.FiefTitleBarony})
+	for i := range state.Fiefs {
+		if state.Fiefs[i].ID == "P2-F0" {
+			state.Fiefs[i].HolderNobleID = &n4
+		}
+	}
 	scores = ComputeScores(state, balance)
 	p1, p2 := scores["P1"], scores["P2"]
 	if p1.Titles != 3 || p1.Alliance != 0 || p1.Ally != 4 || p1.Total != 7 {
