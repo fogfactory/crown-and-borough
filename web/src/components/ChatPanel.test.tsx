@@ -2,10 +2,11 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ChatPanel } from '@/components/ChatPanel'
+import { MapLinksProvider, type MapLinks } from '@/components/MapLinks'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import { toChatTimestamp, type ChatMessage } from '@/lib/chat'
 import type { UseChatResult } from '@/lib/use-chat'
-import type { StateData } from '@/types'
+import type { MapData, StateData } from '@/types'
 
 const chat = vi.hoisted(() => ({ result: null as unknown }))
 vi.mock('@/lib/use-chat', () => ({ useChat: () => chat.result }))
@@ -183,5 +184,50 @@ describe('ChatPanel', () => {
     })
     expect(screen.getByText('The message is over 4000 characters.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('links the communes and nobles a message names to the map', () => {
+    const withBody = {
+      ...message('1', 'P2', 2),
+      body: 'Hugon passera à Rochevent, près de Rochevental.',
+    }
+    setChat({ public: channel([withBody]) })
+    const links: MapLinks = {
+      focus: vi.fn(),
+      follow: vi.fn(),
+      showEvent: vi.fn(),
+      highlight: vi.fn(),
+      regionTerritories: (seed) => [seed],
+      hasTerritory: (id) => id === 'AAA',
+      territoryName: () => undefined,
+      nobleName: () => undefined,
+      nobleTerritory: (code) => (code === 'HUO' ? 'AAA' : undefined),
+      isDeceased: () => false,
+    }
+    const map = { territories: [{ id: 'AAA', name: 'Rochevent' }] } as unknown as MapData
+    const nobles = [{ code: 'HUO', name: 'Sieur Hugon de Rochevent', firstName: 'Hugon' }]
+    render(
+      <LanguageProvider initialLanguage="en">
+        <MapLinksProvider value={links}>
+          <ChatPanel
+            gameId="g1"
+            uid="u1"
+            tokenProvider={{ getIdToken: async () => 'token' }}
+            state={{ ...state, nobles } as unknown as StateData}
+            map={map}
+            house="P1"
+            observer={false}
+            visible
+          />
+        </MapLinksProvider>
+      </LanguageProvider>,
+    )
+    const log = screen.getByRole('log', { name: /Public room/ })
+    expect(log.querySelectorAll('[data-map-link]')).toHaveLength(2)
+    fireEvent.click(within(log).getByRole('button', { name: 'Hugon' }))
+    expect(links.focus).toHaveBeenCalledWith('AAA', 'HUO')
+    fireEvent.click(within(log).getByRole('button', { name: 'Rochevent' }))
+    expect(links.focus).toHaveBeenLastCalledWith('AAA', undefined)
+    expect(within(log).getByText(/près de Rochevental\./)).toBeInTheDocument()
   })
 })

@@ -38,6 +38,10 @@ feature without playing the turns that lead to it. Scenarios (`winter`,
 `action`) live in `cmd/server/demo_scenarios.go`, compiled only with `-tags
 demo`: add or adapt one there when a feature needs a particular situation.
 
+The chat only exists online: `scripts/chat-demo.sh` starts the local online
+stack (Firebase emulators and server), creates a two-house game where one
+house writes to the other, and prints a sign-in link for the reader.
+
 ## Commits and pushes
 
 When the user asks to commit and push:
