@@ -453,7 +453,8 @@ l'environnement du serveur, sans dépendance Go supplémentaire :
 |---|---|
 | `SMTP_HOST` | Serveur SMTP ; vide : aucun email n'est envoyé |
 | `SMTP_PORT` | `587` par défaut (STARTTLS) ; `465` : TLS implicite |
-| `SMTP_USERNAME`, `SMTP_PASSWORD` | Authentification ; sans identifiant, pas d'authentification |
+| `SMTP_TLS` | `starttls` ou `implicit` ; vide : déduit du port |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | Authentification ; sans identifiant, pas d'authentification ; un identifiant sans mot de passe empêche le démarrage |
 | `SMTP_FROM` | Expéditeur (`adresse` ou `Nom <adresse>`) ; vide : aucun email n'est envoyé |
 | `PUBLIC_APP_URL` | Origine des liens des emails (`/games/{id}`, `/profile`) |
 

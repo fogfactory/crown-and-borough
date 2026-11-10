@@ -523,6 +523,7 @@ workflow has no service-account key secret and must not be given one.
 | `GCP_BUG_APP_KEY_SECRET`       | Optional Secret Manager secret holding the App private key |
 | `SMTP_HOST`                    | Optional SMTP server of the email notifications            |
 | `SMTP_PORT`                    | Optional port, `587` (STARTTLS) by default, `465` for implicit TLS |
+| `SMTP_TLS`                     | Optional `starttls` or `implicit`, when the port does not tell     |
 | `SMTP_USERNAME`                | Optional SMTP account                                     |
 | `SMTP_FROM`                    | Optional sender, `noreply@example.org` or `Name <noreply@example.org>` |
 | `GCP_SMTP_PASSWORD_SECRET`     | Optional Secret Manager secret holding the SMTP password   |
@@ -591,12 +592,14 @@ a personal fine-grained token, in the shell that starts the server.
 Players can opt in to emails for a new turn and for chat messages (profile
 page). The server sends them through any SMTP server, with the Go standard
 library only. The connection is always encrypted: STARTTLS on port 587 (the
-default) or implicit TLS on port 465; a server offering neither is refused.
+default) or implicit TLS on port 465; a server offering neither is refused. For
+an implicit TLS port other than 465, set `SMTP_TLS` to `implicit`.
 
 | Variable                   | Role                                                        |
 | -------------------------- | ----------------------------------------------------------- |
 | `SMTP_HOST`                | Server host name; empty disables sending                    |
 | `SMTP_PORT`                | `587` by default, `465` for implicit TLS                    |
+| `SMTP_TLS`                 | `starttls` or `implicit`; empty follows the port            |
 | `SMTP_USERNAME`            | Account; empty means no authentication                      |
 | `SMTP_PASSWORD`            | Password, from Secret Manager in the deployment             |
 | `SMTP_FROM`                | Sender address; empty disables sending                      |
@@ -615,8 +618,14 @@ gh variable set SMTP_USERNAME --repo "$GITHUB_REPOSITORY" --body "$SMTP_USERNAME
 gh variable set SMTP_FROM --repo "$GITHUB_REPOSITORY" --body "$SMTP_FROM"
 ```
 
-The deployment passes `SMTP_HOST`, `SMTP_FROM`, `SMTP_PORT` and
-`SMTP_USERNAME`, and mounts the secret as `SMTP_PASSWORD`. When `SMTP_HOST` or
+A username needs a password: the workflow stops when `SMTP_USERNAME` is set
+without `GCP_SMTP_PASSWORD_SECRET`, and the server refuses to start with a
+username and an empty password. A newline at the end of the secret is ignored.
+
+The deployment passes `SMTP_HOST`, `SMTP_FROM`, `SMTP_PORT`, `SMTP_TLS` and
+`SMTP_USERNAME`, and mounts the secret as `SMTP_PASSWORD`. The secrets mounted
+on the service are exactly those the workflow configures: one that is no longer
+configured is unmounted at the next deployment. When `SMTP_HOST` or
 `SMTP_FROM` is empty nothing is set, the deployment works unchanged and the
 server logs one line per skipped email, without address or content. The emails
 are sent before the request handler returns, because Cloud Run throttles the

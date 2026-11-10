@@ -152,8 +152,15 @@ func (n *Notifier) notifyOne(ctx context.Context, kind Kind, id store.GameID, ga
 			return nil
 		}
 	}
-	subject, body := renderEmail(kind, preferences.Language, strings.Join(strings.Fields(gameName), " "), gameURL(n.baseURL, id), profileURL(n.baseURL))
-	err = n.mailer.Send(ctx, Email{To: profile.Email, Subject: subject, Body: body, Reference: reference})
+	subject, body := renderEmail(kind, preferences.Language, safeGameName(gameName), gameURL(n.baseURL, id), profileURL(n.baseURL))
+	email := Email{To: profile.Email, Subject: subject, Body: body, Reference: reference}
+	err = n.mailer.Send(ctx, email)
+	if err != nil && ctx.Err() == nil {
+		// One more try while there is time: messages that arrived during
+		// this send rely on it, as the claim made them skip theirs.
+		log.Printf("notify: %s: retrying after: %v", reference, err)
+		err = n.mailer.Send(ctx, email)
+	}
 	if err != nil && claimed {
 		// The email did not leave: give the claim back so the next message
 		// tries again. ctx may be the reason of the failure, hence a new one.
@@ -194,13 +201,13 @@ type ActivityTracker struct {
 	now      func() time.Time
 	mu       sync.Mutex
 	last     map[string]time.Time
+	writes   sync.WaitGroup
 }
 
 // ActivityWriteInterval is the minimum delay between two writes for a player.
 const ActivityWriteInterval = 2 * time.Minute
 
-// activityWriteTimeout bounds the write so a slow database cannot slow a
-// request noticeably.
+// activityWriteTimeout bounds the write of an activity record.
 const activityWriteTimeout = 2 * time.Second
 
 func NewActivityTracker(toucher ActivityToucher) *ActivityTracker {
@@ -216,7 +223,7 @@ func NewActivityTracker(toucher ActivityToucher) *ActivityTracker {
 func (t *ActivityTracker) SetClock(now func() time.Time) { t.now = now }
 
 // Touch records uid as active now unless it was written less than one
-// interval ago. Errors are logged and ignored.
+// interval ago. It does not wait for the write; errors are logged and ignored.
 func (t *ActivityTracker) Touch(ctx context.Context, uid string) {
 	now := t.now()
 	t.mu.Lock()
@@ -235,13 +242,22 @@ func (t *ActivityTracker) Touch(ctx context.Context, uid string) {
 	}
 	t.last[uid] = now
 	t.mu.Unlock()
-	writeContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), activityWriteTimeout)
-	defer cancel()
-	if err := t.store.TouchActivity(writeContext, uid, now.UTC()); err != nil {
-		log.Printf("notify: record activity uid=%s: %v", uid, err)
-		// Let the next request retry.
-		t.mu.Lock()
-		delete(t.last, uid)
-		t.mu.Unlock()
-	}
+	// The write runs beside the request instead of delaying it; the request
+	// usually outlasts it, which keeps the CPU available to finish.
+	t.writes.Add(1)
+	go func() {
+		defer t.writes.Done()
+		writeContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), activityWriteTimeout)
+		defer cancel()
+		if err := t.store.TouchActivity(writeContext, uid, now.UTC()); err != nil {
+			log.Printf("notify: record activity uid=%s: %v", uid, err)
+			// Let the next request retry.
+			t.mu.Lock()
+			delete(t.last, uid)
+			t.mu.Unlock()
+		}
+	}()
 }
+
+// Wait blocks until the writes started so far are done; for tests.
+func (t *ActivityTracker) Wait() { t.writes.Wait() }

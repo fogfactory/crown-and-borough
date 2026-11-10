@@ -58,6 +58,9 @@ func TestPostMessageNotifiesAfterTheCompleteResponse(t *testing.T) {
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status = %d: %s", recorder.Code, recorder.Body.String())
 	}
+	if got := recorder.Header().Get("Connection"); got != "close" {
+		t.Fatalf("Connection = %q, want close so the next request does not wait behind the notifications", got)
+	}
 	if got := recorder.Header().Get("Content-Length"); got != strconv.Itoa(recorder.Body.Len()) {
 		t.Fatalf("Content-Length = %q, body = %d bytes", got, recorder.Body.Len())
 	}

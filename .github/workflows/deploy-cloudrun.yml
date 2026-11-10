@@ -33,6 +33,7 @@ env:
   # server logs and skips the emails.
   SMTP_HOST: ${{ vars.SMTP_HOST }}
   SMTP_PORT: ${{ vars.SMTP_PORT }}
+  SMTP_TLS: ${{ vars.SMTP_TLS }}
   SMTP_USERNAME: ${{ vars.SMTP_USERNAME }}
   SMTP_FROM: ${{ vars.SMTP_FROM }}
   SMTP_PASSWORD_SECRET: ${{ vars.GCP_SMTP_PASSWORD_SECRET }}
@@ -75,6 +76,10 @@ jobs:
           done
           if [[ "$VITE_FIREBASE_PROJECT_ID" != "$PROJECT_ID" ]]; then
             echo "::error::VITE_FIREBASE_PROJECT_ID must match GCP_PROJECT_ID"
+            exit 1
+          fi
+          if [[ -n "$SMTP_HOST" && -n "$SMTP_FROM" && -n "$SMTP_USERNAME" && -z "$SMTP_PASSWORD_SECRET" ]]; then
+            echo "::error::SMTP_USERNAME is set without GCP_SMTP_PASSWORD_SECRET"
             exit 1
           fi
           if [[ -n "$PUBLIC_APP_URL" && "$PUBLIC_APP_URL" != https://* ]]; then
@@ -243,13 +248,18 @@ jobs:
               # sender such as "Name <a@b.c>" cannot break the list.
               smtp_env="|SMTP_HOST=$SMTP_HOST|SMTP_FROM=$SMTP_FROM"
               [[ -z "$SMTP_PORT" ]] || smtp_env+="|SMTP_PORT=$SMTP_PORT"
+              [[ -z "$SMTP_TLS" ]] || smtp_env+="|SMTP_TLS=$SMTP_TLS"
               [[ -z "$SMTP_USERNAME" ]] || smtp_env+="|SMTP_USERNAME=$SMTP_USERNAME"
               if [[ -n "$SMTP_PASSWORD_SECRET" ]]; then
                 secrets="${secrets:+$secrets,}SMTP_PASSWORD=$SMTP_PASSWORD_SECRET:latest"
               fi
             fi
+            # The list is complete: a secret that is no longer configured is
+            # unmounted, like the variables of --set-env-vars.
             if [[ -n "$secrets" ]]; then
-              secret_flags=(--update-secrets "$secrets")
+              secret_flags=(--set-secrets "$secrets")
+            else
+              secret_flags=(--clear-secrets)
             fi
             gcloud run deploy "$CLOUD_RUN_SERVICE" \
               --image "$IMAGE" \

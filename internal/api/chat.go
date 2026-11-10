@@ -49,6 +49,7 @@ func (h *GamesHandler) postMessage(w http.ResponseWriter, r *http.Request, actor
 		h.writeChatError(w, err)
 		return
 	}
+	h.closeAfterNotifications(w)
 	writeJSONFlushed(w, http.StatusCreated, result.Message)
 	h.afterResponse(r, func(ctx context.Context) { h.notifier.MessagePosted(ctx, result) })
 }

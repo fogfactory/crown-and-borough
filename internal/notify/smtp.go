@@ -32,6 +32,9 @@ type SMTPConfig struct {
 	Password string
 	// From is the sender, an address or "Name <address>".
 	From string
+	// ImplicitTLS opens the connection in TLS (the usual mode of port 465)
+	// instead of upgrading it with STARTTLS.
+	ImplicitTLS bool
 }
 
 // SMTPMailer sends through an SMTP server with the standard library only:
@@ -57,16 +60,21 @@ func NewSMTPMailer(config SMTPConfig) (*SMTPMailer, error) {
 	if strings.ContainsAny(config.Host, " \r\n") || config.Host == "" {
 		return nil, errors.New("notify: invalid SMTP host")
 	}
+	if config.Username != "" && config.Password == "" {
+		return nil, errors.New("notify: SMTP_USERNAME is set without SMTP_PASSWORD")
+	}
 	from, err := mail.ParseAddress(config.From)
 	if err != nil {
 		return nil, fmt.Errorf("notify: invalid SMTP_FROM: %w", err)
 	}
-	return &SMTPMailer{config: config, from: *from, implicitTLS: config.Port == implicitTLSPort, now: time.Now}, nil
+	return &SMTPMailer{config: config, from: *from, implicitTLS: config.ImplicitTLS, now: time.Now}, nil
 }
 
 // NewMailerFromEnv builds the mailer from SMTP_HOST, SMTP_PORT (default 587),
-// SMTP_USERNAME, SMTP_PASSWORD and SMTP_FROM. When SMTP_HOST or SMTP_FROM is
-// empty it returns the LogMailer, which sends nothing.
+// SMTP_TLS, SMTP_USERNAME, SMTP_PASSWORD and SMTP_FROM. SMTP_TLS is "starttls"
+// or "implicit"; left empty, port 465 means implicit TLS and any other port
+// STARTTLS. When SMTP_HOST or SMTP_FROM is empty it returns the LogMailer,
+// which sends nothing.
 func NewMailerFromEnv(getenv func(string) string) (Mailer, error) {
 	host := strings.TrimSpace(getenv("SMTP_HOST"))
 	from := strings.TrimSpace(getenv("SMTP_FROM"))
@@ -81,12 +89,25 @@ func NewMailerFromEnv(getenv func(string) string) (Mailer, error) {
 		}
 		port = parsed
 	}
+	implicit := port == implicitTLSPort
+	switch mode := strings.ToLower(strings.TrimSpace(getenv("SMTP_TLS"))); mode {
+	case "":
+	case "implicit":
+		implicit = true
+	case "starttls":
+		implicit = false
+	default:
+		return nil, fmt.Errorf("notify: invalid SMTP_TLS %q, want starttls or implicit", mode)
+	}
 	return NewSMTPMailer(SMTPConfig{
 		Host:     host,
 		Port:     port,
-		Username: getenv("SMTP_USERNAME"),
-		Password: getenv("SMTP_PASSWORD"),
-		From:     from,
+		Username: strings.TrimSpace(getenv("SMTP_USERNAME")),
+		// A secret often ends with the newline of the file it was created
+		// from; spaces inside a password are kept.
+		Password:    strings.TrimRight(getenv("SMTP_PASSWORD"), "\r\n"),
+		From:        from,
+		ImplicitTLS: implicit,
 	})
 }
 

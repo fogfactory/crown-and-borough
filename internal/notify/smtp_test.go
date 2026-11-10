@@ -10,10 +10,12 @@ import (
 	"time"
 )
 
+// env serves the given values as environment variables.
+func env(values map[string]string) func(string) string {
+	return func(key string) string { return values[key] }
+}
+
 func TestNewMailerFromEnv(t *testing.T) {
-	env := func(values map[string]string) func(string) string {
-		return func(key string) string { return values[key] }
-	}
 	for name, values := range map[string]map[string]string{
 		"nothing":      {},
 		"no host":      {"SMTP_FROM": "noreply@example.test"},
@@ -94,5 +96,58 @@ func TestSMTPMessageRejectsHeaderInjection(t *testing.T) {
 	to := mail.Address{Address: "alice@example.test"}
 	if _, err := mailer.buildMessage(to, Email{Subject: "hi\r\nBcc: x@y.test"}); err == nil {
 		t.Fatal("subject with a line break accepted")
+	}
+}
+
+func TestNewMailerFromEnvCleansAndChecksCredentials(t *testing.T) {
+	base := map[string]string{"SMTP_HOST": "h", "SMTP_FROM": "a@b.test"}
+	with := func(extra map[string]string) func(string) string {
+		values := map[string]string{}
+		for key, value := range base {
+			values[key] = value
+		}
+		for key, value := range extra {
+			values[key] = value
+		}
+		return env(values)
+	}
+
+	mailer, err := NewMailerFromEnv(with(map[string]string{"SMTP_USERNAME": " user ", "SMTP_PASSWORD": "pass word\r\n"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	smtpMailer := mailer.(*SMTPMailer)
+	if smtpMailer.config.Username != "user" || smtpMailer.config.Password != "pass word" {
+		t.Errorf("credentials = %q / %q", smtpMailer.config.Username, smtpMailer.config.Password)
+	}
+	if _, err := NewMailerFromEnv(with(map[string]string{"SMTP_USERNAME": "user", "SMTP_PASSWORD": "\n"})); err == nil {
+		t.Error("a username without a password must be refused")
+	}
+}
+
+func TestNewMailerFromEnvChoosesTheTLSMode(t *testing.T) {
+	cases := []struct {
+		port, mode string
+		implicit   bool
+	}{
+		{"", "", false},
+		{"465", "", true},
+		{"2465", "implicit", true},
+		{"465", "starttls", false},
+		{"587", " Implicit ", true},
+	}
+	for _, tc := range cases {
+		mailer, err := NewMailerFromEnv(env(map[string]string{
+			"SMTP_HOST": "h", "SMTP_FROM": "a@b.test", "SMTP_PORT": tc.port, "SMTP_TLS": tc.mode,
+		}))
+		if err != nil {
+			t.Fatalf("port %q mode %q: %v", tc.port, tc.mode, err)
+		}
+		if got := mailer.(*SMTPMailer).implicitTLS; got != tc.implicit {
+			t.Errorf("port %q mode %q: implicit TLS = %v, want %v", tc.port, tc.mode, got, tc.implicit)
+		}
+	}
+	if _, err := NewMailerFromEnv(env(map[string]string{"SMTP_HOST": "h", "SMTP_FROM": "a@b.test", "SMTP_TLS": "none"})); err == nil {
+		t.Error("an unknown SMTP_TLS must be refused")
 	}
 }

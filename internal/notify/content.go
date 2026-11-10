@@ -3,6 +3,9 @@ package notify
 import (
 	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
+	"unicode"
 
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
@@ -47,4 +50,32 @@ func gameURL(baseURL string, id store.GameID) string {
 
 func profileURL(baseURL string) string {
 	return baseURL + "/profile"
+}
+
+// maxGameNameRunes bounds the game name quoted in an email.
+const maxGameNameRunes = 60
+
+// dotBeforeLetter finds the dots that would let a mail client turn a word of
+// the name into a link ("evil.example").
+var dotBeforeLetter = regexp.MustCompile(`\.(\pL)`)
+
+// safeGameName prepares a game name, chosen by the host, for an email sent to
+// the other players: one line, no control character, nothing a mail client
+// turns into a link or an address, and a bounded length.
+func safeGameName(name string) string {
+	name = strings.Map(func(r rune) rune {
+		switch {
+		case unicode.IsControl(r):
+			return ' '
+		case r == '@' || r == '/' || r == '\\' || r == '<' || r == '>':
+			return ' '
+		}
+		return r
+	}, name)
+	name = dotBeforeLetter.ReplaceAllString(name, ". $1")
+	name = strings.Join(strings.Fields(name), " ")
+	if runes := []rune(name); len(runes) > maxGameNameRunes {
+		name = strings.TrimSpace(string(runes[:maxGameNameRunes])) + "…"
+	}
+	return name
 }

@@ -338,14 +338,18 @@ func TestActivityTrackerThrottlesWritesPerPlayer(t *testing.T) {
 	ctx := context.Background()
 
 	tracker.Touch(ctx, "alice")
+	tracker.Wait()
 	now = now.Add(time.Minute)
 	tracker.Touch(ctx, "alice")
+	tracker.Wait()
 	tracker.Touch(ctx, "bob")
+	tracker.Wait()
 	if len(toucher.writes["alice"]) != 1 || len(toucher.writes["bob"]) != 1 {
 		t.Fatalf("writes = %v", toucher.writes)
 	}
 	now = now.Add(ActivityWriteInterval)
 	tracker.Touch(ctx, "alice")
+	tracker.Wait()
 	if len(toucher.writes["alice"]) != 2 {
 		t.Fatalf("alice writes = %v", toucher.writes["alice"])
 	}
@@ -356,8 +360,10 @@ func TestActivityTrackerRetriesAfterAFailedWrite(t *testing.T) {
 	tracker := NewActivityTracker(toucher)
 	ctx := context.Background()
 	tracker.Touch(ctx, "alice") // must not panic or return an error
+	tracker.Wait()
 	toucher.err = nil
 	tracker.Touch(ctx, "alice")
+	tracker.Wait()
 	if len(toucher.writes["alice"]) != 1 {
 		t.Fatalf("writes = %v", toucher.writes)
 	}
@@ -478,4 +484,48 @@ func TestAPanicForOneRecipientIsContained(t *testing.T) {
 	f.player(t, "alice", store.NotificationPreferences{NewTurn: true})
 	f.notifier.mailer = panickingMailer{}
 	f.notifier.TurnStarted(context.Background(), turnSnapshot(store.StatusPlaying))
+}
+
+// flakyMailer fails its first sends, then delivers.
+type flakyMailer struct {
+	fakeMailer
+	failures int
+}
+
+func (m *flakyMailer) Send(ctx context.Context, email Email) error {
+	m.mu.Lock()
+	if m.failures > 0 {
+		m.failures--
+		m.mu.Unlock()
+		return errors.New("temporary failure")
+	}
+	m.mu.Unlock()
+	return m.fakeMailer.Send(ctx, email)
+}
+
+func TestAFailedSendIsRetriedOnce(t *testing.T) {
+	f := newFixture(t)
+	f.player(t, "bob", store.NotificationPreferences{PrivateMessage: true})
+	mailer := &flakyMailer{failures: 1}
+	f.notifier.mailer = mailer
+	f.notifier.MessagePosted(context.Background(), privateMessage("bob"))
+	if got := len(mailer.sent); got != 1 {
+		t.Fatalf("emails = %d, want 1 after one retry", got)
+	}
+}
+
+func TestGameNamesCannotCarryLinksIntoEmails(t *testing.T) {
+	cases := map[string]string{
+		"Les Trois Rivières":                    "Les Trois Rivières",
+		"  two\nlines\t ":                       "two lines",
+		"Sign in at https://evil.example/x":     "Sign in at https: evil. example x",
+		"mail admin@evil.example <now>":         "mail admin evil. example now",
+		"v1.2 de St. Jean":                      "v1.2 de St. Jean",
+		strings.Repeat("a", maxGameNameRunes+5): strings.Repeat("a", maxGameNameRunes) + "…",
+	}
+	for name, want := range cases {
+		if got := safeGameName(name); got != want {
+			t.Errorf("safeGameName(%q) = %q, want %q", name, got, want)
+		}
+	}
 }

@@ -62,6 +62,16 @@ type Notifier interface {
 // notificationTimeout bounds the notifications run after a response.
 const notificationTimeout = 10 * time.Second
 
+// closeAfterNotifications asks the client not to reuse the connection of a
+// response that notifications follow: its next request would otherwise wait
+// behind them on a keep-alive connection. It must be called before the
+// response is written.
+func (h *GamesHandler) closeAfterNotifications(w http.ResponseWriter) {
+	if h.notifier != nil {
+		w.Header().Set("Connection", "close")
+	}
+}
+
 // afterResponse runs send synchronously once the response is complete, on a
 // context that outlives the request (the client may already have gone) but
 // not the timeout. It is synchronous on purpose: a serverless runtime may
@@ -652,6 +662,9 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, r *http.Request,
 	if result.Report != nil {
 		report := projectReport(result.Report.Report, viewerID, result.Report.Privacy)
 		response.Report = &report
+	}
+	if result.Resolved {
+		h.closeAfterNotifications(w)
 	}
 	writeJSONFlushed(w, http.StatusOK, response)
 	if result.Resolved {

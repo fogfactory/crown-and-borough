@@ -141,6 +141,11 @@ Le chat est décrit dans [`chat.md`](chat.md).
   destinataire et le résultat de la règle anti-spam d'un joueur dans une
   partie : un réglage modifié, ou un chat relu, est pris en compte au plus
   une minute plus tard.
+- **Nom de la partie.** Choisi par l'hôte, il est cité sur une ligne, limité à
+  60 caractères et débarrassé de ce qu'un client de messagerie transforme en
+  lien ou en adresse (`/`, `@`, `<`, `>`, point collé à une lettre).
+- **Échec d'envoi.** Un envoi qui échoue est retenté une fois dans le temps
+  imparti ; l'échec est ensuite journalisé sans effet sur la requête.
 - **Contenu.** Texte brut dans la langue du joueur : le nom de la partie, un lien vers
   la partie et un lien vers le profil pour modifier ou désactiver les
   notifications. Aucun message, auteur ni ordre.
@@ -152,8 +157,9 @@ Le chat est décrit dans [`chat.md`](chat.md).
   décrites dans [`architecture.md`](architecture.md).
 - **Moment de l'envoi.** Le handler écrit et vide sa réponse, puis envoie les
   emails dans la même requête, avec un délai de dix secondes, car Cloud Run
-  limite le CPU une fois la réponse partie. Un échec d'envoi est journalisé et
-  ne change jamais le résultat HTTP.
+  limite le CPU une fois la réponse partie. La réponse porte
+  `Connection: close` pour que la requête suivante du client n'attende pas
+  derrière l'envoi. Un échec d'envoi ne change jamais le résultat HTTP.
 - **Hotseat et développement.** Aucune notification en hotseat ni avec
   `ONLINE_DEV_MODE` : le notifier n'est monté que là où le chat l'est.
 
