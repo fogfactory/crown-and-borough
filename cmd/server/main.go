@@ -13,6 +13,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/auth"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
+	"github.com/fogfactory/crown-and-borough/internal/notify"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 	firestorestore "github.com/fogfactory/crown-and-borough/internal/store/firestore"
 	webassets "github.com/fogfactory/crown-and-borough/web"
@@ -214,6 +215,25 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 		}
 	}
 
+	// Email notifications and the activity they rely on are online only, like
+	// the chat: hotseat has no accounts to write to.
+	var notifier api.Notifier
+	if state, ok := options.Store.(store.NotificationStateStore); ok && !options.Development {
+		mailer, mailerErr := notify.NewMailerFromEnv(os.Getenv)
+		if mailerErr != nil {
+			log.Fatalf("failed to configure email notifications: %v", mailerErr)
+		}
+		if _, silent := mailer.(notify.LogMailer); silent {
+			log.Print("email notifications: SMTP_HOST or SMTP_FROM is empty, emails are logged and skipped")
+		}
+		if profileReader, ok := options.Store.(notify.ProfileReader); ok {
+			notifier = notify.NewNotifier(mailer, profileReader, state, os.Getenv("PUBLIC_APP_URL"))
+		} else {
+			log.Print("email notifications: disabled, the store has no player profiles")
+		}
+		resolveActor = api.WithActivity(resolveActor, notify.NewActivityTracker(state))
+	}
+
 	mux := http.NewServeMux()
 	mountVersion(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -235,6 +255,7 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 		InviteBaseURL:    os.Getenv("PUBLIC_APP_URL"),
 		CreatorGate:      options.CreatorGate,
 		Chat:             chat,
+		Notifier:         notifier,
 	})
 	mux.Handle("/api/games", games)
 	mux.Handle("/api/games/", games)

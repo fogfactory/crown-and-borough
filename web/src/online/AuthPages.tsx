@@ -14,7 +14,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { useLanguage } from '@/i18n/LanguageContext'
+import type { MessageKey } from '@/i18n/messages'
+import {
+  NO_NOTIFICATIONS,
+  type NotificationPreferences,
+  type NotificationsUpdate,
+} from '@/types'
 
 function safeRedirect(value: string | null): string {
   return value?.startsWith('/') ? value : '/'
@@ -210,16 +217,90 @@ export function FinishPage() {
   )
 }
 
+/** A checkbox with its label, a description and an optional hint. */
+function ToggleRow({
+  label,
+  description,
+  hint,
+  checked,
+  disabled,
+  className,
+  onChange,
+}: {
+  label: string
+  description: string
+  hint?: string
+  checked: boolean
+  disabled?: boolean
+  className?: string
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className={cn('flex items-start gap-3', className)}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-0.5 size-4 accent-brass-700"
+      />
+      <span>
+        <span className="block font-semibold text-ink-700">{label}</span>
+        <span className="mt-1 block text-xs text-ink-500">{description}</span>
+        {hint && <span className="mt-1 block text-xs italic text-ink-500">{hint}</span>}
+      </span>
+    </label>
+  )
+}
+
+type NotificationToggle = 'newTurn' | 'privateMessage' | 'publicMessage'
+
+const NOTIFICATION_TOGGLES: ReadonlyArray<{
+  key: NotificationToggle
+  label: MessageKey
+  description: MessageKey
+}> = [
+  {
+    key: 'newTurn',
+    label: 'profile.notifications.newTurn',
+    description: 'profile.notifications.newTurnDescription',
+  },
+  {
+    key: 'privateMessage',
+    label: 'profile.notifications.privateMessage',
+    description: 'profile.notifications.privateMessageDescription',
+  },
+  {
+    key: 'publicMessage',
+    label: 'profile.notifications.publicMessage',
+    description: 'profile.notifications.publicMessageDescription',
+  },
+]
+
 export function ProfilePage() {
-  const { profile, profileLoading, updateProfile, updateReleaseNotes } = useAuth()
-  const { t } = useLanguage()
+  const {
+    profile,
+    profileLoading,
+    updateProfile,
+    updateReleaseNotes,
+    updateNotifications,
+  } = useAuth()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [saving, setSaving] = useState(false)
   const [togglingReleaseNotes, setTogglingReleaseNotes] = useState(false)
+  const [savingNotifications, setSavingNotifications] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const redirect = safeRedirect(searchParams.get('redirect'))
+  // Profiles saved before the notifications existed carry none: all off.
+  const notifications: NotificationPreferences = {
+    ...NO_NOTIFICATIONS,
+    ...profile?.notifications,
+  }
+  const anyNotification =
+    notifications.newTurn || notifications.privateMessage || notifications.publicMessage
 
   useEffect(() => {
     if (profile) setDisplayName(profile.displayName)
@@ -259,6 +340,27 @@ export function ProfilePage() {
     }
   }
 
+  // Until the player picks one, the emails follow the app language.
+  const emailLanguage =
+    notifications.language === 'en' || notifications.language === 'fr'
+      ? notifications.language
+      : language
+
+  const saveNotifications = async (update: NotificationsUpdate) => {
+    setSavingNotifications(true)
+    setError(null)
+    try {
+      // The language shown is recorded with the first setting saved.
+      await updateNotifications(
+        notifications.language ? update : { language: emailLanguage, ...update },
+      )
+    } catch (toggleError) {
+      setError(errorText(toggleError, t('profile.notifications.failed')))
+    } finally {
+      setSavingNotifications(false)
+    }
+  }
+
   return (
     <Card className="mx-auto max-w-xl border-line">
       <CardHeader>
@@ -295,23 +397,63 @@ export function ProfilePage() {
             {saving ? t('profile.saving') : t('profile.save')}
           </Button>
         </form>
-        <label className="mt-6 flex items-start gap-3 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm">
-          <input
-            type="checkbox"
-            checked={profile?.hideReleaseNotes ?? false}
-            disabled={!profile || togglingReleaseNotes}
-            onChange={(event) => void handleReleaseNotesToggle(event.target.checked)}
-            className="mt-0.5 size-4 accent-brass-700"
+        <ToggleRow
+          className="mt-6 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm"
+          label={t('profile.hideReleaseNotes')}
+          description={t('profile.hideReleaseNotesDescription')}
+          checked={profile?.hideReleaseNotes ?? false}
+          disabled={!profile || togglingReleaseNotes}
+          onChange={(checked) => void handleReleaseNotesToggle(checked)}
+        />
+        <fieldset
+          className="mt-6 space-y-2 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm"
+          disabled={!profile || savingNotifications}
+        >
+          <legend className="px-1 font-semibold text-ink-700">
+            {t('profile.notifications.title')}
+          </legend>
+          <p className="text-xs text-ink-500">{t('profile.notifications.description')}</p>
+          {NOTIFICATION_TOGGLES.map(({ key, label, description }) => (
+            <ToggleRow
+              key={key}
+              label={t(label)}
+              description={t(description)}
+              checked={notifications[key]}
+              onChange={(checked) => void saveNotifications({ [key]: checked })}
+            />
+          ))}
+          <p className="text-xs text-ink-500">
+            {t('profile.notifications.messageLimit')}
+          </p>
+          <ToggleRow
+            className={anyNotification ? undefined : 'opacity-60'}
+            label={t('profile.notifications.reduceWhenActive')}
+            description={t('profile.notifications.reduceWhenActiveDescription')}
+            hint={
+              anyNotification
+                ? undefined
+                : t('profile.notifications.reduceWhenActiveHint')
+            }
+            checked={notifications.reduceWhenActive}
+            disabled={!anyNotification}
+            onChange={(checked) => void saveNotifications({ reduceWhenActive: checked })}
           />
-          <span>
+          <label className="block space-y-1.5 pt-1">
             <span className="block font-semibold text-ink-700">
-              {t('profile.hideReleaseNotes')}
+              {t('profile.notifications.language')}
             </span>
-            <span className="mt-1 block text-xs text-ink-500">
-              {t('profile.hideReleaseNotesDescription')}
-            </span>
-          </span>
-        </label>
+            <select
+              value={emailLanguage}
+              onChange={(event) =>
+                void saveNotifications({ language: event.target.value as 'en' | 'fr' })
+              }
+              className="h-10 w-full rounded-lg border border-line bg-paper-50 px-3 text-sm text-ink-900"
+            >
+              <option value="fr">{t('language.french')}</option>
+              <option value="en">{t('language.english')}</option>
+            </select>
+          </label>
+        </fieldset>
       </CardContent>
     </Card>
   )

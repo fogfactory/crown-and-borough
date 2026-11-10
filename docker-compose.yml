@@ -81,6 +81,13 @@ services:
       GITHUB_BUG_APP_ID: ${GITHUB_BUG_APP_ID:-}
       GITHUB_BUG_APP_INSTALLATION_ID: ${GITHUB_BUG_APP_INSTALLATION_ID:-}
       GITHUB_BUG_APP_PRIVATE_KEY: ${GITHUB_BUG_APP_PRIVATE_KEY:-}
+      # Email notifications: with SMTP_HOST or SMTP_FROM empty the server logs
+      # and skips the emails. Not used in ONLINE_DEV_MODE.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
       firestore:
         condition: service_healthy

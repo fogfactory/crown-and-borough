@@ -85,7 +85,10 @@ Les documents lisibles par le navigateur sont des projections dédiées :
 - `games/{gameId}/reports/{uid}/turns/{turn}` contient les rapports filtrés de
   ce joueur ;
 - `players/{uid}` contient le profil du joueur et les métadonnées nécessaires à
-  la liste de ses parties.
+  la liste de ses parties, ainsi que ses réglages de notifications par email
+  (objet `notifications` : `newTurn`, `privateMessage`, `publicMessage`,
+  `reduceWhenActive`, `language`). Un profil sans cet objet lit tout à
+  `false` : aucune migration ni changement de `schemaVersion`.
 
 Les documents réservés au backend comprennent l'état moteur, les soumissions
 brutes, les rapports non filtrés, les métadonnées de confidentialité et les
@@ -106,6 +109,59 @@ les lectures des listeners, les écritures de projections, le stockage, les
 logs, la région et l'activation d'un compte de facturation peuvent générer des
 coûts. Des alertes de budget et une documentation des quotas sont obligatoires
 avant le déploiement public.
+
+## Notifications par email
+
+Un joueur peut demander un email quand un nouveau tour commence dans l'une de
+ses parties, quand sa maison reçoit un message privé et quand une autre maison
+écrit dans le salon public. Ces trois réglages, l'option « réduire les
+notifications » et la langue des emails se règlent sur la page de profil ; les
+notifications sont désactivées par défaut
+(`PUT /api/auth/me/notifications`, voir [`architecture.md`](architecture.md)).
+Le chat est décrit dans [`chat.md`](chat.md).
+
+- **Destinataires d'un nouveau tour.** Chaque membre qui tient une maison non
+  éliminée, dans une partie encore en cours après la résolution : rien quand la
+  partie vient de se terminer, et rien pour l'observateur. L'envoi suit une
+  soumission ou une résolution forcée qui a effectivement résolu le tour.
+- **Condition d'envoi.** Le réglage correspondant est activé, le profil porte un
+  email et, si `reduceWhenActive` est activé, le joueur n'était pas actif au
+  moment de l'événement. Les messages ajoutent la règle anti-spam de
+  [`chat.md`](chat.md).
+- **Joueur actif.** Le serveur enregistre l'heure de la dernière requête API
+  authentifiée de chaque joueur (aucun signal de présence côté client) ; un
+  joueur est actif si cette heure se situe dans les cinq minutes qui précèdent
+  l'événement. Cette heure est écrite au plus une fois toutes les deux minutes
+  par joueur et par instance du serveur.
+- **Langue.** Le joueur choisit le français ou l'anglais dans son profil. Tant
+  qu'il n'a rien choisi, le profil propose la langue de l'application et
+  l'enregistre avec le premier réglage sauvegardé ; un profil sans langue
+  reçoit ses emails en français.
+- **Cache.** Le serveur garde une minute en mémoire le profil lu pour un
+  destinataire et le résultat de la règle anti-spam d'un joueur dans une
+  partie : un réglage modifié, ou un chat relu, est pris en compte au plus
+  une minute plus tard.
+- **Contenu.** Texte brut dans la langue du joueur : le nom de la partie, un lien vers
+  la partie et un lien vers le profil pour modifier ou désactiver les
+  notifications. Aucun message, auteur ni ordre.
+- **Envoi.** Le paquet `internal/notify` envoie par SMTP (bibliothèque standard
+  Go, STARTTLS ou TLS implicite, jamais en clair) derrière une interface
+  `Mailer` ; il ne dépend ni de Firestore ni de Firebase. Sans `SMTP_HOST` ou
+  `SMTP_FROM`, un mailer neutre journalise une ligne par email ignoré
+  (partie et uid, ni adresse ni contenu). Les variables d'environnement sont
+  décrites dans [`architecture.md`](architecture.md).
+- **Moment de l'envoi.** Le handler écrit et vide sa réponse, puis envoie les
+  emails dans la même requête, avec un délai de dix secondes, car Cloud Run
+  limite le CPU une fois la réponse partie. Un échec d'envoi est journalisé et
+  ne change jamais le résultat HTTP.
+- **Hotseat et développement.** Aucune notification en hotseat ni avec
+  `ONLINE_DEV_MODE` : le notifier n'est monté que là où le chat l'est.
+
+Documents réservés au backend, refusés aux clients par `firestore.rules` :
+
+- `player_activity/{uid}` : `lastActiveAt`, heure de la dernière requête API ;
+- `games/{gameId}/notify_state/{uid}` : `messageEmailAt`, heure du dernier
+  email de message envoyé au joueur pour cette partie.
 
 ## Chat
 

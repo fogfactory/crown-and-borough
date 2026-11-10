@@ -55,10 +55,11 @@ func newChatFixture(t *testing.T) (*ChatService, *chatGames, *time.Time) {
 
 func TestChatPostStampsAuthorHouseAndTurnServerSide(t *testing.T) {
 	service, _, clock := newChatFixture(t)
-	message, err := service.Post(context.Background(), Actor{ID: "alice"}, "g1", ChatPostRequest{Channel: ChatPublicChannel, Body: "hello"})
+	posted, err := service.Post(context.Background(), Actor{ID: "alice"}, "g1", ChatPostRequest{Channel: ChatPublicChannel, Body: "hello"})
 	if err != nil {
 		t.Fatalf("post: %v", err)
 	}
+	message := posted.Message
 	if message.AuthorHouseID != "P1" || message.Channel != ChatPublicChannel || message.ID == "" {
 		t.Errorf("message = %#v", message)
 	}

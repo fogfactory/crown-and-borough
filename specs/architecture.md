@@ -99,6 +99,7 @@ Hosting, déclenché par un tag `v*` (voir `docs/deploy-cloudrun.md`).
 │   │   ├── mapgen/         # génération géométrique et graphe
 │   │   └── orders/         # parsing et validation des ordres
 │   ├── models/            # modèles et invariants métier
+│   ├── notify/            # notifications par email (Mailer SMTP, décision d'envoi, notifier), sans dépendance à Firestore
 │   ├── store/             # interfaces mémoire et adaptateur Firestore online
 │   └── turn/              # cycle d'un tour partagé par le hotseat et les stores
 ├── web/
@@ -443,6 +444,19 @@ partie hotseat décrite par `SEED` et `PLAYERS` (2 à 16 joueurs, 4 par défaut)
 dont `P1` est l'hôte : il peut forcer la résolution. Le hotseat du navigateur
 utilise uniquement cette API ; il n'existe plus de routes hotseat dédiées.
 
+### Variables d'environnement des emails
+
+Les notifications par email ([`online.md`](online.md)) se configurent par
+l'environnement du serveur, sans dépendance Go supplémentaire :
+
+| Variable | Rôle |
+|---|---|
+| `SMTP_HOST` | Serveur SMTP ; vide : aucun email n'est envoyé |
+| `SMTP_PORT` | `587` par défaut (STARTTLS) ; `465` : TLS implicite |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | Authentification ; sans identifiant, pas d'authentification |
+| `SMTP_FROM` | Expéditeur (`adresse` ou `Nom <adresse>`) ; vide : aucun email n'est envoyé |
+| `PUBLIC_APP_URL` | Origine des liens des emails (`/games/{id}`, `/profile`) |
+
 ### Contrat MVP hébergé
 
 Le MVP accepte plusieurs parties, chacune avec deux à huit joueurs online.
@@ -452,9 +466,10 @@ global lorsqu'une autre partie est déjà active.
 
 | Méthode | Route | Contrat |
 |---|---|---|
-| `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur : `uid`, `email`, `displayName`, `lastSeenVersion` (vide avant la première fermeture de la fenêtre) et `hideReleaseNotes`. |
+| `GET` | `/api/auth/me` | Valide le JWT Firebase et renvoie le profil Firestore du joueur : `uid`, `email`, `displayName`, `lastSeenVersion` (vide avant la première fermeture de la fenêtre), `hideReleaseNotes` et `notifications` (réglages des emails, voir ci-dessous ; tout à `false` et `language` vide tant que le joueur n'en a pas enregistré). |
 | `PUT` | `/api/auth/me` | Crée ou met à jour le nom affiché validé du profil courant. |
 | `PUT` | `/api/auth/me/release-notes` | Met à jour les préférences de notes de version du profil courant. Corps : `lastSeenVersion` (SemVer, dernière version dont le joueur a vu les notes) et/ou `hideReleaseNotes` (ne plus afficher la fenêtre) ; au moins un champ, les champs absents sont conservés ; `400` sinon. Renvoie le profil. Le texte des notes ne passe pas par ce serveur : le navigateur le lit dans l'API publique des releases GitHub. |
+| `PUT` | `/api/auth/me/notifications` | Met à jour les notifications par email du profil courant. Corps : `newTurn` (nouveau tour dans une partie du joueur), `privateMessage` (message privé reçu par sa maison), `publicMessage` (message d'une autre maison dans le salon public), `reduceWhenActive` (pas d'email si le joueur était actif au moment de l'événement ; sans effet tant qu'aucune des trois notifications n'est activée) — booléens — et `language` (`fr` ou `en`, langue des emails, choisie dans le profil ; le front enregistre celle de l'application avec le premier réglage sauvegardé) ; au moins un champ, les champs absents sont conservés ; `400` sinon. Tout est désactivé par défaut : un profil sans ces champs n'envoie aucun email. Renvoie le profil. Le contenu des emails et leurs règles d'envoi sont décrits dans [`chat.md`](chat.md) et [`online.md`](online.md). |
 | `GET` | `/api/bugs` | Authentifié. Renvoie `{ "enabled": bool }` : `false` tant que ni la GitHub App (`GITHUB_BUG_APP_*`) ni `GITHUB_BUG_TOKEN` ne sont configurés. |
 | `POST` | `/api/bugs` | Authentifié. Corps (256 Kio max) : `title` (≤ 120 car.), `description` (≤ 4000 car.), `gameId` (optionnel) et `context` (capture du navigateur : version, user agent, page, derniers appels API sans en-têtes ni corps ; aucun état de jeu). Le serveur lit lui-même la projection de `gameId` visible par le joueur (celle de `GET /api/games/{id}/state`) et la range, masquée, dans la collection Firestore privée `bugReports` (hors de `games`, lecture et écriture réservées au backend), sous un identifiant lisible `<partie>-t<tour>-<joueur>-<suffixe aléatoire>`  ; l'issue ne cite que le suffixe aléatoire `ref` (l'identifiant complet nomme la partie et le joueur), ou `Game view: unavailable` si le joueur n'est pas membre de la partie, jamais la vue elle-même. Le document est créé sans jamais écraser un rapport existant (suffixe aléatoire de 48 bits), supprimé si GitHub refuse l'issue, puis complété par `issueUrl` seul. Il porte aussi `ref`, `gameId`, `turn`, `playerId`, `uid`, `title` et `createdAt` et se retrouve dans la console par `ref` ou `issueUrl` ; il se supprime librement depuis la console. En développement sans Firestore, la collection est en mémoire. Les clés, jetons et paramètres d'URL sensibles sont masqués à toute profondeur. Crée une issue **publique** GitHub (label `bug`) au nom de la GitHub App installée sur le dépôt (JWT RS256 échangé contre un jeton d'installation d'une heure, mis en cache ; `GITHUB_BUG_TOKEN` sert de repli en local) ; le corps est tronqué sous la limite GitHub. `503 bug_reports_disabled` sans jeton, `429` au-delà de 3 signalements par 10 min et par joueur (30 par heure au total), `502` si GitHub refuse. Renvoie `201 { "url" }`. |
 | `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. |
@@ -474,7 +489,7 @@ global lorsqu'une autre partie est déjà active.
 | `POST` | `/api/games/{id}/messages` | Écrit un message de chat au nom de la maison du joueur connecté. Corps : `channel` (`"public"` ou l'identifiant de la maison destinataire), `body` (500 caractères au plus, comptés en runes) et, pour un texte long découpé par le client, `batchId`, `part`, `parts` (ensemble cohérent, 8 morceaux au plus). Le serveur renseigne la maison auteur, l'horodatage et le tour courant ; aucune donnée de compte n'est stockée. Réponse `201` : `id`, `channel` (`"public"` ou la clé de conversation, les deux identifiants de maison triés et joints par `_`), `authorHouseId`, `body`, `createdAt`, `turn` (`number`, `season`, `year`) et les champs de lot. `429 rate_limited` au-delà d'un message par seconde et par joueur ; `400` `empty_message`, `message_too_long`, `invalid_batch`, `invalid_channel`, `invalid_recipient` ; `403 no_house` pour l'observateur. Un joueur éliminé écrit toujours ; une maison éliminée n'est destinataire que d'une conversation déjà ouverte. Aucun effet sur les ordres ni sur l'état de la partie. `404 chat_disabled` en hotseat. |
 | `POST` | `/api/games/{id}/messages/read` | Corps : `channel`. Avance le curseur de lecture du joueur sur ce canal (jamais en arrière) et renvoie `{channel, lastReadAt}`. |
 | `GET` | `/api/games/{id}/messages?channel=…&before=…&beforeId=…&limit=…` | Page de messages, du plus récent au plus ancien (50 par défaut, 100 au plus). Un joueur lit le salon public et ses propres conversations (`channel` = maison interlocutrice) ; l'observateur (qui ne joue aucune maison) lit aussi toute conversation par sa clé ; le créateur de la partie, s'il joue, n'a pas cet accès. Le curseur de la page suivante, `nextBefore` et `nextBeforeId`, se renvoie tel quel en `before` et `beforeId`. |
-| `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. |
+| `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite avec des ordres vides pour les joueurs manquants. Comme `POST /api/games/{id}/orders` quand il résout le tour, la réponse est écrite et vidée (`Content-Length` explicite) avant l'envoi des emails de nouveau tour. |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté, ou complet pour l'hôte observateur. |
 | `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |
