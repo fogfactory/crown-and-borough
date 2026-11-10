@@ -23,6 +23,10 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const rules = fs.readFileSync(path.join(projectRoot, 'firestore.rules'), 'utf8')
 const emulatorConfigured = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
 
+type RulesFirestore = ReturnType<
+  ReturnType<RulesTestEnvironment['authenticatedContext']>['firestore']
+>
+
 const suite = emulatorConfigured ? describe : describe.skip
 
 suite('Firestore security rules', () => {
@@ -40,6 +44,19 @@ suite('Firestore security rules', () => {
         ownerUid: 'alice',
         spectatorUid: 'host',
         schemaVersion: 1,
+        updatedAt: new Date('2026-01-01T12:00:00Z'),
+      })
+      await setDoc(doc(db, 'games/game-2'), {
+        memberUids: ['carol', 'dan'],
+        ownerUid: 'carol',
+        schemaVersion: 1,
+        updatedAt: new Date('2026-01-02T12:00:00Z'),
+      })
+      await setDoc(doc(db, 'games/game-3'), {
+        memberUids: ['alice', 'dan'],
+        ownerUid: 'dan',
+        schemaVersion: 1,
+        updatedAt: new Date('2026-01-03T12:00:00Z'),
       })
       await setDoc(doc(db, 'games/game-1/chat_public/m1'), {
         channel: 'public',
@@ -100,6 +117,31 @@ suite('Firestore security rules', () => {
     await assertFails(getDoc(doc(alice, 'games/game-1/views/bob')))
     await assertFails(getDoc(doc(alice, 'games/game-1/reports/bob/turns/1')))
     await assertFails(getDoc(doc(alice, 'games/game-1/canonical/current')))
+  })
+
+  it('serves the game list query only for the caller’s own memberships', async () => {
+    const games = (db: RulesFirestore, uid: string) =>
+      query(
+        collection(db, 'games'),
+        where('memberUids', 'array-contains', uid),
+        orderBy('updatedAt', 'desc'),
+      )
+    const alice = environment.authenticatedContext('alice').firestore()
+    const snapshot = await assertSucceeds(getDocs(games(alice, 'alice')))
+    expect(snapshot.docs.map((entry) => entry.id)).toEqual(['game-3', 'game-1'])
+    // A spectator host is a member too, and an account without any game gets
+    // an empty list rather than an error.
+    const host = environment.authenticatedContext('host').firestore()
+    const hosted = await assertSucceeds(getDocs(games(host, 'host')))
+    expect(hosted.docs.map((entry) => entry.id)).toEqual(['game-1'])
+    const bob = environment.authenticatedContext('bob').firestore()
+    const none = await assertSucceeds(getDocs(games(bob, 'bob')))
+    expect(none.empty).toBe(true)
+    // Nobody may list another account's games, nor the whole collection.
+    await assertFails(getDocs(games(bob, 'alice')))
+    await assertFails(getDocs(collection(alice, 'games')))
+    const unauthenticated = environment.unauthenticatedContext().firestore()
+    await assertFails(getDocs(games(unauthenticated, 'alice')))
   })
 
   it('allows the spectator host to read only the observer projection', async () => {
@@ -177,11 +219,7 @@ suite('Firestore security rules', () => {
 
   it('serves the paginated private conversation query only to a participant', async () => {
     const messages = 'games/game-1/chat_private/P1_P2/messages'
-    const history = (
-      db: ReturnType<
-        ReturnType<RulesTestEnvironment['authenticatedContext']>['firestore']
-      >,
-    ) =>
+    const history = (db: RulesFirestore) =>
       query(
         collection(db, messages),
         where('participantUids', 'array-contains', 'carol'),

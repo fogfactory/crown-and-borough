@@ -460,6 +460,8 @@ export function useGameListSubscription(
         },
         (error) => {
           if (!active) return
+          // The mapped error drops the SDK detail: keep the code traceable.
+          console.warn(`game list listener failed: ${error.code}`)
           setState((current) => ({
             ...current,
             enabled: true,
@@ -472,6 +474,7 @@ export function useGameListSubscription(
         },
       )
     } catch (error) {
+      console.warn('game list listener failed: listener-failed')
       setState({
         games: [],
         enabled: true,
