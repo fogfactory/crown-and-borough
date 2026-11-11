@@ -1382,7 +1382,7 @@ const englishMessages = {
   'join.openGame': 'Open game',
   'online.loading': 'Loading...',
   'online.realtime': 'Live',
-  'online.realtimeError': 'Live updates are unavailable.',
+  'online.realtimeError': 'Live updates are paused. Reload the page to restore them.',
   'online.accessRevoked': 'Your access to this game is no longer available.',
   'online.networkOffline': 'Connection lost. Local drafts are preserved.',
   'online.lobby': 'Players',
@@ -2911,7 +2911,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'join.openGame': 'Ouvrir la partie',
   'online.loading': 'Chargement...',
   'online.realtime': 'Temps réel',
-  'online.realtimeError': 'Les mises à jour temps réel sont indisponibles.',
+  'online.realtimeError':
+    'Les mises à jour en direct sont en pause. Rechargez la page pour les rétablir.',
   'online.accessRevoked': 'Votre accès à cette partie n’est plus disponible.',
   'online.networkOffline': 'Connexion perdue. Vos brouillons sont conservés.',
   'online.lobby': 'Joueurs',
