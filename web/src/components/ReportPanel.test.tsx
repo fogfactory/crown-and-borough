@@ -826,7 +826,6 @@ describe('ReportPanel', () => {
           visibility: 'general',
           territory: 'BRU',
           outcome: 'standoff',
-          summary: 'The combat ended without a winner.',
         },
       ],
     }
@@ -837,8 +836,60 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('The combat ended without a winner.')).toBeInTheDocument()
+    expect(screen.getByText('Standoff')).toBeInTheDocument()
     expect(container.textContent).not.toContain('2 (+1 noble)')
+  })
+
+  it.each([
+    ['standoff', 'Statu quo'],
+    ['attack_wins', "L'attaque gagne"],
+    ['defense_holds', 'La défense tient'],
+  ])('translates the %s outcome of a general combat', (outcome, expected) => {
+    const generalReport: TurnReport = {
+      ...report,
+      combats: [{ visibility: 'general', territory: 'BRU', outcome }],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={generalReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
+  it('translates the rejection of an attack by a famished army', () => {
+    const famishedReport: TurnReport = {
+      ...report,
+      orders: [
+        {
+          army: 'A1',
+          chain: 'C1',
+          order: 'O1',
+          owner: 'P1',
+          noble: 'JEA',
+          type: 'attack',
+          source: 'ROS',
+          targets: ['BRU'],
+          liaison: 'single',
+          outcome: 'invalid',
+          reason: 'famished_attacker',
+          progression: 'broken',
+          indexBefore: 0,
+          indexAfter: 0,
+        },
+      ],
+    }
+
+    const { container } = render(
+      <LanguageProvider initialLanguage="fr">
+        <ReportPanel report={famishedReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(container.textContent).toContain('Une armée affamée ne peut pas attaquer.')
+    expect(container.textContent).not.toContain('famished_attacker')
   })
 
   it('tolerates null report collections from older server responses', () => {

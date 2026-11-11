@@ -474,7 +474,6 @@ type CombatView struct {
 	Reason        string
 	Standoff      bool
 	Outcome       string
-	Summary       string
 }
 
 func (view CombatView) MarshalJSON() ([]byte, error) {
@@ -483,12 +482,10 @@ func (view CombatView) MarshalJSON() ([]byte, error) {
 			Visibility string             `json:"visibility"`
 			Territory  models.TerritoryID `json:"territory"`
 			Outcome    string             `json:"outcome"`
-			Summary    string             `json:"summary"`
 		}{
 			Visibility: view.Visibility,
 			Territory:  view.Territory,
 			Outcome:    view.Outcome,
-			Summary:    view.Summary,
 		})
 	}
 	return json.Marshal(struct {
@@ -571,12 +568,10 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 			})
 			continue
 		}
-		outcome, summary := generalCombatSummary(combat)
 		view.Combats = append(view.Combats, CombatView{
 			Visibility: "general",
 			Territory:  combat.Territory,
-			Outcome:    outcome,
-			Summary:    summary,
+			Outcome:    generalCombatOutcome(combat),
 		})
 	}
 	return view
@@ -635,14 +630,14 @@ func cloneNobleAssignments(source map[models.TerritoryID][]models.NobleCode) map
 	return clone
 }
 
-func generalCombatSummary(combat engine.CombatReport) (string, string) {
+func generalCombatOutcome(combat engine.CombatReport) string {
 	if combat.Standoff || combat.Reason == "standoff" {
-		return "standoff", "The combat ended without a winner."
+		return "standoff"
 	}
 	if combat.Winner != "" || combat.Reason == "attack_wins" {
-		return "attack_wins", "An attack overcame the defense."
+		return "attack_wins"
 	}
-	return "defense_holds", "The defense held."
+	return "defense_holds"
 }
 
 // redactHiddenDignities drops from the winter report the nominations of

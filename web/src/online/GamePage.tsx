@@ -41,6 +41,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
+import { errorText } from '@/lib/api-error'
 import { stripNobleHeader } from '@/lib/order-text'
 import { buildOrdersBody } from '@/lib/orders-body'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
@@ -79,12 +80,6 @@ interface Invitation {
   gameId: string
   inviteCode: string
   inviteUrl: string
-}
-
-function errorText(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof Error) return error.message
-  return fallback
 }
 
 function newerSummary(
@@ -314,7 +309,7 @@ export function GamePage() {
           navigate('/signin', { replace: true })
           return
         }
-        setLoadError(errorText(loadFailure, t('error.serverUnavailable')))
+        setLoadError(errorText(loadFailure, t, t('error.serverUnavailable')))
       })
     return () => controller.abort()
   }, [gameId, getIdToken, navigate, signOut, t, user])
@@ -611,7 +606,7 @@ export function GamePage() {
           navigate('/signin', { replace: true })
           return
         }
-        setReportError(errorText(reportFailure, t('error.network')))
+        setReportError(errorText(reportFailure, t, t('error.network')))
       })
       .finally(() => {
         if (active) setReportLoading(false)
@@ -638,7 +633,7 @@ export function GamePage() {
         navigate('/signin', { replace: true })
         return
       }
-      setReportError(errorText(reportFailure, t('error.network')))
+      setReportError(errorText(reportFailure, t, t('error.network')))
     } finally {
       setReportLoading(false)
     }
@@ -738,13 +733,8 @@ export function GamePage() {
         await signOut().catch(() => undefined)
         navigate('/signin', { replace: true })
         return
-      } else if (
-        submitFailure instanceof ApiError &&
-        submitFailure.code === 'revision_conflict'
-      ) {
-        setActionError(t('error.revisionConflict'))
       } else {
-        setActionError(errorText(submitFailure, t('error.resolutionFailed')))
+        setActionError(errorText(submitFailure, t, t('error.resolutionFailed')))
       }
     } finally {
       setSubmitting(false)
@@ -766,7 +756,7 @@ export function GamePage() {
         navigate('/signin', { replace: true })
         return
       }
-      setActionError(errorText(inviteFailure, t('error.serverUnavailable')))
+      setActionError(errorText(inviteFailure, t, t('error.serverUnavailable')))
     } finally {
       setInviting(false)
     }

@@ -169,8 +169,8 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 			t.Errorf("general report exposes private field %q: %s", forbidden, data)
 		}
 	}
-	if !strings.Contains(string(data), `"visibility":"general"`) || !strings.Contains(string(data), `"summary"`) {
-		t.Errorf("general report = %s, want general summary", data)
+	if !strings.Contains(string(data), `"visibility":"general"`) || !strings.Contains(string(data), `"outcome"`) {
+		t.Errorf("general report = %s, want general outcome", data)
 	}
 
 	spectator := projectReport(report, models.SpectatorViewer, privacy)
@@ -647,5 +647,24 @@ func TestRejectedCardPlaysOfOthersLoseTheirReason(t *testing.T) {
 	}
 	if other := ProjectReport(report, "P2", nil).Winter.Investments; len(other) != 1 || other[0].Reason != "" {
 		t.Fatalf("P2 sees %#v, want the bare rejection", other)
+	}
+}
+
+func TestGeneralCombatOutcome(t *testing.T) {
+	cases := []struct {
+		name   string
+		combat engine.CombatReport
+		want   string
+	}{
+		{"standoff flag", engine.CombatReport{Standoff: true}, "standoff"},
+		{"standoff reason", engine.CombatReport{Reason: "standoff"}, "standoff"},
+		{"winner", engine.CombatReport{Winner: "A1"}, "attack_wins"},
+		{"attack wins reason", engine.CombatReport{Reason: "attack_wins"}, "attack_wins"},
+		{"defense holds", engine.CombatReport{Reason: "defense_holds"}, "defense_holds"},
+	}
+	for _, tc := range cases {
+		if got := generalCombatOutcome(tc.combat); got != tc.want {
+			t.Errorf("%s: outcome = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
