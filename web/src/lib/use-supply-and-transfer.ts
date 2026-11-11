@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { ApiError } from '@/lib/api'
 import { hasSupplySource } from '@/lib/supply'
 import { transferTargetsForTerritory } from '@/lib/transfer-preview'
 import type {
@@ -33,7 +34,10 @@ export interface UseSupplyAndTransferOptions {
    * `status === 401` triggers `onAuthError` (online sessions only).
    */
   fetcher: SupplyFetcher
-  /** Translated message used when the request fails with a non-401 error. */
+  /**
+   * Translated message used when the request fails with a non-401 error. API
+   * errors always use it: their own message is an English diagnostic.
+   */
   networkErrorMessage: string
   onAuthError?: () => void
 }
@@ -127,7 +131,9 @@ export function useSupplyAndTransfer({
           return
         }
         setSupplyError(
-          supplyFailure instanceof Error ? supplyFailure.message : networkErrorMessage,
+          supplyFailure instanceof Error && !(supplyFailure instanceof ApiError)
+            ? supplyFailure.message
+            : networkErrorMessage,
         )
       })
       .finally(() => {
@@ -177,7 +183,7 @@ export function useSupplyAndTransfer({
           return
         }
         setTransferError(
-          transferFailure instanceof Error
+          transferFailure instanceof Error && !(transferFailure instanceof ApiError)
             ? transferFailure.message
             : networkErrorMessage,
         )

@@ -80,6 +80,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
   transferred: 'reports.reason.transferred',
   transferred_partially: 'reports.reason.transferred_partially',
   famished_sender: 'reports.reason.famished_sender',
+  famished_attacker: 'reports.reason.famished_attacker',
+  host_disappeared: 'reports.reason.host_disappeared',
   transfer_over_capacity: 'reports.reason.transfer_over_capacity',
   transfer_path_blocked: 'reports.reason.transfer_path_blocked',
   transfer_target_occupied: 'reports.reason.transfer_target_occupied',
@@ -1202,7 +1204,7 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
                     .join(' · ')
             const detailText = (entry: CombatReport): ReactNode =>
               entry.visibility === 'general'
-                ? entry.summary
+                ? reportReason(entry.outcome, t)
                 : entry.standoff
                   ? t('reports.standoff')
                   : entry.winner

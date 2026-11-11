@@ -39,7 +39,7 @@ describe('authenticated API client', () => {
       vi.fn(
         async () =>
           new Response(
-            JSON.stringify({ code: 'unauthorized', message: 'token rejected' }),
+            JSON.stringify({ error: 'unauthorized', message: 'token rejected' }),
             {
               status: 401,
               headers: { 'Content-Type': 'application/json' },
