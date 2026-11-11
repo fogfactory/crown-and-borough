@@ -389,8 +389,7 @@ exemple être réduite à :
 {
   "visibility": "general",
   "territory": "BOI",
-  "outcome": "standoff",
-  "summary": "The combat ended without a winner."
+  "outcome": "standoff"
 }
 ```
 

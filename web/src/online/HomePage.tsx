@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ApiError, apiRequest } from '@/lib/api'
+import { errorText } from '@/lib/api-error'
 import { normalizeGameSummary, useGameListSubscription } from '@/lib/subscription'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { GameSummary, Season } from '@/types'
@@ -36,12 +37,6 @@ const seasonLabels: Record<Season, string> = {
 }
 
 const fallbackSeed = 'adelaide-de-beaufort'
-
-function actionError(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof Error) return error.message
-  return fallback
-}
 
 function internalYear(turn: number, finished = false, yearCount = 10): number {
   const year = Math.floor((turn - 1) / 4) + 1
@@ -203,11 +198,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
         inviteUrl: response.inviteUrl as string,
       })
     } catch (createError) {
-      if (createError instanceof ApiError && createError.code === 'creator_not_allowed') {
-        setError(t('error.creatorNotAllowed'))
-      } else {
-        setError(actionError(createError, t('error.gameCreationFailed')))
-      }
+      setError(errorText(createError, t, t('error.gameCreationFailed')))
     } finally {
       setCreating(false)
     }
@@ -398,7 +389,7 @@ export function HomePage() {
       })
       .catch((loadError: unknown) => {
         if (!active || redirectIfSignedOut(loadError)) return
-        setError(actionError(loadError, t('error.serverUnavailable')))
+        setError(errorText(loadError, t, t('error.serverUnavailable')))
         setLoading(false)
       })
     return () => {

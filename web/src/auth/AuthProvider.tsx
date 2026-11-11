@@ -13,12 +13,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useCallback,
   useState,
   type ReactNode,
 } from 'react'
 
+import { useLanguage } from '@/i18n/LanguageContext'
 import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
+import { errorText } from '@/lib/api-error'
 import { firebaseConfigured, getFirebaseServices } from '@/lib/firebase'
 import type { NotificationsUpdate, ProfileData, ReleaseNotesUpdate } from '@/types'
 
@@ -45,12 +48,6 @@ interface AuthContextValue extends TokenProvider {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof Error) return error.message
-  return 'authentication failed'
-}
-
 function redirectPathFromHref(href: string): string | null {
   try {
     return new URL(href).searchParams.get('redirect')
@@ -61,6 +58,16 @@ function redirectPathFromHref(href: string): string | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const services = getFirebaseServices()
+  const { t } = useLanguage()
+  // The latest translator, read when an error lands: a language switch must not
+  // refetch the profile.
+  const translator = useRef(t)
+  translator.current = t
+  const errorMessage = useCallback(
+    (error: unknown) =>
+      errorText(error, translator.current, translator.current('error.authFailed')),
+    [],
+  )
   const [user, setUser] = useState<User | null>(null)
   const [authReady, setAuthReady] = useState(!services)
   const [authError, setAuthError] = useState<string | null>(null)
@@ -92,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false
       unsubscribe()
     }
-  }, [services])
+  }, [errorMessage, services])
 
   const getIdToken = useCallback(async () => {
     if (!user) return null
@@ -122,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setProfileLoading(false)
     }
-  }, [getIdToken, services, user])
+  }, [errorMessage, getIdToken, services, user])
 
   useEffect(() => {
     if (!authReady) return

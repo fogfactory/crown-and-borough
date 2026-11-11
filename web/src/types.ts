@@ -981,7 +981,6 @@ export interface CombatReport {
   reason?: string
   standoff?: boolean
   outcome?: string
-  summary?: string
 }
 
 export interface OrderReport {
