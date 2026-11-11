@@ -278,21 +278,21 @@ armée sans noble, l'héritier prend le titre.
 - à un Claim : le joueur qui le détient éteint la prétention de son héritier,
   la carte de prétention retourne à la défausse et l'héritier peut réclamer à
   nouveau avec une autre carte ;
-- à un titre exilé : le propriétaire du noble exilé abandonne son titre,
-  l'usurpateur devient titulaire officiel et plus aucune restauration n'est
-  possible ;
-- à un titre usurpé : le propriétaire de l'usurpateur le rend, le titre
-  retourne à l'exilé et le fief à son propriétaire, comme à la mort de
-  l'usurpateur.
+- à un titre contesté, exilé ou usurpé, par un même ordre sur le noble qui le
+  porte, le moteur déterminant son statut :
+  - exilé : son propriétaire abandonne le titre, l'usurpateur devient
+    titulaire officiel et plus aucune restauration n'est possible ;
+  - usurpé : son propriétaire le rend, le titre retourne à l'exilé et le fief
+    à son propriétaire, comme à la mort de l'usurpateur.
 
 ### À trancher à l'implémentation
 
 - Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
   la ligne de succession du joueur est proposée.
 - Codes des ordres de renonciation : `C R HHH` (Claim porté par l'héritier
-  `HHH`), `C E NNN` (titre exilé du noble `NNN`) et `C U NNN` (titre usurpé du
-  noble `NNN`) sont proposés ; carte de prétention rendue à la défausse pour un
-  Claim. À vérifier : disponibilité des trois codes dans le parseur d'ordres.
+  `HHH`) et `C T NNN` (titre exilé ou usurpé du noble `NNN`) sont proposés ;
+  carte de prétention rendue à la défausse pour un Claim. À vérifier :
+  disponibilité des deux codes dans le parseur d'ordres.
 - Restauration par la reprise de la capitale pour une usurpation issue d'un
   Claim : la question posée est restée « sans objet » ; le texte ci-dessus
   l'applique aux deux origines tant que ce point n'est pas tranché.
