@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.1](https://github.com/fogfactory/crown-and-borough/compare/v1.2.0...v1.2.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/text to v0.44.0 ([#590](https://github.com/fogfactory/crown-and-borough/issues/590)) ([43bed5b](https://github.com/fogfactory/crown-and-borough/commit/43bed5b580b035d33a3662a4acfd8f90e0143cca))
+* **deps:** update module google.golang.org/api to v0.312.0 ([#601](https://github.com/fogfactory/crown-and-borough/issues/601)) ([fecbd22](https://github.com/fogfactory/crown-and-borough/commit/fecbd223bdfd06992d0cba81214459f6b85d5bce))
+* **elections:** open bishop elections on inhabited places ([cbff33f](https://github.com/fogfactory/crown-and-borough/commit/cbff33f0feca0b4813ccb987e4cb15797a714b7f))
+* **elections:** open bishop elections on inhabited places ([197b6af](https://github.com/fogfactory/crown-and-borough/commit/197b6af5f4594d10d7fe4a73a45f8950e5b575d8)), closes [#597](https://github.com/fogfactory/crown-and-borough/issues/597)
+* **online:** restore live updates on the game list ([2040f5e](https://github.com/fogfactory/crown-and-borough/commit/2040f5e67e1402e7f3ecda1ed3b63bdfd929c97e))
+* **online:** restore live updates on the game list ([e622195](https://github.com/fogfactory/crown-and-borough/commit/e622195c98268586bbe957ec1157d08606045265)), closes [#568](https://github.com/fogfactory/crown-and-borough/issues/568)
+* **web:** translate report and api error messages ([745797e](https://github.com/fogfactory/crown-and-borough/commit/745797e3cd8ebd69b972fa4527712c91219af18a))
+* **web:** translate report and api error messages ([f3119eb](https://github.com/fogfactory/crown-and-borough/commit/f3119eb29b337d715b397ee72b14b47de7fd2c19))
+
 ## [1.2.0](https://github.com/fogfactory/crown-and-borough/compare/v1.1.0...v1.2.0) (2026-11-09)
 
 
