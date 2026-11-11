@@ -216,6 +216,9 @@ changent qu'à l'implémentation, avec le texte final sans comparaison.
 | Le titulaire meurt, un Claim vise son titre, capitale sans armée ou avec une armée sans noble | L'héritier prend le titre | Inchangé ; la capitale reste occupée dans le second cas |
 | Le titulaire meurt, un Claim vise son titre, capitale avec une armée et un noble libre (garnison de l'ancien propriétaire comprise) | L'héritier prend le titre ; une armée déjà en place reprend le fief au contrôle suivant | Le noble devient usurpateur et le fief passe à son propriétaire ; l'héritier reçoit le titre exilé |
 | Le joueur dépossédé reprend la capitale | Capture ordinaire, fief vacant | Restauration du titre exilé |
+| Mort de l'usurpateur ou de l'exilé | Sans objet | Usurpateur mort : l'exilé retrouve le titre. Exilé mort : l'usurpateur devient officiel |
+| Claim sur un fief usurpé | Sans objet | Sans effet |
+| Renoncer à un Claim ou à un titre exilé | Aucun ordre | Ordres d'hiver gratuits |
 
 ### Règles proposées
 
@@ -238,28 +241,50 @@ bonus) : c'est un rappel de rôle, affiché comme tel dans les rapports et les
 formes d'adresse. Un fief n'a au plus qu'un exilé : le titulaire légitime
 d'origine.
 
-**Restauration.** Lorsque le propriétaire du noble exilé reprend la capitale
-du fief avec une armée de lui, **sans condition de noble**, le fief lui
-revient entièrement, l'exilé redevient titulaire (plus d'usurpateur, plus
-d'exilé), sans condition de rang de succession. Si l'exilé est mort, rien
-n'est restauré : le fief revient au joueur vacant et suit les règles de
-vacance de « Perte et vacance d'un fief ».
+**Restauration par la reprise de la capitale.** Lorsque le propriétaire du
+noble exilé reprend la capitale du fief avec une armée de lui, **sans condition
+de noble**, le fief lui revient entièrement, l'exilé redevient titulaire (plus
+d'usurpateur, plus d'exilé), sans condition de rang de succession.
+
+**Durée de l'usurpation.** Une usurpation ne dure que tant que l'usurpateur et
+l'exilé vivent. Si l'usurpateur meurt, l'exilé retrouve le titre et le fief
+revient à son propriétaire. Si l'exilé meurt, l'usurpateur devient le titulaire
+officiel (plus de statut usurpateur). Si les deux sont morts, le fief est vacant
+et suit les règles de « Perte et vacance d'un fief ».
+
+**Claims sur un fief usurpé.** Aucun Claim ne s'applique à un fief usurpé, ni
+sur l'usurpateur ni sur l'exilé : la mort de l'un des deux règle seule le titre,
+comme ci-dessus. Les Claims qui visent ces nobles restent valables pour leurs
+autres fiefs.
 
 **Usurpé puis conquis.** Si un troisième joueur conquiert un fief déjà
 usurpé, l'usurpateur déchu perd tout (il ne devient pas exilé) ; l'exilé
-d'origine reste restaurable.
+d'origine reste exilé.
 
 **Claim.** À la mort du titulaire, si la capitale porte une armée avec un
 noble libre, ce noble devient titulaire usurpateur et le fief passe à son
-propriétaire, l'héritier du Claim recevant le titre exilé, restaurable par la
-reprise de la capitale. Une garnison de l'ancien propriétaire avec noble annule
-donc le Claim. Sans armée, ou avec une armée sans noble, l'héritier prend le
-titre.
+propriétaire, l'héritier du Claim recevant le titre exilé. Une garnison de
+l'ancien propriétaire avec noble annule donc le Claim. Sans armée, ou avec une
+armée sans noble, l'héritier prend le titre.
+
+**Renonciation.** Deux ordres d'hiver gratuits permettent de renoncer :
+- à un Claim : le joueur qui le détient éteint la prétention de son héritier,
+  la carte de prétention retourne à la défausse et l'héritier peut réclamer à
+  nouveau avec une autre carte ;
+- à un titre exilé : le propriétaire du noble exilé abandonne son titre,
+  l'usurpateur devient titulaire officiel et plus aucune restauration n'est
+  possible.
 
 ### À trancher à l'implémentation
 
 - Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
   la ligne de succession du joueur est proposée.
+- Codes des ordres de renonciation : `C R HHH` (Claim porté par l'héritier
+  `HHH`) et `C E NNN` (titre exilé du noble `NNN`) sont proposés, `C R` et `C E`
+  étant libres ; cartes de prétention rendues à la défausse.
+- Restauration par la reprise de la capitale pour une usurpation issue d'un
+  Claim : la question posée est restée « sans objet » ; le texte ci-dessus
+  l'applique aux deux origines tant que ce point n'est pas tranché.
 - Modèle de données : un drapeau usurpateur sur le titulaire et un champ pour
   le noble exilé sur `Fief`.
 - Points d'ancrage dans le moteur : la passe de contrôle de
