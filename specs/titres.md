@@ -201,6 +201,71 @@ la dissolution automatique de #194).
   de compter son point de score jusqu'à ce qu'un noble soit disponible ou que
   sa capitale soit dissoute.
 
+## Conquête d'un fief par un noble (proposé)
+
+Issue : [#610](https://github.com/fogfactory/crown-and-borough/issues/610). **Proposé, non livré.** Cette section décrit un
+changement de règle ; `gdd.md`, `succession.md` et les règles joueurs ne
+changent qu'à l'implémentation, avec le texte final sans comparaison.
+
+### Actuel et proposé
+
+| Situation | Actuel | Proposé |
+|---|---|---|
+| Une armée sans noble s'arrête sur la capitale d'un fief | Elle prend la capitale : le fief passe, vacant, au conquérant | Elle **occupe** la capitale contre son contrôleur, sans la prendre |
+| Une armée avec un noble libre s'arrête sur la capitale | Idem (le noble est sans effet) | Le fief passe au conquérant ; le noble devient titulaire **usurpateur** ; l'ancien titulaire vivant devient **exilé** |
+| Le titulaire meurt, un Claim vise son titre, capitale sans armée ou avec une armée sans noble | L'héritier prend le titre | Inchangé ; la capitale reste occupée dans le second cas |
+| Le titulaire meurt, un Claim vise son titre, capitale avec une armée et un noble libre (garnison de l'ancien propriétaire comprise) | L'héritier prend le titre ; une armée déjà en place reprend le fief au contrôle suivant | Le noble devient usurpateur et le fief passe à son propriétaire ; l'héritier reçoit le titre exilé |
+| Le joueur dépossédé reprend la capitale | Capture ordinaire, fief vacant | Restauration du titre exilé |
+
+### Règles proposées
+
+**Conquête.** La capitale d'un fief n'est conquise que par une armée de joueur
+portant sur la case au moins un **noble libre** de son propriétaire (un otage
+ou un prisonnier porté par l'armée ne compte pas), évaluée à la mise à jour
+du contrôle territorial. Le fief passe tout entier, avec ses territoires, au
+conquérant (contrôle transitif, voir « Contrôle et occupation »). Le premier
+noble libre de l'armée, dans l'ordre de la ligne de succession du joueur,
+devient titulaire du fief avec le statut **usurpateur** ; l'ancien titulaire
+vivant, s'il existe, reçoit le statut **exilé**. Un fief vacant conquis n'a
+pas d'exilé. Un noble seul, sans armée, ne conquiert rien. Les armées sans
+noble occupent la capitale avec les conséquences déjà décrites pour un membre
+de fief occupé (revenu du fief inchangé, case ni source de ravitaillement ni
+dépôt, investissements refusés). La capitale d'un joueur hors fief reste
+positionnelle.
+
+**Exilé.** Un titre exilé n'a aucun effet de jeu (ni rang, ni vote, ni
+bonus) : c'est un rappel de rôle, affiché comme tel dans les rapports et les
+formes d'adresse. Un fief n'a au plus qu'un exilé : le titulaire légitime
+d'origine.
+
+**Restauration.** Lorsque le propriétaire du noble exilé reprend la capitale
+du fief avec une armée de lui, **sans condition de noble**, le fief lui
+revient entièrement, l'exilé redevient titulaire (plus d'usurpateur, plus
+d'exilé), sans condition de rang de succession. Si l'exilé est mort, rien
+n'est restauré : le fief revient au joueur vacant et suit les règles de
+vacance de « Perte et vacance d'un fief ».
+
+**Usurpé puis conquis.** Si un troisième joueur conquiert un fief déjà
+usurpé, l'usurpateur déchu perd tout (il ne devient pas exilé) ; l'exilé
+d'origine reste restaurable.
+
+**Claim.** À la mort du titulaire, si la capitale porte une armée avec un
+noble libre, ce noble devient titulaire usurpateur et le fief passe à son
+propriétaire, l'héritier du Claim recevant le titre exilé, restaurable par la
+reprise de la capitale. Une garnison de l'ancien propriétaire avec noble annule
+donc le Claim. Sans armée, ou avec une armée sans noble, l'héritier prend le
+titre.
+
+### À trancher à l'implémentation
+
+- Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
+  la ligne de succession du joueur est proposée.
+- Modèle de données : un drapeau usurpateur sur le titulaire et un champ pour
+  le noble exilé sur `Fief`.
+- Points d'ancrage dans le moteur : la passe de contrôle de
+  `updateTerritorialControl` (`progression.go`) et `passFiefToHeir`
+  (`fief.go`), plus rapport, messages i18n, projection privée et tests.
+
 ## Taxe seigneuriale
 
 Issue : [#189](https://github.com/fogfactory/crown-and-borough/issues/189).
