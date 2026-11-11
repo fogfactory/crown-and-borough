@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ApiError, apiRequest } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/api-error'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { Translate } from '@/i18n/messages'
 
@@ -20,7 +21,7 @@ function joinError(error: unknown, t: Translate): string {
     if (error.code === 'invalid_invitation') return t('join.invalid')
     if (error.code === 'game_full') return t('join.full')
     if (error.code === 'not_found') return t('join.notFound')
-    return error.message
+    return apiErrorMessage(error, t)
   }
   return error instanceof Error ? error.message : t('join.invalid')
 }
