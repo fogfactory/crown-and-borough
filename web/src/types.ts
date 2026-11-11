@@ -108,6 +108,35 @@ export interface ProfileData {
   lastSeenVersion: string
   /** Opt-out from the release notes dialog. */
   hideReleaseNotes: boolean
+  /** Email notification settings; absent from responses that predate them,
+   * which means every notification is off. */
+  notifications?: NotificationPreferences
+}
+
+export interface NotificationPreferences {
+  /** Email when a new turn starts in one of the player's games. */
+  newTurn: boolean
+  /** Email when the player's house receives a private message. */
+  privateMessage: boolean
+  /** Email when another house writes in the public room. */
+  publicMessage: boolean
+  /** Skip the email when the player was active at the time of the event. */
+  reduceWhenActive: boolean
+  /** Language of the emails (fr or en); empty until a setting is saved. */
+  language: string
+}
+
+/** Notification settings to change; omitted fields are left untouched. */
+export type NotificationsUpdate = Partial<Omit<NotificationPreferences, 'language'>> & {
+  language?: 'en' | 'fr'
+}
+
+export const NO_NOTIFICATIONS: NotificationPreferences = {
+  newTurn: false,
+  privateMessage: false,
+  publicMessage: false,
+  reduceWhenActive: false,
+  language: '',
 }
 
 /** Release notes preferences to change; omitted fields are left untouched. */

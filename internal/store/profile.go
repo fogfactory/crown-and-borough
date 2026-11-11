@@ -131,6 +131,29 @@ func (s *MemoryProfileStore) UpdateReleaseNotes(ctx context.Context, uid string,
 	return profile, nil
 }
 
+func (s *MemoryProfileStore) UpdateNotifications(ctx context.Context, uid string, update NotificationsUpdate) (PlayerProfile, error) {
+	if err := contextError(ctx); err != nil {
+		return PlayerProfile{}, err
+	}
+	uid = strings.TrimSpace(uid)
+	update, err := NormalizeNotificationsUpdate(update)
+	if err != nil {
+		return PlayerProfile{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	profile, ok := s.profiles[uid]
+	if !ok {
+		return PlayerProfile{}, ErrProfileNotFound
+	}
+	if !ApplyNotificationsUpdate(&profile, update) {
+		return profile, nil
+	}
+	profile.UpdatedAt = s.now().UTC()
+	s.profiles[uid] = profile
+	return profile, nil
+}
+
 // NormalizeReleaseNotesUpdate validates an update and returns it with a
 // trimmed version, stored without its "v" prefix.
 func NormalizeReleaseNotesUpdate(update ReleaseNotesUpdate) (ReleaseNotesUpdate, error) {

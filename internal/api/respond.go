@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
@@ -41,6 +43,22 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+// writeJSONFlushed writes the response with an explicit Content-Length and
+// flushes it, so the client has the complete answer before the handler goes on
+// with work that follows (the notifications).
+func writeJSONFlushed(w http.ResponseWriter, status int, value any) {
+	var buffer bytes.Buffer
+	if err := json.NewEncoder(&buffer).Encode(value); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "encoding_failed", "response could not be encoded")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(buffer.Len()))
+	w.WriteHeader(status)
+	_, _ = w.Write(buffer.Bytes())
+	_ = http.NewResponseController(w).Flush()
 }
 
 // decodeJSONBody decodes a JSON request body of at most limit bytes into

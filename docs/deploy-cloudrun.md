@@ -521,6 +521,12 @@ workflow has no service-account key secret and must not be given one.
 | `BUG_APP_ID`                   | Optional GitHub App ID of the bug reporter                |
 | `BUG_APP_INSTALLATION_ID`      | Optional installation ID of that App on this repository   |
 | `GCP_BUG_APP_KEY_SECRET`       | Optional Secret Manager secret holding the App private key |
+| `SMTP_HOST`                    | Optional SMTP server of the email notifications            |
+| `SMTP_PORT`                    | Optional port, `587` (STARTTLS) by default, `465` for implicit TLS |
+| `SMTP_TLS`                     | Optional `starttls` or `implicit`, when the port does not tell     |
+| `SMTP_USERNAME`                | Optional SMTP account                                     |
+| `SMTP_FROM`                    | Optional sender, `noreply@example.org` or `Name <noreply@example.org>` |
+| `GCP_SMTP_PASSWORD_SECRET`     | Optional Secret Manager secret holding the SMTP password   |
 
 With GitHub CLI, the variables can be set without writing any credential file:
 
@@ -580,6 +586,52 @@ path keeps working). Rotate the key by generating a new one on the App page and
 adding a version of the secret (`gcloud secrets versions add`), then redeploy.
 Locally, set the three `GITHUB_BUG_APP_*` variables, or `GITHUB_BUG_TOKEN` with
 a personal fine-grained token, in the shell that starts the server.
+
+### Email notifications
+
+Players can opt in to emails for a new turn and for chat messages (profile
+page). The server sends them through any SMTP server, with the Go standard
+library only. The connection is always encrypted: STARTTLS on port 587 (the
+default) or implicit TLS on port 465; a server offering neither is refused. For
+an implicit TLS port other than 465, set `SMTP_TLS` to `implicit`.
+
+| Variable                   | Role                                                        |
+| -------------------------- | ----------------------------------------------------------- |
+| `SMTP_HOST`                | Server host name; empty disables sending                    |
+| `SMTP_PORT`                | `587` by default, `465` for implicit TLS                    |
+| `SMTP_TLS`                 | `starttls` or `implicit`; empty follows the port            |
+| `SMTP_USERNAME`            | Account; empty means no authentication                      |
+| `SMTP_PASSWORD`            | Password, from Secret Manager in the deployment             |
+| `SMTP_FROM`                | Sender address; empty disables sending                      |
+
+The links in the emails start with `PUBLIC_APP_URL`. The password is a secret:
+keep it in Secret Manager, never in a repository variable.
+
+```bash
+printf '%s' "$SMTP_PASSWORD" | gcloud secrets create smtp-password --project "$PROJECT_ID" --data-file=-
+gcloud secrets add-iam-policy-binding smtp-password --project "$PROJECT_ID" \
+  --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor
+
+gh variable set GCP_SMTP_PASSWORD_SECRET --repo "$GITHUB_REPOSITORY" --body smtp-password
+gh variable set SMTP_HOST --repo "$GITHUB_REPOSITORY" --body "$SMTP_HOST"
+gh variable set SMTP_USERNAME --repo "$GITHUB_REPOSITORY" --body "$SMTP_USERNAME"
+gh variable set SMTP_FROM --repo "$GITHUB_REPOSITORY" --body "$SMTP_FROM"
+```
+
+A username needs a password: the workflow stops when `SMTP_USERNAME` is set
+without `GCP_SMTP_PASSWORD_SECRET`, and the server refuses to start with a
+username and an empty password. A newline at the end of the secret is ignored.
+
+The deployment passes `SMTP_HOST`, `SMTP_FROM`, `SMTP_PORT`, `SMTP_TLS` and
+`SMTP_USERNAME`, and mounts the secret as `SMTP_PASSWORD`. The secrets mounted
+on the service are exactly those the workflow configures: one that is no longer
+configured is unmounted at the next deployment. When `SMTP_HOST` or
+`SMTP_FROM` is empty nothing is set, the deployment works unchanged and the
+server logs one line per skipped email, without address or content. The emails
+are sent before the request handler returns, because Cloud Run throttles the
+CPU of work left running after the response. Locally, export the `SMTP_*`
+variables in the shell that runs `docker compose up`; hotseat and
+`ONLINE_DEV_MODE` never send emails.
 
 Replace every `replace-me` value before starting a deployment. Check the final
 names, without printing their values, with:
