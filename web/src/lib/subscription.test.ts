@@ -355,6 +355,7 @@ describe('Firestore game subscriptions', () => {
     })
     await waitFor(() => expect(result.current.games[0]?.id).toBe('game-1'))
 
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     act(() => {
       firestoreHarness.snapshots[0]?.error({
         code: 'permission-denied',
@@ -363,5 +364,7 @@ describe('Firestore game subscriptions', () => {
     })
     await waitFor(() => expect(result.current.error?.code).toBe('permission-denied'))
     expect(firestoreHarness.unsubscribes[0]).toHaveBeenCalledOnce()
+    expect(warn).toHaveBeenCalledWith('game list listener failed: permission-denied')
+    warn.mockRestore()
   })
 })

@@ -25,9 +25,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // The game document is deliberately only a member-readable summary.
+    // The game document is deliberately only a member-readable summary. The
+    // membership test reads the document itself rather than memberOf(): a
+    // list query is only granted when its own constraints prove the rule, and
+    // where("memberUids", "array-contains", uid) proves this one.
     match /games/{gameId} {
-      allow read: if memberOf(gameId);
+      allow read: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow write: if false;
 
       match /views/{uid} {

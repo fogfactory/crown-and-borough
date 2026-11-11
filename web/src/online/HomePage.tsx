@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
@@ -18,6 +18,9 @@ import { ApiError, apiRequest } from '@/lib/api'
 import { normalizeGameSummary, useGameListSubscription } from '@/lib/subscription'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { GameSummary, Season } from '@/types'
+
+// Refresh cadence of the game list when the live listener is unavailable.
+const GAME_LIST_POLL_INTERVAL_MS = 30_000
 
 interface Invitation {
   gameId: string
@@ -359,44 +362,86 @@ export function HomePage() {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const realtime = useGameListSubscription(user?.uid)
-  const [initialGames, setInitialGames] = useState<GameSummary[]>([])
+  const [apiGames, setApiGames] = useState<GameSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [invitation, setInvitation] = useState<Invitation | null>(null)
 
+  const fetchGames = useCallback(
+    () =>
+      apiRequest<unknown[]>({ getIdToken }, '/api/games').then((payload) =>
+        Array.isArray(payload)
+          ? payload.map((game) => normalizeGameSummary(game as Record<string, unknown>))
+          : [],
+      ),
+    [getIdToken],
+  )
+  const redirectIfSignedOut = useCallback(
+    (loadError: unknown): boolean => {
+      if (!(loadError instanceof ApiError) || loadError.status !== 401) return false
+      void signOut().catch(() => undefined)
+      navigate('/signin', { replace: true })
+      return true
+    },
+    [navigate, signOut],
+  )
+
+  // The API list is the first paint, shown until the live listener answers.
   useEffect(() => {
     let active = true
-    void apiRequest<unknown[]>({ getIdToken }, '/api/games')
-      .then((payload) => {
+    void fetchGames()
+      .then((loaded) => {
         if (!active) return
-        setInitialGames(
-          Array.isArray(payload)
-            ? payload.map((game) => normalizeGameSummary(game as Record<string, unknown>))
-            : [],
-        )
+        setApiGames(loaded)
         setLoading(false)
       })
       .catch((loadError: unknown) => {
-        if (!active) return
-        if (loadError instanceof ApiError && loadError.status === 401) {
-          void signOut().catch(() => undefined)
-          navigate('/signin', { replace: true })
-          return
-        }
+        if (!active || redirectIfSignedOut(loadError)) return
         setError(actionError(loadError, t('error.serverUnavailable')))
         setLoading(false)
       })
     return () => {
       active = false
     }
-  }, [getIdToken, navigate, signOut, t])
+  }, [fetchGames, redirectIfSignedOut, t])
 
-  const games =
-    realtime.enabled && !realtime.loading && !realtime.error
-      ? realtime.games
-      : initialGames
-  const combinedError = error ?? (realtime.error ? t('online.realtimeError') : null)
+  // When the live listener fails, the list stays current by polling the API
+  // under a discreet notice; a failed refresh keeps the list on screen.
+  const realtimeFailed = realtime.error !== null
+  useEffect(() => {
+    if (!realtimeFailed) return
+    let active = true
+    let inFlight = false
+    const refresh = () => {
+      if (inFlight || document.visibilityState !== 'visible') return
+      inFlight = true
+      void fetchGames()
+        .then((loaded) => {
+          if (!active) return
+          setApiGames(loaded)
+          setError(null)
+        })
+        .catch((loadError: unknown) => {
+          if (active) redirectIfSignedOut(loadError)
+        })
+        .finally(() => {
+          inFlight = false
+        })
+    }
+    const timer = window.setInterval(refresh, GAME_LIST_POLL_INTERVAL_MS)
+    // A tab that comes back to the foreground catches up at once.
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [fetchGames, realtimeFailed, redirectIfSignedOut])
+
+  // Once the listener feeds the list, a failed API load no longer matters.
+  const live = realtime.enabled && !realtime.loading && !realtimeFailed
+  const games = live ? realtime.games : apiGames
 
   return (
     <div className="space-y-6">
@@ -437,7 +482,12 @@ export function HomePage() {
         </Card>
       )}
 
-      {combinedError && <Alert role="alert">{combinedError}</Alert>}
+      {realtimeFailed && (
+        <Alert tone="info" role="status">
+          {t('online.realtimeError')}
+        </Alert>
+      )}
+      {error && !live && <Alert role="alert">{error}</Alert>}
       {loading && games.length === 0 ? (
         <p className="py-16 text-center font-display text-lg italic text-ink-500">
           {t('online.loading')}
