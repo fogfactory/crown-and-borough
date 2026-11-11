@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 )
@@ -226,5 +228,119 @@ func TestMemoryProfileStoreUpdatesReleaseNotesPreferences(t *testing.T) {
 	profile, err = profiles.UpdateReleaseNotes(ctx, "alice", ReleaseNotesUpdate{HideReleaseNotes: &show})
 	if err != nil || profile.LastSeenVersion != "1.4.0" || profile.HideReleaseNotes {
 		t.Fatalf("partial update = %+v, %v", profile, err)
+	}
+}
+
+func TestMemoryProfileStoreUpdatesNotifications(t *testing.T) {
+	profiles := NewMemoryProfileStore()
+	ctx := context.Background()
+	on, off, french, invalid := true, false, "fr", "klingon"
+	if _, err := profiles.UpdateNotifications(ctx, "ghost", NotificationsUpdate{NewTurn: &on}); !errors.Is(err, ErrProfileNotFound) {
+		t.Fatalf("unknown profile err = %v", err)
+	}
+	profile, err := profiles.EnsureProfile(ctx, Actor{ID: "alice", Email: "alice@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.Notifications != (NotificationPreferences{}) {
+		t.Fatalf("new profile notifications = %+v, want all off", profile.Notifications)
+	}
+	if _, err := profiles.UpdateNotifications(ctx, "alice", NotificationsUpdate{}); !errors.Is(err, ErrInvalidNotifications) {
+		t.Fatalf("empty update err = %v", err)
+	}
+	if _, err := profiles.UpdateNotifications(ctx, "alice", NotificationsUpdate{Language: &invalid}); !errors.Is(err, ErrInvalidNotifications) {
+		t.Fatalf("invalid language err = %v", err)
+	}
+	profile, err = profiles.UpdateNotifications(ctx, "alice", NotificationsUpdate{NewTurn: &on, ReduceWhenActive: &on, Language: &french})
+	want := NotificationPreferences{NewTurn: true, ReduceWhenActive: true, Language: "fr"}
+	if err != nil || profile.Notifications != want {
+		t.Fatalf("update = %+v, %v", profile, err)
+	}
+	profile, err = profiles.UpdateNotifications(ctx, "alice", NotificationsUpdate{NewTurn: &off, PublicMessage: &on})
+	want = NotificationPreferences{PublicMessage: true, ReduceWhenActive: true, Language: "fr"}
+	if err != nil || profile.Notifications != want {
+		t.Fatalf("partial update = %+v, %v", profile, err)
+	}
+}
+
+func TestMessageEmailClaimable(t *testing.T) {
+	sent := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name  string
+		last  time.Time
+		reads []time.Time
+		want  bool
+	}{
+		{"no email sent yet", time.Time{}, nil, true},
+		{"email sent, nothing read", sent, nil, false},
+		{"email sent, read before it", sent, []time.Time{sent.Add(-time.Minute)}, false},
+		{"email sent, read at the same time", sent, []time.Time{sent}, false},
+		{"email sent, one cursor read after", sent, []time.Time{sent.Add(-time.Hour), sent.Add(time.Second)}, true},
+	}
+	for _, tc := range cases {
+		if got := MessageEmailClaimable(tc.last, tc.reads); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestMemoryChatBackendNotificationState(t *testing.T) {
+	backend := NewMemoryChatBackend()
+	ctx := context.Background()
+	at := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	if last, err := backend.LastActivity(ctx, "alice"); err != nil || !last.IsZero() {
+		t.Fatalf("initial activity = %v, %v", last, err)
+	}
+	if err := backend.TouchActivity(ctx, "alice", at); err != nil {
+		t.Fatal(err)
+	}
+	if last, _ := backend.LastActivity(ctx, "alice"); !last.Equal(at) {
+		t.Fatalf("activity = %v, want %v", last, at)
+	}
+
+	claim := func(when time.Time) bool {
+		t.Helper()
+		ok, err := backend.ClaimMessageEmail(ctx, "g1", "alice", when)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if !claim(at) {
+		t.Fatal("first claim must succeed")
+	}
+	if claim(at.Add(time.Minute)) {
+		t.Fatal("second claim without a read must fail")
+	}
+	// A cursor of another game or another player does not count.
+	_, _ = backend.SetChatReadCursor(ctx, "g2", "alice", ChatReadCursor{Channel: "public", LastReadAt: at.Add(time.Hour)})
+	_, _ = backend.SetChatReadCursor(ctx, "g1", "bob", ChatReadCursor{Channel: "public", LastReadAt: at.Add(time.Hour)})
+	if claim(at.Add(2 * time.Minute)) {
+		t.Fatal("claim must stay refused after unrelated reads")
+	}
+	_, _ = backend.SetChatReadCursor(ctx, "g1", "alice", ChatReadCursor{Channel: "P1_P2", LastReadAt: at.Add(3 * time.Minute)})
+	if !claim(at.Add(4 * time.Minute)) {
+		t.Fatal("claim must succeed again after the player read a channel")
+	}
+}
+
+func TestChatPostListsTheOtherHousesAsRecipients(t *testing.T) {
+	service, _, _ := newChatFixture(t)
+	ctx := context.Background()
+	public, err := service.Post(ctx, Actor{ID: "alice"}, "g1", ChatPostRequest{Channel: ChatPublicChannel, Body: "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The author and the slot nobody holds yet are left out; the observer is
+	// not a house.
+	if got := strings.Join(public.RecipientUIDs, ","); got != "bob,cleo" {
+		t.Fatalf("public recipients = %q", got)
+	}
+	private, err := service.Post(ctx, Actor{ID: "bob"}, "g1", ChatPostRequest{Channel: "P1", Body: "psst"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(private.RecipientUIDs, ","); got != "alice" || private.GameID != "g1" {
+		t.Fatalf("private result = %+v", private)
 	}
 }

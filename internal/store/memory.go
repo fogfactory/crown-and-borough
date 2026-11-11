@@ -263,6 +263,10 @@ func (s *MemoryStore) EnsureProfile(ctx context.Context, actor Actor) (PlayerPro
 	return s.profiles.EnsureProfile(ctx, actor)
 }
 
+func (s *MemoryStore) UpdateNotifications(ctx context.Context, uid string, update NotificationsUpdate) (PlayerProfile, error) {
+	return s.profiles.UpdateNotifications(ctx, uid, update)
+}
+
 func (s *MemoryStore) UpdateReleaseNotes(ctx context.Context, uid string, update ReleaseNotesUpdate) (PlayerProfile, error) {
 	return s.profiles.UpdateReleaseNotes(ctx, uid, update)
 }

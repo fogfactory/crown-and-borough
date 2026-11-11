@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
@@ -31,6 +33,7 @@ type GamesHandler struct {
 	inviteBaseURL    string
 	creatorGate      CreatorGate
 	chat             *store.ChatService
+	notifier         Notifier
 	mux              *http.ServeMux
 }
 
@@ -44,6 +47,48 @@ type GamesHandlerOptions struct {
 	CreatorGate      CreatorGate
 	// Chat serves the message routes; nil (hotseat) answers them with 404.
 	Chat *store.ChatService
+	// Notifier sends the email notifications once a response is written; nil
+	// (hotseat) sends none.
+	Notifier Notifier
+}
+
+// Notifier is the email notification hook of the handlers. Its methods run
+// after the response was written and never report failures.
+type Notifier interface {
+	TurnStarted(ctx context.Context, snapshot store.GameSnapshot)
+	MessagePosted(ctx context.Context, result store.ChatPostResult)
+}
+
+// notificationTimeout bounds the notifications run after a response.
+const notificationTimeout = 10 * time.Second
+
+// closeAfterNotifications asks the client not to reuse the connection of a
+// response that notifications follow: its next request would otherwise wait
+// behind them on a keep-alive connection. It must be called before the
+// response is written.
+func (h *GamesHandler) closeAfterNotifications(w http.ResponseWriter) {
+	if h.notifier != nil {
+		w.Header().Set("Connection", "close")
+	}
+}
+
+// afterResponse runs send synchronously once the response is complete, on a
+// context that outlives the request (the client may already have gone) but
+// not the timeout. It is synchronous on purpose: a serverless runtime may
+// throttle the CPU of work left running after the handler returns. It does
+// nothing without a notifier.
+func (h *GamesHandler) afterResponse(r *http.Request, send func(ctx context.Context)) {
+	if h.notifier == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), notificationTimeout)
+	defer cancel()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Printf("notify: panic: %v", recovered)
+		}
+	}()
+	send(ctx)
 }
 
 func NewGamesHandler(gameStore store.GameStore, rules assetgen.Rules, resolve ActorResolver) http.Handler {
@@ -70,6 +115,7 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 		inviteBaseURL:    options.InviteBaseURL,
 		creatorGate:      creatorGate,
 		chat:             options.Chat,
+		notifier:         options.Notifier,
 	}
 	h.mux = h.routes()
 	return h
@@ -378,7 +424,7 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		h.writeStoreError(w, err)
 		return
 	}
-	h.writeSubmitResult(w, actor, result)
+	h.writeSubmitResult(w, r, actor, result)
 }
 
 func toChainSubmissions(requests []chainOrderRequest) []engine.ChainSubmission {
@@ -555,7 +601,7 @@ func (h *GamesHandler) resolve(w http.ResponseWriter, r *http.Request, actor sto
 		h.writeStoreError(w, err)
 		return
 	}
-	h.writeSubmitResult(w, actor, result)
+	h.writeSubmitResult(w, r, actor, result)
 }
 
 func (h *GamesHandler) reportsList(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -590,7 +636,9 @@ func (h *GamesHandler) report(w http.ResponseWriter, r *http.Request, actor stor
 	writeJSON(w, http.StatusOK, projectReport(record.Report, playerID, record.Privacy))
 }
 
-func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Actor, result store.SubmitResult) {
+// writeSubmitResult answers a submit or resolve request, then tells the houses
+// a turn started when the request resolved it.
+func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, r *http.Request, actor store.Actor, result store.SubmitResult) {
 	playerID, ok := result.Snapshot.PlayerFor(actor)
 	viewerID := playerID
 	if !ok && store.IsSpectator(result.Snapshot.SpectatorUID, actor) {
@@ -615,7 +663,13 @@ func (h *GamesHandler) writeSubmitResult(w http.ResponseWriter, actor store.Acto
 		report := projectReport(result.Report.Report, viewerID, result.Report.Privacy)
 		response.Report = &report
 	}
-	writeJSON(w, http.StatusOK, response)
+	if result.Resolved {
+		h.closeAfterNotifications(w)
+	}
+	writeJSONFlushed(w, http.StatusOK, response)
+	if result.Resolved {
+		h.afterResponse(r, func(ctx context.Context) { h.notifier.TurnStarted(ctx, result.Snapshot) })
+	}
 }
 
 func (h *GamesHandler) viewerIDForGame(ctx context.Context, actor store.Actor, id store.GameID) (models.PlayerID, bool) {

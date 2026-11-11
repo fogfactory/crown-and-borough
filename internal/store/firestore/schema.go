@@ -134,6 +134,18 @@ type profileDocument struct {
 
 	LastSeenVersion  string `firestore:"lastSeenVersion"`
 	HideReleaseNotes bool   `firestore:"hideReleaseNotes"`
+
+	// Notifications is absent from documents written before the email
+	// notifications existed: it decodes to all-off settings.
+	Notifications notificationsDocument `firestore:"notifications"`
+}
+
+type notificationsDocument struct {
+	NewTurn          bool   `firestore:"newTurn"`
+	PrivateMessage   bool   `firestore:"privateMessage"`
+	PublicMessage    bool   `firestore:"publicMessage"`
+	ReduceWhenActive bool   `firestore:"reduceWhenActive"`
+	Language         string `firestore:"language"`
 }
 
 type invitationDocument struct {
