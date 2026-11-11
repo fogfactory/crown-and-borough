@@ -645,6 +645,10 @@ It exists in online games only: it is absent in hotseat.
   piece; you can cancel it while it is being sent.
 - **Independent of orders.** Sending a message submits nothing and does not
   change your submission: your orders remain to be submitted separately.
+- **Email notifications.** In your profile, you can ask for an email at every
+  new turn, for private messages and for the public room. These emails never
+  contain the message: they point you to the game, and only one is sent per
+  game until you have read your messages again.
 
 ---
 

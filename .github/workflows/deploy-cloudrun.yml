@@ -28,6 +28,15 @@ env:
   BUG_APP_ID: ${{ vars.BUG_APP_ID }}
   BUG_APP_INSTALLATION_ID: ${{ vars.BUG_APP_INSTALLATION_ID }}
   BUG_APP_KEY_SECRET: ${{ vars.GCP_BUG_APP_KEY_SECRET }}
+  # Optional SMTP server for the email notifications; the password is a Secret
+  # Manager secret, the rest is not secret. Without SMTP_HOST and SMTP_FROM the
+  # server logs and skips the emails.
+  SMTP_HOST: ${{ vars.SMTP_HOST }}
+  SMTP_PORT: ${{ vars.SMTP_PORT }}
+  SMTP_TLS: ${{ vars.SMTP_TLS }}
+  SMTP_USERNAME: ${{ vars.SMTP_USERNAME }}
+  SMTP_FROM: ${{ vars.SMTP_FROM }}
+  SMTP_PASSWORD_SECRET: ${{ vars.GCP_SMTP_PASSWORD_SECRET }}
   APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
   VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
   VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -67,6 +76,10 @@ jobs:
           done
           if [[ "$VITE_FIREBASE_PROJECT_ID" != "$PROJECT_ID" ]]; then
             echo "::error::VITE_FIREBASE_PROJECT_ID must match GCP_PROJECT_ID"
+            exit 1
+          fi
+          if [[ -n "$SMTP_HOST" && -n "$SMTP_FROM" && -n "$SMTP_USERNAME" && -z "$SMTP_PASSWORD_SECRET" ]]; then
+            echo "::error::SMTP_USERNAME is set without GCP_SMTP_PASSWORD_SECRET"
             exit 1
           fi
           if [[ -n "$PUBLIC_APP_URL" && "$PUBLIC_APP_URL" != https://* ]]; then
@@ -223,10 +236,30 @@ jobs:
               traffic_flags=(--no-traffic --tag smoke)
             fi
             local secret_flags=()
+            local secrets=""
             local bug_env=""
+            local smtp_env=""
             if [[ -n "$BUG_APP_ID" && -n "$BUG_APP_INSTALLATION_ID" && -n "$BUG_APP_KEY_SECRET" ]]; then
-              secret_flags=(--update-secrets "GITHUB_BUG_APP_PRIVATE_KEY=$BUG_APP_KEY_SECRET:latest")
+              secrets="GITHUB_BUG_APP_PRIVATE_KEY=$BUG_APP_KEY_SECRET:latest"
               bug_env=",GITHUB_BUG_APP_ID=$BUG_APP_ID,GITHUB_BUG_APP_INSTALLATION_ID=$BUG_APP_INSTALLATION_ID"
+            fi
+            if [[ -n "$SMTP_HOST" && -n "$SMTP_FROM" ]]; then
+              # Values are comma-separated by gcloud: use a custom delimiter so a
+              # sender such as "Name <a@b.c>" cannot break the list.
+              smtp_env="|SMTP_HOST=$SMTP_HOST|SMTP_FROM=$SMTP_FROM"
+              [[ -z "$SMTP_PORT" ]] || smtp_env+="|SMTP_PORT=$SMTP_PORT"
+              [[ -z "$SMTP_TLS" ]] || smtp_env+="|SMTP_TLS=$SMTP_TLS"
+              [[ -z "$SMTP_USERNAME" ]] || smtp_env+="|SMTP_USERNAME=$SMTP_USERNAME"
+              if [[ -n "$SMTP_PASSWORD_SECRET" ]]; then
+                secrets="${secrets:+$secrets,}SMTP_PASSWORD=$SMTP_PASSWORD_SECRET:latest"
+              fi
+            fi
+            # The list is complete: a secret that is no longer configured is
+            # unmounted, like the variables of --set-env-vars.
+            if [[ -n "$secrets" ]]; then
+              secret_flags=(--set-secrets "$secrets")
+            else
+              secret_flags=(--clear-secrets)
             fi
             gcloud run deploy "$CLOUD_RUN_SERVICE" \
               --image "$IMAGE" \
@@ -243,7 +276,7 @@ jobs:
               --port 8080 \
               "${traffic_flags[@]}" \
               "${secret_flags[@]}" \
-              --set-env-vars "ASSETS_DIR=/assets,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_PROJECT_ID=$PROJECT_ID,ONLINE_DEV_MODE=false,PUBLIC_APP_URL=$app_url$bug_env" \
+              --set-env-vars "^|^ASSETS_DIR=/assets|GOOGLE_CLOUD_PROJECT=$PROJECT_ID|FIREBASE_PROJECT_ID=$PROJECT_ID|ONLINE_DEV_MODE=false|PUBLIC_APP_URL=$app_url${bug_env//,/|}$smtp_env" \
               --quiet
           }
 

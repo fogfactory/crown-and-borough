@@ -165,25 +165,26 @@ func NewChatService(games GameStore, backend ChatBackend) *ChatService {
 // SetClock replaces the clock; for tests.
 func (c *ChatService) SetClock(now func() time.Time) { c.now = now }
 
-// Post validates and stores a message written by actor's house.
-func (c *ChatService) Post(ctx context.Context, actor Actor, id GameID, request ChatPostRequest) (ChatMessage, error) {
+// Post validates and stores a message written by actor's house. The result
+// also names who the message concerns, for the notifications.
+func (c *ChatService) Post(ctx context.Context, actor Actor, id GameID, request ChatPostRequest) (ChatPostResult, error) {
 	snapshot, house, err := c.houseOf(ctx, actor, id, true)
 	if err != nil {
-		return ChatMessage{}, err
+		return ChatPostResult{}, err
 	}
 	body := request.Body
 	if strings.TrimSpace(body) == "" {
-		return ChatMessage{}, ErrChatEmptyBody
+		return ChatPostResult{}, ErrChatEmptyBody
 	}
 	if utf8.RuneCountInString(body) > ChatMaxBodyRunes {
-		return ChatMessage{}, ErrChatBodyTooLong
+		return ChatPostResult{}, ErrChatBodyTooLong
 	}
 	if err := validateChatBatch(request); err != nil {
-		return ChatMessage{}, err
+		return ChatPostResult{}, err
 	}
 	channel, participants, err := c.resolveRecipient(ctx, snapshot, id, house, request.Channel)
 	if err != nil {
-		return ChatMessage{}, err
+		return ChatPostResult{}, err
 	}
 	// Firestore keeps microseconds: stamp what will be stored.
 	at := c.now().UTC().Truncate(time.Microsecond)
@@ -201,7 +202,40 @@ func (c *ChatService) Post(ctx context.Context, actor Actor, id GameID, request 
 		Part:    request.Part,
 		Parts:   request.Parts,
 	}
-	return c.backend.AppendChatMessage(ctx, id, actor.ID, message, participants, ChatMinInterval)
+	stored, err := c.backend.AppendChatMessage(ctx, id, actor.ID, message, participants, ChatMinInterval)
+	if err != nil {
+		return ChatPostResult{}, err
+	}
+	return ChatPostResult{
+		Message:       stored,
+		GameID:        id,
+		GameName:      snapshot.Name,
+		RecipientUIDs: chatRecipientUIDs(snapshot, house, channel, participants, actor.ID),
+	}, nil
+}
+
+// chatRecipientUIDs lists the accounts a message concerns: the other
+// participant of a private conversation, or every other house for the public
+// room. The author and the observer are left out.
+func chatRecipientUIDs(snapshot GameSnapshot, author models.PlayerID, channel string, participants []string, authorUID string) []string {
+	var uids []string
+	add := func(uid string) {
+		if IsAssignedActor(strings.TrimSpace(uid)) && uid != authorUID && !slices.Contains(uids, uid) {
+			uids = append(uids, uid)
+		}
+	}
+	if channel != ChatPublicChannel {
+		for _, uid := range participants {
+			add(uid)
+		}
+		return uids
+	}
+	for _, slot := range snapshot.Players {
+		if slot.ID != author {
+			add(slot.ActorID)
+		}
+	}
+	return uids
 }
 
 // MarkRead moves the actor's read cursor of a channel to now.

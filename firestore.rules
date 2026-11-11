@@ -74,6 +74,12 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Email notification state (last message email per player): backend
+      // only.
+      match /notify_state/{uid} {
+        allow read, write: if false;
+      }
+
       match /canonical/{document} {
         allow read, write: if false;
       }
@@ -87,6 +93,12 @@ service cloud.firestore {
       match /reports/{turn} {
         allow read, write: if false;
       }
+    }
+
+    // Last authenticated API request of each player, for the email
+    // notifications: backend only.
+    match /player_activity/{uid} {
+      allow read, write: if false;
     }
 
     match /invitations/{codeHash} {

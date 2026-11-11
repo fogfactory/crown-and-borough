@@ -38,6 +38,32 @@ stockage Firestore et ses règles de lecture dans [`online.md`](online.md).
 Les messages sont ordonnés par `createdAt` puis par identifiant. La limite est
 d'un message par seconde et par joueur (`429 rate_limited`).
 
+## Notifications par email
+
+Un joueur peut recevoir un email pour un message (voir
+[`online.md`](online.md) pour le stockage, l'envoi et la définition d'un joueur
+actif). Deux réglages de profil, désactivés par défaut, couvrent les messages :
+
+- **Messages privés** : l'email part vers l'autre maison de la conversation ;
+- **Salon public** : l'email part vers toutes les maisons sauf l'auteur.
+
+L'observateur ne reçoit rien. L'option « réduire les notifications » supprime
+l'email d'un joueur actif au moment du message.
+
+- **Un email par lecture.** Après un email de message pour une partie, aucun
+  autre n'est envoyé au joueur pour cette partie, privé ou public, tant qu'un
+  de ses curseurs de lecture (`chat_reads/{uid}`) n'a pas un `lastReadAt`
+  postérieur à cet email. La vérification et l'enregistrement de l'heure
+  (`messageEmailAt`) sont atomiques, si bien que des messages simultanés
+  n'envoient qu'un email, et un texte long découpé en huit morceaux n'en
+  envoie qu'un. Un email supprimé par l'option « réduire », un email dont
+  l'envoi échoue et un email ignoré faute de serveur SMTP ne consomment rien.
+  Le résultat est gardé une minute en mémoire (voir [`online.md`](online.md)) :
+  un message reçu dans la minute qui suit une lecture peut ne pas déclencher
+  d'email.
+- **Aucun contenu.** L'email ne contient ni le texte du message, ni sa maison
+  auteure : il indique le nom de la partie, renvoie vers elle et vers le profil.
+
 ## Panneau de chat
 
 Le panneau est un onglet « Messages » du tiroir de la partie online (même
@@ -123,3 +149,5 @@ Le découpage, les séparateurs, le calcul des non-lus et l'envoi séquentiel
 `web/src/lib/chat.test.ts` ; le panneau l'est dans
 `web/src/components/ChatPanel.test.tsx`. Les règles Firestore et le backend
 ont leurs propres tests (`firestore.rules.test.ts`, `internal/api/chat_test.go`).
+Les notifications sont testées dans `internal/notify` (décision d'envoi,
+notifier avec un mailer factice, anti-spam) et `internal/api/notifications_test.go`.

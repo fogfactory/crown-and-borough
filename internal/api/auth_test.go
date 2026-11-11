@@ -196,8 +196,54 @@ func TestProfileContractKeys(t *testing.T) {
 	want := map[string]any{
 		"uid": "alice-uid", "email": "alice@example.com", "displayName": "",
 		"lastSeenVersion": "", "hideReleaseNotes": false,
+		"notifications": map[string]any{
+			"newTurn": false, "privateMessage": false, "publicMessage": false,
+			"reduceWhenActive": false, "language": "",
+		},
 	}
 	if !reflect.DeepEqual(decoded.Player, want) {
 		t.Fatalf("profile contract = %#v, want %#v", decoded.Player, want)
+	}
+}
+
+func TestNotificationsPreferencesUpdate(t *testing.T) {
+	mux := newReleaseNotesTestMux(t)
+	const path = "/api/auth/me/notifications"
+
+	if response := requestAuthenticated(t, mux, http.MethodPut, path, `{"newTurn":true}`, ""); response.Code != http.StatusUnauthorized {
+		t.Fatalf("without bearer = %d", response.Code)
+	}
+	if response := requestAuthenticated(t, mux, http.MethodGet, path, "", "alice-token"); response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET = %d", response.Code)
+	}
+	for _, body := range []string{`{}`, `{"language":"de"}`, `{"newTurn":"yes"}`, `{"unknown":1}`, `not json`} {
+		if response := requestAuthenticated(t, mux, http.MethodPut, path, body, "alice-token"); response.Code != http.StatusBadRequest {
+			t.Fatalf("body %q = %d: %s", body, response.Code, response.Body.String())
+		}
+	}
+
+	var decoded profileResponse
+	response := requestAuthenticated(t, mux, http.MethodPut, path, `{"newTurn":true,"privateMessage":true,"language":"EN"}`, "alice-token")
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil || response.Code != http.StatusOK {
+		t.Fatalf("update = %d: %s", response.Code, response.Body.String())
+	}
+	want := store.NotificationPreferences{NewTurn: true, PrivateMessage: true, Language: "en"}
+	if decoded.Player.Notifications != want {
+		t.Fatalf("after update: %+v", decoded.Player.Notifications)
+	}
+
+	// A partial update keeps the other settings.
+	response = requestAuthenticated(t, mux, http.MethodPut, path, `{"publicMessage":true,"newTurn":false}`, "alice-token")
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil || response.Code != http.StatusOK {
+		t.Fatalf("partial update = %d: %s", response.Code, response.Body.String())
+	}
+	want = store.NotificationPreferences{PrivateMessage: true, PublicMessage: true, Language: "en"}
+	if decoded.Player.Notifications != want {
+		t.Fatalf("after partial update: %+v", decoded.Player.Notifications)
+	}
+
+	response = requestAuthenticated(t, mux, http.MethodGet, "/api/auth/me", "", "alice-token")
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil || decoded.Player.Notifications != want {
+		t.Fatalf("GET /me does not expose the settings: %s", response.Body.String())
 	}
 }

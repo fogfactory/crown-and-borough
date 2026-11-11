@@ -124,6 +124,26 @@ func FirebaseActorResolver(verifier auth.Verifier) ActorResolver {
 	})
 }
 
+// ActivityRecorder remembers that a player just used the API.
+type ActivityRecorder interface {
+	Touch(ctx context.Context, uid string)
+}
+
+// WithActivity records every successfully authenticated request in recorder.
+// The recorder never fails the request.
+func WithActivity(resolve ActorResolver, recorder ActivityRecorder) ActorResolver {
+	if resolve == nil || recorder == nil {
+		return resolve
+	}
+	return func(r *http.Request) (store.Actor, error) {
+		actor, err := resolve(r)
+		if err == nil && strings.TrimSpace(actor.ID) != "" {
+			recorder.Touch(r.Context(), actor.ID)
+		}
+		return actor, err
+	}
+}
+
 func writeActorError(w http.ResponseWriter, err error) {
 	if errors.Is(err, ErrUnauthorized) {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "an authenticated actor is required")

@@ -73,6 +73,10 @@ suite('Firestore security rules', () => {
         channels: {},
       })
       await setDoc(doc(db, 'games/game-1/chat_state/alice'), { lastSentAt: new Date() })
+      await setDoc(doc(db, 'games/game-1/notify_state/alice'), {
+        messageEmailAt: new Date(),
+      })
+      await setDoc(doc(db, 'player_activity/alice'), { lastActiveAt: new Date() })
       await setDoc(doc(db, 'players/alice'), { uid: 'alice', displayName: 'Alice' })
       await setDoc(doc(db, 'games/game-1/views/alice'), { uid: 'alice', revision: 1 })
       await setDoc(doc(db, 'games/game-1/views/bob'), { uid: 'bob', revision: 1 })
@@ -219,6 +223,20 @@ suite('Firestore security rules', () => {
     await assertFails(getDoc(doc(alice, 'games/game-1/chat_state/alice')))
     await assertFails(
       setDoc(doc(alice, 'games/game-1/chat_state/alice'), { lastSentAt: new Date(0) }),
+    )
+  })
+
+  it('keeps the email notification state backend-only', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    await assertFails(getDoc(doc(alice, 'games/game-1/notify_state/alice')))
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/notify_state/alice'), {
+        messageEmailAt: new Date(0),
+      }),
+    )
+    await assertFails(getDoc(doc(alice, 'player_activity/alice')))
+    await assertFails(
+      setDoc(doc(alice, 'player_activity/alice'), { lastActiveAt: new Date() }),
     )
   })
 

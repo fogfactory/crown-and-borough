@@ -58,6 +58,7 @@ function Probe() {
     completeSignIn,
     getIdToken,
     updateReleaseNotes,
+    updateNotifications,
   } = useAuth()
   return (
     <div>
@@ -82,6 +83,15 @@ function Probe() {
         onClick={() => void updateReleaseNotes({ lastSeenVersion: '1.2.0' })}
       >
         seen
+      </button>
+      <output data-testid="new-turn">
+        {String(profile?.notifications?.newTurn ?? 'absent')}
+      </output>
+      <button
+        type="button"
+        onClick={() => void updateNotifications({ newTurn: true, language: 'fr' })}
+      >
+        notify
       </button>
       <button type="button" onClick={() => void getIdToken()}>
         token
@@ -153,6 +163,46 @@ describe('Firebase auth provider', () => {
     const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
     expect(String(call?.[0])).toBe('/api/auth/me/release-notes')
     expect(call?.[1]?.body).toBe(JSON.stringify({ lastSeenVersion: '1.2.0' }))
+  })
+
+  it('saves notification settings through the authenticated API', async () => {
+    const player = { uid: 'alice-uid', email: 'alice@example.test', displayName: 'Alice' }
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body =
+        init?.method === 'PUT'
+          ? {
+              ...player,
+              notifications: {
+                newTurn: true,
+                privateMessage: false,
+                publicMessage: false,
+                reduceWhenActive: false,
+                language: 'fr',
+              },
+            }
+          : player
+      return new Response(JSON.stringify({ player: body }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(authHarness.stateListener).not.toBeNull())
+    act(() => authHarness.stateListener?.(authHarness.user))
+    await waitFor(() => expect(screen.getByTestId('profile')).toHaveTextContent('Alice'))
+    // A profile without the field is tolerated.
+    expect(screen.getByTestId('new-turn')).toHaveTextContent('absent')
+
+    fireEvent.click(screen.getByRole('button', { name: 'notify' }))
+    await waitFor(() => expect(screen.getByTestId('new-turn')).toHaveTextContent('true'))
+    const call = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(String(call?.[0])).toBe('/api/auth/me/notifications')
+    expect(call?.[1]?.body).toBe(JSON.stringify({ newTurn: true, language: 'fr' }))
   })
 
   it('sends and completes an email link without storing an ID token', async () => {

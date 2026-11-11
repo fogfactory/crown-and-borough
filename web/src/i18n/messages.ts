@@ -1289,6 +1289,27 @@ const englishMessages = {
   'profile.hideReleaseNotesDescription':
     'Do not show the list of changes when a new version is deployed.',
   'profile.hideReleaseNotesFailed': 'Could not save the release notes preference.',
+  'profile.notifications.title': 'Email notifications',
+  'profile.notifications.description':
+    'Emails never contain a message or an order: they only point you to the game.',
+  'profile.notifications.newTurn': 'New turn',
+  'profile.notifications.newTurnDescription':
+    'An email when a new turn starts in one of your games.',
+  'profile.notifications.privateMessage': 'Private messages',
+  'profile.notifications.privateMessageDescription':
+    'An email when your house receives a private message.',
+  'profile.notifications.publicMessage': 'Public room',
+  'profile.notifications.publicMessageDescription':
+    'An email when another house writes in the public room of one of your games.',
+  'profile.notifications.messageLimit':
+    'Message emails: one per game until you read your messages again.',
+  'profile.notifications.reduceWhenActive': 'Reduce notifications',
+  'profile.notifications.reduceWhenActiveDescription':
+    'No email when you were active in the game in the last five minutes.',
+  'profile.notifications.reduceWhenActiveHint':
+    'Turn on at least one notification above to use this option.',
+  'profile.notifications.language': 'Language of the emails',
+  'profile.notifications.failed': 'Could not save the notification settings.',
   'releaseNotes.title': 'What is new',
   'releaseNotes.close': 'Close',
   'releaseNotes.allReleases': 'All releases on GitHub',
@@ -2796,6 +2817,27 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Ne pas afficher la liste des changements quand une nouvelle version est déployée.',
   'profile.hideReleaseNotesFailed':
     'Impossible d’enregistrer la préférence des notes de version.',
+  'profile.notifications.title': 'Notifications par email',
+  'profile.notifications.description':
+    'Les emails ne contiennent jamais de message ni d’ordre : ils vous renvoient seulement vers la partie.',
+  'profile.notifications.newTurn': 'Nouveau tour',
+  'profile.notifications.newTurnDescription':
+    'Un email quand un nouveau tour commence dans l’une de vos parties.',
+  'profile.notifications.privateMessage': 'Messages privés',
+  'profile.notifications.privateMessageDescription':
+    'Un email quand votre maison reçoit un message privé.',
+  'profile.notifications.publicMessage': 'Salon public',
+  'profile.notifications.publicMessageDescription':
+    'Un email quand une autre maison écrit dans le salon public de l’une de vos parties.',
+  'profile.notifications.messageLimit':
+    'Emails de messages : un seul par partie tant que vous n’avez pas relu vos messages.',
+  'profile.notifications.reduceWhenActive': 'Réduire les notifications',
+  'profile.notifications.reduceWhenActiveDescription':
+    'Pas d’email si vous avez été actif dans la partie au cours des cinq dernières minutes.',
+  'profile.notifications.reduceWhenActiveHint':
+    'Activez au moins une notification ci-dessus pour utiliser cette option.',
+  'profile.notifications.language': 'Langue des emails',
+  'profile.notifications.failed': 'Impossible d’enregistrer les notifications.',
   'releaseNotes.title': 'Nouveautés',
   'releaseNotes.close': 'Fermer',
   'releaseNotes.allReleases': 'Toutes les versions sur GitHub',
