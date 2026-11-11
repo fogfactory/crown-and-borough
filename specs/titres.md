@@ -215,6 +215,7 @@ changent qu'à l'implémentation, avec le texte final sans comparaison.
 | Une armée avec un noble libre s'arrête sur la capitale | Idem (le noble est sans effet) | Le fief passe au conquérant ; le noble devient titulaire **usurpateur** ; l'ancien titulaire vivant devient **exilé** |
 | Le titulaire meurt, un Claim vise son titre, capitale sans armée ou avec une armée sans noble | L'héritier prend le titre | Inchangé ; la capitale reste occupée dans le second cas |
 | Le titulaire meurt, un Claim vise son titre, capitale avec une armée et un noble libre (garnison de l'ancien propriétaire comprise) | L'héritier prend le titre ; une armée déjà en place reprend le fief au contrôle suivant | Le noble devient usurpateur et le fief passe à son propriétaire ; l'héritier reçoit le titre exilé |
+| Un fief vacant est conquis | Le fief passe au conquérant, vacant | Idem : ni usurpateur ni exilé |
 | Le joueur dépossédé reprend la capitale | Capture ordinaire, fief vacant | Restauration du titre exilé |
 | Mort de l'usurpateur ou de l'exilé | Sans objet | Usurpateur mort : l'exilé retrouve le titre. Exilé mort : l'usurpateur devient officiel, sauf Claim sur l'exilé |
 | Claim sur un fief usurpé | Sans objet | Sans effet sur l'usurpateur ; sur l'exilé, l'héritier devient le nouvel exilé à sa mort |
@@ -226,11 +227,12 @@ changent qu'à l'implémentation, avec le texte final sans comparaison.
 portant sur la case au moins un **noble libre** de son propriétaire (un otage
 ou un prisonnier porté par l'armée ne compte pas), évaluée à la mise à jour
 du contrôle territorial. Le fief passe tout entier, avec ses territoires, au
-conquérant (contrôle transitif, voir « Contrôle et occupation »). Le premier
-noble libre de l'armée, dans l'ordre de la ligne de succession du joueur,
-devient titulaire du fief avec le statut **usurpateur** ; l'ancien titulaire
-vivant, s'il existe, reçoit le statut **exilé**. Un fief vacant conquis n'a
-pas d'exilé. Un noble seul, sans armée, ne conquiert rien. Les armées sans
+conquérant (contrôle transitif, voir « Contrôle et occupation »). Si le fief a un
+titulaire, le premier noble libre de l'armée, dans l'ordre de la ligne de
+succession du joueur, devient titulaire avec le statut **usurpateur** et
+l'ancien titulaire reçoit le statut **exilé**. Il faut un titulaire légitime
+pour qu'il y ait usurpation : un fief **vacant** conquis passe au conquérant
+sans usurpateur ni exilé et reste vacant (`T A` permet de l'attribuer). Un noble seul, sans armée, ne conquiert rien. Les armées sans
 noble occupent la capitale avec les conséquences déjà décrites pour un membre
 de fief occupé (revenu du fief inchangé, case ni source de ravitaillement ni
 dépôt, investissements refusés). La capitale d'un joueur hors fief reste
@@ -287,6 +289,9 @@ armée sans noble, l'héritier prend le titre.
 
 ### À trancher à l'implémentation
 
+- Conquête d'un fief vacant : aucun titre n'est en jeu. Faut-il quand même un
+  noble dans l'armée ? Le texte l'exige, comme pour tout fief, tant que ce
+  point n'est pas tranché.
 - Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
   la ligne de succession du joueur est proposée.
 - Codes des ordres de renonciation : `T C HHH` (Claim porté par l'héritier
