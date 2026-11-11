@@ -218,7 +218,7 @@ changent qu'à l'implémentation, avec le texte final sans comparaison.
 | Le joueur dépossédé reprend la capitale | Capture ordinaire, fief vacant | Restauration du titre exilé |
 | Mort de l'usurpateur ou de l'exilé | Sans objet | Usurpateur mort : l'exilé retrouve le titre. Exilé mort : l'usurpateur devient officiel, sauf Claim sur l'exilé |
 | Claim sur un fief usurpé | Sans objet | Sans effet sur l'usurpateur ; sur l'exilé, l'héritier devient le nouvel exilé à sa mort |
-| Renoncer à un Claim ou à un titre exilé | Aucun ordre | Ordres d'hiver gratuits |
+| Renoncer à un Claim, à un titre exilé ou à un titre usurpé | Aucun ordre | Ordres d'hiver gratuits |
 
 ### Règles proposées
 
@@ -258,9 +258,10 @@ usurpé : un Claim sur l'usurpateur est sans effet sur ce fief, dont la mort
 rend le titre à l'exilé. Un Claim sur le titre **exilé** s'applique : à la mort
 de l'exilé, l'héritier du premier Claim vivant (classement habituel) devient le
 nouvel exilé, et l'usurpateur reste usurpateur. Il n'y a pas de Claim vivant
-sur l'exilé : l'usurpateur devient officiel. Le nouvel exilé appartient au
-joueur de l'héritier ; sa restauration suit les règles de « Restauration par la
-reprise de la capitale » et de « Durée de l'usurpation ». Les Claims qui visent
+sur l'exilé : l'usurpateur devient officiel. Le nouvel exilé peut appartenir à
+n'importe quel joueur, y compris celui de l'usurpateur ; sa restauration suit
+les règles de « Restauration par la reprise de la capitale » et de « Durée de
+l'usurpation », le fief revenant au propriétaire du noble exilé. Les Claims qui visent
 ces nobles restent valables pour leurs autres fiefs.
 
 **Usurpé puis conquis.** Si un troisième joueur conquiert un fief déjà
@@ -279,15 +280,19 @@ armée sans noble, l'héritier prend le titre.
   nouveau avec une autre carte ;
 - à un titre exilé : le propriétaire du noble exilé abandonne son titre,
   l'usurpateur devient titulaire officiel et plus aucune restauration n'est
-  possible.
+  possible ;
+- à un titre usurpé : le propriétaire de l'usurpateur le rend, le titre
+  retourne à l'exilé et le fief à son propriétaire, comme à la mort de
+  l'usurpateur.
 
 ### À trancher à l'implémentation
 
 - Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
   la ligne de succession du joueur est proposée.
 - Codes des ordres de renonciation : `C R HHH` (Claim porté par l'héritier
-  `HHH`) et `C E NNN` (titre exilé du noble `NNN`) sont proposés, `C R` et `C E`
-  étant libres ; cartes de prétention rendues à la défausse.
+  `HHH`), `C E NNN` (titre exilé du noble `NNN`) et `C U NNN` (titre usurpé du
+  noble `NNN`) sont proposés ; carte de prétention rendue à la défausse pour un
+  Claim. À vérifier : disponibilité des trois codes dans le parseur d'ordres.
 - Restauration par la reprise de la capitale pour une usurpation issue d'un
   Claim : la question posée est restée « sans objet » ; le texte ci-dessus
   l'applique aux deux origines tant que ce point n'est pas tranché.
