@@ -90,7 +90,7 @@ alliance:
 # the title, independent of the purchase cap). The pope excommunicates
 # at most excommunications_per_winter nobles per winter, and a rival player has
 # at most excommunications_per_target_player excommunicated nobles at a time.
-# votes are the voices per territory held (seat: the seat of a bishopric in its
+# votes are the voices per village or castle held (seat: the seat of a bishopric in its
 # own bishop election), per highest religious title of a noble and for the
 # abbey of an abbess in the bishop election of its bishopric (abbess).
 religion:
