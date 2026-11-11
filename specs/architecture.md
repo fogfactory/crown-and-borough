@@ -524,9 +524,12 @@ l'écriture. Seule la carte, stockée en chaîne JSON (`mapJson`) dans le docume
 canonique, garde ses polygones en tableaux de points.
 Les listeners remplacent le polling régulier ; les routes REST restent la
 source des commandes, des rapports et le fallback d'initialisation ou de
-reconnexion. Un hôte observateur est aussi ajouté à `memberUids` pour pouvoir
-écouter le résumé public et le document observateur, mais il n'est jamais
-compté parmi les deux à huit joueurs.
+reconnexion. Seule exception : si le listener de la liste « Vos parties »
+échoue, la page interroge `GET /api/games` toutes les 30 secondes tant
+qu'elle est visible et affiche une notice d'information discrète. Un hôte
+observateur est aussi ajouté à `memberUids` pour pouvoir écouter le résumé
+public et le document observateur, mais il n'est jamais compté parmi les deux
+à huit joueurs.
 
 ## 6. Moteur et résolution
 
