@@ -28,7 +28,7 @@ var demoScenarios = map[string]struct {
 		apply:       forgeWinter,
 	},
 	"election": {
-		description: "winter (see the winter scenario), plus a vacant bishopric whose every territory is held by P1 or P2 (armies), with a free man of each player to run: a bishop election opens",
+		description: "winter (see the winter scenario), plus a vacant bishopric whose every village and castle is held by P1 or P2 (armies; bare territories stay neutral), with a free man of each player to run: a bishop election opens",
 		apply:       forgeElection,
 	},
 	"king": {
@@ -237,7 +237,7 @@ func forgeWinter(state *models.GameState) error {
 }
 
 // forgeElection opens a bishop election: the first region without bishop and
-// without any army has each of its territories occupied by a one-troop army of
+// without any army has each of its villages and castles occupied by a one-troop army of
 // P1 or P2 (alternating, unless a player already controls it), and a free man
 // of each player is added to run. The orders to try: `K E <noble> <seat>` to
 // file a candidacy, `V E <noble> <seat>` to vote.
@@ -270,7 +270,19 @@ func forgeElection(state *models.GameState) error {
 		return fmt.Errorf("no vacant region free of armies")
 	}
 	players := []models.PlayerID{"P1", "P2"}
+	settlements := make(map[models.TerritoryID]bool)
+	for _, infrastructure := range state.Infrastructures {
+		if infrastructure.IsSettlement() {
+			settlements[infrastructure.TerritoryID] = true
+		}
+	}
+	bare := 0
 	for index, id := range region.Territories {
+		if !settlements[id] {
+			// Bare territories stay neutral: only villages and castles open the election.
+			bare++
+			continue
+		}
 		if _, controlled := state.TerritoryController(id); controlled {
 			continue
 		}
@@ -288,7 +300,7 @@ func forgeElection(state *models.GameState) error {
 			Status: models.NobleStatusFree,
 		})
 	}
-	fmt.Printf("demo election: bishopric %s (seat %s) is vacant and fully held; candidates ZEL (P1) and ZEM (P2)\n", region.ID, region.Seed)
+	fmt.Printf("demo election: bishopric %s (seat %s) is vacant, every village and castle is held (%d bare territories left neutral); candidates ZEL (P1) and ZEM (P2)\n", region.ID, region.Seed, bare)
 	return nil
 }
 

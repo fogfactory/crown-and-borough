@@ -69,6 +69,10 @@ type election struct {
 	key electionKey
 	// seat is the seed village the orders name (bishop elections only).
 	seat models.TerritoryID
+	// places are the villages and castles of the bishopric when the winter
+	// begins (bishop elections only): a village founded during the winter gives
+	// no voice, so the count matches the forecast.
+	places []models.TerritoryID
 	// absolute asks for strictly more than half of denominator voices; a
 	// relative majority only asks for the highest total.
 	absolute    bool
@@ -134,7 +138,7 @@ type pendingTitle struct {
 }
 
 // openWinterElections computes the registry of the elections open when the
-// winter begins: a bishopric without bishop whose every territory is
+// winter begins: a bishopric without bishop whose every village and castle is
 // controlled or occupied, and the conclave when the throne is vacant and at
 // least two cardinals hold their title. Bishoprics come by region identifier,
 // the conclave, then the throne.
@@ -146,12 +150,14 @@ func (ctx *resolutionContext) openWinterElections() {
 		if _, hasBishop := ctx.state.BishopOf(region.ID); hasBishop {
 			continue
 		}
-		if !ctx.bishopricFullyHeld(region) {
+		places := ctx.inhabitedPlaces(region)
+		if !ctx.allHeld(places) {
 			continue
 		}
 		ctx.elections = append(ctx.elections, &election{
 			key:      electionKey{kind: models.ElectionBishop, region: region.ID},
 			seat:     region.Seed,
+			places:   places,
 			eligible: ctx.bishopCandidateRejection,
 			filed:    map[models.PlayerID]bool{},
 			voted:    map[models.PlayerID]bool{},
@@ -187,13 +193,26 @@ func (ctx *resolutionContext) openWinterElections() {
 	}
 }
 
-// bishopricFullyHeld reports whether every territory of the bishopric is
-// controlled or occupied by a player when the winter begins.
-func (ctx *resolutionContext) bishopricFullyHeld(region models.Region) bool {
-	if len(region.Territories) == 0 {
+// inhabitedPlaces lists the villages and castles of the bishopric, ruined or
+// not: the places that open its election and give its territorial voices.
+func (ctx *resolutionContext) inhabitedPlaces(region models.Region) []models.TerritoryID {
+	var places []models.TerritoryID
+	for _, territoryID := range region.Territories {
+		if infrastructure := ctx.infrastructureAt(territoryID); infrastructure != nil && infrastructure.IsSettlement() {
+			places = append(places, territoryID)
+		}
+	}
+	return places
+}
+
+// allHeld reports whether every one of the places is controlled or occupied by
+// a player when the winter begins. No place at all never counts as held: a
+// bishopric without any village or castle does not open.
+func (ctx *resolutionContext) allHeld(places []models.TerritoryID) bool {
+	if len(places) == 0 {
 		return false
 	}
-	for _, territoryID := range region.Territories {
+	for _, territoryID := range places {
 		if _, held := ctx.controllerAtStart(territoryID); !held {
 			return false
 		}
@@ -378,21 +397,16 @@ func (ctx *resolutionContext) electionVoiceSources(open *election) map[models.Pl
 		return sources
 	}
 	weights := ctx.balance.Religion.Votes
-	for _, region := range ctx.state.Regions {
-		if region.ID != open.key.region {
+	for _, territoryID := range open.places {
+		controller, held := ctx.controllerAtStart(territoryID)
+		if !held {
 			continue
 		}
-		for _, territoryID := range region.Territories {
-			controller, held := ctx.controllerAtStart(territoryID)
-			if !held {
-				continue
-			}
-			source := VoiceSource{Kind: "territory", Territory: territoryID, Votes: weights.Territory}
-			if territoryID == region.Seed {
-				source.Kind, source.Votes = "seat", weights.Seat
-			}
-			sources[controller] = append(sources[controller], source)
+		source := VoiceSource{Kind: "territory", Territory: territoryID, Votes: weights.Territory}
+		if territoryID == open.seat {
+			source.Kind, source.Votes = "seat", weights.Seat
 		}
+		sources[controller] = append(sources[controller], source)
 	}
 	for _, noble := range ctx.state.Nobles {
 		titleSource(noble, weights.TitleVotes(ctx.state.VotingReligiousTitle(noble.ID)))

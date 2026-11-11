@@ -467,11 +467,11 @@ pouvoirs.
 ### Évêques
 
 Un évêché sans évêque ouvre une élection en hiver dès que **chacun de ses
-territoires** est tenu par un joueur.
+villages et châteaux** est tenu par un joueur.
 
 - **Candidature** : `K E NNN BBB`, où `BBB` est le chef-lieu de l'évêché. Le
   candidat est un homme libre, célibataire, non excommunié.
-- **Vote** : `V E NNN BBB`. Ton joueur pèse 1 voix par territoire tenu dans
+- **Vote** : `V E NNN BBB`. Ton joueur pèse 1 voix par village ou château tenu dans
   l'évêché (2 pour le chef-lieu), plus 1 par évêque, 2 par cardinal, 3 pour
   le pape et 1 par abbesse de cet évêché.
 - Le mieux placé l'emporte, s'il est seul en tête. Sinon, le siège reste
