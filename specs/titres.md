@@ -289,8 +289,8 @@ armée sans noble, l'héritier prend le titre.
 
 - Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
   la ligne de succession du joueur est proposée.
-- Codes des ordres de renonciation : `C R HHH` (Claim porté par l'héritier
-  `HHH`) et `C T NNN` (titre exilé ou usurpé du noble `NNN`) sont proposés ;
+- Codes des ordres de renonciation : `T C HHH` (Claim porté par l'héritier
+  `HHH`) et `T D NNN` (titre exilé ou usurpé du noble `NNN`) sont proposés ;
   carte de prétention rendue à la défausse pour un Claim. À vérifier :
   disponibilité des deux codes dans le parseur d'ordres.
 - Restauration par la reprise de la capitale pour une usurpation issue d'un
