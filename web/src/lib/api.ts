@@ -19,6 +19,8 @@ export class ApiError extends Error {
 }
 
 interface ErrorPayload {
+  /** The API names the error code `error`. */
+  error?: string
   code?: string
   message?: string
 }
@@ -65,7 +67,7 @@ export async function apiRequest<T>(
     const errorPayload = (payload ?? {}) as ErrorPayload
     throw new ApiError(
       response.status,
-      errorPayload.code ?? 'request_failed',
+      errorPayload.error ?? errorPayload.code ?? 'request_failed',
       errorPayload.message ?? `request failed (${response.status})`,
       payload,
     )

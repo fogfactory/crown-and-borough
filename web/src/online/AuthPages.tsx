@@ -13,17 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/api-error'
 import { useLanguage } from '@/i18n/LanguageContext'
 
 function safeRedirect(value: string | null): string {
   return value?.startsWith('/') ? value : '/'
-}
-
-function errorText(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof Error) return error.message
-  return fallback
 }
 
 export function SignInPage() {
@@ -51,7 +45,7 @@ export function SignInPage() {
       await sendSignInLink(value, redirect)
       setSent(true)
     } catch (submitError) {
-      setError(errorText(submitError, t('error.authRequired')))
+      setError(errorText(submitError, t, t('error.authRequired')))
     } finally {
       setSending(false)
     }
@@ -134,7 +128,7 @@ export function FinishPage() {
           setEmailRequired(true)
           setError(t('auth.emailMissingHint'))
         } else {
-          setError(errorText(signInError, t('auth.invalidLink')))
+          setError(errorText(signInError, t, t('auth.invalidLink')))
         }
       } finally {
         setRetrying(false)
@@ -241,7 +235,7 @@ export function ProfilePage() {
       await updateProfile(displayName.trim())
       navigate(redirect, { replace: true })
     } catch (submitError) {
-      setError(errorText(submitError, t('error.profileRequired')))
+      setError(errorText(submitError, t, t('error.profileRequired')))
     } finally {
       setSaving(false)
     }
@@ -253,7 +247,7 @@ export function ProfilePage() {
     try {
       await updateReleaseNotes({ hideReleaseNotes: hide })
     } catch (toggleError) {
-      setError(errorText(toggleError, t('profile.hideReleaseNotesFailed')))
+      setError(errorText(toggleError, t, t('profile.hideReleaseNotesFailed')))
     } finally {
       setTogglingReleaseNotes(false)
     }

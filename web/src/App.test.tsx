@@ -558,7 +558,7 @@ describe('App command/report tabs', () => {
             remaining: [],
             report: {
               ...resolvedReport,
-              combats: [{ territory: 'ROS', visibility: 'general', summary: '—' }],
+              combats: [{ territory: 'ROS', visibility: 'general' }],
             },
             state,
           }),
