@@ -62,7 +62,8 @@ qu'il voit des autres.
    appartenance régionale sont ceux du début de l'hiver pendant toutes les
    étapes (aucune armée ne bouge). Constituer un fief (`T F`) ne change donc
    jamais les voix territoriales d'un évêché, qui comptent les lieux-dits
-   « contrôlés **ou** occupés ».
+   (villages et châteaux, ruines comprises) « contrôlés **ou** occupés » du
+   début de l'hiver : un village fondé pendant l'hiver ne donne aucune voix.
 6. **Les élections se résolvent l'une après l'autre.** Évêchés par identifiant
    de région croissant, puis conclave, puis trône. Les voix se lisent toutes sur
    l'instantané des titres (principe 3 compris) : un résultat ne change les

@@ -33,8 +33,9 @@ chef-lieu sert de seed à la région.
 Une élection d'évêque est organisée dès que chaque lieu-dit de l'évêché est
 soit **contrôlé** (fief constitué), soit **occupé** (statut positionnel) par
 un joueur — la condition la plus permissive des deux statuts définis dans
-[titres.md](titres.md). Un lieu-dit neutre (village non capturé) bloque le
-déclenchement.
+[titres.md](titres.md). Un lieu-dit neutre (village ou château non capturé)
+bloque le déclenchement. Les ruines restent des lieux-dits. Un évêché sans aucun
+lieu-dit ne s'ouvre jamais.
 
 Tant que cette condition reste vraie, l'élection est **réévaluée à chaque
 hiver** : un évêché sans évêque (jamais élu, ou vacant après une égalité, une
@@ -78,8 +79,8 @@ dignité, prend effet aussitôt.
 Le total de voix d'un joueur dans une élection épiscopale est un cumul global,
 indépendant de la présence locale :
 
-- 1 voix par lieu-dit contrôlé **ou** occupé dans l'évêché concerné, sauf le
-  chef-lieu de l'évêché (le seed de la région), qui vaut 2 voix dans l'élection
+- 1 voix par lieu-dit (village ou château, en ruine ou non) contrôlé **ou**
+  occupé dans l'évêché concerné, sauf le chef-lieu de l'évêché (le seed de la région), qui vaut 2 voix dans l'élection
   de son évêque ;
 - 1 voix par évêque que le joueur possède, où qu'il se trouve ;
 - 2 voix par cardinal que le joueur possède ;

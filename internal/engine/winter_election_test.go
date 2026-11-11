@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -20,6 +21,9 @@ func electionTestState(t *testing.T) *models.GameState {
 	state.Regions = []models.Region{
 		{ID: "R1", Name: "Ros", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}},
 		{ID: "R2", Name: "Woo", Seed: "DDD", Territories: []models.TerritoryID{"DDD"}},
+	}
+	for _, id := range []models.TerritoryID{"AAA", "BBB", "CCC", "DDD"} {
+		addVillageAtLevel(state, models.InfraID("ELV-"+string(id)), id, 1)
 	}
 	addAnchorArmy(t, state, "A1", "P1", "AAA")
 	addAnchorArmy(t, state, "A2", "P1", "BBB")
@@ -130,11 +134,10 @@ func TestElectionTieHasNoWinner(t *testing.T) {
 	}
 }
 
-func TestElectionNotOpenWhenBishopricHasANeutralTerritory(t *testing.T) {
+func TestElectionNotOpenWhenBishopricHasANeutralVillage(t *testing.T) {
 	state := electionTestState(t)
 	state.Armies = append(state.Armies[:2], state.Armies[3:]...)
-	delete(state.TerritoryStates, "CCC")
-	state.TerritoryStates["CCC"] = models.TerritoryState{}
+	state.TerritoryStates["CCC"] = models.TerritoryState{Infrastructures: state.TerritoryStates["CCC"].Infrastructures}
 	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
 		"P1": {candidacy("O1", "HUG", "AAA"), ballot("O2", "HUG", "AAA")},
 	})
@@ -317,5 +320,67 @@ func TestElectedTitleCountsOnlyFromInvestiture(t *testing.T) {
 	// investiture, after every count.
 	if r2.Candidates[0].NobleCode != "OTO" || r2.Candidates[0].Votes != 2 {
 		t.Fatalf("R2 candidates = %#v, want OTO with 2 voices", r2.Candidates)
+	}
+}
+
+func openBishopRegions(t *testing.T, state *models.GameState) []models.RegionID {
+	t.Helper()
+	resolution := resolveElectionSheets(t, state, nil)
+	var regions []models.RegionID
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeElectionOpened && event.Election.Kind == models.ElectionBishop {
+			regions = append(regions, event.Election.Region)
+		}
+	}
+	return regions
+}
+
+func TestBishopElectionIgnoresBareTerritories(t *testing.T) {
+	state := electionTestState(t)
+	// CCC becomes a bare territory nobody holds: only AAA and BBB are inhabited.
+	state.Infrastructures = slices.DeleteFunc(state.Infrastructures, func(i models.Infrastructure) bool { return i.TerritoryID == "CCC" })
+	state.TerritoryStates["CCC"] = models.TerritoryState{}
+	state.Armies = slices.DeleteFunc(state.Armies, func(a models.Army) bool { return a.TerritoryID == "CCC" })
+	if regions := openBishopRegions(t, state); !slices.Contains(regions, "R1") {
+		t.Fatalf("open regions = %v, want R1 despite the bare neutral territory", regions)
+	}
+}
+
+func TestBishopElectionBlockedByNeutralVillage(t *testing.T) {
+	state := electionTestState(t)
+	state.Armies = slices.DeleteFunc(state.Armies, func(a models.Army) bool { return a.TerritoryID == "CCC" })
+	state.TerritoryStates["CCC"] = models.TerritoryState{Infrastructures: state.TerritoryStates["CCC"].Infrastructures}
+	if regions := openBishopRegions(t, state); slices.Contains(regions, "R1") {
+		t.Fatalf("open regions = %v, want R1 blocked by the neutral village", regions)
+	}
+}
+
+func TestBishopElectionWithoutInhabitedPlaceNeverOpens(t *testing.T) {
+	state := electionTestState(t)
+	state.Infrastructures = slices.DeleteFunc(state.Infrastructures, func(i models.Infrastructure) bool { return i.TerritoryID == "DDD" })
+	state.TerritoryStates["DDD"] = models.TerritoryState{Army: state.TerritoryStates["DDD"].Army}
+	if regions := openBishopRegions(t, state); slices.Contains(regions, "R2") {
+		t.Fatalf("open regions = %v, want R2 closed without inhabited place", regions)
+	}
+}
+
+func TestBishopVoicesCountInhabitedPlacesOnly(t *testing.T) {
+	state := electionTestState(t)
+	// BBB loses its village but stays held: a bare territory gives no voice.
+	state.Infrastructures = slices.DeleteFunc(state.Infrastructures, func(i models.Infrastructure) bool { return i.TerritoryID == "BBB" })
+	state.TerritoryStates["BBB"] = models.TerritoryState{Army: state.TerritoryStates["BBB"].Army}
+	// CCC is a ruined village: it still votes.
+	for index := range state.Infrastructures {
+		if state.Infrastructures[index].TerritoryID == "CCC" {
+			state.Infrastructures[index].Level = 0
+			state.Infrastructures[index].Ruined = true
+		}
+	}
+	open := ForecastWinterElections(state, testBalance(), "P1")
+	if len(open) == 0 || open[0].Seat != "AAA" || open[0].Voices != 2 {
+		t.Fatalf("P1 R1 election = %+v, want only the seat (2 voices)", open)
+	}
+	if other := ForecastWinterElections(state, testBalance(), "P2"); other[0].Voices != 1 {
+		t.Fatalf("P2 voices = %d, want 1 for the ruined village", other[0].Voices)
 	}
 }
