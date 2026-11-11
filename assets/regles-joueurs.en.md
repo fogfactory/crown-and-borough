@@ -462,11 +462,11 @@ points, but they bring votes and powers.
 ### Bishops
 
 A bishopric without a bishop opens an election in winter as soon as **each
-of its territories** is held by a player.
+of its villages and castles** is held by a player.
 
 - **Candidacy**: `K E NNN BBB`, where `BBB` is the bishopric's seed village.
   The candidate is a free, unmarried, non-excommunicated man.
-- **Vote**: `V E NNN BBB`. Your player weighs 1 vote per territory held in
+- **Vote**: `V E NNN BBB`. Your player weighs 1 vote per village or castle held in
   the bishopric (2 for the seed village), plus 1 per bishop, 2 per cardinal,
   3 for the pope and 1 per abbess of that bishopric.
 - The best-placed candidate wins, if alone at the top. Otherwise the seat

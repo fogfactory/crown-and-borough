@@ -16,7 +16,6 @@ func cardinalTestState(t *testing.T) *models.GameState {
 	t.Helper()
 	state := electionTestState(t)
 	state.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}, {Region: "R2", Noble: "N4"}}
-	addInfrastructure(state, models.Infrastructure{ID: "VAAA", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "AAA"})
 	territoryState := state.TerritoryStates["AAA"]
 	territoryState.Resources = 20
 	state.TerritoryStates["AAA"] = territoryState
