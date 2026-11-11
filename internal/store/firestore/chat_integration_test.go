@@ -89,3 +89,90 @@ func TestFirestoreChatBackend(t *testing.T) {
 		t.Fatalf("cursors = %#v, %v (a second channel must not erase the first)", reads, err)
 	}
 }
+
+func TestFirestoreNotificationState(t *testing.T) {
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
+	}
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = "crown-and-borough-integration"
+	}
+	ctx := context.Background()
+	client, err := cloudfirestore.NewClient(ctx, projectID)
+	if err != nil {
+		t.Fatalf("create emulator client: %v", err)
+	}
+	defer client.Close()
+	backend := NewWithClient(assetgen.Balance{}, assetgen.Assets{}, Options{Client: client})
+	suffix := time.Now().Format("150405.000000")
+	gameID := store.GameID("notify-" + suffix)
+	uid := "alice-" + suffix
+	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	// Activity.
+	if last, err := backend.LastActivity(ctx, uid); err != nil || !last.IsZero() {
+		t.Fatalf("activity before touch = %v, %v", last, err)
+	}
+	if err := backend.TouchActivity(ctx, uid, base); err != nil {
+		t.Fatalf("touch: %v", err)
+	}
+	if last, err := backend.LastActivity(ctx, uid); err != nil || !last.Equal(base) {
+		t.Fatalf("activity = %v, %v", last, err)
+	}
+
+	// Message email claim: once, then again after a read cursor moves.
+	claim := func(at time.Time) bool {
+		t.Helper()
+		ok, err := backend.ClaimMessageEmail(ctx, gameID, uid, at)
+		if err != nil {
+			t.Fatalf("claim: %v", err)
+		}
+		return ok
+	}
+	if !claim(base) || claim(base.Add(time.Minute)) {
+		t.Fatal("the first claim must win and the second must lose")
+	}
+	if _, err := backend.SetChatReadCursor(ctx, gameID, uid, store.ChatReadCursor{Channel: "public", LastReadAt: base.Add(2 * time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	if !claim(base.Add(3 * time.Minute)) {
+		t.Fatal("a claim after a read must win")
+	}
+}
+
+// A profile written before the email notifications existed has no
+// notifications field: it reads as all off and can be updated.
+func TestFirestoreLegacyProfileHasNotificationsOff(t *testing.T) {
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
+	}
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = "crown-and-borough-integration"
+	}
+	ctx := context.Background()
+	client, err := cloudfirestore.NewClient(ctx, projectID)
+	if err != nil {
+		t.Fatalf("create emulator client: %v", err)
+	}
+	defer client.Close()
+	backend := NewWithClient(assetgen.Balance{}, assetgen.Assets{}, Options{Client: client})
+	uid := "legacy-" + time.Now().Format("150405.000000")
+	now := time.Now().UTC()
+	if _, err := client.Collection("players").Doc(uid).Set(ctx, map[string]any{
+		"schemaVersion": schemaVersion, "uid": uid, "email": uid + "@example.com", "displayName": "Legacy",
+		"createdAt": now, "updatedAt": now, "lastSeenVersion": "1.0.0", "hideReleaseNotes": false,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	profile, err := backend.GetProfile(ctx, uid)
+	if err != nil || profile.Notifications != (store.NotificationPreferences{}) {
+		t.Fatalf("legacy profile = %+v, %v", profile, err)
+	}
+	on, french := true, "fr"
+	profile, err = backend.UpdateNotifications(ctx, uid, store.NotificationsUpdate{NewTurn: &on, Language: &french})
+	if err != nil || !profile.Notifications.NewTurn || profile.Notifications.Language != "fr" || profile.DisplayName != "Legacy" {
+		t.Fatalf("updated profile = %+v, %v", profile, err)
+	}
+}

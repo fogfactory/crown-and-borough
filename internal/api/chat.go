@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,12 +44,14 @@ func (h *GamesHandler) postMessage(w http.ResponseWriter, r *http.Request, actor
 		writeAPIError(w, http.StatusBadRequest, "invalid_message_request", err.Error())
 		return
 	}
-	message, err := h.chat.Post(r.Context(), actor, id, request)
+	result, err := h.chat.Post(r.Context(), actor, id, request)
 	if err != nil {
 		h.writeChatError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, message)
+	h.closeAfterNotifications(w)
+	writeJSONFlushed(w, http.StatusCreated, result.Message)
+	h.afterResponse(r, func(ctx context.Context) { h.notifier.MessagePosted(ctx, result) })
 }
 
 func (h *GamesHandler) markChannelRead(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {

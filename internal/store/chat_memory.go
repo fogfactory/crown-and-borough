@@ -13,6 +13,9 @@ type MemoryChatBackend struct {
 	messages map[GameID][]ChatMessage
 	lastSent map[chatSenderKey]time.Time
 	cursors  map[chatCursorKey]time.Time
+	// activity and messageEmails back NotificationStateStore.
+	activity      map[string]time.Time
+	messageEmails map[chatSenderKey]time.Time
 }
 
 type chatSenderKey struct {
@@ -26,14 +29,62 @@ type chatCursorKey struct {
 	channel string
 }
 
-var _ ChatBackend = (*MemoryChatBackend)(nil)
+var (
+	_ ChatBackend            = (*MemoryChatBackend)(nil)
+	_ NotificationStateStore = (*MemoryChatBackend)(nil)
+)
 
 func NewMemoryChatBackend() *MemoryChatBackend {
 	return &MemoryChatBackend{
 		messages: make(map[GameID][]ChatMessage),
 		lastSent: make(map[chatSenderKey]time.Time),
 		cursors:  make(map[chatCursorKey]time.Time),
+
+		activity:      make(map[string]time.Time),
+		messageEmails: make(map[chatSenderKey]time.Time),
 	}
+}
+
+func (b *MemoryChatBackend) TouchActivity(_ context.Context, uid string, at time.Time) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if at.After(b.activity[uid]) {
+		b.activity[uid] = at
+	}
+	return nil
+}
+
+func (b *MemoryChatBackend) LastActivity(_ context.Context, uid string) (time.Time, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.activity[uid], nil
+}
+
+func (b *MemoryChatBackend) ClaimMessageEmail(_ context.Context, id GameID, uid string, at time.Time) (bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var reads []time.Time
+	for key, readAt := range b.cursors {
+		if key.game == id && key.uid == uid {
+			reads = append(reads, readAt)
+		}
+	}
+	key := chatSenderKey{game: id, uid: uid}
+	if !MessageEmailClaimable(b.messageEmails[key], reads) {
+		return false, nil
+	}
+	b.messageEmails[key] = at
+	return true, nil
+}
+
+func (b *MemoryChatBackend) ReleaseMessageEmail(_ context.Context, id GameID, uid string, at time.Time) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	key := chatSenderKey{game: id, uid: uid}
+	if b.messageEmails[key].Equal(at) {
+		delete(b.messageEmails, key)
+	}
+	return nil
 }
 
 func (b *MemoryChatBackend) AppendChatMessage(_ context.Context, id GameID, authorUID string, message ChatMessage, _ []string, minInterval time.Duration) (ChatMessage, error) {

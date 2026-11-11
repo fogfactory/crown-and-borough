@@ -23,6 +23,12 @@ type chatTestEnv struct {
 // P3) and a host who only observes.
 func newChatTestEnv(t *testing.T, withChat bool) chatTestEnv {
 	t.Helper()
+	return newNotifiedChatTestEnv(t, withChat, nil)
+}
+
+// newNotifiedChatTestEnv is newChatTestEnv with an email notification hook.
+func newNotifiedChatTestEnv(t *testing.T, withChat bool, notifier Notifier) chatTestEnv {
+	t.Helper()
 	games, rules := newGamesTestStore(t)
 	memory := games.(*store.MemoryStore)
 	ctx := context.Background()
@@ -45,7 +51,7 @@ func newChatTestEnv(t *testing.T, withChat bool) chatTestEnv {
 		}
 	}
 	clock := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	options := GamesHandlerOptions{Actor: DevActorResolver("alice")}
+	options := GamesHandlerOptions{Actor: DevActorResolver("alice"), Notifier: notifier}
 	if withChat {
 		service := store.NewChatService(memory, store.NewMemoryChatBackend())
 		service.SetClock(func() time.Time { return clock })
