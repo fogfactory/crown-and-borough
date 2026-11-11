@@ -216,8 +216,8 @@ changent qu'à l'implémentation, avec le texte final sans comparaison.
 | Le titulaire meurt, un Claim vise son titre, capitale sans armée ou avec une armée sans noble | L'héritier prend le titre | Inchangé ; la capitale reste occupée dans le second cas |
 | Le titulaire meurt, un Claim vise son titre, capitale avec une armée et un noble libre (garnison de l'ancien propriétaire comprise) | L'héritier prend le titre ; une armée déjà en place reprend le fief au contrôle suivant | Le noble devient usurpateur et le fief passe à son propriétaire ; l'héritier reçoit le titre exilé |
 | Le joueur dépossédé reprend la capitale | Capture ordinaire, fief vacant | Restauration du titre exilé |
-| Mort de l'usurpateur ou de l'exilé | Sans objet | Usurpateur mort : l'exilé retrouve le titre. Exilé mort : l'usurpateur devient officiel |
-| Claim sur un fief usurpé | Sans objet | Sans effet |
+| Mort de l'usurpateur ou de l'exilé | Sans objet | Usurpateur mort : l'exilé retrouve le titre. Exilé mort : l'usurpateur devient officiel, sauf Claim sur l'exilé |
+| Claim sur un fief usurpé | Sans objet | Sans effet sur l'usurpateur ; sur l'exilé, l'héritier devient le nouvel exilé à sa mort |
 | Renoncer à un Claim ou à un titre exilé | Aucun ordre | Ordres d'hiver gratuits |
 
 ### Règles proposées
@@ -249,13 +249,19 @@ d'usurpateur, plus d'exilé), sans condition de rang de succession.
 **Durée de l'usurpation.** Une usurpation ne dure que tant que l'usurpateur et
 l'exilé vivent. Si l'usurpateur meurt, l'exilé retrouve le titre et le fief
 revient à son propriétaire. Si l'exilé meurt, l'usurpateur devient le titulaire
-officiel (plus de statut usurpateur). Si les deux sont morts, le fief est vacant
+officiel (plus de statut usurpateur), sauf si un Claim vise l'exilé (voir
+ci-dessous). Si les deux sont morts, le fief est vacant
 et suit les règles de « Perte et vacance d'un fief ».
 
-**Claims sur un fief usurpé.** Aucun Claim ne s'applique à un fief usurpé, ni
-sur l'usurpateur ni sur l'exilé : la mort de l'un des deux règle seule le titre,
-comme ci-dessus. Les Claims qui visent ces nobles restent valables pour leurs
-autres fiefs.
+**Claims sur un fief usurpé.** Un Claim ne permet pas de récupérer un titre
+usurpé : un Claim sur l'usurpateur est sans effet sur ce fief, dont la mort
+rend le titre à l'exilé. Un Claim sur le titre **exilé** s'applique : à la mort
+de l'exilé, l'héritier du premier Claim vivant (classement habituel) devient le
+nouvel exilé, et l'usurpateur reste usurpateur. Il n'y a pas de Claim vivant
+sur l'exilé : l'usurpateur devient officiel. Le nouvel exilé appartient au
+joueur de l'héritier ; sa restauration suit les règles de « Restauration par la
+reprise de la capitale » et de « Durée de l'usurpation ». Les Claims qui visent
+ces nobles restent valables pour leurs autres fiefs.
 
 **Usurpé puis conquis.** Si un troisième joueur conquiert un fief déjà
 usurpé, l'usurpateur déchu perd tout (il ne devient pas exilé) ; l'exilé
