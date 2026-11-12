@@ -91,6 +91,21 @@ export function territoryLabelLayout(
   }
 }
 
+/** Top and bottom of the label (name and code), relative to the centroid, in map units. */
+export function labelExtent(layout: TerritoryLabelLayout): {
+  top: number
+  bottom: number
+} {
+  const firstLine = layout.nameBaselines[0]
+  return {
+    top:
+      firstLine === undefined
+        ? layout.codeBaseline - CODE_FONT_SIZE
+        : firstLine - NAME_FONT_SIZE * 0.8,
+    bottom: layout.codeBaseline + 2,
+  }
+}
+
 /** On-screen size of a territory name, in pixels. */
 export function nameScreenSize(annotationScale: number, pixelsPerUnit: number): number {
   return NAME_FONT_SIZE * annotationScale * pixelsPerUnit
