@@ -205,10 +205,11 @@ func updateTerritorialControl(ctx *resolutionContext) {
 			// stays with the previous owner until an army of a player stops.
 			continue
 		}
-		if fief := fiefAt[army.TerritoryID]; fief != nil && fief.CapitalTerritoryID != army.TerritoryID && fief.OwnerID != army.OwnerID {
+		fief := fiefAt[army.TerritoryID]
+		if fief != nil && fief.CapitalTerritoryID != army.TerritoryID && fief.OwnerID != army.OwnerID {
 			continue
 		}
-		if fief := fiefAt[army.TerritoryID]; fief != nil && fief.CapitalTerritoryID == army.TerritoryID {
+		if fief != nil && fief.CapitalTerritoryID == army.TerritoryID {
 			// A fief capital is controlled by the fief's owner as it stands now,
 			// which a claim settled earlier this turn may have changed: only an
 			// army able to conquer or restore the fief takes it, any other one
