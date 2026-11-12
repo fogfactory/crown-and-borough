@@ -26,6 +26,294 @@ type Fief struct {
 	// order. Only a vacant fief can be a crown fief: any attribution, or a
 	// conquest, clears the mark.
 	Crown bool `json:"crown,omitempty"`
+	// ExiledNobleID is the legitimate titulaire a conquest or a claim ousted
+	// (titres.md "Conquête d'un fief par un noble"). The exiled title has no
+	// game effect: the noble is deliberately not a HolderNobleID. Its owner
+	// recovers the fief by retaking the capital, or when the usurper dies.
+	ExiledNobleID *NobleID `json:"exiledNoble,omitempty"`
+}
+
+// Usurped reports whether HolderNobleID is a usurper: the noble who took the
+// fief by conquest or claim over ExiledNobleID.
+func (f Fief) Usurped() bool { return f.ExiledNobleID != nil }
+
+// Usurp hands the fief to the usurper's player, with the usurper as its
+// titulaire and exiled as the ousted noble. Any crown mark is cleared.
+func (f *Fief) Usurp(usurper Noble, exiled NobleID) {
+	usurperID := usurper.ID
+	f.OwnerID = usurper.OwnerID
+	f.HolderNobleID = &usurperID
+	f.ExiledNobleID = &exiled
+	f.Crown = false
+}
+
+// GiveTo hands the fief to heir's player with heir as its titulaire. Any crown
+// mark is cleared.
+func (f *Fief) GiveTo(heir Noble) {
+	heirID := heir.ID
+	f.OwnerID = heir.OwnerID
+	f.HolderNobleID = &heirID
+	f.Crown = false
+}
+
+// FreeNoblesAt returns the free nobles of the player standing on the
+// territory, in the order of the player's line of succession. A hostage or a
+// prisoner carried there is left out.
+func (g *GameState) FreeNoblesAt(owner PlayerID, territoryID TerritoryID) []Noble {
+	var free []Noble
+	for _, noble := range g.Nobles {
+		if noble.OwnerID == owner && noble.Status == NobleStatusFree && noble.LocationID == territoryID {
+			free = append(free, noble)
+		}
+	}
+	sortBySuccession(free)
+	return free
+}
+
+// ClaimUsurperAt returns the free noble that usurps a fief whose titulaire
+// died when a claim fires for an heir of heirOwner's house: the first free
+// noble, in line of succession, of the player's army standing on the fief's
+// capital (the engine keeps one army per territory, so the first army found
+// there is the only one). A rebel army, an army of the heir's own house, or an army without a
+// free noble yields nil, and the heir takes the title.
+func (g *GameState) ClaimUsurperAt(capitalID TerritoryID, heirOwner PlayerID) *Noble {
+	for _, army := range g.Armies {
+		if army.TerritoryID != capitalID {
+			continue
+		}
+		if army.OwnerID == NeutralPlayerID || army.OwnerID == heirOwner {
+			return nil
+		}
+		if free := g.FreeNoblesAt(army.OwnerID, capitalID); len(free) > 0 {
+			return &free[0]
+		}
+		return nil
+	}
+	return nil
+}
+
+// SettleFiefTitlesOfMissingNobles applies the death of the nobles that are no
+// longer in play to the usurpations and the plain titles. For every fief whose
+// holder or exiled noble is missing, holder and exile are judged together:
+//   - the usurper is missing and the exile lives: the exile recovers the title
+//     and the fief returns to the exile's owner (restored);
+//   - the exile is missing and the usurper lives: heirOf may name the living
+//     heir of a claim on the exile, who becomes the new exile (reexiled);
+//     otherwise the usurper becomes the official holder (legitimised);
+//   - both are missing: the fief is vacant and keeps its owner (vacated);
+//   - an ordinary holder is missing: heirOf may name the heir that takes the
+//     fief (claimed: the holder is left in place for the caller to serve the
+//     heir), otherwise the fief is vacant (vacated).
+//
+// heirOf receives the fief and the missing noble the claims bear on and returns
+// the living heir to serve, or nil. Call once the dead nobles were removed.
+func (g *GameState) SettleFiefTitlesOfMissingNobles(heirOf func(fief *Fief, missing NobleID) *Noble) []FiefTitleSettlement {
+	living := make(map[NobleID]bool, len(g.Nobles))
+	for _, noble := range g.Nobles {
+		living[noble.ID] = true
+	}
+	var settlements []FiefTitleSettlement
+	for i := range g.Fiefs {
+		fief := &g.Fiefs[i]
+		holderMissing := fief.HolderNobleID != nil && !living[*fief.HolderNobleID]
+		exileMissing := fief.ExiledNobleID != nil && !living[*fief.ExiledNobleID]
+		if !holderMissing && !exileMissing {
+			continue
+		}
+		switch {
+		case fief.Usurped() && holderMissing && exileMissing:
+			fief.HolderNobleID, fief.ExiledNobleID = nil, nil
+			settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleVacated})
+		case fief.Usurped() && holderMissing:
+			previousOwner := g.RestoreExile(fief)
+			settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleRestored, PreviousOwner: previousOwner})
+		case fief.Usurped() && exileMissing:
+			missing := *fief.ExiledNobleID
+			// The usurper cannot also be the exile: a claim of its own is ignored.
+			if heir := heirOf(fief, missing); heir != nil && heir.ID != *fief.HolderNobleID {
+				heirID := heir.ID
+				fief.ExiledNobleID = &heirID
+				settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleReexiled, Heir: heirID})
+			} else {
+				fief.ExiledNobleID = nil
+				settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleLegitimised})
+			}
+		default:
+			// An ordinary holder died.
+			missing := *fief.HolderNobleID
+			if heir := heirOf(fief, missing); heir != nil {
+				settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleClaimed, Heir: heir.ID})
+				continue
+			}
+			fief.HolderNobleID = nil
+			settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleVacated})
+		}
+	}
+	return settlements
+}
+
+// RestoreExile gives the fief back to the exiled noble: the fief returns to
+// the exile's owner, the exile becomes its official holder, and the usurper,
+// who loses everything, is dropped. It returns the previous owner. The caller
+// checks that the fief has an exile (and a usurper) and that the exile is
+// alive.
+func (g *GameState) RestoreExile(fief *Fief) PlayerID {
+	previousOwner := fief.OwnerID
+	exileID := *fief.ExiledNobleID
+	for _, noble := range g.Nobles {
+		if noble.ID == exileID {
+			fief.OwnerID = noble.OwnerID
+			break
+		}
+	}
+	fief.HolderNobleID = &exileID
+	fief.ExiledNobleID = nil
+	fief.Crown = false
+	return previousOwner
+}
+
+// FiefConquestKind tells how ConquerFief changed a fief.
+type FiefConquestKind string
+
+const (
+	// FiefConquestRestoration: the exile's owner retook the fief; the exile is
+	// its titulaire again and the usurper lost everything.
+	FiefConquestRestoration FiefConquestKind = "restoration"
+	// FiefConquestUsurpation: a noble of the conqueror became the usurper. A fief
+	// passing vacant, with neither usurper nor exile, has no kind.
+	FiefConquestUsurpation FiefConquestKind = "usurpation"
+)
+
+// FiefConquest reports what ConquerFief did. Previous is the titulaire the
+// fief had before: the usurper who fell in a restoration, the exile or the
+// ousted holder otherwise; nil when there was none.
+type FiefConquest struct {
+	Kind          FiefConquestKind
+	PreviousOwner PlayerID
+	Previous      *NobleID
+}
+
+// FiefByCapital returns the fief whose capital is the territory, or nil.
+func (g *GameState) FiefByCapital(id TerritoryID) *Fief {
+	for i := range g.Fiefs {
+		if g.Fiefs[i].CapitalTerritoryID == id {
+			return &g.Fiefs[i]
+		}
+	}
+	return nil
+}
+
+// LivingNoble returns the noble in play with the ID, or nil.
+func (g *GameState) LivingNoble(id NobleID) *Noble {
+	for i := range g.Nobles {
+		if g.Nobles[i].ID == id {
+			return &g.Nobles[i]
+		}
+	}
+	return nil
+}
+
+// ConquerFief applies the capture of the fief's capital by the player
+// conqueror (titres.md "Conquête d'un fief par un noble"). It reports false and
+// changes nothing when the fief already belongs to the conqueror or when
+// neither rule below applies.
+//
+// The owner of the exiled noble retakes the fief without any noble
+// (restoration). Otherwise conquest needs usurper, a free noble of the
+// conqueror standing on the capital, or nil when there is none: a held fief
+// passes to the conqueror with usurper as its usurper and its titulaire as the
+// exile; a fief already usurped drops its usurper and keeps its exile; a vacant
+// fief, or one whose titulaire is gone from play, passes vacant with no
+// usurper or exile. The members of the fief follow the capital through the
+// owner; the caller handles what depends on the control of the territories.
+func (g *GameState) ConquerFief(fief *Fief, conqueror PlayerID, usurper *Noble) (FiefConquest, bool) {
+	if fief == nil || fief.OwnerID == conqueror {
+		return FiefConquest{}, false
+	}
+	conquest := FiefConquest{PreviousOwner: fief.OwnerID, Previous: fief.HolderNobleID}
+	if fief.ExiledNobleID != nil {
+		if exile := g.LivingNoble(*fief.ExiledNobleID); exile != nil && exile.OwnerID == conqueror {
+			g.RestoreExile(fief)
+			conquest.Kind = FiefConquestRestoration
+			return conquest, true
+		}
+	}
+	if usurper == nil {
+		return FiefConquest{}, false
+	}
+	switch {
+	case fief.HolderNobleID == nil:
+	case fief.Usurped():
+		// A fallen usurper loses everything; the original exile stays.
+		conquest.Kind = FiefConquestUsurpation
+		fief.Usurp(*usurper, *fief.ExiledNobleID)
+		return conquest, true
+	case g.LivingNoble(*fief.HolderNobleID) != nil:
+		conquest.Kind = FiefConquestUsurpation
+		fief.Usurp(*usurper, *fief.HolderNobleID)
+		return conquest, true
+	default:
+		// The titulaire is gone from play: nothing to usurp.
+		fief.HolderNobleID = nil
+	}
+	fief.OwnerID = conqueror
+	fief.Crown = false
+	return conquest, true
+}
+
+// TitleRenunciationKind tells which contested title a noble gave up.
+type TitleRenunciationKind string
+
+const (
+	// TitleRenouncedExiled: the exiled title was abandoned; the usurper is official.
+	TitleRenouncedExiled TitleRenunciationKind = "exiled"
+	// TitleRenouncedUsurped: the usurped title was given back to the exile.
+	TitleRenouncedUsurped TitleRenunciationKind = "usurped"
+)
+
+// RenounceContestedTitle makes the noble give up the exiled or usurped title it
+// carries on the fief (titres.md "Renonciation"). An exiled title is
+// abandoned: the usurper becomes the official titulaire. A usurped title is
+// given back: the exile recovers it and the fief returns to the exile's owner.
+// It returns the kind and the previous owner of the fief; the
+// kind is empty, and nothing changes, when the noble carries neither.
+func (g *GameState) RenounceContestedTitle(fief *Fief, noble NobleID) (kind TitleRenunciationKind, previousOwner PlayerID) {
+	previousOwner = fief.OwnerID
+	switch {
+	case fief.ExiledNobleID != nil && *fief.ExiledNobleID == noble:
+		fief.ExiledNobleID = nil
+		return TitleRenouncedExiled, previousOwner
+	case fief.Usurped() && fief.HolderNobleID != nil && *fief.HolderNobleID == noble:
+		g.RestoreExile(fief)
+		return TitleRenouncedUsurped, previousOwner
+	}
+	return "", previousOwner
+}
+
+// FiefTitleOutcome tells what SettleFiefTitlesOfMissingNobles did to a fief.
+type FiefTitleOutcome string
+
+const (
+	// FiefTitleVacated: the fief has no titulaire left.
+	FiefTitleVacated FiefTitleOutcome = "vacated"
+	// FiefTitleRestored: the exile recovered the fief after the usurper died.
+	FiefTitleRestored FiefTitleOutcome = "restored"
+	// FiefTitleReexiled: the exile died and a claim heir became the new exile.
+	FiefTitleReexiled FiefTitleOutcome = "reexiled"
+	// FiefTitleLegitimised: the exile died and the usurper became official.
+	FiefTitleLegitimised FiefTitleOutcome = "legitimised"
+	// FiefTitleClaimed: the holder died and a claim heir was served.
+	FiefTitleClaimed FiefTitleOutcome = "claimed"
+)
+
+// FiefTitleSettlement reports one fief touched by
+// SettleFiefTitlesOfMissingNobles. Heir is set for reexiled and claimed,
+// PreviousOwner for restored.
+type FiefTitleSettlement struct {
+	Fief          *Fief
+	Outcome       FiefTitleOutcome
+	Heir          NobleID
+	PreviousOwner PlayerID
 }
 
 // FiefReversion is a vacant fief handed to the crown player by

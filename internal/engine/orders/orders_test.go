@@ -701,6 +701,28 @@ func TestParseAnnexAndRankWinterOrders(t *testing.T) {
 	}
 }
 
+func TestParseRenounceWinterOrders(t *testing.T) {
+	game := orderTestState()
+	orders, parseErrors := ParseWinterOrders("T C JEA\nT D JEA ROS", game)
+	if len(parseErrors) != 0 {
+		t.Fatalf("ParseWinterOrders errors = %#v", parseErrors)
+	}
+	want := []models.WinterOrder{
+		{ID: "O1", Type: models.WinterOrderTypeRenounceClaim, NobleCode: "JEA"},
+		{ID: "O2", Type: models.WinterOrderTypeRenounceTitle, NobleCode: "JEA", TerritoryID: "ROS"},
+	}
+	if !reflect.DeepEqual(orders, want) {
+		t.Errorf("orders = %#v, want %#v", orders, want)
+	}
+	for _, line := range []string{
+		"T C", "T C JEA ROS", "T C ZZZ", "T D JEA", "T D JEA ROS BOI", "T D ZZZ ROS", "T D JEA ZZZ",
+	} {
+		if _, parseErrors := ParseWinterOrders(line, game); len(parseErrors) == 0 {
+			t.Errorf("ParseWinterOrders(%q) accepted a malformed order", line)
+		}
+	}
+}
+
 func TestParseRoyalWinterOrders(t *testing.T) {
 	game := orderTestState()
 	orders, parseErrors := ParseWinterOrders("W X JEA ROS BOI\nW R JEA ROS\nW F JEA ROS\nW G JEA ROS CAL", game)

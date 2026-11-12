@@ -657,6 +657,17 @@ func (g *GameState) Validate() error {
 				return fmt.Errorf("models: fief %q: crown fief held by noble %q", fief.ID, *fief.HolderNobleID)
 			}
 		}
+		if fief.ExiledNobleID != nil {
+			if !nobles[*fief.ExiledNobleID] {
+				return fmt.Errorf("models: fief %q: unknown exiled noble %q", fief.ID, *fief.ExiledNobleID)
+			}
+			if fief.HolderNobleID == nil {
+				return fmt.Errorf("models: fief %q: exiled noble %q without a holder", fief.ID, *fief.ExiledNobleID)
+			}
+			if *fief.ExiledNobleID == *fief.HolderNobleID {
+				return fmt.Errorf("models: fief %q: noble %q is both holder and exiled", fief.ID, *fief.ExiledNobleID)
+			}
+		}
 	}
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {
 		return err

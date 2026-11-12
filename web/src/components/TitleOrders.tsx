@@ -603,6 +603,95 @@ export function TitleOrdersSection({
     )
   }
 
+  // T C: give up a claim an heir of the house stakes (free).
+  const renounceableClaims = (state.claims ?? []).filter(
+    (claim) =>
+      !claim.ended &&
+      byCode.get(claim.heir)?.owner === player &&
+      !lines.includes(`T C ${claim.heir}`),
+  )
+  if (renounceableClaims.length > 0) {
+    pushFor(undefined,
+      <OrderLauncher
+        key="t-c"
+        label={t('orders.renounceClaim')}
+        title={t('orders.renounceClaim')}
+        description={t('orders.renounceClaimHelp')}
+        fields={[
+          {
+            key: 'heir',
+            label: t('orders.field.heir'),
+            options: renounceableClaims.map((claim) => ({
+              value: claim.heir,
+              label: t('orders.option.claimOn', {
+                heir: nobleName(state, claim.heir),
+                target: nobleName(state, claim.target),
+              }),
+            })),
+          },
+        ]}
+        buildOrder={(values) =>
+          values.heir
+            ? {
+                line: `T C ${values.heir}`,
+                comment: t('orders.comment.renounceClaim', {
+                  heir: nobleName(state, values.heir),
+                }),
+              }
+            : null
+        }
+        onConfirm={add}
+      />,
+    )
+  }
+
+  // T D: give up an exiled title, or give back a usurped one (free).
+  const contested = (state.fiefs ?? []).flatMap((fief) => {
+    const entries: Array<{ fief: typeof fief; noble: string; usurper: boolean }> = []
+    if (fief.exiled && byCode.get(fief.exiled)?.owner === player) {
+      entries.push({ fief, noble: fief.exiled, usurper: false })
+    }
+    if (fief.exiled && fief.holder && byCode.get(fief.holder)?.owner === player) {
+      entries.push({ fief, noble: fief.holder, usurper: true })
+    }
+    return entries.filter((entry) => !lines.includes(`T D ${entry.noble} ${entry.fief.capital}`))
+  })
+  if (contested.length > 0) {
+    pushFor(undefined,
+      <OrderLauncher
+        key="t-d"
+        label={t('orders.renounceTitle')}
+        title={t('orders.renounceTitle')}
+        description={t('orders.renounceTitleHelp')}
+        fields={[
+          {
+            key: 'title',
+            label: t('orders.field.contestedTitle'),
+            options: contested.map((entry) => ({
+              value: `${entry.noble}|${entry.fief.capital}`,
+              label: t(entry.usurper ? 'orders.option.usurped' : 'orders.option.exiled', {
+                noble: nobleName(state, entry.noble),
+                fief: fiefOptionLabel(entry.fief, territoryName, t),
+              }),
+            })),
+          },
+        ]}
+        buildOrder={(values) => {
+          const [noble, capital] = (values.title ?? '').split('|')
+          if (!noble || !capital) return null
+          return {
+            line: `T D ${noble} ${capital}`,
+            comment: t('orders.comment.renounceTitle', {
+              noble: nobleName(state, noble),
+              capital,
+            }),
+          }
+        }}
+        onConfirm={add}
+      />,
+    )
+  }
+
   // W X, W R, W F, W G: royal orders of the king, or of the regent in his stead.
   const royal = aids.royal
   if (royal) {

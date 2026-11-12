@@ -8,12 +8,7 @@ import (
 
 // fiefByCapital returns the fief whose capital is territoryID, or nil.
 func (ctx *resolutionContext) fiefByCapital(territoryID models.TerritoryID) *models.Fief {
-	for i := range ctx.state.Fiefs {
-		if ctx.state.Fiefs[i].CapitalTerritoryID == territoryID {
-			return &ctx.state.Fiefs[i]
-		}
-	}
-	return nil
+	return ctx.state.FiefByCapital(territoryID)
 }
 
 // fiefContaining returns the fief that already lists territoryID among its
@@ -140,35 +135,97 @@ func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID)
 	return ctx.balance.CastleDefenseBonus
 }
 
-// transferFiefOnCapitalCapture hands a fief entirely to the player who just
-// took its capital: the fief becomes vacant (its titulaire's authority does
-// not carry over) but keeps producing and scoring until dissolved (titres.md).
-// Control is transitive in a fief (titres.md "Contrôle et occupation"), so
-// the capture also hands every other member still held by the previous owner
-// to the new one in control, the control pass's working view of who controls
-// what, clearing that member's capital status if it carried one and reporting
-// one control_changed event per member, reason "fief_transferred". It is a
-// no-op when territoryID is not a fief capital, or when the new owner already
-// held the fief (an intervening ally stop, not a capture).
-func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.TerritoryID, newOwnerID models.PlayerID, control map[models.TerritoryID]models.PlayerID) {
-	fief := ctx.fiefByCapital(territoryID)
-	if fief == nil || fief.OwnerID == newOwnerID {
-		return
+// captureFiefCapital applies the arrival of a player's army on the capital of
+// a fief owned by somebody else (titres.md "Conquête d'un fief par un noble")
+// and reports whether the fief changed hands. Control of the capital is
+// derived from the fief's owner, so nothing is written when it returns false:
+// the army then merely occupies the capital.
+//
+// The owner of the exiled noble of the fief retakes it with a mere army
+// (restoration, no noble needed): the fief comes back to them entirely, the
+// exile is titulaire again and the usurper loses everything. Otherwise an
+// army needs a free noble of its owner on the capital to conquer: the fief,
+// with all its territories, passes to the conqueror (the capital's own
+// control, the other members through control by the control pass's working
+// view of who controls what). A held fief gives its first free noble, in line
+// of succession, as usurper, and its titulaire becomes the exile; a fief
+// already usurped drops its usurper and keeps its exile; a vacant fief passes
+// vacant, with neither usurper nor exile. One control_changed event per
+// transferred member, reason "fief_transferred", is reported.
+func (ctx *resolutionContext) captureFiefCapital(fief *models.Fief, army *models.Army, control map[models.TerritoryID]models.PlayerID) bool {
+	if fief == nil || fief.CapitalTerritoryID != army.TerritoryID {
+		return false
 	}
-	previousOwnerID := fief.OwnerID
-	fief.OwnerID = newOwnerID
-	fief.HolderNobleID = nil
-	fief.Crown = false
-	ctx.events = append(ctx.events, Event{
-		Type:            EventTypeFiefConquered,
-		Phase:           5,
+	var usurper *models.Noble
+	if free := ctx.state.FreeNoblesAt(army.OwnerID, army.TerritoryID); len(free) > 0 {
+		usurper = &free[0]
+	}
+	conquest, conquered := ctx.state.ConquerFief(fief, army.OwnerID, usurper)
+	if !conquered {
+		return false
+	}
+	if conquest.Kind == models.FiefConquestRestoration {
+		event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, conquest.PreviousOwner, "restoration", 5)
+		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
+		if conquest.Previous != nil {
+			ctx.setExiledNoble(&event, ctx.noblesByID[*conquest.Previous])
+		}
+		ctx.events = append(ctx.events, event)
+		ctx.transferFiefMembers(fief, army.OwnerID, control)
+		return true
+	}
+	// A vacant fief has no kind, hence no reason.
+	reason := string(conquest.Kind)
+	event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, conquest.PreviousOwner, reason, 5)
+	if conquest.Kind == models.FiefConquestUsurpation {
+		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
+		ctx.setExiledNoble(&event, ctx.noblesByID[*fief.ExiledNobleID])
+	}
+	ctx.events = append(ctx.events, event)
+	ctx.transferFiefMembers(fief, army.OwnerID, control)
+	return true
+}
+
+// fiefTitleEvent is the base of the events a fief changing hands or titulaire
+// reports: the fief, its territories, and the previous and new owners.
+func (ctx *resolutionContext) fiefTitleEvent(eventType EventType, fief *models.Fief, previousOwnerID models.PlayerID, reason string, phase int) Event {
+	return Event{
+		Type:            eventType,
+		Phase:           phase,
 		TerritoryID:     fief.CapitalTerritoryID,
 		FiefID:          fief.ID,
 		FiefTitle:       fief.Title,
 		FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
 		PreviousOwnerID: previousOwnerID,
-		OwnerID:         newOwnerID,
-	})
+		OwnerID:         fief.OwnerID,
+		Reason:          reason,
+	}
+}
+
+// setNoble names the noble an event is about.
+func (ctx *resolutionContext) setNoble(event *Event, noble *models.Noble) {
+	if noble == nil {
+		return
+	}
+	event.NobleID = noble.ID
+	event.NobleCode = models.NobleCode(noble.Code)
+	event.NobleName = ctx.state.NobleDisplayName(*noble)
+}
+
+// setExiledNoble names the exiled noble (or the fallen usurper) an event
+// reports next to its main noble.
+func (ctx *resolutionContext) setExiledNoble(event *Event, noble *models.Noble) {
+	if noble == nil {
+		return
+	}
+	event.ExiledNobleID = noble.ID
+	event.ExiledNobleName = ctx.state.NobleDisplayName(*noble)
+}
+
+// transferFiefMembers hands every member of the fief, but its capital, still
+// held by another player in the control pass's working view to the fief's new
+// owner, clearing that member's capital status if it carried one.
+func (ctx *resolutionContext) transferFiefMembers(fief *models.Fief, newOwnerID models.PlayerID, control map[models.TerritoryID]models.PlayerID) {
 	for _, memberID := range fief.Territories {
 		if memberID == fief.CapitalTerritoryID {
 			continue
@@ -177,15 +234,14 @@ func (ctx *resolutionContext) transferFiefOnCapitalCapture(territoryID models.Te
 		if controlled && memberPreviousOwnerID == newOwnerID {
 			continue
 		}
-		ownerID := newOwnerID
-		control[memberID] = ownerID
+		control[memberID] = newOwnerID
 		ctx.clearCapitalOnControlLoss(memberPreviousOwnerID, memberID)
 		ctx.events = append(ctx.events, Event{
 			Type:            EventTypeControlChanged,
 			Phase:           5,
 			TerritoryID:     memberID,
 			PreviousOwnerID: memberPreviousOwnerID,
-			OwnerID:         ownerID,
+			OwnerID:         newOwnerID,
 			Reason:          "fief_transferred",
 		})
 	}
@@ -203,19 +259,19 @@ func (ctx *resolutionContext) claimHeirOf(deadID models.NobleID) *models.Noble {
 }
 
 // passFiefToHeir hands a fief whose titulaire died to the heir that claimed
-// its title (specs/succession.md § Prétentions): the fief changes owner with
-// all its territories, like a conquered fief, and the heir becomes its
-// titulaire without any succession rank check.
+// its title (specs/succession.md § Prétentions), without any succession rank
+// check. When an army of a player other than the heir's house stands on the
+// fief's capital with a free noble (the garrison of the previous owner
+// included), that noble takes the fief as usurper, the fief passes to the
+// army's owner like a conquered one, and the heir only receives the exiled
+// title (titres.md "Conquête d'un fief par un noble"). Otherwise the heir
+// becomes the titulaire, the fief changes owner with all its territories, and
+// an army without a noble on the capital merely occupies it.
 func (ctx *resolutionContext) passFiefToHeir(fief *models.Fief, heir models.Noble) {
 	previousOwnerID := fief.OwnerID
-	for _, memberID := range fief.Territories {
-		ctx.clearCapitalOnControlLoss(previousOwnerID, memberID)
-	}
 	heirID := heir.ID
 	ctx.honourClaimOf(heirID)
-	fief.OwnerID = heir.OwnerID
-	fief.HolderNobleID = &heirID
-	ctx.events = append(ctx.events, Event{
+	event := Event{
 		Type:            EventTypeFiefConquered,
 		Phase:           phaseForSeason(ctx.state.Season),
 		TerritoryID:     fief.CapitalTerritoryID,
@@ -223,42 +279,71 @@ func (ctx *resolutionContext) passFiefToHeir(fief *models.Fief, heir models.Nobl
 		FiefTitle:       fief.Title,
 		FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
 		PreviousOwnerID: previousOwnerID,
-		OwnerID:         heir.OwnerID,
-		NobleID:         heir.ID,
-		NobleCode:       models.NobleCode(heir.Code),
-		NobleName:       ctx.state.NobleDisplayName(heir),
 		Reason:          "claim",
-	})
+	}
+	if usurper := ctx.state.ClaimUsurperAt(fief.CapitalTerritoryID, heir.OwnerID); usurper != nil {
+		fief.Usurp(*usurper, heirID)
+		event.Reason = "claim_usurpation"
+		ctx.setNoble(&event, usurper)
+		ctx.setExiledNoble(&event, &heir)
+	} else {
+		fief.GiveTo(heir)
+		ctx.setNoble(&event, &heir)
+	}
+	event.OwnerID = fief.OwnerID
+	ctx.clearFiefCapitals(previousOwnerID, fief)
+	ctx.events = append(ctx.events, event)
 }
 
-// vacateFiefsOfMissingHolders clears the titulaire of every fief whose noble
-// no longer exists (death, e.g. from plague): the fief stays with its owner,
-// vacant, until it is attributed again or dissolved (titres.md). A fief whose
-// titulaire was the target of a claim passes to the heir instead. Call after
-// the caller has removed the dead nobles and rebuilt indexes.
+// clearFiefCapitals clears the capital designation prev held on a member of
+// the fief, once the fief left prev for another owner. It does nothing while
+// the fief still belongs to prev.
+func (ctx *resolutionContext) clearFiefCapitals(prev models.PlayerID, fief *models.Fief) {
+	if fief.OwnerID == prev {
+		return
+	}
+	for _, memberID := range fief.Territories {
+		ctx.clearCapitalOnControlLoss(prev, memberID)
+	}
+}
+
+// vacateFiefsOfMissingHolders settles the titles of the fiefs whose titulaire
+// or exiled noble no longer exists (death, e.g. from plague), through
+// GameState.SettleFiefTitlesOfMissingNobles: a fief whose titulaire was the
+// target of a claim passes to the heir (passFiefToHeir), a usurped fief
+// returns to its exile when the usurper dies, becomes the usurper's own when
+// the exile dies (or goes to the heir of a claim on the exile as new exile),
+// and any other fief stays with its owner, vacant, until it is attributed
+// again or dissolved (titres.md). Claims on a usurper do not apply to the
+// usurped fief. Call after the caller has removed the dead nobles and rebuilt
+// indexes.
 func (ctx *resolutionContext) vacateFiefsOfMissingHolders() {
-	for i := range ctx.state.Fiefs {
-		fief := &ctx.state.Fiefs[i]
-		if fief.HolderNobleID == nil {
-			continue
+	phase := phaseForSeason(ctx.state.Season)
+	settlements := ctx.state.SettleFiefTitlesOfMissingNobles(func(_ *models.Fief, missing models.NobleID) *models.Noble {
+		return ctx.claimHeirOf(missing)
+	})
+	for _, settlement := range settlements {
+		fief := settlement.Fief
+		switch settlement.Outcome {
+		case models.FiefTitleClaimed:
+			ctx.passFiefToHeir(fief, *ctx.noblesByID[settlement.Heir])
+		case models.FiefTitleVacated:
+			ctx.events = append(ctx.events, ctx.fiefTitleEvent(EventTypeFiefVacated, fief, "", "", phase))
+		case models.FiefTitleRestored:
+			ctx.clearFiefCapitals(settlement.PreviousOwner, fief)
+			event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, settlement.PreviousOwner, "usurper_died", phase)
+			ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
+			ctx.events = append(ctx.events, event)
+		case models.FiefTitleLegitimised:
+			event := ctx.fiefTitleEvent(EventTypeFiefTitleSettled, fief, "", "usurper_legitimised", phase)
+			ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
+			ctx.events = append(ctx.events, event)
+		case models.FiefTitleReexiled:
+			ctx.honourClaimOf(settlement.Heir)
+			event := ctx.fiefTitleEvent(EventTypeFiefTitleSettled, fief, "", "exile_replaced", phase)
+			ctx.setNoble(&event, ctx.noblesByID[settlement.Heir])
+			ctx.events = append(ctx.events, event)
 		}
-		if ctx.noblesByID[*fief.HolderNobleID] != nil {
-			continue
-		}
-		if heir := ctx.claimHeirOf(*fief.HolderNobleID); heir != nil {
-			ctx.passFiefToHeir(fief, *heir)
-			continue
-		}
-		fief.HolderNobleID = nil
-		ctx.events = append(ctx.events, Event{
-			Type:            EventTypeFiefVacated,
-			Phase:           phaseForSeason(ctx.state.Season),
-			TerritoryID:     fief.CapitalTerritoryID,
-			FiefID:          fief.ID,
-			FiefTitle:       fief.Title,
-			FiefTerritories: append([]models.TerritoryID(nil), fief.Territories...),
-			OwnerID:         fief.OwnerID,
-		})
 	}
 }
 

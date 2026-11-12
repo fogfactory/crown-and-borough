@@ -31,7 +31,8 @@ Le contrôle s'applique à la constitution (`T F`), à l'attribution (`T A`), au
 changement de rang (`T R`) et à l'octroi royal (`W G`) ; un ordre qui ne le
 respecte pas est rejeté (`succession_rank_blocked`). L'attribution automatique
 d'un fief vacant en fin d'hiver, au premier noble de la ligne, et l'héritage
-d'un fief par Claim, à l'héritier du Claim, se font sans ce contrôle.
+d'un fief par Claim, à l'héritier du Claim, se font sans ce contrôle ; il
+ne s'applique pas non plus à un usurpateur ni à la restauration d'un exilé.
 
 ## Sexe des nobles
 
@@ -419,12 +420,47 @@ tôt d'abord) ; parmi les Claims du même hiver, celui de la famille de
 l'épouse passe en premier, puis l'ordre de jeu départage.
 
 **Effet.** Quand `CCC` meurt, chaque fief dont il est titulaire passe tout
-entier, avec ses territoires, au propriétaire du premier héritier vivant dans
-le classement, et cet héritier en devient le titulaire, sans condition de rang
-de succession (événement public de fief changeant de main, motif `claim`).
-Sans fief à `CCC` ou sans héritier vivant, les prétentions s'éteignent sans effet ; une fois le fief transmis, les autres prétentions sur `CCC` s'éteignent aussi.
-La couronne suit une règle propre au couple royal, décrite dans
+entier, avec ses territoires, selon la capitale du fief :
+
+- sans armée sur la capitale, avec une armée sans noble libre, ou avec une
+  armée de la maison de l'héritier, le fief passe au propriétaire du premier
+  héritier vivant dans le classement, et cet héritier en devient le titulaire
+  officiel, sans condition de rang de succession (événement public de fief
+  changeant de main, motif `claim`) ;
+- avec une armée portant un noble libre (garnison de l'ancien propriétaire
+  comprise), ce noble devient titulaire **usurpateur** et le fief passe à son
+  propriétaire ; l'héritier reçoit le titre **exilé**, restaurable par la
+  reprise de la capitale (voir
+  [titres.md](titres.md#conquête-dun-fief-par-un-noble)). Une garnison avec
+  noble de l'ancien propriétaire empêche donc l'héritier de prendre le titre.
+
+Sans fief à `CCC` ou sans héritier vivant, les prétentions s'éteignent sans
+effet ; une fois le fief transmis, les autres prétentions sur `CCC` s'éteignent
+aussi. La couronne suit une règle propre au couple royal, décrite dans
 [politique.md](politique.md#claim-sur-le-couple-royal).
+
+**Fief usurpé.** Un fief dont le titre est usurpé a un titulaire usurpateur et
+un noble exilé :
+
+- à la mort de l'usurpateur, l'exilé retrouve le titre et le fief revient à son
+  propriétaire ;
+- à la mort de l'exilé, l'usurpateur devient titulaire officiel, sauf si un
+  Claim vise l'exilé : l'héritier du premier Claim vivant devient alors le
+  nouvel exilé, quel que soit son joueur, et l'usurpateur reste usurpateur ;
+- si les deux meurent dans le même règlement, le fief est vacant, reste à son
+  propriétaire du moment et aucun Claim n'est honoré (les morts réglées à des
+  moments différents s'appliquent l'une après l'autre : l'exilé restauré suit
+  ensuite la règle d'un titulaire ordinaire) ;
+- un Claim sur l'usurpateur est sans effet sur ce fief ; il reste valable pour
+  les autres fiefs du noble visé.
+
+**Renonciation.** `T C HHH` (gratuit) permet au joueur qui détient le Claim de
+son héritier `HHH` d'y renoncer en hiver : la prétention s'éteint (issue
+« renoncée »), la carte de prétention retourne à la défausse et l'héritier peut
+réclamer à nouveau avec une autre carte, y compris par un `C N` plus bas sur la
+même feuille. Un ordre sur un héritier qui ne porte aucun Claim est rejeté. Le
+renoncement à un titre exilé ou usurpé relève de `T D NNN XXX` (voir
+[titres.md](titres.md#conquête-dun-fief-par-un-noble)).
 
 **Bâtard.** Jouer une carte de bâtard sur l'héritier annule sa prétention.
 Une carte de bâtard jouée sur un noble « parent » (le noble visé ou son
@@ -433,5 +469,5 @@ conjoint) n'annule pas la prétention.
 **Visibilité.** Une prétention est publique : elle figure dans le rapport de
 tous les joueurs dès qu'elle est jouée. Une prétention éteinte reste visible
 dans la lignée, comme un mariage terminé : « honorée » si l'héritier a reçu un
-fief ou la couronne, « éteinte » sinon (bâtard, mort de l'héritier ou de la
+fief (titre officiel ou exilé) ou la couronne, « renoncée » s'il y a eu `T C`, « éteinte » sinon (bâtard, mort de l'héritier ou de la
 cible, autre héritier servi en premier).
