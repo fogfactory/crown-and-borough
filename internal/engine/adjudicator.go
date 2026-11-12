@@ -446,32 +446,25 @@ func (adj *adjudicator) adjudicateDislodged(armyID models.ArmyID) bool {
 }
 
 // adjudicateMove applies Kruijswijk's move equation with Crown & Borough
-// strengths. A head-to-head opponent, an army that stays and every other
-// attack on the destination must be outmatched; an attack on the destination
-// keeps its full strength to prevent the move,
-// unless it was dislodged by the head-to-head winner coming from that
+// strengths. An attack moves when it outmatches the head-to-head opponent, the
+// army that stays or the fortification, and every other attack on the
+// destination, except one dislodged by the head-to-head winner coming from that
 // destination.
 func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 	ctx := adj.ctx
 	attack := ctx.attacks[armyID]
-	owner := ctx.startArmiesByID[armyID].OwnerID
 	defender := ctx.startArmyAt(attack.target)
+	strength := adj.attackForce(armyID)
 	if defender != nil && adj.headToHead(armyID) {
-		if defender.OwnerID == owner {
-			return false
-		}
-		if adj.attackForce(armyID) <= adj.attackForce(defender.ID) {
+		if defender.OwnerID == ctx.startArmiesByID[armyID].OwnerID || strength <= adj.attackForce(defender.ID) {
 			return false
 		}
 	}
 
-	strength := 0
 	threshold := -1
 	if defender != nil && adj.stays(defender.ID) {
-		strength = adj.attackForce(armyID)
 		threshold = adj.holdStrengthAgainst(*defender, armyID)
 	} else {
-		strength = adj.attackForce(armyID)
 		if bonus := ctx.fortificationBonus(attack.target); bonus > 0 && !ctx.tunneledAttacks[armyID] && !ctx.castleOwnedByAllAttackers(attack.target) {
 			threshold = bonus
 		}

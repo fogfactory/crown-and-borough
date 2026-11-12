@@ -126,14 +126,10 @@ func TestResolveCombatRemainsWhenOccupantStaysOrFailsToMove(t *testing.T) {
 	})
 }
 
-// TestResolveNoHelpSupportOfHeadToHeadWinnerIsApplied checks that a support
-// order is still reported applied even when the side it supports would have
-// won the head-to-head anyway. A1 outnumbers A2 (2 against 1) so it wins on
-// troop count alone, plus its own noble bonus; famine plays no part in the
-// outcome (famine now only weakens combat the turn after an army starves,
-// never the same turn, #208), unlike the size-1-against-2 matchup this test
-// previously relied on a famished A2 to let A1 win.
-func TestResolveNoHelpSupportOfHeadToHeadWinnerIsApplied(t *testing.T) {
+// TestResolveSupportOfHeadToHeadWinnerIsApplied checks that a support order
+// is reported applied when the side it supports wins the head-to-head: A1
+// outnumbers A2 (2 against 1) and wins on troops and its noble bonus alone.
+func TestResolveSupportOfHeadToHeadWinnerIsApplied(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB", "CCC"),
@@ -907,7 +903,7 @@ func hasContender(event Event, armyID models.ArmyID) bool {
 	return false
 }
 
-func TestResolveSupportFromDefenderOwnerCountsAgainstIt(t *testing.T) {
+func TestResolveSupportFromDefenderOwnerCountsForTheAttacker(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB", "CCC"),

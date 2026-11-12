@@ -996,9 +996,14 @@ func (ctx *resolutionContext) passChainToLastDestination(
 	chainID := chain.ID
 	last.ChainID = &chainID
 	live[lastID] = last
-	chain.ArmyID = lastID
+	rebindChain(chain, lastID)
+}
+
+// rebindChain points a chain, and each of its orders, at another army.
+func rebindChain(chain *models.Chain, armyID models.ArmyID) {
+	chain.ArmyID = armyID
 	for index := range chain.Orders {
-		chain.Orders[index].ArmyID = lastID
+		chain.Orders[index].ArmyID = armyID
 	}
 }
 
@@ -1039,10 +1044,7 @@ func (ctx *resolutionContext) mergeDisperseGroup(
 			chainID := *incomingChainID
 			host.ChainID = &chainID
 			if chain := ctx.chainsByID[chainID]; chain != nil {
-				chain.ArmyID = hostID
-				for index := range chain.Orders {
-					chain.Orders[index].ArmyID = hostID
-				}
+				rebindChain(chain, hostID)
 			}
 		} else if record != nil {
 			record.fused = true
