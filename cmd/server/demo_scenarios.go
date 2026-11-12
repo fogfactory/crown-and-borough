@@ -108,8 +108,12 @@ var demoScenarios = map[string]struct {
 		apply:       forgePillage,
 	},
 	"usurpation": {
-		description: "spring, P2's capital is the capital of a usurped barony: its first noble is the usurper and P1's first noble the exile. A P1 army, strong enough to win and with the exile, waits on a free territory next to it: A <origin> <capital> retakes the capital and restores the exile (no noble needed for that). The army without its noble (move the noble away) or an army of P3/P4 would only occupy the capital",
+		description: "spring, P2's capital is the capital of a usurped barony: its first noble is the usurper and P1's first noble the exile. A P1 army, strong enough to win and with the exile, waits on a free territory next to it: A <origin> <capital> retakes the capital and restores the exile (no noble needed for that). The army without its noble (move the noble away) or an army of P3/P4 would only occupy the capital. P3's first noble claims the exile's titles (married to P3's second noble)",
 		apply:       forgeUsurpation,
+	},
+	"claim": {
+		description: "spring, P2's capital is the capital of a barony held by P2's first noble, married to a P1 noble (ZSP); P1's first noble claims its title and P1 holds two Assassination cards: kill the holder to see the claim pass the fief to the heir, or usurp it when a free noble of an army stands on the capital",
+		apply:       forgeClaim,
 	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
@@ -1325,20 +1329,9 @@ func forgeArmies(state *models.GameState) error {
 	return nil
 }
 
-// forgeUsurpation builds the ambush situation (a P1 army that beats the
-// defense of P2's capital, standing next to it) and makes the capital the one
-// of a barony of P2 (titres.md "Conquête d'un fief par un noble"): P2's first
-// noble holds it as usurper and P1's first noble is the exile. The winning
-// attack A <origin> <capital> restores the exile and gives the fief back to P1.
-func forgeUsurpation(state *models.GameState) error {
-	if err := forgeAmbush(state); err != nil {
-		return err
-	}
-	capitalID := playerCapitalTerritory(state, "P2")
-	p1, p2 := ownedNobles(state, "P1"), ownedNobles(state, "P2")
-	if capitalID == "" || len(p1) == 0 || len(p2) == 0 {
-		return fmt.Errorf("the base game lacks a P2 capital or a noble for P1 or P2")
-	}
+// baronyMembers picks the members of a barony around capitalID: neighbours
+// controlled by P2 first, then free ones.
+func baronyMembers(state *models.GameState, capitalID models.TerritoryID) ([]models.TerritoryID, error) {
 	members := []models.TerritoryID{capitalID}
 	for _, wantFree := range []bool{false, true} {
 		for _, territory := range state.Territories {
@@ -1358,13 +1351,80 @@ func forgeUsurpation(state *models.GameState) error {
 		}
 	}
 	if len(members) < models.FiefMinTerritories {
-		return fmt.Errorf("no room for a barony around %s", capitalID)
+		return nil, fmt.Errorf("no room for a barony around %s", capitalID)
+	}
+	return members, nil
+}
+
+// forgeClaim makes P2's capital the one of a barony held by P2's first noble,
+// married to a P1 noble whose house claims the title (specs/succession.md
+// "Prétentions"): P1's first noble is the heir. P1 holds two Assassination
+// cards: `P AS <P1 noble> <P2 first noble>` kills the holder, and the claim
+// passes the fief to the heir, or to a free noble of an army standing on the
+// capital (P2's second noble sits on a neighbouring member: move it, with its
+// army, onto the capital to see the garrison case).
+func forgeClaim(state *models.GameState) error {
+	if err := forgeAmbush(state); err != nil {
+		return err
+	}
+	capitalID := playerCapitalTerritory(state, "P2")
+	p1, p2 := ownedNobles(state, "P1"), ownedNobles(state, "P2")
+	if capitalID == "" || len(p1) < 2 || len(p2) < 2 {
+		return fmt.Errorf("the base game lacks a P2 capital or two nobles for P1 or P2")
+	}
+	members, err := baronyMembers(state, capitalID)
+	if err != nil {
+		return err
+	}
+	holder, heir := state.Nobles[p2[0]], state.Nobles[p1[0]]
+	holderID := holder.ID
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: capitalID,
+		Territories: members, OwnerID: "P2", HolderNobleID: &holderID,
+	})
+	state.Nobles = append(state.Nobles, models.Noble{
+		ID: "N970", Code: "ZSP", Name: "Sébastien", Sex: models.SexMale,
+		OwnerID: "P1", LocationID: heir.LocationID, Status: models.NobleStatusFree,
+	})
+	state.Marriages = append(state.Marriages, models.Marriage{NobleA: "N970", NobleB: holder.ID, Turn: 1})
+	state.Claims = append(state.Claims, models.Claim{Heir: heir.ID, Target: holder.ID, Spouse: "N970", Turn: 1})
+	giveSpecialCards(state, "P1", models.CardKindAssassination, models.CardKindAssassination)
+	fmt.Printf("demo claim: barony %v of P2 held by %s, married to ZSP (P1); %s (P1) claims it\n", members, holder.Code, heir.Code)
+	return nil
+}
+
+// forgeUsurpation builds the ambush situation (a P1 army that beats the
+// defense of P2's capital, standing next to it) and makes the capital the one
+// of a barony of P2 (titres.md "Conquête d'un fief par un noble"): P2's first
+// noble holds it as usurper and P1's first noble is the exile. The winning
+// attack A <origin> <capital> restores the exile and gives the fief back to P1.
+func forgeUsurpation(state *models.GameState) error {
+	if err := forgeAmbush(state); err != nil {
+		return err
+	}
+	capitalID := playerCapitalTerritory(state, "P2")
+	p1, p2 := ownedNobles(state, "P1"), ownedNobles(state, "P2")
+	if capitalID == "" || len(p1) == 0 || len(p2) == 0 {
+		return fmt.Errorf("the base game lacks a P2 capital or a noble for P1 or P2")
+	}
+	members, err := baronyMembers(state, capitalID)
+	if err != nil {
+		return err
 	}
 	usurper, exile := state.Nobles[p2[0]].ID, state.Nobles[p1[0]].ID
 	state.Fiefs = append(state.Fiefs, models.Fief{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: capitalID,
 		Territories: members, OwnerID: "P2", HolderNobleID: &usurper, ExiledNobleID: &exile,
 	})
+	// A P3 claim on the exile, to try the deaths of the simulator: the exile
+	// is married to P3's second noble and P3's first noble claims its titles.
+	if len(ownedNobles(state, "P3")) >= 2 {
+		spouse, heir := state.Nobles[ownedNobles(state, "P3")[1]], state.Nobles[ownedNobles(state, "P3")[0]]
+		if spouse.Sex != state.Nobles[p1[0]].Sex {
+			state.Marriages = append(state.Marriages, models.Marriage{NobleA: exile, NobleB: spouse.ID, Turn: 1})
+			state.Claims = append(state.Claims, models.Claim{Heir: heir.ID, Target: exile, Spouse: spouse.ID, Turn: 1})
+		}
+	}
 	fmt.Printf("demo usurpation: barony %v of P2, usurper %s, exile %s (P1)\n", members, state.Nobles[p2[0]].Code, state.Nobles[p1[0]].Code)
 	return nil
 }

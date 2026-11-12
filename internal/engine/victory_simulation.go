@@ -216,13 +216,22 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 	return nil
 }
 
+// simulatedFief returns the fief whose capital the action names.
+func simulatedFief(state *models.GameState, action SimulationAction) (*models.Fief, error) {
+	fief := state.FiefByCapital(action.Fief)
+	if fief == nil {
+		return nil, fmt.Errorf("unknown fief %q", action.Fief)
+	}
+	return fief, nil
+}
+
 // simulateRank raises the fief by one rank. The holder must be able to carry
 // the higher title in the succession line; the winter cost and the
 // once-per-winter limit are not simulated.
 func simulateRank(state *models.GameState, action SimulationAction) error {
-	fief := state.FiefByCapital(action.Fief)
-	if fief == nil {
-		return fmt.Errorf("unknown fief %q", action.Fief)
+	fief, err := simulatedFief(state, action)
+	if err != nil {
+		return err
 	}
 	title, ok := fief.Title.Next()
 	if !ok {
@@ -241,9 +250,9 @@ func simulateRank(state *models.GameState, action SimulationAction) error {
 // simulateConquer hands the fief to the noble's house as an army of theirs
 // with that noble on the capital would (GameState.ConquerFief).
 func simulateConquer(state *models.GameState, noble models.Noble, action SimulationAction) error {
-	fief := state.FiefByCapital(action.Fief)
-	if fief == nil {
-		return fmt.Errorf("unknown fief %q", action.Fief)
+	fief, err := simulatedFief(state, action)
+	if err != nil {
+		return err
 	}
 	if noble.Status != models.NobleStatusFree {
 		return fmt.Errorf("noble %q is not free", noble.Code)
@@ -257,9 +266,9 @@ func simulateConquer(state *models.GameState, noble models.Noble, action Simulat
 // simulateRestore gives the fief back to its exile: the exile's house retakes
 // the capital with an army.
 func simulateRestore(state *models.GameState, action SimulationAction) error {
-	fief := state.FiefByCapital(action.Fief)
-	if fief == nil {
-		return fmt.Errorf("unknown fief %q", action.Fief)
+	fief, err := simulatedFief(state, action)
+	if err != nil {
+		return err
 	}
 	if fief.ExiledNobleID == nil {
 		return fmt.Errorf("fief %q has no exile", action.Fief)
@@ -277,9 +286,9 @@ func simulateRestore(state *models.GameState, action SimulationAction) error {
 // simulateRenounceTitle makes the noble give up its exiled or usurped title on
 // the fief (GameState.RenounceContestedTitle).
 func simulateRenounceTitle(state *models.GameState, noble models.Noble, action SimulationAction) error {
-	fief := state.FiefByCapital(action.Fief)
-	if fief == nil {
-		return fmt.Errorf("unknown fief %q", action.Fief)
+	fief, err := simulatedFief(state, action)
+	if err != nil {
+		return err
 	}
 	if kind, _ := state.RenounceContestedTitle(fief, noble.ID); kind == "" {
 		return fmt.Errorf("noble %q carries no exiled or usurped title on fief %q", noble.Code, action.Fief)
