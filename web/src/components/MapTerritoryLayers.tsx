@@ -1,16 +1,19 @@
+import type { ReactNode } from 'react'
+
 import { ArmyGlyph, CONTROL_REACH, ControlShield } from '@/components/MapHeraldry'
 import { FamineMarker, InfrastructureMarker, NobleMarker } from '@/components/MapMarkers'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { MessageKey } from '@/i18n/messages'
 import { armyDrawingOwner, type ResolvedArms } from '@/lib/heraldry'
 import type { NobleAttributes } from '@/lib/noble-attributes'
-import { centroid, pointsToPath } from '@/lib/map-svg-geometry'
+import { centroid, pointsToPath, placeMarker } from '@/lib/map-svg-geometry'
 import { isOccupiedAgainstController } from '@/lib/occupation'
 import type { RegionStyle } from '@/lib/region-color'
 import {
   CODE_FONT_SIZE,
   CODE_LETTER_SPACING,
   NAME_FONT_SIZE,
+  labelExtent,
   type TerritoryLabelLayout,
 } from '@/lib/territory-labels'
 import {
@@ -44,6 +47,39 @@ const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
  */
 const ARMY_REACH = 15
 const ARMY_BELOW_BASELINE = 4
+
+/**
+ * Corners of a marker's footprint around its anchor, in units, with a margin
+ * for the border band drawn along each edge: an army pack stands with its feet
+ * on the anchor, a noble's pawn is centred on it.
+ */
+/** Height of an army pack and the gap kept between it and the label, in units. */
+const ARMY_HEIGHT = 24
+const ARMY_LABEL_GAP = 2
+/** Half the height of a noble's pawn plus a gap, in units. */
+const NOBLE_LABEL_GAP = 10
+/** A noble's pawn is centred on its anchor: its feet are this far below it, in units. */
+const NOBLE_HALF_HEIGHT = 8
+
+const ARMY_FOOTPRINT: Array<[number, number]> = [
+  [-16, 4],
+  [16, 4],
+  [-16, -26],
+  [16, -26],
+]
+const NOBLE_FOOTPRINT: Array<[number, number]> = [
+  [-14, -14],
+  [14, -14],
+  [-14, 14],
+  [14, 14],
+]
+
+function scaled(
+  footprint: Array<[number, number]>,
+  scale: number,
+): Array<[number, number]> {
+  return footprint.map(([dx, dy]) => [dx * scale, dy * scale])
+}
 
 /** Nobles sharing a territory stand side by side, this far apart. */
 const NOBLE_SPACING = 12
@@ -293,98 +329,162 @@ export function LiveLayer({
     })
   }
 
+  // Each territory's stock and infrastructure, and its pawns (army, nobles),
+  // each with the baseline it stands on.
+  const placed = territories.flatMap((territory) => {
+    const territoryState = state.territories.find(
+      (candidate) => candidate.id === territory.id,
+    )
+    if (!territoryState) {
+      return []
+    }
+
+    const [centerX, centerY] = centroid(territory.points)
+    // The label's left edge is where the shield stands: its right edge
+    // mirrors it, so the pack stands beyond it, feet on the baseline.
+    const labelLayout = labelLayouts.get(territory.id)
+    const labelLeft = labelLayout?.shieldAnchor ?? { x: 0, y: 0 }
+    const label = labelLayout ? labelExtent(labelLayout) : { top: 0, bottom: 0 }
+    const center: [number, number] = [centerX, centerY]
+    const territoryPawns: Array<{ key: string; feet: number; node: ReactNode }> = []
+
+    if (territoryState.army) {
+      const army = territoryState.army
+      const [armyX, armyFeet] = placeMarker(
+        [
+          centerX + (-labelLeft.x + ARMY_REACH) * annotationScale,
+          centerY + (labelLeft.y + ARMY_BELOW_BASELINE) * annotationScale,
+        ],
+        // Too small a cell: the pack stands above the label, else below it.
+        [
+          [centerX, centerY + (label.top - ARMY_LABEL_GAP) * annotationScale],
+          [
+            centerX,
+            centerY + (label.bottom + ARMY_HEIGHT + ARMY_LABEL_GAP) * annotationScale,
+          ],
+        ],
+        territory.points,
+        center,
+        scaled(ARMY_FOOTPRINT, annotationScale),
+      )
+      territoryPawns.push({
+        key: `${territory.id}-army`,
+        feet: armyFeet,
+        node: (
+          <>
+            <title>{armyLabel(army)}</title>
+            <g transform={`translate(${armyX} ${armyFeet}) scale(${annotationScale})`}>
+              <ArmyGlyph
+                owner={armyDrawingOwner(armsByOwner, army.owner)}
+                size={army.size}
+                seed={territory.id}
+                compact={compactArmies}
+              />
+            </g>
+            {army.starving && (
+              <FamineMarker
+                x={armyX + 14 * annotationScale}
+                y={armyFeet - 8 * annotationScale}
+                scale={annotationScale}
+              />
+            )}
+          </>
+        ),
+      })
+    }
+
+    state.nobles
+      .filter((noble) => noble.location === territory.id)
+      .forEach((noble, index) => {
+        const nobleOffset = index * NOBLE_SPACING * annotationScale
+        const [nobleX, nobleY] = placeMarker(
+          [
+            centerX + (28 + index * NOBLE_SPACING) * annotationScale,
+            centerY + 20 * annotationScale,
+          ],
+          [
+            [
+              centerX + nobleOffset,
+              centerY + (label.top - NOBLE_LABEL_GAP) * annotationScale,
+            ],
+            [
+              centerX + nobleOffset,
+              centerY + (label.bottom + NOBLE_LABEL_GAP) * annotationScale,
+            ],
+          ],
+          territory.points,
+          center,
+          scaled(NOBLE_FOOTPRINT, annotationScale),
+        )
+        territoryPawns.push({
+          key: noble.id,
+          feet: nobleY + NOBLE_HALF_HEIGHT * annotationScale,
+          node: (
+            <NobleMarker
+              noble={noble}
+              x={nobleX}
+              y={nobleY}
+              color={playerColors.get(noble.owner) ?? UNKNOWN_OWNER_COLOR}
+              scale={annotationScale}
+              attributes={nobleAttributes.get(noble.code)}
+              selected={noble.code === selectedNoble}
+            />
+          ),
+        })
+      })
+
+    const ground = (
+      <>
+        {territoryState.resources > 0 && (
+          <text
+            x={centerX + 30 * annotationScale}
+            y={centerY - 20 * annotationScale}
+            fill={MAP_BROWN_FILL}
+            fontSize={11 * annotationScale}
+            fontWeight="700"
+            textAnchor="middle"
+            stroke={MAP_PARCHMENT}
+            strokeWidth={3 * annotationScale}
+            paintOrder="stroke"
+          >
+            {t('map.stock', { amount: territoryState.resources })}
+          </text>
+        )}
+        {territoryState.infrastructures.map((infrastructure, index) => (
+          <InfrastructureMarker
+            key={`${territory.id}-${infrastructure.type}-${index}`}
+            infrastructure={infrastructure}
+            x={centerX + (index * 24 - 9) * annotationScale}
+            y={centerY - 30 * annotationScale}
+            isCapital={
+              infrastructure.type === 'castle' &&
+              state.players.some((player) => player.capitalTerritory === territory.id)
+            }
+            scale={annotationScale}
+            ownerColor={
+              territoryState.owner
+                ? (playerColors.get(territoryState.owner) ?? null)
+                : null
+            }
+          />
+        ))}
+      </>
+    )
+    return [{ key: territory.id, ground, pawns: territoryPawns }]
+  })
+
+  // Pawns are drawn from the back to the front: the lower one stands in front
+  // of the one it overlaps, whichever territory it belongs to.
+  const pawns = placed.flatMap((entry) => entry.pawns).sort((a, b) => a.feet - b.feet)
+
   return (
     <g aria-label={t('map.liveLayer')} pointerEvents="none">
-      {territories.map((territory) => {
-        const territoryState = state.territories.find(
-          (candidate) => candidate.id === territory.id,
-        )
-        if (!territoryState) {
-          return null
-        }
-
-        const [centerX, centerY] = centroid(territory.points)
-        // The label's left edge is where the shield stands: its right edge
-        // mirrors it, so the pack stands beyond it, feet on the baseline.
-        const labelLeft = labelLayouts.get(territory.id)?.shieldAnchor ?? { x: 0, y: 0 }
-        const armyX = centerX + (-labelLeft.x + ARMY_REACH) * annotationScale
-        const armyFeet = centerY + (labelLeft.y + ARMY_BELOW_BASELINE) * annotationScale
-        const territoryNobles = state.nobles.filter(
-          (noble) => noble.location === territory.id,
-        )
-
-        return (
-          <g key={territory.id}>
-            {territoryState.resources > 0 && (
-              <text
-                x={centerX + 30 * annotationScale}
-                y={centerY - 20 * annotationScale}
-                fill={MAP_BROWN_FILL}
-                fontSize={11 * annotationScale}
-                fontWeight="700"
-                textAnchor="middle"
-                stroke={MAP_PARCHMENT}
-                strokeWidth={3 * annotationScale}
-                paintOrder="stroke"
-              >
-                {t('map.stock', { amount: territoryState.resources })}
-              </text>
-            )}
-            {territoryState.infrastructures.map((infrastructure, index) => (
-              <InfrastructureMarker
-                key={`${territory.id}-${infrastructure.type}-${index}`}
-                infrastructure={infrastructure}
-                x={centerX + (index * 24 - 9) * annotationScale}
-                y={centerY - 30 * annotationScale}
-                isCapital={
-                  infrastructure.type === 'castle' &&
-                  state.players.some((player) => player.capitalTerritory === territory.id)
-                }
-                scale={annotationScale}
-                ownerColor={
-                  territoryState.owner
-                    ? (playerColors.get(territoryState.owner) ?? null)
-                    : null
-                }
-              />
-            ))}
-            {territoryState.army && (
-              <g key={`${territory.id}-army`}>
-                <title>{armyLabel(territoryState.army)}</title>
-                <g
-                  transform={`translate(${armyX} ${armyFeet}) scale(${annotationScale})`}
-                >
-                  <ArmyGlyph
-                    owner={armyDrawingOwner(armsByOwner, territoryState.army.owner)}
-                    size={territoryState.army.size}
-                    seed={territory.id}
-                    compact={compactArmies}
-                  />
-                </g>
-                {territoryState.army.starving && (
-                  <FamineMarker
-                    x={armyX + 14 * annotationScale}
-                    y={armyFeet - 8 * annotationScale}
-                    scale={annotationScale}
-                  />
-                )}
-              </g>
-            )}
-            {territoryNobles.map((noble, index) => (
-              <NobleMarker
-                key={noble.id}
-                noble={noble}
-                x={centerX + (28 + index * NOBLE_SPACING) * annotationScale}
-                y={centerY + 20 * annotationScale}
-                color={playerColors.get(noble.owner) ?? UNKNOWN_OWNER_COLOR}
-                scale={annotationScale}
-                attributes={nobleAttributes.get(noble.code)}
-                selected={noble.code === selectedNoble}
-              />
-            ))}
-          </g>
-        )
-      })}
+      {placed.map(({ key, ground }) => (
+        <g key={key}>{ground}</g>
+      ))}
+      {pawns.map(({ key, node }) => (
+        <g key={key}>{node}</g>
+      ))}
     </g>
   )
 }
