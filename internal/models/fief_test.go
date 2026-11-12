@@ -92,7 +92,7 @@ func TestSettleFiefTitlesOfMissingNobles(t *testing.T) {
 			Nobles:  nobles,
 			Fiefs: []models.Fief{{
 				ID: "F1", OwnerID: "P2", HolderNobleID: ptrNobleID("N2"),
-				ExiledNobleID: ptrNobleID("N1"), Usurped: true,
+				ExiledNobleID: ptrNobleID("N1"),
 			}},
 		}
 	}
@@ -102,7 +102,7 @@ func TestSettleFiefTitlesOfMissingNobles(t *testing.T) {
 	got := state.SettleFiefTitlesOfMissingNobles(noHeir)
 	fief := state.Fiefs[0]
 	if len(got) != 1 || got[0].Outcome != models.FiefTitleRestored || fief.OwnerID != "P1" ||
-		fief.HolderNobleID == nil || *fief.HolderNobleID != "N1" || fief.ExiledNobleID != nil || fief.Usurped {
+		fief.HolderNobleID == nil || *fief.HolderNobleID != "N1" || fief.ExiledNobleID != nil {
 		t.Errorf("usurper dead: %#v %#v, want the exile restored to P1", got, fief)
 	}
 
@@ -110,7 +110,7 @@ func TestSettleFiefTitlesOfMissingNobles(t *testing.T) {
 	got = state.SettleFiefTitlesOfMissingNobles(noHeir)
 	fief = state.Fiefs[0]
 	if len(got) != 1 || got[0].Outcome != models.FiefTitleLegitimised || fief.OwnerID != "P2" ||
-		*fief.HolderNobleID != "N2" || fief.ExiledNobleID != nil || fief.Usurped {
+		*fief.HolderNobleID != "N2" || fief.ExiledNobleID != nil {
 		t.Errorf("exile dead: %#v %#v, want the usurper official", got, fief)
 	}
 
@@ -124,7 +124,7 @@ func TestSettleFiefTitlesOfMissingNobles(t *testing.T) {
 	})
 	fief = state.Fiefs[0]
 	if len(got) != 1 || got[0].Outcome != models.FiefTitleReexiled || *fief.ExiledNobleID != "N9" ||
-		!fief.Usurped || *fief.HolderNobleID != "N2" {
+		!fief.Usurped() || *fief.HolderNobleID != "N2" {
 		t.Errorf("exile dead with claim: %#v %#v, want N9 the new exile", got, fief)
 	}
 
@@ -135,7 +135,7 @@ func TestSettleFiefTitlesOfMissingNobles(t *testing.T) {
 	})
 	fief = state.Fiefs[0]
 	if len(got) != 1 || got[0].Outcome != models.FiefTitleVacated || fief.OwnerID != "P2" ||
-		fief.HolderNobleID != nil || fief.ExiledNobleID != nil || fief.Usurped {
+		fief.HolderNobleID != nil || fief.ExiledNobleID != nil {
 		t.Errorf("both dead: %#v %#v, want a vacant fief left with P2", got, fief)
 	}
 }
@@ -146,7 +146,7 @@ func TestFiefLoadsWithoutUsurpationFields(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &fief); err != nil {
 		t.Fatal(err)
 	}
-	if fief.ExiledNobleID != nil || fief.Usurped {
+	if fief.ExiledNobleID != nil {
 		t.Fatalf("fief = %#v, want no exile nor usurper", fief)
 	}
 	out, err := json.Marshal(fief)

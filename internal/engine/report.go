@@ -396,14 +396,12 @@ type FiefReport struct {
 	Occupant      models.PlayerID      `json:"occupant,omitempty"`
 	Noble         models.NobleID       `json:"noble,omitempty"`
 	NobleName     string               `json:"nobleName,omitempty"`
-	// Exiled is the noble a usurpation ousted (or the fallen usurper of a
-	// restoration), ExiledCode and ExiledName its public code and display
-	// name. TargetName is the noble a renounced claim bore on.
-	Exiled     models.NobleID   `json:"exiled,omitempty"`
-	ExiledCode models.NobleCode `json:"exiledCode,omitempty"`
-	ExiledName string           `json:"exiledName,omitempty"`
-	TargetName string           `json:"targetName,omitempty"`
-	Reason     string           `json:"reason,omitempty"`
+	// ExiledName is the display name of the noble a usurpation ousted (or of
+	// the fallen usurper of a restoration). TargetName is the noble a renounced
+	// claim bore on.
+	ExiledName string `json:"exiledName,omitempty"`
+	TargetName string `json:"targetName,omitempty"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 type WinterStockReport struct {
@@ -758,7 +756,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Capital: event.TerritoryID, Title: event.FiefTitle,
 				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
 				Noble:       event.NobleID, NobleName: event.NobleName, Reason: event.Reason,
-				Exiled: event.ExiledNobleID, ExiledCode: event.ExiledNobleCode, ExiledName: event.ExiledNobleName,
+				ExiledName: event.ExiledNobleName,
 				TargetName: event.SpouseNobleName,
 			})
 		case EventTypeMarriageRefused:

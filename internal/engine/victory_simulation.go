@@ -277,11 +277,7 @@ func simulateDeath(state *models.GameState, dead models.Noble) {
 				heirID := heir.ID
 				if usurper := state.ClaimUsurperAt(fief.CapitalTerritoryID, heir.OwnerID); usurper != nil {
 					// A garrison noble on the capital usurps; the heir is exiled.
-					usurperID := usurper.ID
-					fief.OwnerID = usurper.OwnerID
-					fief.HolderNobleID = &usurperID
-					fief.ExiledNobleID = &heirID
-					fief.Usurped = true
+					fief.Usurp(*usurper, heirID)
 				} else {
 					fief.OwnerID = heir.OwnerID
 					fief.HolderNobleID = &heirID

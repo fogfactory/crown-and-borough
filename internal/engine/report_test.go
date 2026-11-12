@@ -500,7 +500,7 @@ func TestBuildTurnReportKeepsUsurpationsAndRenunciations(t *testing.T) {
 		{
 			Type: EventTypeFiefConquered, Reason: "usurpation", TerritoryID: "ROS", FiefTitle: models.FiefTitleBarony,
 			PreviousOwnerID: "P1", OwnerID: "P2", NobleID: "N2", NobleName: "Baron Ann de Rosemont",
-			ExiledNobleID: "N1", ExiledNobleCode: "HUG", ExiledNobleName: "Sieur Hugon",
+			ExiledNobleID: "N1", ExiledNobleName: "Sieur Hugon",
 		},
 		{Type: EventTypeFiefTitleSettled, Reason: "usurper_legitimised", TerritoryID: "ROS", FiefTitle: models.FiefTitleBarony, OwnerID: "P2", NobleID: "N2"},
 		{Type: EventTypeTitleRenounced, Reason: "claim", OwnerID: "P1", NobleID: "N3", NobleName: "Sieur Kid", SpouseNobleName: "Dame Ann"},
@@ -510,7 +510,7 @@ func TestBuildTurnReportKeepsUsurpationsAndRenunciations(t *testing.T) {
 		t.Fatalf("fiefs = %#v, want four entries", report.Fiefs)
 	}
 	usurpation := report.Fiefs[0]
-	if usurpation.Reason != "usurpation" || usurpation.Noble != "N2" || usurpation.Exiled != "N1" || usurpation.ExiledCode != "HUG" || usurpation.ExiledName != "Sieur Hugon" {
+	if usurpation.Reason != "usurpation" || usurpation.Noble != "N2" || usurpation.ExiledName != "Sieur Hugon" {
 		t.Errorf("usurpation = %#v", usurpation)
 	}
 	if report.Fiefs[1].Kind != EventTypeFiefTitleSettled || report.Fiefs[1].Reason != "usurper_legitimised" {

@@ -41,7 +41,7 @@ func TestRenounceClaimEndsItAndAllowsANewOneInTheSameWinter(t *testing.T) {
 		t.Errorf("discard = %v, played = %+v, want one discarded card and %s staked on N3", deck.Discard, deck.Played, secondCard)
 	}
 	renounced := eventsOfType(resolution.Events, EventTypeTitleRenounced)
-	if len(renounced) != 1 || renounced[0].Reason != "claim" || renounced[0].NobleCode != "KID" || renounced[0].SpouseNobleCode != "ANN" {
+	if len(renounced) != 1 || renounced[0].Reason != "claim" || renounced[0].NobleCode != "KID" || renounced[0].SpouseNobleName != "Dame ANN" {
 		t.Errorf("renounced events = %+v, want one claim renunciation", renounced)
 	}
 }

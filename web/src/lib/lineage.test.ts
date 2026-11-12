@@ -50,7 +50,7 @@ describe('lineage', () => {
       nobles,
       [],
       [
-        { capital: 'AAA', title: 'barony', territories: ['AAA'], owner: 'P2', holder: 'ANN', usurped: true, exiled: 'JEA' },
+        { capital: 'AAA', title: 'barony', territories: ['AAA'], owner: 'P2', holder: 'ANN', exiled: 'JEA' },
       ],
     )
     const jean = houses[0].members.find((m) => m.code === 'JEA')

@@ -398,7 +398,7 @@ func TestClaimOnDeadHolderFacingAGarrisonWithANobleUsurps(t *testing.T) {
 		t.Errorf("Validate() = %v", err)
 	}
 	events := eventsOfType(ctx.events, EventTypeFiefConquered)
-	if len(events) != 1 || events[0].Reason != "claim_usurpation" || events[0].NobleCode != "GAR" || events[0].ExiledNobleCode != "ELE" {
+	if len(events) != 1 || events[0].Reason != "claim_usurpation" || events[0].NobleCode != "GAR" || events[0].ExiledNobleID != "N3" {
 		t.Errorf("fief events = %+v, want one claim usurpation by GAR of ELE", events)
 	}
 	if len(ctx.state.Claims) != 0 || len(ctx.state.ExpiredClaims) != 1 || ctx.state.ExpiredClaims[0].Outcome != models.ClaimHonoured {

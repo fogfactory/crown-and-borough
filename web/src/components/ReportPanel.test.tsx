@@ -668,7 +668,7 @@ describe('ReportPanel', () => {
       fiefs: [
         {
           kind: 'fief_conquered', owner: 'P1', previousOwner: 'P2', capital: 'ROS', title: 'barony',
-          territories: [], reason: 'usurpation', noble: 'N1', nobleName: 'Baron Hugon', exiled: 'N2', exiledCode: 'ANN', exiledName: 'Sieur Anne',
+          territories: [], reason: 'usurpation', noble: 'N1', nobleName: 'Baron Hugon', exiledName: 'Sieur Anne',
         },
         { kind: 'fief_conquered', owner: 'P2', capital: 'ROS', title: 'barony', territories: [], reason: 'usurper_died', nobleName: 'Baron Anne' },
         { kind: 'fief_title_settled', owner: 'P1', capital: 'ROS', title: 'barony', territories: [], reason: 'usurper_legitimised', nobleName: 'Baron Hugon' },

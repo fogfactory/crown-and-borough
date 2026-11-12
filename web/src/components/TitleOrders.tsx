@@ -651,7 +651,7 @@ export function TitleOrdersSection({
     if (fief.exiled && byCode.get(fief.exiled)?.owner === player) {
       entries.push({ fief, noble: fief.exiled, usurper: false })
     }
-    if (fief.usurped && fief.holder && byCode.get(fief.holder)?.owner === player) {
+    if (fief.exiled && fief.holder && byCode.get(fief.holder)?.owner === player) {
       entries.push({ fief, noble: fief.holder, usurper: true })
     }
     return entries.filter((entry) => !lines.includes(`T D ${entry.noble} ${entry.fief.capital}`))

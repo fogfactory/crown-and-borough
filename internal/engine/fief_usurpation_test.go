@@ -41,7 +41,7 @@ func fiefAfterControlPass(t *testing.T, state *models.GameState, armies ...model
 
 func requireTitles(t *testing.T, fief models.Fief, owner models.PlayerID, holder, exile models.NobleID, usurped bool) {
 	t.Helper()
-	if fief.OwnerID != owner || fief.Usurped != usurped {
+	if fief.OwnerID != owner || fief.Usurped() != usurped {
 		t.Errorf("fief = %#v, want owner %s, usurped %v", fief, owner, usurped)
 	}
 	check := func(label string, got *models.NobleID, want models.NobleID) {
@@ -141,7 +141,6 @@ func TestRetakingTheCapitalRestoresTheExile(t *testing.T) {
 	state.Fiefs[0].OwnerID = "P2"
 	state.Fiefs[0].HolderNobleID = &holder
 	state.Fiefs[0].ExiledNobleID = &exile
-	state.Fiefs[0].Usurped = true
 	// A noble-less army of P1 is enough.
 	ctx, fief := fiefAfterControlPass(t, state, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 4})
 	requireTitles(t, fief, "P1", "N1", "", false)
@@ -162,7 +161,6 @@ func TestUsurpedThenConqueredDropsTheUsurperAndKeepsTheExile(t *testing.T) {
 	state.Fiefs[0].OwnerID = "P2"
 	state.Fiefs[0].HolderNobleID = &holder
 	state.Fiefs[0].ExiledNobleID = &exile
-	state.Fiefs[0].Usurped = true
 	setNobleLocation(state, "N3", "AAA")
 	_, fief := fiefAfterControlPass(t, state, models.Army{ID: "A1", OwnerID: "P3", TerritoryID: "AAA", Size: 5})
 	// N3 takes it; N2 loses everything; N1 stays the exile.
@@ -176,7 +174,6 @@ func TestRetakingBySameOwnerAsUsurperDoesNothing(t *testing.T) {
 	holder, exile := models.NobleID("N4"), models.NobleID("N1")
 	state.Fiefs[0].HolderNobleID = &holder
 	state.Fiefs[0].ExiledNobleID = &exile
-	state.Fiefs[0].Usurped = true
 	ctx, fief := fiefAfterControlPass(t, state, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 4})
 	requireTitles(t, fief, "P1", "N4", "N1", true)
 	if len(eventsOfType(ctx.events, EventTypeFiefConquered)) != 0 {
@@ -193,14 +190,6 @@ func TestOccupiedCapitalRefusesDepotAndInvestment(t *testing.T) {
 	}
 }
 
-func setNobleLocation(state *models.GameState, id models.NobleID, territoryID models.TerritoryID) {
-	for i := range state.Nobles {
-		if state.Nobles[i].ID == id {
-			state.Nobles[i].LocationID = territoryID
-		}
-	}
-}
-
 // usurpedFiefState: P2 holds the fief through the usurper N2, N1 of P1 is the
 // exile, and N3 (P3) is a claim heir that may be staked on either of them.
 func usurpedFiefState(t *testing.T) *models.GameState {
@@ -210,7 +199,6 @@ func usurpedFiefState(t *testing.T) *models.GameState {
 	state.Fiefs[0].OwnerID = "P2"
 	state.Fiefs[0].HolderNobleID = &holder
 	state.Fiefs[0].ExiledNobleID = &exile
-	state.Fiefs[0].Usurped = true
 	return state
 }
 
@@ -383,7 +371,6 @@ func sameOwnerUsurpedState(t *testing.T) *models.GameState {
 	holder, exile := models.NobleID("N4"), models.NobleID("N1")
 	state.Fiefs[0].HolderNobleID = &holder
 	state.Fiefs[0].ExiledNobleID = &exile
-	state.Fiefs[0].Usurped = true
 	capital := models.InfraID("I1")
 	state.Players[0].CapitalCastleID = &capital
 	return state
@@ -463,7 +450,7 @@ func TestClaimUsurpationByAGarrisonExilesAMaskedEonHeirUnderItsPublicIdentity(t 
 	ctx := killN2(t, state, models.Army{ID: "G1", OwnerID: "P2", TerritoryID: "AAA", Size: 3})
 	requireTitles(t, ctx.state.Fiefs[0], "P2", "N5", "N3", true)
 	events := eventsOfType(ctx.events, EventTypeFiefConquered)
-	if len(events) != 1 || events[0].ExiledNobleCode != "ELE" || strings.Contains(events[0].ExiledNobleName, "Zelie") {
+	if len(events) != 1 || events[0].ExiledNobleID != "N3" || strings.Contains(events[0].ExiledNobleName, "Zelie") {
 		t.Errorf("events = %+v, want the exile named by its public identity", events)
 	}
 }

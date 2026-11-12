@@ -181,25 +181,23 @@ func (ctx *resolutionContext) captureFiefCapital(fief *models.Fief, army *models
 		return false
 	}
 	reason := ""
-	if fief.HolderNobleID != nil {
-		if !fief.Usurped {
-			if holder := ctx.noblesByID[*fief.HolderNobleID]; holder != nil {
-				exiledID := holder.ID
-				fief.ExiledNobleID = &exiledID
-				fief.Usurped = true
-			}
-		}
-		if fief.Usurped {
-			// A fallen usurper loses everything; the original exile stays.
-			usurperID := free[0].ID
-			fief.HolderNobleID = &usurperID
-			reason = "usurpation"
-		} else {
-			fief.HolderNobleID = nil
-		}
+	switch {
+	case fief.HolderNobleID == nil:
+	case fief.Usurped():
+		// A fallen usurper loses everything; the original exile stays.
+		fief.Usurp(free[0], *fief.ExiledNobleID)
+		reason = "usurpation"
+	case ctx.noblesByID[*fief.HolderNobleID] != nil:
+		fief.Usurp(free[0], *fief.HolderNobleID)
+		reason = "usurpation"
+	default:
+		// The titulaire is gone from play: nothing to usurp.
+		fief.HolderNobleID = nil
 	}
-	fief.OwnerID = army.OwnerID
-	fief.Crown = false
+	if reason == "" {
+		fief.OwnerID = army.OwnerID
+		fief.Crown = false
+	}
 	event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, previousOwnerID, reason, 5)
 	if reason != "" {
 		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
@@ -243,7 +241,6 @@ func (ctx *resolutionContext) setExiledNoble(event *Event, noble *models.Noble) 
 		return
 	}
 	event.ExiledNobleID = noble.ID
-	event.ExiledNobleCode = models.NobleCode(noble.Code)
 	event.ExiledNobleName = ctx.state.NobleDisplayName(*noble)
 }
 
@@ -306,35 +303,32 @@ func (ctx *resolutionContext) passFiefToHeir(fief *models.Fief, heir models.Nobl
 		PreviousOwnerID: previousOwnerID,
 		Reason:          "claim",
 	}
-	if usurper := ctx.claimUsurperAt(fief.CapitalTerritoryID, heir); usurper != nil {
-		usurperID := usurper.ID
-		fief.OwnerID = usurper.OwnerID
-		fief.HolderNobleID = &usurperID
-		fief.ExiledNobleID = &heirID
-		fief.Usurped = true
+	if usurper := ctx.state.ClaimUsurperAt(fief.CapitalTerritoryID, heir.OwnerID); usurper != nil {
+		fief.Usurp(*usurper, heirID)
 		event.Reason = "claim_usurpation"
 		ctx.setNoble(&event, usurper)
 		ctx.setExiledNoble(&event, &heir)
 	} else {
 		fief.OwnerID = heir.OwnerID
 		fief.HolderNobleID = &heirID
+		fief.Crown = false
 		ctx.setNoble(&event, &heir)
 	}
-	fief.Crown = false
 	event.OwnerID = fief.OwnerID
-	if fief.OwnerID != previousOwnerID {
-		for _, memberID := range fief.Territories {
-			ctx.clearCapitalOnControlLoss(previousOwnerID, memberID)
-		}
-	}
+	ctx.clearFiefCapitals(previousOwnerID, fief)
 	ctx.events = append(ctx.events, event)
 }
 
-// claimUsurperAt returns the free noble that usurps a fief whose titulaire
-// died when the claim of heir fires (GameState.ClaimUsurperAt), garrison of
-// the previous owner included.
-func (ctx *resolutionContext) claimUsurperAt(capitalID models.TerritoryID, heir models.Noble) *models.Noble {
-	return ctx.state.ClaimUsurperAt(capitalID, heir.OwnerID)
+// clearFiefCapitals clears the capital designation prev held on a member of
+// the fief, once the fief left prev for another owner. It does nothing while
+// the fief still belongs to prev.
+func (ctx *resolutionContext) clearFiefCapitals(prev models.PlayerID, fief *models.Fief) {
+	if fief.OwnerID == prev {
+		return
+	}
+	for _, memberID := range fief.Territories {
+		ctx.clearCapitalOnControlLoss(prev, memberID)
+	}
 }
 
 // vacateFiefsOfMissingHolders settles the titles of the fiefs whose titulaire
@@ -360,11 +354,7 @@ func (ctx *resolutionContext) vacateFiefsOfMissingHolders() {
 		case models.FiefTitleVacated:
 			ctx.events = append(ctx.events, ctx.fiefTitleEvent(EventTypeFiefVacated, fief, "", "", phase))
 		case models.FiefTitleRestored:
-			if fief.OwnerID != settlement.PreviousOwner {
-				for _, memberID := range fief.Territories {
-					ctx.clearCapitalOnControlLoss(settlement.PreviousOwner, memberID)
-				}
-			}
+			ctx.clearFiefCapitals(settlement.PreviousOwner, fief)
 			event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, settlement.PreviousOwner, "usurper_died", phase)
 			ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
 			ctx.events = append(ctx.events, event)

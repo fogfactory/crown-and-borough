@@ -41,10 +41,7 @@ func (order renounceClaimOrder) Apply(ctx *ExecutionContext) {
 	}
 	resolution.setNoble(&event, heir)
 	if target := resolution.noblesByID[claim.Target]; target != nil {
-		event.SpouseNobleID = target.ID
-		event.SpouseNobleCode = models.NobleCode(target.Code)
 		event.SpouseNobleName = resolution.state.NobleDisplayName(*target)
-		event.SpouseOwnerID = target.OwnerID
 	}
 	resolution.events = append(resolution.events, event)
 }
@@ -80,15 +77,10 @@ func (order renounceTitleOrder) Apply(ctx *ExecutionContext) {
 	switch {
 	case fief.ExiledNobleID != nil && *fief.ExiledNobleID == nobleID:
 		fief.ExiledNobleID = nil
-		fief.Usurped = false
 		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, "exiled", noble)
-	case fief.Usurped && fief.HolderNobleID != nil && *fief.HolderNobleID == nobleID:
+	case fief.Usurped() && fief.HolderNobleID != nil && *fief.HolderNobleID == nobleID:
 		resolution.state.RestoreExile(fief)
-		if fief.OwnerID != previousOwnerID {
-			for _, memberID := range fief.Territories {
-				resolution.clearCapitalOnControlLoss(previousOwnerID, memberID)
-			}
-		}
+		resolution.clearFiefCapitals(previousOwnerID, fief)
 		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, "usurped", noble)
 	default:
 		resolution.rejectWinterOrder(playerID, winterOrder, "noble_not_contested")

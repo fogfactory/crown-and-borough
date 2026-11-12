@@ -396,9 +396,7 @@ export interface Fief {
   territories: string[]
   owner: PlayerId
   holder?: string
-  /** `holder` is a usurper: it took the fief by conquest or claim from `exiled`. */
-  usurped?: boolean
-  /** Code of the noble a usurpation ousted; its title has no game effect. */
+  /** Code of the noble a usurpation ousted (`holder` is then the usurper); its title has no game effect. */
   exiled?: string
   /** Vacant fief returned to the crown player; only a `W G` order grants it. */
   crown?: boolean
@@ -1180,9 +1178,7 @@ export interface FiefReport {
   occupant?: PlayerId
   noble?: string
   nobleName?: string
-  /** Noble a usurpation ousted (or the fallen usurper of a restoration). */
-  exiled?: string
-  exiledCode?: string
+  /** Display name of the noble a usurpation ousted (or the fallen usurper of a restoration). */
   exiledName?: string
   /** Noble a renounced claim bore on. */
   targetName?: string

@@ -142,7 +142,7 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 		if fief.OwnerID != "P2" {
 			t.Errorf("owner = %q, want P2", fief.OwnerID)
 		}
-		if fief.HolderNobleID == nil || *fief.HolderNobleID != "N2" || !fief.Usurped ||
+		if fief.HolderNobleID == nil || *fief.HolderNobleID != "N2" || !fief.Usurped() ||
 			fief.ExiledNobleID == nil || *fief.ExiledNobleID != "N1" {
 			t.Errorf("fief = %#v, want N2 usurper and N1 exiled", fief)
 		}

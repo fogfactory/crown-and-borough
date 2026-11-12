@@ -214,7 +214,7 @@ export function buildHouses(
         excommunicated: excommunicatedCodes.has(noble.code),
         fiefs: fiefsByHolder.get(noble.code) ?? [],
         usurped: fiefs
-          .filter((fief) => fief.usurped && fief.holder === noble.code)
+          .filter((fief) => fief.exiled && fief.holder === noble.code)
           .map((fief) => fief.capital),
         exiled: fiefs
           .filter((fief) => fief.exiled === noble.code)

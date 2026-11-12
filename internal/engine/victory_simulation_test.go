@@ -261,7 +261,7 @@ func TestSimulateVictoryKillOfAUsurperRestoresTheExile(t *testing.T) {
 	// counts for nothing.
 	holder, exile := models.NobleID("N3"), models.NobleID("N1")
 	state.Fiefs = []models.Fief{{
-		ID: "F1", OwnerID: "P2", HolderNobleID: &holder, ExiledNobleID: &exile, Usurped: true, Title: models.FiefTitleDuchy,
+		ID: "F1", OwnerID: "P2", HolderNobleID: &holder, ExiledNobleID: &exile, Title: models.FiefTitleDuchy,
 	}}
 	for index := range state.Nobles {
 		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
@@ -274,7 +274,7 @@ func TestSimulateVictoryKillOfAUsurperRestoresTheExile(t *testing.T) {
 		t.Fatalf("SimulateVictory: %v", err)
 	}
 	fief := simulation.State.Fiefs[0]
-	if fief.OwnerID != "P1" || fief.HolderNobleID == nil || *fief.HolderNobleID != "N1" || fief.ExiledNobleID != nil || fief.Usurped {
+	if fief.OwnerID != "P1" || fief.HolderNobleID == nil || *fief.HolderNobleID != "N1" || fief.ExiledNobleID != nil {
 		t.Fatalf("fief = %+v, want it restored to N1 of P1", fief)
 	}
 	if got, want := simulation.Projected["P1"].Score.Titles, simulation.Current["P1"].Score.Titles+1; got != want {
@@ -295,10 +295,8 @@ func TestSimulateVictoryClaimOnAFiefWithAGarrisonNobleUsurpsIt(t *testing.T) {
 	for index := range state.Nobles {
 		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
 		state.Nobles[index].Status = models.NobleStatusFree
-		if state.Nobles[index].ID == "N4" {
-			state.Nobles[index].LocationID = "AAA"
-		}
 	}
+	setNobleLocation(state, "N4", "AAA")
 
 	simulation, err := SimulateVictory(state, allianceBalance(), []SimulationAction{
 		{Kind: SimulationClaim, Noble: "CN2", Other: "CN3"},
@@ -308,7 +306,7 @@ func TestSimulateVictoryClaimOnAFiefWithAGarrisonNobleUsurpsIt(t *testing.T) {
 		t.Fatalf("SimulateVictory: %v", err)
 	}
 	fief := simulation.State.Fiefs[0]
-	if fief.OwnerID != "P2" || fief.HolderNobleID == nil || *fief.HolderNobleID != "N4" || fief.ExiledNobleID == nil || *fief.ExiledNobleID != "N2" || !fief.Usurped {
+	if fief.OwnerID != "P2" || fief.HolderNobleID == nil || *fief.HolderNobleID != "N4" || fief.ExiledNobleID == nil || *fief.ExiledNobleID != "N2" || !fief.Usurped() {
 		t.Fatalf("fief = %+v, want N4 of P2 as usurper and N2 exiled", fief)
 	}
 }

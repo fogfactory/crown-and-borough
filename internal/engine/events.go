@@ -209,9 +209,8 @@ type Event struct {
 
 	// ExiledNobleID names the noble a usurpation exiled (fief_conquered,
 	// reason "usurpation"), or the fallen usurper of a restoration.
-	ExiledNobleID   models.NobleID   `json:"exiledNoble,omitempty"`
-	ExiledNobleCode models.NobleCode `json:"exiledNobleCode,omitempty"`
-	ExiledNobleName string           `json:"exiledNobleName,omitempty"`
+	ExiledNobleID   models.NobleID `json:"exiledNoble,omitempty"`
+	ExiledNobleName string         `json:"exiledNobleName,omitempty"`
 
 	TerritoryID       models.TerritoryID `json:"territory,omitempty"`
 	SourceID          models.TerritoryID `json:"source,omitempty"`

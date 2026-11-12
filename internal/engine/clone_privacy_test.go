@@ -87,13 +87,13 @@ func TestCloneGameStateDeepCopiesDeckRegionsAndAuguries(t *testing.T) {
 func TestCloneGameStateDeepCopiesFiefTitles(t *testing.T) {
 	state := models.NewGameState()
 	holder, exile := models.NobleID("N2"), models.NobleID("N1")
-	state.Fiefs = []models.Fief{{ID: "F1", HolderNobleID: &holder, ExiledNobleID: &exile, Usurped: true}}
+	state.Fiefs = []models.Fief{{ID: "F1", HolderNobleID: &holder, ExiledNobleID: &exile}}
 
 	clone := cloneGameState(state)
 	*clone.Fiefs[0].ExiledNobleID = "N9"
 	*clone.Fiefs[0].HolderNobleID = "N8"
 
-	if *state.Fiefs[0].ExiledNobleID != "N1" || *state.Fiefs[0].HolderNobleID != "N2" || !clone.Fiefs[0].Usurped {
+	if *state.Fiefs[0].ExiledNobleID != "N1" || *state.Fiefs[0].HolderNobleID != "N2" || !clone.Fiefs[0].Usurped() {
 		t.Errorf("fief titles were aliased by clone: %+v", state.Fiefs[0])
 	}
 }

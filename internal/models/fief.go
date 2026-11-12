@@ -31,9 +31,20 @@ type Fief struct {
 	// game effect: the noble is deliberately not a HolderNobleID. Its owner
 	// recovers the fief by retaking the capital, or when the usurper dies.
 	ExiledNobleID *NobleID `json:"exiledNoble,omitempty"`
-	// Usurped marks HolderNobleID as a usurper: the noble who took the fief by
-	// conquest or claim over ExiledNobleID. It implies an exile.
-	Usurped bool `json:"usurped,omitempty"`
+}
+
+// Usurped reports whether HolderNobleID is a usurper: the noble who took the
+// fief by conquest or claim over ExiledNobleID.
+func (f Fief) Usurped() bool { return f.ExiledNobleID != nil }
+
+// Usurp hands the fief to the usurper's player, with the usurper as its
+// titulaire and exiled as the ousted noble. Any crown mark is cleared.
+func (f *Fief) Usurp(usurper Noble, exiled NobleID) {
+	usurperID := usurper.ID
+	f.OwnerID = usurper.OwnerID
+	f.HolderNobleID = &usurperID
+	f.ExiledNobleID = &exiled
+	f.Crown = false
 }
 
 // FreeNoblesAt returns the free nobles of the player standing on the
@@ -41,11 +52,12 @@ type Fief struct {
 // prisoner carried there is left out.
 func (g *GameState) FreeNoblesAt(owner PlayerID, territoryID TerritoryID) []Noble {
 	var free []Noble
-	for _, noble := range g.SuccessionLine(owner) {
-		if noble.Status == NobleStatusFree && noble.LocationID == territoryID {
+	for _, noble := range g.Nobles {
+		if noble.OwnerID == owner && noble.Status == NobleStatusFree && noble.LocationID == territoryID {
 			free = append(free, noble)
 		}
 	}
+	sortBySuccession(free)
 	return free
 }
 
@@ -100,13 +112,13 @@ func (g *GameState) SettleFiefTitlesOfMissingNobles(heirOf func(fief *Fief, miss
 			continue
 		}
 		switch {
-		case fief.Usurped && holderMissing && exileMissing:
-			fief.HolderNobleID, fief.ExiledNobleID, fief.Usurped = nil, nil, false
+		case fief.Usurped() && holderMissing && exileMissing:
+			fief.HolderNobleID, fief.ExiledNobleID = nil, nil
 			settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleVacated})
-		case fief.Usurped && holderMissing:
+		case fief.Usurped() && holderMissing:
 			previousOwner := g.RestoreExile(fief)
 			settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleRestored, PreviousOwner: previousOwner})
-		case fief.Usurped && exileMissing:
+		case fief.Usurped() && exileMissing:
 			missing := *fief.ExiledNobleID
 			// The usurper cannot also be the exile: a claim of its own is ignored.
 			if heir := heirOf(fief, missing); heir != nil && heir.ID != *fief.HolderNobleID {
@@ -114,16 +126,11 @@ func (g *GameState) SettleFiefTitlesOfMissingNobles(heirOf func(fief *Fief, miss
 				fief.ExiledNobleID = &heirID
 				settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleReexiled, Heir: heirID})
 			} else {
-				fief.ExiledNobleID, fief.Usurped = nil, false
+				fief.ExiledNobleID = nil
 				settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleLegitimised})
 			}
 		default:
-			// An ordinary holder died. Defensive: a stale exile without a
-			// usurper is dropped with it.
-			fief.ExiledNobleID, fief.Usurped = nil, false
-			if !holderMissing {
-				continue
-			}
+			// An ordinary holder died.
 			missing := *fief.HolderNobleID
 			if heir := heirOf(fief, missing); heir != nil {
 				settlements = append(settlements, FiefTitleSettlement{Fief: fief, Outcome: FiefTitleClaimed, Heir: heir.ID})
@@ -152,7 +159,6 @@ func (g *GameState) RestoreExile(fief *Fief) PlayerID {
 	}
 	fief.HolderNobleID = &exileID
 	fief.ExiledNobleID = nil
-	fief.Usurped = false
 	fief.Crown = false
 	return previousOwner
 }

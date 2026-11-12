@@ -247,7 +247,7 @@ export function SelectedTerritoryDetails({
               {selectedFiefHolder ? (
                 <>
                   <NobleRef code={selectedFiefHolder.code} name={selectedFiefHolder.name} />
-                  {selectedFief.usurped && ` · ${t('lineage.usurper')}`}
+                  {selectedFief.exiled && ` · ${t('lineage.usurper')}`}
                 </>
               ) : (
                 t('app.fiefVacant')

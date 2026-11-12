@@ -667,11 +667,6 @@ func (g *GameState) Validate() error {
 			if *fief.ExiledNobleID == *fief.HolderNobleID {
 				return fmt.Errorf("models: fief %q: noble %q is both holder and exiled", fief.ID, *fief.ExiledNobleID)
 			}
-			if !fief.Usurped {
-				return fmt.Errorf("models: fief %q: exiled noble %q without a usurper", fief.ID, *fief.ExiledNobleID)
-			}
-		} else if fief.Usurped {
-			return fmt.Errorf("models: fief %q: usurped without an exiled noble", fief.ID)
 		}
 	}
 	if err := validateSpecialDeck(g.SpecialDeck, g.Auguries, players); err != nil {

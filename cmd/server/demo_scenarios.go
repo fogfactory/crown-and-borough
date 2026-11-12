@@ -1363,7 +1363,7 @@ func forgeUsurpation(state *models.GameState) error {
 	usurper, exile := state.Nobles[p2[0]].ID, state.Nobles[p1[0]].ID
 	state.Fiefs = append(state.Fiefs, models.Fief{
 		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: capitalID,
-		Territories: members, OwnerID: "P2", HolderNobleID: &usurper, ExiledNobleID: &exile, Usurped: true,
+		Territories: members, OwnerID: "P2", HolderNobleID: &usurper, ExiledNobleID: &exile,
 	})
 	fmt.Printf("demo usurpation: barony %v of P2, usurper %s, exile %s (P1)\n", members, state.Nobles[p2[0]].Code, state.Nobles[p1[0]].Code)
 	return nil
