@@ -107,6 +107,10 @@ var demoScenarios = map[string]struct {
 		description: "spring; P1's barony F1 has its capital castle under a P1 army: P <army> pillages it (the castle falls into ruin, the fief and P1's capital stay). Three more P1 armies stand on a level-2 mill, a level-1 village and a fortified level-1 village (pillage degrades them), and free territories carry a ruined castle and a level-0 village (cannot be pillaged)",
 		apply:       forgePillage,
 	},
+	"chains": {
+		description: "spring, a line of free territories P0..P6 (printed at startup) with P1 armies: P0 (3 troops + noble) next to P1 P1 army (2 troops), to try an attack on an own army; and P4 (2 troops + noble): try `P4 D P3 P5` then `P5 A P6` (the chain follows the last destination), and a dispersion with an unassigned noble",
+		apply:       forgeChains,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -1318,5 +1322,73 @@ func forgeArmies(state *models.GameState) error {
 		crowded++
 	}
 	fmt.Printf("demo armies: %d armies placed, member %s occupied by P2, barony capital %s\n", next, member, capitalID)
+	return nil
+}
+
+// forgeChains lays a line of seven free territories and puts P1 armies on
+// it: an own-army attack (P0 on P1) and a dispersion followed by an attack
+// from its last destination (P4 disperses to P3 and P5, then P5 attacks P6).
+func forgeChains(state *models.GameState) error {
+	p1 := ownedNobles(state, "P1")
+	if len(p1) < 2 {
+		return fmt.Errorf("the base game lacks two P1 nobles")
+	}
+	adjacent := make(map[models.TerritoryID][]models.TerritoryID, len(state.Territories))
+	free := func(id models.TerritoryID) bool {
+		_, controlled := state.TerritoryController(id)
+		return !controlled && state.TerritoryStates[id].Army == nil
+	}
+	for _, territory := range state.Territories {
+		adjacent[territory.ID] = territory.Adjacencies
+	}
+	var line []models.TerritoryID
+	var extend func() bool
+	extend = func() bool {
+		if len(line) == 7 {
+			return true
+		}
+		for _, id := range adjacent[line[len(line)-1]] {
+			if free(id) && !slices.Contains(line, id) {
+				line = append(line, id)
+				if extend() {
+					return true
+				}
+				line = line[:len(line)-1]
+			}
+		}
+		return false
+	}
+	for _, territory := range state.Territories {
+		if free(territory.ID) {
+			line = []models.TerritoryID{territory.ID}
+			if extend() {
+				break
+			}
+			line = nil
+		}
+	}
+	if line == nil {
+		return fmt.Errorf("no line of seven free territories")
+	}
+	place := func(index, size int, armyID models.ArmyID, villageID models.InfraID) {
+		territoryID := line[index]
+		state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P1", TerritoryID: territoryID, Size: size})
+		state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: villageID, Type: models.InfraTypeVillage, Level: 1, TerritoryID: territoryID})
+		territoryState := state.TerritoryStates[territoryID]
+		territoryState.Army = &armyID
+		territoryState.Infrastructures = &villageID
+		territoryState.Resources = 40
+		state.TerritoryStates[territoryID] = territoryState
+		state.NextArmyID++
+	}
+	place(0, 3, "ZC1", "ZCV1")
+	place(1, 2, "ZC2", "ZCV2")
+	place(4, 2, "ZC3", "ZCV3")
+	state.Nobles[p1[0]].LocationID = line[0]
+	state.Nobles[p1[1]].LocationID = line[4]
+	for index, territoryID := range line {
+		fmt.Printf("demo chains: P%d = %s\n", index, territoryID)
+	}
+	fmt.Printf("demo chains: noble %s on P0, noble %s on P4\n", state.Nobles[p1[0]].Code, state.Nobles[p1[1]].Code)
 	return nil
 }
