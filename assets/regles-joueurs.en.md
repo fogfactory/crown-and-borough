@@ -102,7 +102,7 @@ for you: you only write the order lines, one per line, in the form
 | Hold | `H XXX` | Stays put. Useful for waiting: `(H XXX)`. |
 | Join | `XXX J YYY` | Peacefully joins `YYY`; last order of the chain. |
 | Pillage | `P XXX` | Degrades the territory's infrastructure and yields {{pillage_bonus}} R. |
-| Dispersal | `XXX D DEST1 DEST2 …` | Sends one troop to each destination, in order. |
+| Dispersal | `XXX D DEST1 DEST2 …` | Sends one troop to each destination, in order; repeat a destination to send several troops there. |
 | Transfer | `XXX T YYY N` | Sends `N` R through the supply network. |
 
 What to remember:

@@ -1391,6 +1391,52 @@ describe('MapViewer noble affiliation', () => {
     )
   })
 
+  it('draws the lower pawn in front, whatever the territory order', () => {
+    // BRU lies above ROS on the map but comes after it in the territory list.
+    const stagger: MapData = {
+      ...map,
+      territories: [
+        map.territories[0],
+        {
+          ...map.territories[1],
+          points: [
+            [50, -60],
+            [100, -60],
+            [100, -10],
+            [50, -10],
+          ],
+        },
+      ],
+    }
+    const stagedState: StateData = {
+      ...state,
+      nobles: [
+        {
+          id: 'N1',
+          code: 'AAA',
+          name: 'Low',
+          owner: 'P1',
+          location: 'ROS',
+          status: 'free',
+        },
+        {
+          id: 'N2',
+          code: 'BBB',
+          name: 'High',
+          owner: 'P2',
+          location: 'BRU',
+          status: 'free',
+        },
+      ],
+    }
+    const { svg } = renderMap(stagger, stagedState)
+    const order = Array.from(svg.querySelectorAll('[data-noble-marker]')).map((marker) =>
+      marker.getAttribute('data-noble-marker'),
+    )
+
+    expect(order).toEqual(['BBB', 'AAA'])
+  })
+
   it('greys a hostage pawn and names both nobles by code in their tooltips', () => {
     const { svg } = renderMap(map, nobleState)
     const [freeMarker, prisonerMarker] = nobleMarkers(svg)
