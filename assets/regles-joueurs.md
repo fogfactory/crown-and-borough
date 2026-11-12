@@ -365,27 +365,12 @@ et plus). Le château de la capitale devient une **cité**.
   sinon le premier noble de ta lignée le reçoit en fin d'hiver. Un fief vacant
   conquis passe au conquérant, toujours vacant.
 
-**Conquérir un fief.** Pour prendre la capitale d'un fief, ton armée doit
-porter un **noble libre** (ni otage ni prisonnier) et s'y arrêter. Une armée
-sans noble ne fait qu'occuper la capitale : le fief reste à son propriétaire.
-
-- Le fief passe tout entier à ton joueur. Ton noble devient le titulaire
-  **usurpateur** ; l'ancien titulaire, s'il est vivant, devient **exilé**.
-  Un titre exilé n'a aucun effet : ni rang, ni vote, ni bonus.
-- Si plusieurs nobles libres sont dans l'armée, le premier de ta lignée devient
-  usurpateur.
-- **Restauration.** Le propriétaire du noble exilé qui reprend la capitale
-  avec une armée, noble ou non, restaure son titre sans condition de rang. Si
-  l'exilé et l'usurpateur sont au même joueur, la reprise ne change rien.
-- Si l'usurpateur meurt, l'exilé retrouve son titre et le fief revient à son
-  propriétaire. Si l'exilé meurt, l'usurpateur devient titulaire officiel.
-  Si les deux meurent, le fief est vacant.
-- Un fief usurpé que tu conquiers à ton tour dépossède l'usurpateur de tout ;
-  l'exilé d'origine reste exilé.
-- `T D NNN XXX` te fait renoncer, gratuitement, au titre exilé ou usurpé que
-  ton noble `NNN` porte sur le fief de capitale `XXX`. Renoncer à un titre
-  exilé rend l'usurpateur officiel et ferme toute restauration ; renoncer à un
-  titre usurpé le rend à l'exilé et rend le fief à son propriétaire.
+**Conquérir un fief.** Seule une armée qui porte un **noble libre** (ni otage ni
+prisonnier) prend la capitale d'un fief ; sans noble, elle l'occupe. Le fief
+passe tout entier à son joueur : le noble devient **usurpateur** et l'ancien
+titulaire **exilé**, dont le titre est sans effet. Reprendre la capitale
+avec une armée, noble ou non, restaure l'exilé. `T D NNN XXX` renonce
+gratuitement à un titre exilé ou usurpé. Détails dans la FAQ.
 
 **La ligne de succession** est l'ordre de recrutement de tes nobles, les
 bâtards toujours en dernier. Un noble ne reçoit un titre que si les nobles
@@ -425,15 +410,10 @@ carte de prétention (`CLM`). À la mort de `CCC`, ses fiefs passent au premier
 héritier vivant, du Claim le plus ancien au plus récent. Un Claim est public.
 
 - Si la capitale du fief porte, à la mort de `CCC`, une armée avec un noble
-  libre (la garnison de l'ancien propriétaire compte), ce noble usurpe le fief
-  pour son propriétaire et l'héritier reçoit le titre **exilé**. Sans armée,
-  avec une armée sans noble ou avec une armée de la maison de l'héritier,
-  l'héritier devient titulaire.
-- Un Claim sur un titulaire usurpateur est sans effet sur ce fief. Un Claim
-  sur le titre exilé s'applique à la mort de l'exilé : l'héritier devient le
-  nouvel exilé.
-- `T C HHH` renonce gratuitement au Claim de ton héritier `HHH` : la carte
-  retourne à la défausse et tu peux réclamer à nouveau avec une autre.
+  libre (garnison de l'ancien propriétaire comprise), ce noble usurpe le fief et
+  l'héritier reçoit le titre **exilé** ; sinon l'héritier devient titulaire.
+- `T C HHH` renonce gratuitement à un Claim : la carte retourne à la défausse.
+  Détails dans la FAQ.
 
 ### Les dignités
 

@@ -363,28 +363,12 @@ castle. Its title follows its size: **barony** (3), **county** (4),
   the first noble of your line receives it at the end of winter. A vacant fief
   that is conquered passes to the conqueror, still vacant.
 
-**Conquering a fief.** To take a fief's capital, your army must carry a
-**free noble** (neither hostage nor prisoner) and stop there. An army without a
-noble only occupies the capital: the fief stays with its owner.
-
-- The whole fief passes to your player. Your noble becomes the **usurper**
-  holder; the previous holder, if alive, becomes the **exile**. An exiled title
-  has no effect: no rank, no vote, no bonus.
-- If several free nobles are in the army, the first one in your line becomes
-  the usurper.
-- **Restoration.** The owner of the exiled noble who retakes the capital with
-  an army, with or without a noble, restores the title regardless of rank. If
-  the exile and the usurper belong to the same player, retaking changes
-  nothing.
-- If the usurper dies, the exile regains the title and the fief returns to its
-  owner. If the exile dies, the usurper becomes the official holder. If both
-  die, the fief is vacant.
-- A usurped fief that you conquer in turn strips the usurper of everything;
-  the original exile remains exiled.
-- `T D NNN XXX` lets you renounce, for free, the exiled or usurped title your
-  noble `NNN` holds on the fief whose capital is `XXX`. Renouncing an exiled
-  title makes the usurper official and closes any restoration; renouncing a
-  usurped title returns it to the exile and returns the fief to its owner.
+**Conquering a fief.** Only an army carrying a **free noble** (neither hostage
+nor prisoner) takes a fief's capital; without a noble, it occupies it. The whole
+fief passes to its player: the noble becomes the **usurper** and the previous
+holder the **exile**, whose title has no effect. Retaking the capital with an
+army, with or without a noble, restores the exile. `T D NNN XXX` renounces an
+exiled or usurped title for free. Details in the FAQ.
 
 **The line of succession** is the order in which you recruited your nobles,
 bastards always last. A noble only receives a title if the nobles **of the
@@ -423,14 +407,10 @@ claim card (`CLM`). When `CCC` dies, their fiefs pass to the first living
 heir, from the oldest Claim to the most recent. A Claim is public.
 
 - If, when `CCC` dies, the fief's capital carries an army with a free noble
-  (the former owner's garrison counts), that noble usurps the fief for their
-  owner and the heir receives the **exiled** title. With no army, an army
-  without a noble, or an army of the heir's house, the heir becomes the
-  holder.
-- A Claim on a usurper holder has no effect on that fief. A Claim on the
-  exiled title applies when the exile dies: the heir becomes the new exile.
-- `T C HHH` renounces your heir `HHH`'s Claim for free: the card returns to
-  the discard pile and you can claim again with another one.
+  (the former owner's garrison included), that noble usurps the fief and the
+  heir receives the **exiled** title; otherwise the heir becomes the holder.
+- `T C HHH` renounces a Claim for free: the card returns to the discard pile.
+  Details in the FAQ.
 
 ### Dignities
 
