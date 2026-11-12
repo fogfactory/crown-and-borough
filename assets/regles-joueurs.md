@@ -105,7 +105,7 @@ par ligne, sous la forme `POSITION SYMBOLE [cibles]`.
 | Maintien | `H XXX` | Reste sur place. Utile pour patienter : `(H XXX)`. |
 | Jonction | `XXX J YYY` | Rejoint pacifiquement `YYY` ; dernier ordre de la chaîne. |
 | Pillage | `P XXX` | Dégrade l'infrastructure de la case et rapporte {{pillage_bonus}} R. |
-| Dispersion | `XXX D DEST1 DEST2 …` | Envoie une troupe vers chaque destination, dans l'ordre. |
+| Dispersion | `XXX D DEST1 DEST2 …` | Envoie une troupe vers chaque destination, dans l'ordre ; une même destination peut être répétée pour y envoyer plusieurs troupes. |
 | Transfert | `XXX T YYY N` | Envoie `N` R par le réseau de ravitaillement. |
 
 L'essentiel à retenir :
