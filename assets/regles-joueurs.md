@@ -655,6 +655,10 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
   découpé et envoyé morceau par morceau ; tu peux l'annuler en cours d'envoi.
 - **Indépendance vis-à-vis des ordres.** Envoyer un message ne soumet rien et
   ne change pas ta soumission : tes ordres restent à soumettre séparément.
+- **Notifications par email.** Dans ton profil, tu peux demander un email à
+  chaque nouveau tour, pour les messages privés et pour le salon public. Ces
+  emails ne contiennent jamais le message : ils te renvoient vers la partie, et
+  un seul t'est envoyé par partie tant que tu n'as pas relu tes messages.
 
 ---
 

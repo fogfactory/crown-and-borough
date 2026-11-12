@@ -154,6 +154,31 @@ func (s *FirestoreStore) UpdateReleaseNotes(ctx context.Context, uid string, upd
 	return result, nil
 }
 
+func (s *FirestoreStore) UpdateNotifications(ctx context.Context, uid string, update store.NotificationsUpdate) (store.PlayerProfile, error) {
+	if err := s.requireClient(); err != nil {
+		return store.PlayerProfile{}, err
+	}
+	uid = strings.TrimSpace(uid)
+	update, err := store.NormalizeNotificationsUpdate(update)
+	if err != nil {
+		return store.PlayerProfile{}, err
+	}
+	operationContext, cancel := s.operationContext(ctx)
+	defer cancel()
+	result, err := s.mutateProfile(operationContext, uid, func(document *profileDocument) bool {
+		profile := toPlayerProfile(*document)
+		if !store.ApplyNotificationsUpdate(&profile, update) {
+			return false
+		}
+		document.Notifications = notificationsDocument(profile.Notifications)
+		return true
+	})
+	if err != nil {
+		return store.PlayerProfile{}, wrapOperation("update notifications", err)
+	}
+	return result, nil
+}
+
 // mutateProfile applies mutate to the player document in a transaction and
 // writes it, with a fresh UpdatedAt, only when mutate reports a change.
 func (s *FirestoreStore) mutateProfile(ctx context.Context, uid string, mutate func(*profileDocument) bool) (store.PlayerProfile, error) {
@@ -314,6 +339,7 @@ func toPlayerProfile(document profileDocument) store.PlayerProfile {
 		DisplayName:      document.DisplayName,
 		LastSeenVersion:  document.LastSeenVersion,
 		HideReleaseNotes: document.HideReleaseNotes,
+		Notifications:    store.NotificationPreferences(document.Notifications),
 		CreatedAt:        document.CreatedAt,
 		UpdatedAt:        document.UpdatedAt,
 	}

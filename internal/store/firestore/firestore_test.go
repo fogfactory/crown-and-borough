@@ -314,3 +314,17 @@ func TestGameDocumentTracksRequiredPlayers(t *testing.T) {
 		t.Fatalf("winter required UIDs = %v, want both players since winter always awaits everyone alive", document.RequiredUIDs)
 	}
 }
+
+func TestProfileDocumentWithoutNotificationsMeansAllOff(t *testing.T) {
+	// A document written before the email notifications existed has no
+	// notifications field (see the integration test for the stored form): the
+	// zero value of the nested struct is every notification off.
+	profile := toPlayerProfile(profileDocument{SchemaVersion: schemaVersion, UID: "alice", Email: "alice@example.com"})
+	if profile.Notifications != (store.NotificationPreferences{}) {
+		t.Fatalf("notifications = %+v, want all off", profile.Notifications)
+	}
+	document := profileDocument{Notifications: notificationsDocument{NewTurn: true, Language: "en"}}
+	if got := toPlayerProfile(document).Notifications; !got.NewTurn || got.Language != "en" || got.PublicMessage {
+		t.Fatalf("notifications = %+v", got)
+	}
+}
