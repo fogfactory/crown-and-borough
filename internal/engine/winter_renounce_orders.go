@@ -71,15 +71,14 @@ func (order renounceTitleOrder) Apply(ctx *ExecutionContext) {
 		return
 	}
 	kind, previousOwnerID := resolution.state.RenounceContestedTitle(fief, nobleID)
-	switch kind {
-	case "exiled":
-		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, kind, noble)
-	case "usurped":
-		resolution.clearFiefCapitals(previousOwnerID, fief)
-		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, kind, noble)
-	default:
+	if kind == "" {
 		resolution.rejectWinterOrder(playerID, winterOrder, "noble_not_contested")
+		return
 	}
+	if kind == models.TitleRenouncedUsurped {
+		resolution.clearFiefCapitals(previousOwnerID, fief)
+	}
+	resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, string(kind), noble)
 }
 
 func (ctx *resolutionContext) reportTitleRenounced(fief *models.Fief, previousOwnerID, playerID models.PlayerID, order models.WinterOrder, reason string, renouncer *models.Noble) {

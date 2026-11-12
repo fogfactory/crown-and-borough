@@ -220,42 +220,30 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 // the higher title in the succession line; the winter cost and the
 // once-per-winter limit are not simulated.
 func simulateRank(state *models.GameState, action SimulationAction) error {
-	for index := range state.Fiefs {
-		fief := &state.Fiefs[index]
-		if fief.CapitalTerritoryID != action.Fief {
-			continue
-		}
-		title, ok := fief.Title.Next()
-		if !ok {
-			return fmt.Errorf("fief %q is already of the highest rank", action.Fief)
-		}
-		if fief.HolderNobleID == nil {
-			return fmt.Errorf("fief %q has no holder", action.Fief)
-		}
-		if !state.CanReceiveTitle(*fief.HolderNobleID, title) {
-			return fmt.Errorf("the holder of fief %q cannot receive the title of %s", action.Fief, title)
-		}
-		fief.Title = title
-		return nil
+	fief := state.FiefByCapital(action.Fief)
+	if fief == nil {
+		return fmt.Errorf("unknown fief %q", action.Fief)
 	}
-	return fmt.Errorf("unknown fief %q", action.Fief)
-}
-
-func fiefByCapitalIn(state *models.GameState, capital models.TerritoryID) (*models.Fief, error) {
-	for index := range state.Fiefs {
-		if state.Fiefs[index].CapitalTerritoryID == capital {
-			return &state.Fiefs[index], nil
-		}
+	title, ok := fief.Title.Next()
+	if !ok {
+		return fmt.Errorf("fief %q is already of the highest rank", action.Fief)
 	}
-	return nil, fmt.Errorf("unknown fief %q", capital)
+	if fief.HolderNobleID == nil {
+		return fmt.Errorf("fief %q has no holder", action.Fief)
+	}
+	if !state.CanReceiveTitle(*fief.HolderNobleID, title) {
+		return fmt.Errorf("the holder of fief %q cannot receive the title of %s", action.Fief, title)
+	}
+	fief.Title = title
+	return nil
 }
 
 // simulateConquer hands the fief to the noble's house as an army of theirs
 // with that noble on the capital would (GameState.ConquerFief).
 func simulateConquer(state *models.GameState, noble models.Noble, action SimulationAction) error {
-	fief, err := fiefByCapitalIn(state, action.Fief)
-	if err != nil {
-		return err
+	fief := state.FiefByCapital(action.Fief)
+	if fief == nil {
+		return fmt.Errorf("unknown fief %q", action.Fief)
 	}
 	if noble.Status != models.NobleStatusFree {
 		return fmt.Errorf("noble %q is not free", noble.Code)
@@ -269,19 +257,14 @@ func simulateConquer(state *models.GameState, noble models.Noble, action Simulat
 // simulateRestore gives the fief back to its exile: the exile's house retakes
 // the capital with an army.
 func simulateRestore(state *models.GameState, action SimulationAction) error {
-	fief, err := fiefByCapitalIn(state, action.Fief)
-	if err != nil {
-		return err
+	fief := state.FiefByCapital(action.Fief)
+	if fief == nil {
+		return fmt.Errorf("unknown fief %q", action.Fief)
 	}
 	if fief.ExiledNobleID == nil {
 		return fmt.Errorf("fief %q has no exile", action.Fief)
 	}
-	var exile *models.Noble
-	for index := range state.Nobles {
-		if state.Nobles[index].ID == *fief.ExiledNobleID {
-			exile = &state.Nobles[index]
-		}
-	}
+	exile := state.LivingNoble(*fief.ExiledNobleID)
 	if exile == nil {
 		return fmt.Errorf("the exile of fief %q is no longer in play", action.Fief)
 	}
@@ -294,9 +277,9 @@ func simulateRestore(state *models.GameState, action SimulationAction) error {
 // simulateRenounceTitle makes the noble give up its exiled or usurped title on
 // the fief (GameState.RenounceContestedTitle).
 func simulateRenounceTitle(state *models.GameState, noble models.Noble, action SimulationAction) error {
-	fief, err := fiefByCapitalIn(state, action.Fief)
-	if err != nil {
-		return err
+	fief := state.FiefByCapital(action.Fief)
+	if fief == nil {
+		return fmt.Errorf("unknown fief %q", action.Fief)
 	}
 	if kind, _ := state.RenounceContestedTitle(fief, noble.ID); kind == "" {
 		return fmt.Errorf("noble %q carries no exiled or usurped title on fief %q", noble.Code, action.Fief)
@@ -424,10 +407,8 @@ func simulateDeaths(state *models.GameState, deaths []models.Noble, garrison *mo
 	served := make(map[models.NobleID]bool)
 	livingHeirOf := func(_ *models.Fief, missing models.NobleID) *models.Noble {
 		for _, claim := range state.ClaimsOn(missing) {
-			for i := range state.Nobles {
-				if state.Nobles[i].ID == claim.Heir {
-					return &state.Nobles[i]
-				}
+			if heir := state.LivingNoble(claim.Heir); heir != nil {
+				return heir
 			}
 		}
 		return nil
@@ -436,15 +417,12 @@ func simulateDeaths(state *models.GameState, deaths []models.Noble, garrison *mo
 		fief := settlement.Fief
 		switch settlement.Outcome {
 		case models.FiefTitleClaimed:
-			for _, heir := range state.Nobles {
-				if heir.ID != settlement.Heir {
-					continue
-				}
-				if usurper := usurperOf(fief.CapitalTerritoryID, heir); usurper != nil {
+			if heir := state.LivingNoble(settlement.Heir); heir != nil {
+				if usurper := usurperOf(fief.CapitalTerritoryID, *heir); usurper != nil {
 					// A garrison noble on the capital usurps; the heir is exiled.
 					fief.Usurp(*usurper, heir.ID)
 				} else {
-					fief.GiveTo(heir)
+					fief.GiveTo(*heir)
 				}
 			}
 			served[settlement.Heir] = true

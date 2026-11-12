@@ -179,11 +179,9 @@ const (
 	// FiefConquestRestoration: the exile's owner retook the fief; the exile is
 	// its titulaire again and the usurper lost everything.
 	FiefConquestRestoration FiefConquestKind = "restoration"
-	// FiefConquestUsurpation: a noble of the conqueror became the usurper.
+	// FiefConquestUsurpation: a noble of the conqueror became the usurper. A fief
+	// passing vacant, with neither usurper nor exile, has no kind.
 	FiefConquestUsurpation FiefConquestKind = "usurpation"
-	// FiefConquestVacant: the fief passed to the conqueror without a titulaire,
-	// with neither usurper nor exile.
-	FiefConquestVacant FiefConquestKind = "vacant"
 )
 
 // FiefConquest reports what ConquerFief did. Previous is the titulaire the
@@ -195,8 +193,18 @@ type FiefConquest struct {
 	Previous      *NobleID
 }
 
-// livingNoble returns the noble in play with the ID, or nil.
-func (g *GameState) livingNoble(id NobleID) *Noble {
+// FiefByCapital returns the fief whose capital is the territory, or nil.
+func (g *GameState) FiefByCapital(id TerritoryID) *Fief {
+	for i := range g.Fiefs {
+		if g.Fiefs[i].CapitalTerritoryID == id {
+			return &g.Fiefs[i]
+		}
+	}
+	return nil
+}
+
+// LivingNoble returns the noble in play with the ID, or nil.
+func (g *GameState) LivingNoble(id NobleID) *Noble {
 	for i := range g.Nobles {
 		if g.Nobles[i].ID == id {
 			return &g.Nobles[i]
@@ -224,7 +232,7 @@ func (g *GameState) ConquerFief(fief *Fief, conqueror PlayerID, usurper *Noble) 
 	}
 	conquest := FiefConquest{PreviousOwner: fief.OwnerID, Previous: fief.HolderNobleID}
 	if fief.ExiledNobleID != nil {
-		if exile := g.livingNoble(*fief.ExiledNobleID); exile != nil && exile.OwnerID == conqueror {
+		if exile := g.LivingNoble(*fief.ExiledNobleID); exile != nil && exile.OwnerID == conqueror {
 			g.RestoreExile(fief)
 			conquest.Kind = FiefConquestRestoration
 			return conquest, true
@@ -240,7 +248,7 @@ func (g *GameState) ConquerFief(fief *Fief, conqueror PlayerID, usurper *Noble) 
 		conquest.Kind = FiefConquestUsurpation
 		fief.Usurp(*usurper, *fief.ExiledNobleID)
 		return conquest, true
-	case g.livingNoble(*fief.HolderNobleID) != nil:
+	case g.LivingNoble(*fief.HolderNobleID) != nil:
 		conquest.Kind = FiefConquestUsurpation
 		fief.Usurp(*usurper, *fief.HolderNobleID)
 		return conquest, true
@@ -248,27 +256,36 @@ func (g *GameState) ConquerFief(fief *Fief, conqueror PlayerID, usurper *Noble) 
 		// The titulaire is gone from play: nothing to usurp.
 		fief.HolderNobleID = nil
 	}
-	conquest.Kind = FiefConquestVacant
 	fief.OwnerID = conqueror
 	fief.Crown = false
 	return conquest, true
 }
 
+// TitleRenunciationKind tells which contested title a noble gave up.
+type TitleRenunciationKind string
+
+const (
+	// TitleRenouncedExiled: the exiled title was abandoned; the usurper is official.
+	TitleRenouncedExiled TitleRenunciationKind = "exiled"
+	// TitleRenouncedUsurped: the usurped title was given back to the exile.
+	TitleRenouncedUsurped TitleRenunciationKind = "usurped"
+)
+
 // RenounceContestedTitle makes the noble give up the exiled or usurped title it
 // carries on the fief (titres.md "Renonciation"). An exiled title is
 // abandoned: the usurper becomes the official titulaire. A usurped title is
 // given back: the exile recovers it and the fief returns to the exile's owner.
-// It returns "exiled" or "usurped", and the previous owner of the fief; the
+// It returns the kind and the previous owner of the fief; the
 // kind is empty, and nothing changes, when the noble carries neither.
-func (g *GameState) RenounceContestedTitle(fief *Fief, noble NobleID) (kind string, previousOwner PlayerID) {
+func (g *GameState) RenounceContestedTitle(fief *Fief, noble NobleID) (kind TitleRenunciationKind, previousOwner PlayerID) {
 	previousOwner = fief.OwnerID
 	switch {
 	case fief.ExiledNobleID != nil && *fief.ExiledNobleID == noble:
 		fief.ExiledNobleID = nil
-		return "exiled", previousOwner
+		return TitleRenouncedExiled, previousOwner
 	case fief.Usurped() && fief.HolderNobleID != nil && *fief.HolderNobleID == noble:
 		g.RestoreExile(fief)
-		return "usurped", previousOwner
+		return TitleRenouncedUsurped, previousOwner
 	}
 	return "", previousOwner
 }

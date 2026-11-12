@@ -8,12 +8,7 @@ import (
 
 // fiefByCapital returns the fief whose capital is territoryID, or nil.
 func (ctx *resolutionContext) fiefByCapital(territoryID models.TerritoryID) *models.Fief {
-	for i := range ctx.state.Fiefs {
-		if ctx.state.Fiefs[i].CapitalTerritoryID == territoryID {
-			return &ctx.state.Fiefs[i]
-		}
-	}
-	return nil
+	return ctx.state.FiefByCapital(territoryID)
 }
 
 // fiefContaining returns the fief that already lists territoryID among its
@@ -169,9 +164,7 @@ func (ctx *resolutionContext) captureFiefCapital(fief *models.Fief, army *models
 	if !conquered {
 		return false
 	}
-	reason := ""
-	switch conquest.Kind {
-	case models.FiefConquestRestoration:
+	if conquest.Kind == models.FiefConquestRestoration {
 		event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, conquest.PreviousOwner, "restoration", 5)
 		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
 		if conquest.Previous != nil {
@@ -180,11 +173,11 @@ func (ctx *resolutionContext) captureFiefCapital(fief *models.Fief, army *models
 		ctx.events = append(ctx.events, event)
 		ctx.transferFiefMembers(fief, army.OwnerID, control)
 		return true
-	case models.FiefConquestUsurpation:
-		reason = "usurpation"
 	}
+	// A vacant fief has no kind, hence no reason.
+	reason := string(conquest.Kind)
 	event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, conquest.PreviousOwner, reason, 5)
-	if reason != "" {
+	if conquest.Kind == models.FiefConquestUsurpation {
 		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
 		ctx.setExiledNoble(&event, ctx.noblesByID[*fief.ExiledNobleID])
 	}

@@ -22,6 +22,16 @@ export function affectedFiefs(code: string, fiefs: Fief[]): Fief[] {
   return fiefs.filter((fief) => fief.holder === code || fief.exiled === code)
 }
 
+/** The fiefs the noble is exiled from. */
+export function exiledFiefs(code: string, fiefs: Fief[]): Fief[] {
+  return fiefs.filter((fief) => fief.exiled === code)
+}
+
+/** The fiefs the noble holds as a usurper. */
+export function usurpedFiefs(code: string, fiefs: Fief[]): Fief[] {
+  return fiefs.filter((fief) => fief.exiled && fief.holder === code)
+}
+
 /**
  * The outcomes a death offers beyond the plain one, derived from the current
  * (hypothetical) state: the death of the other title holder of a usurped
@@ -69,16 +79,18 @@ export function hasClaimedHolding(code: string, fiefs: Fief[], claims: Claim[]):
 }
 
 /** Reads the holder and exile of the given fiefs (by capital) in a projected state. */
-export function fiefOutcomes(state: StateData, capitals: string[]): FiefOutcome[] {
-  const nameOf = (code?: string) =>
-    code
-      ? (state.nobles.find((n) => n.code === code)?.name ??
-        (state.deceased ?? []).find((n) => n.code === code)?.name ??
-        code)
-      : undefined
+export function fiefOutcomes(
+  state: StateData,
+  capitals: string[],
+  nameOf: (code: string) => string,
+): FiefOutcome[] {
   return capitals.map((capital) => {
     const fief = (state.fiefs ?? []).find((f) => f.capital === capital)
-    return { fief: capital, holder: nameOf(fief?.holder), exile: nameOf(fief?.exiled) }
+    return {
+      fief: capital,
+      holder: fief?.holder ? nameOf(fief.holder) : undefined,
+      exile: fief?.exiled ? nameOf(fief.exiled) : undefined,
+    }
   })
 }
 

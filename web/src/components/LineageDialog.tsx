@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, type MutableRefObject, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconChevronDown,
   IconChevronUp,
@@ -32,14 +32,18 @@ import {
 } from '@/lib/lineage'
 import {
   affectedFiefs,
+  exiledFiefs,
   fiefOutcomes,
   hasClaimedHolding,
   killVariants,
   sameOutcomes,
+  usurpedFiefs,
   type FiefOutcome,
+  type KillVariant,
 } from '@/lib/kill-variants'
+import { playerDisplayName } from '@/lib/player-label'
 import { simulationLog, useSimulationHistory } from '@/lib/simulation-history'
-import { useActionPreviews } from '@/lib/use-kill-previews'
+import { useActionPreviews, type ActionPreviewCache } from '@/lib/use-action-previews'
 import { useElementSize } from '@/lib/use-element-size'
 import {
   useVictorySimulation,
@@ -378,6 +382,7 @@ export function LineageDialog(props: LineageDialogProps) {
   const [pending, setPending] = useState<Pending | null>(null)
   const [rejection, setRejection] = useState<string | null>(null)
   const history = useSimulationHistory()
+  const previewCache = useRef<ActionPreviewCache>(new Map())
   const sim = useVictorySimulation(
     history.actions,
     props.simulationRequest ?? null,
@@ -403,6 +408,7 @@ export function LineageDialog(props: LineageDialogProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sim.rejection])
   useEffect(() => {
+    previewCache.current.clear()
     resetHistory()
     setSelection(null)
     setPending(null)
@@ -581,10 +587,11 @@ export function LineageDialog(props: LineageDialogProps) {
               <SimulationBar
                 simulating={simulating}
                 nobles={nobles}
-                fiefs={fiefs ?? []}
-                claims={claimList ?? []}
+                fiefs={fiefs ?? NO_FIEFS}
+                claims={claimList ?? NO_CLAIMS}
                 players={props.players}
                 request={props.simulationRequest ?? null}
+                previewCache={previewCache}
                 king={data.king}
                 selection={selection}
                 pending={pending}
@@ -660,6 +667,9 @@ export function LineageDialog(props: LineageDialogProps) {
   )
 }
 
+const NO_FIEFS: Fief[] = []
+const NO_CLAIMS: Claim[] = []
+
 function SimulationBar({
   simulating,
   nobles,
@@ -667,6 +677,7 @@ function SimulationBar({
   claims,
   players,
   request,
+  previewCache,
   king,
   selection,
   pending,
@@ -692,6 +703,7 @@ function SimulationBar({
   claims: Claim[]
   players: Player[]
   request: VictorySimulationRequest | null
+  previewCache: MutableRefObject<ActionPreviewCache>
   king?: string
   selection: Selection | null
   pending: Pending | null
@@ -714,39 +726,6 @@ function SimulationBar({
   const { t } = useLanguage()
   const button =
     'rounded-md border border-line bg-paper-50 px-2 py-0.5 text-xs font-semibold enabled:hover:bg-paper-100 disabled:opacity-40'
-  // The outcomes of a noble's death are previewed by the server, option by option.
-  const selectedCode =
-    simulating && !pending && selection?.type === 'noble' ? selection.code : null
-  const variants = useMemo(
-    () => (selectedCode ? killVariants(selectedCode, nobles, fiefs, claims) : []),
-    [selectedCode, nobles, fiefs, claims],
-  )
-  const outcomeCapitals = (variant: (typeof variants)[number]) => [
-    ...new Set(
-      [selectedCode, variant.partner].flatMap((code) =>
-        code ? affectedFiefs(code, fiefs).map((fief) => fief.capital) : [],
-      ),
-    ),
-  ]
-  const previewed = useMemo(
-    () => (selectedCode && affectedFiefs(selectedCode, fiefs).length > 0 ? variants : []),
-    [selectedCode, fiefs, variants],
-  )
-  const previewStates = useActionPreviews(request, actions, previewed)
-  const outcomesOf = (variant: (typeof variants)[number]): FiefOutcome[] | undefined => {
-    const state = previewStates[variant.key]
-    return state ? fiefOutcomes(state, outcomeCapitals(variant)) : undefined
-  }
-  const describeOutcomes = (outcomes: FiefOutcome[]) =>
-    outcomes
-      .map(
-        (outcome) =>
-          t('sim.preview.fief', {
-            fief: outcome.fief,
-            holder: outcome.holder ?? t('sim.preview.vacant'),
-          }) + (outcome.exile ? t('sim.preview.exile', { name: outcome.exile }) : ''),
-      )
-      .join(' ; ')
   if (!simulating) {
     return (
       <div className="flex w-full">
@@ -775,21 +754,11 @@ function SimulationBar({
       fief: line.fief,
     })
   }
-  const ownerName = (id: string) => players.find((p) => p.id === id)?.name || id
-  const exiledFiefs = noble ? fiefs.filter((fief) => fief.exiled === noble.code) : []
+  const ownerName = (id: string) => playerDisplayName(id, [players], id)
+  const ownExiledFiefs = noble ? exiledFiefs(noble.code, fiefs) : []
   const contestedFiefs = noble
-    ? fiefs.filter(
-        (fief) =>
-          fief.exiled === noble.code || (fief.exiled && fief.holder === noble.code),
-      )
+    ? [...ownExiledFiefs, ...usurpedFiefs(noble.code, fiefs)]
     : []
-  const plainOutcomes = variants.length > 0 ? outcomesOf(variants[0]) : undefined
-  const variantLabel = (variant: (typeof variants)[number]) =>
-    variant.key === 'plain'
-      ? t('sim.kill')
-      : variant.partner
-        ? t('sim.killTogether', { name: nameOf(variant.partner) })
-        : t('sim.killNoGarrison')
   return (
     <div className="flex w-full flex-col gap-2 rounded-lg border border-brass-500/60 bg-brass-300/30 p-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
@@ -833,45 +802,20 @@ function SimulationBar({
           <span className="font-semibold">
             {t('sim.selectedNoble', { name: nameOf(selection.code) })}
           </span>
-          {variants.map((variant) => {
-            const outcomes = outcomesOf(variant)
-            // Without a garrison the death reads like the plain one: no option.
-            if (
-              variant.action.type === 'kill' &&
-              variant.action.noGarrison &&
-              (!outcomes || (plainOutcomes && sameOutcomes(outcomes, plainOutcomes)))
-            )
-              return null
-            const label = variantLabel(variant)
-            const previewId = `sim-preview-${variant.key.replace(/\W/g, '-')}`
-            return (
-              <button
-                key={variant.key}
-                type="button"
-                className={cn(button, outcomes && 'inline-flex flex-col items-start')}
-                disabled={!alive}
-                aria-label={label}
-                aria-describedby={outcomes ? previewId : undefined}
-                onClick={() => onAction(variant.action)}
-              >
-                {label}
-                {outcomes && (
-                  <span id={previewId} className="font-normal text-ink-500">
-                    {describeOutcomes(outcomes)}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-          {hasClaimedHolding(selection.code, fiefs, claims) && (
-            <button
-              type="button"
-              className={button}
-              onClick={() => onPending({ kind: 'garrison', from: selection.code })}
-            >
-              {t('sim.killGarrison')}
-            </button>
-          )}
+          <KillOptions
+            code={selection.code}
+            alive={alive}
+            nobles={nobles}
+            fiefs={fiefs}
+            claims={claims}
+            request={request}
+            actions={actions}
+            previewCache={previewCache}
+            nameOf={nameOf}
+            buttonClass={button}
+            onAction={onAction}
+            onPending={onPending}
+          />
           <button
             type="button"
             className={button}
@@ -927,7 +871,7 @@ function SimulationBar({
                 ))}
             </select>
           )}
-          {exiledFiefs.map((fief) => (
+          {ownExiledFiefs.map((fief) => (
             <button
               key={`restore-${fief.capital}`}
               type="button"
@@ -1032,6 +976,115 @@ function SimulationBar({
         </ol>
       )}
     </div>
+  )
+}
+
+/**
+ * The ways a noble can die: each option is one button, with the fiefs it
+ * settles previewed from the server's projection of that option.
+ */
+function KillOptions({
+  code,
+  alive,
+  nobles,
+  fiefs,
+  claims,
+  request,
+  actions,
+  previewCache,
+  nameOf,
+  buttonClass,
+  onAction,
+  onPending,
+}: {
+  code: string
+  alive: boolean
+  nobles: Noble[]
+  fiefs: Fief[]
+  claims: Claim[]
+  request: VictorySimulationRequest | null
+  actions: SimulationAction[]
+  previewCache: MutableRefObject<ActionPreviewCache>
+  nameOf: (code: string) => string
+  buttonClass: string
+  onAction: (action: SimulationAction) => void
+  onPending: (pending: Pending) => void
+}) {
+  const { t } = useLanguage()
+  const variants = useMemo(
+    () => killVariants(code, nobles, fiefs, claims),
+    [code, nobles, fiefs, claims],
+  )
+  const settled = useMemo(() => affectedFiefs(code, fiefs), [code, fiefs])
+  const previewed = useMemo(() => (settled.length > 0 ? variants : []), [settled, variants])
+  const previewStates = useActionPreviews(request, actions, previewed, previewCache)
+  const outcomesOf = (variant: KillVariant): FiefOutcome[] | undefined => {
+    const state = previewStates[variant.key]
+    if (!state) return undefined
+    const capitals = new Set(settled.map((fief) => fief.capital))
+    if (variant.partner)
+      for (const fief of affectedFiefs(variant.partner, fiefs)) capitals.add(fief.capital)
+    return fiefOutcomes(state, [...capitals], nameOf)
+  }
+  const describeOutcomes = (outcomes: FiefOutcome[]) =>
+    outcomes
+      .map(
+        (outcome) =>
+          t('sim.preview.fief', {
+            fief: outcome.fief,
+            holder: outcome.holder ?? t('sim.preview.vacant'),
+          }) + (outcome.exile ? t('sim.preview.exile', { name: outcome.exile }) : ''),
+      )
+      .join(' ; ')
+  const plainOutcomes = outcomesOf(variants[0])
+  const label = (variant: KillVariant) =>
+    variant.key === 'plain'
+      ? t('sim.kill')
+      : variant.partner
+        ? t('sim.killTogether', { name: nameOf(variant.partner) })
+        : t('sim.killNoGarrison')
+  return (
+    <>
+      {variants.map((variant) => {
+        const outcomes = outcomesOf(variant)
+        // Without a garrison the death reads like the plain one: no option.
+        if (
+          variant.action.type === 'kill' &&
+          variant.action.noGarrison &&
+          (!outcomes || (plainOutcomes && sameOutcomes(outcomes, plainOutcomes)))
+        )
+          return null
+        const text = label(variant)
+        const previewId = `sim-preview-${variant.key.replace(/\W/g, '-')}`
+        return (
+          <button
+            key={variant.key}
+            type="button"
+            className={cn(buttonClass, outcomes && 'inline-flex flex-col items-start')}
+            disabled={!alive}
+            aria-label={text}
+            aria-describedby={outcomes ? previewId : undefined}
+            onClick={() => onAction(variant.action)}
+          >
+            {text}
+            {outcomes && (
+              <span id={previewId} className="font-normal text-ink-500">
+                {describeOutcomes(outcomes)}
+              </span>
+            )}
+          </button>
+        )
+      })}
+      {hasClaimedHolding(code, fiefs, claims) && (
+        <button
+          type="button"
+          className={buttonClass}
+          onClick={() => onPending({ kind: 'garrison', from: code })}
+        >
+          {t('sim.killGarrison')}
+        </button>
+      )}
+    </>
   )
 }
 
