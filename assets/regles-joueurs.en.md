@@ -114,7 +114,8 @@ What to remember:
   An attack on the supporting army, coming from anywhere but the target,
   **cuts** the support.
 - **A dispersal** splits an army without fighting. Troops that cannot leave
-  stay behind, and the chain follows the first group listed.
+  stay behind, and the chain follows the group of the last listed destination
+  that received a troop.
 - **A transfer** sends resources to a castle, a village or another player's
   army within supply range. An enemy army on the way blocks it. An army that
   transfers does nothing else that turn.
@@ -147,8 +148,9 @@ a standoff: nobody gets in.
 - Two armies attacking each other: the stronger dislodges the other.
 - Attacks in a circle (A→B, B→C, C→A) all succeed if nothing stands in the
   way.
-- You never dislodge your own army, and supports you give an opponent never
-  help them against you.
+- An attack on your own army that stays in place is resolved like any other:
+  if it is strictly the strongest, the attacked army is dislodged and
+  retreats. Two of your armies attacking each other both fail.
 
 ### Retreating
 
@@ -785,10 +787,14 @@ the order of your sheet.
 - **Dispersal.** Destinations are adjacent to the starting territory or equal
   to it, and can repeat. A destination held by the enemy or contested uses up
   no troop. `*` sends all remaining nobles with the group, `*NNN` a single
-  noble. Unassigned nobles stay behind as long as a troop remains there. To
-  keep the chain in place, list the starting territory first:
-  `BRI D BRI ATL NOR`. As a loop, the dispersal retries until every
-  destination is filled.
+  noble. Unassigned nobles stay behind as long as a troop remains there; if every
+  troop leaves, they follow the group of the last listed destination that
+  receives a troop. The
+  chain continues with the army on the last listed destination that received
+  a troop: the next order starts from that territory. To keep it in place, list
+  the starting territory last: `BRI D ATL NOR BRI`. As a loop, the dispersal
+  retries until every destination is filled, and the chain stays on the
+  residual.
 - **Transfer.** The recipient is a castle, a village, or another player's
   army that controls its own territory. The amount is capped at
   `{{cost_base}}^(N − 1)` for an army of `N` troops. As a loop, a short stock
@@ -798,9 +804,7 @@ the order of your sheet.
 
 ### Combat
 
-- An attack on a territory held by your army fails, but blocks the other
-  attacks.
-- In a head-to-head, the opposing player's supports do not count.
+- An attack on a territory held by your army is a combat like any other.
 - A repelled attack still blocks its destination, unless it lost a
   head-to-head.
 - A ruined castle gives no defense, even as a fief capital.

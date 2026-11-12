@@ -121,6 +121,11 @@ describe('chain suggestions', () => {
     expect(chainCodes('(RVE S ECP)\n')).toEqual(['RVE', 'ECP', 'RLG'])
   })
 
+  it('follows the army to the last destination of a dispersion', () => {
+    expect(chainCodes('RVE D ECP RLG\n')).toEqual(['RLG', 'RVE'])
+    expect(chainCodes('RVE D RLG* ECP\n')).toEqual(['ECP', 'RVE'])
+  })
+
   it('expects no code at the verb', () => {
     expect(chainCodes('RVE ')).toEqual([])
   })

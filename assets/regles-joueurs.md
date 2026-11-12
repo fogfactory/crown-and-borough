@@ -118,8 +118,8 @@ L'essentiel à retenir :
   pas. Une attaque contre l'armée qui soutient, venue d'ailleurs que de la
   cible, **coupe** le soutien.
 - **Une dispersion** répartit une armée sans combattre. Les troupes qui ne
-  peuvent pas partir restent sur place, et la chaîne suit le premier groupe
-  listé.
+  peuvent pas partir restent sur place, et la chaîne suit le groupe de la
+  dernière destination listée qui a reçu une troupe.
 - **Un transfert** envoie des ressources à un château, un village ou une armée
   d'un autre joueur, à portée de ravitaillement. Une armée adverse sur le
   trajet le bloque. Une armée qui transfère ne fait rien d'autre ce tour-là.
@@ -151,8 +151,10 @@ sommet produit un statu quo : personne n'entre.
 - Deux armées qui s'attaquent mutuellement : la plus forte déloge l'autre.
 - Des attaques en cercle (A→B, B→C, C→A) réussissent toutes si rien ne s'y
   oppose.
-- Tu ne déloges jamais ta propre armée, et les soutiens que tu donnes à un
-  adversaire ne l'aident jamais contre toi.
+- Une attaque contre ta propre armée qui reste en place se résout comme
+  n'importe quelle autre : si elle est strictement la plus forte, l'armée
+  attaquée est délogée et bat en retraite. Deux de tes armées qui s'attaquent
+  mutuellement échouent toutes les deux.
 
 ### Battre en retraite
 
@@ -796,9 +798,12 @@ ordres dans l'ordre de ta feuille.
   départ, et peuvent se répéter. Une destination tenue par l'ennemi ou
   disputée ne consomme pas de troupe. `*` envoie tous les nobles restants avec
   le groupe, `*NNN` un seul noble. Les nobles non affectés restent sur place
-  tant qu'une troupe y demeure. Pour garder la chaîne sur place, liste
-  d'abord la case de départ : `BRI D BRI ATL NOR`. En boucle, la dispersion
-  retente jusqu'à remplir chaque destination.
+  tant qu'une troupe y demeure ; si toutes les troupes partent, ils suivent le
+  groupe de la dernière destination listée qui reçoit une troupe. La chaîne continue avec l'armée de la dernière
+  destination listée qui a reçu une troupe : l'ordre suivant part de cette
+  case. Pour la garder sur place, liste la case de départ en dernier :
+  `BRI D ATL NOR BRI`. En boucle, la dispersion retente jusqu'à remplir chaque
+  destination, et la chaîne reste sur le résidu.
 - **Transfert.** Le destinataire est un château, un village, ou une armée
   d'un autre joueur qui contrôle sa propre case. Le montant est plafonné à
   `{{cost_base}}^(N − 1)` pour une armée de `N` troupes. En boucle, un stock
@@ -808,9 +813,7 @@ ordres dans l'ordre de ta feuille.
 
 ### Combat
 
-- Une attaque sur une case tenue par ton armée échoue, mais bloque les autres
-  attaques.
-- Dans un face-à-face, les soutiens du joueur adverse ne comptent pas.
+- Une attaque sur une case tenue par ton armée est un combat comme un autre.
 - Une attaque repoussée bloque encore sa destination, sauf si elle a perdu un
   face-à-face.
 - Un château en ruine n'apporte aucune défense, même comme capitale de fief.
