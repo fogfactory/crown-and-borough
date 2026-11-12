@@ -448,6 +448,184 @@ describe('LineageDialog', () => {
       )
     })
 
+    it('conquers a fief with a noble of another house and renounces a claim', async () => {
+      const base = projection(false)
+      const request = vi.fn(
+        async () =>
+          ({
+            ...base,
+            state: {
+              ...base.state,
+              nobles: [
+                noble('JEA', 'P1', 'Duc Jean', { sex: 'male' }),
+                noble('EVE', 'P2', 'Dame Eve', { sex: 'female' }),
+              ],
+              fiefs: [{ capital: 'ROC', title: 'duchy', territories: ['ROC'], owner: 'P1', holder: 'JEA' }],
+              claims: [{ heir: 'EVE', target: 'JEA', spouse: 'ANN', turn: 1, rank: 1 }],
+            },
+          }) as VictorySimulation,
+      )
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="EVE"]')!,
+      )
+      const conquer = screen.getByRole('combobox', { name: 'Conquer a fief…' })
+      expect(within(conquer).getByRole('option', { name: 'ROC (Alice)' })).toBeInTheDocument()
+      fireEvent.change(conquer, { target: { value: 'ROC' } })
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'conquer', noble: 'EVE', fief: 'ROC' }],
+          expect.anything(),
+        ),
+      )
+      expect(await screen.findByText('Dame Eve conquers the fief ROC')).toBeInTheDocument()
+
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="EVE"]')!,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Renounce the claim' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [
+            { type: 'conquer', noble: 'EVE', fief: 'ROC' },
+            { type: 'renounce_claim', noble: 'EVE' },
+          ],
+          expect.anything(),
+        ),
+      )
+    })
+
+    it('previews who holds the fiefs after each way a claimed holder dies', async () => {
+      // JEA holds ROC and AAA, and EVE has a claim on JEA; once JEA dies, the
+      // fiefs go to ANN, or to EVE, the heir, when no garrison is assumed.
+      const holding = (holder: string): VictorySimulation => {
+        const base = projection(false)
+        const fief = (capital: string) => ({
+          capital,
+          title: 'duchy',
+          territories: [capital],
+          owner: 'P1',
+          holder,
+        })
+        return {
+          ...base,
+          state: {
+            ...base.state,
+            nobles: [
+              noble('JEA', 'P1', 'Duc Jean', { sex: 'male' }),
+              noble('ANN', 'P2', 'Duchesse Anne', { sex: 'female' }),
+              noble('EVE', 'P2', 'Dame Eve', { sex: 'female' }),
+            ],
+            fiefs: [fief('ROC'), fief('AAA')],
+            claims: [{ heir: 'EVE', target: 'JEA', spouse: 'ANN', turn: 1, rank: 1 }],
+          },
+        } as VictorySimulation
+      }
+      const request = vi.fn(async (actions: SimulationAction[]) => {
+        const last = actions[actions.length - 1]
+        if (last?.type !== 'kill') return holding('JEA')
+        return holding(last.noGarrison ? 'EVE' : 'ANN')
+      })
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!,
+      )
+      // Each option is named by its action; its preview comes from the server.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Kill' })).toHaveAccessibleDescription(
+          'ROC: Duchesse Anne ; AAA: Duchesse Anne',
+        ),
+      )
+      expect(
+        await screen.findByRole('button', { name: 'Kill, no garrison on the capital' }),
+      ).toHaveAccessibleDescription('ROC: Dame Eve ; AAA: Dame Eve')
+
+      // A garrison noble is picked by a second click.
+      fireEvent.click(screen.getByRole('button', { name: 'Kill, a garrison noble on the capital…' }))
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Click the noble who garrisons the capital when Duc Jean dies',
+      )
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Bob' }).querySelector('[data-noble="ANN"]')!,
+      )
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'kill', noble: 'JEA', garrison: 'ANN' }],
+          expect.anything(),
+        ),
+      )
+      expect(screen.getByText('Duc Jean dies, Duchesse Anne garrisons the capital')).toBeInTheDocument()
+    })
+
+    it('offers to kill both holders of a usurped fief and to retake or renounce it', async () => {
+      const state = projection(false).state
+      const usurped = {
+        ...projection(false),
+        state: {
+          ...state,
+          nobles: [
+            noble('JEA', 'P1', 'Duc Jean', { sex: 'male' }),
+            noble('ANN', 'P2', 'Duchesse Anne', { sex: 'female' }),
+          ],
+          fiefs: [
+            {
+              capital: 'ROC',
+              title: 'duchy',
+              territories: ['ROC'],
+              owner: 'P2',
+              holder: 'ANN',
+              exiled: 'JEA',
+            },
+          ],
+        },
+      } as VictorySimulation
+      const request = vi.fn(async () => usurped)
+      renderDialog(request)
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+      await waitFor(() => expect(request).toHaveBeenCalled())
+      await waitFor(() =>
+        expect(screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')).not.toBeNull(),
+      )
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Kill, together with Duchesse Anne' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'kill', noble: 'JEA', alsoKill: 'ANN' }],
+          expect.anything(),
+        ),
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+      await waitFor(() => expect(request).toHaveBeenLastCalledWith([], expect.anything()))
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Retake ROC' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [{ type: 'restore', fief: 'ROC' }],
+          expect.anything(),
+        ),
+      )
+      fireEvent.click(
+        screen.getByRole('region', { name: 'Alice' }).querySelector('[data-noble="JEA"]')!,
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Renounce the title of ROC' }))
+      await waitFor(() =>
+        expect(request).toHaveBeenLastCalledWith(
+          [
+            { type: 'restore', fief: 'ROC' },
+            { type: 'renounce_title', noble: 'JEA', fief: 'ROC' },
+          ],
+          expect.anything(),
+        ),
+      )
+    })
+
     it('drops an action the server refuses and says why', async () => {
       const request = vi.fn(
         async (actions: SimulationAction[]): Promise<VictorySimulation> => {

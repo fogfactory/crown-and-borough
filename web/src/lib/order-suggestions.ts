@@ -253,6 +253,8 @@ export const WINTER_SLOTS: Record<string, SlotKind[]> = {
   'T A': ['ownNoble', 'ownSettlement'],
   'T X': ['ownNoble', 'ownSettlement', 'adjacent'],
   'T R': ['ownNoble', 'ownSettlement'],
+  'T C': ['ownNoble'],
+  'T D': ['ownNoble', 'ownSettlement'],
   'K R': ['ownNoble'],
   'V R': ['noble'],
   'V C': ['ownNoble'],

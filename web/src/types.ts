@@ -75,6 +75,8 @@ export type EventType =
   | 'fief_vacated'
   | 'fief_dissolved'
   | 'fief_member_occupied'
+  | 'fief_title_settled'
+  | 'title_renounced'
   | 'fief_auto_assigned'
   | 'marriage'
   | 'marriage_refused'
@@ -423,6 +425,8 @@ export interface Fief {
   territories: string[]
   owner: PlayerId
   holder?: string
+  /** Code of the noble a usurpation ousted (`holder` is then the usurper); its title has no game effect. */
+  exiled?: string
   /** Vacant fief returned to the crown player; only a `W G` order grants it. */
   crown?: boolean
   projectedIncome?: number
@@ -588,7 +592,7 @@ export interface Claim {
   /** The claim ended: kept, like an ended marriage, with how and when. */
   ended?: boolean
   endedTurn?: number
-  outcome?: 'honoured' | 'lapsed'
+  outcome?: 'honoured' | 'lapsed' | 'renounced'
 }
 
 export interface StateData {
@@ -1078,6 +1082,8 @@ export type WinterOrderType =
   | 'calamity_veto'
   | 'discard_noble_card'
   | 'claim'
+  | 'renounce_claim'
+  | 'renounce_title'
   | 'ritual'
   | 'inquiry'
   | 'trial'
@@ -1201,6 +1207,10 @@ export interface FiefReport {
   occupant?: PlayerId
   noble?: string
   nobleName?: string
+  /** Display name of the noble a usurpation ousted (or the fallen usurper of a restoration). */
+  exiledName?: string
+  /** Noble a renounced claim bore on. */
+  targetName?: string
   reason?: string
 }
 
@@ -1299,9 +1309,16 @@ export interface VictorySimulation {
   state: StateData
 }
 
-/** One hypothetical change; nobles are given by code. */
+/**
+ * One hypothetical change; nobles are given by code and fiefs by their
+ * capital. A kill may add `alsoKill` (a second noble dying in the same
+ * settlement) and `garrison` (a noble assumed on the capital of the claimed
+ * fiefs) or `noGarrison` (nobody does).
+ */
 export type SimulationAction =
-  | { type: 'kill' | 'crown'; noble: string }
+  | { type: 'kill'; noble: string; alsoKill?: string; garrison?: string; noGarrison?: boolean }
+  | { type: 'crown' | 'renounce_claim'; noble: string }
   | { type: 'dethrone' }
-  | { type: 'rank'; fief: string }
+  | { type: 'rank' | 'restore'; fief: string }
+  | { type: 'conquer' | 'renounce_title'; noble: string; fief: string }
   | { type: 'marry' | 'divorce' | 'claim'; noble: string; other: string }

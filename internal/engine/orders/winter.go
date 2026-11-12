@@ -301,7 +301,9 @@ func parseWinterOrderLine(line string, lineNumber int, indexes gameIndexes) (mod
 // ZZZ …, the titleholder noble then the group with the capital first), A
 // (assign, T A NNN XXX, a free noble then the vacant fief's capital), X
 // (annex, T X NNN XXX YYY, the titleholder, the fief's capital and the
-// annexed territory) and R (rank change, T R NNN XXX). It only
+// annexed territory), R (rank change, T R NNN XXX), C (renounce a claim,
+// T C HHH, the heir) and D (renounce an exiled or usurped title, T D NNN XXX,
+// the noble and the fief's capital). It only
 // checks syntax: group size, duplicate territories, and contiguity are
 // explicit engine rejects (see winter_found_fief_order.go).
 func parseFiefOrderLine(fields []string, lineNumber int, indexes gameIndexes) (models.WinterOrder, *ParseError) {
@@ -381,6 +383,35 @@ func parseFiefOrderLine(fields []string, lineNumber int, indexes gameIndexes) (m
 		}
 		return models.WinterOrder{
 			Type:        models.WinterOrderTypeChangeRank,
+			NobleCode:   models.NobleCode(fields[2]),
+			TerritoryID: capitalID,
+		}, nil
+	case "C":
+		if len(fields) != 3 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterFiefRenounceClaimShape)
+			return models.WinterOrder{}, &error
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		return models.WinterOrder{
+			Type:      models.WinterOrderTypeRenounceClaim,
+			NobleCode: models.NobleCode(fields[2]),
+		}, nil
+	case "D":
+		if len(fields) != 4 {
+			error := parseMessage(lineNumber, ParseCodeTooManyTargets, i18n.WinterFiefRenounceTitleShape)
+			return models.WinterOrder{}, &error
+		}
+		if parseError := winterNobleCode(fields[2], lineNumber, indexes); parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		capitalID, parseError := winterTerritoryID(fields[3], lineNumber, indexes)
+		if parseError != nil {
+			return models.WinterOrder{}, parseError
+		}
+		return models.WinterOrder{
+			Type:        models.WinterOrderTypeRenounceTitle,
 			NobleCode:   models.NobleCode(fields[2]),
 			TerritoryID: capitalID,
 		}, nil

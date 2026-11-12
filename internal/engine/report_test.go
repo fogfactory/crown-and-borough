@@ -487,3 +487,39 @@ func TestBuildTurnReportDoesNotDuplicateAutomaticCapital(t *testing.T) {
 		t.Errorf("explicit capital investment = %#v, want P2 free capital entry", report.Winter.Investments[2])
 	}
 }
+
+func TestBuildTurnReportKeepsUsurpationsAndRenunciations(t *testing.T) {
+	before := models.NewGameState()
+	before.Turn = 5
+	before.Season = models.SeasonSpring
+	before.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
+	before.Territories = []models.Territory{{ID: "ROS", Name: "Rosemont", Terrain: models.TerrainPlain}}
+	before.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"ROS": {}}
+
+	report := BuildTurnReport(before, nil, []Event{
+		{
+			Type: EventTypeFiefConquered, Reason: "usurpation", TerritoryID: "ROS", FiefTitle: models.FiefTitleBarony,
+			PreviousOwnerID: "P1", OwnerID: "P2", NobleID: "N2", NobleName: "Baron Ann de Rosemont",
+			ExiledNobleID: "N1", ExiledNobleName: "Sieur Hugon",
+		},
+		{Type: EventTypeFiefTitleSettled, Reason: "usurper_legitimised", TerritoryID: "ROS", FiefTitle: models.FiefTitleBarony, OwnerID: "P2", NobleID: "N2"},
+		{Type: EventTypeTitleRenounced, Reason: "claim", OwnerID: "P1", NobleID: "N3", NobleName: "Sieur Kid", SpouseNobleName: "Dame Ann"},
+		{Type: EventTypeFiefMemberOccupied, Reason: "capital", DestinationID: "ROS", TerritoryID: "ROS", FiefTitle: models.FiefTitleBarony, OwnerID: "P1", CaptorPlayerID: "P2"},
+	}, nil)
+	if len(report.Fiefs) != 4 {
+		t.Fatalf("fiefs = %#v, want four entries", report.Fiefs)
+	}
+	usurpation := report.Fiefs[0]
+	if usurpation.Reason != "usurpation" || usurpation.Noble != "N2" || usurpation.ExiledName != "Sieur Hugon" {
+		t.Errorf("usurpation = %#v", usurpation)
+	}
+	if report.Fiefs[1].Kind != EventTypeFiefTitleSettled || report.Fiefs[1].Reason != "usurper_legitimised" {
+		t.Errorf("settled = %#v", report.Fiefs[1])
+	}
+	if renounced := report.Fiefs[2]; renounced.Kind != EventTypeTitleRenounced || renounced.Reason != "claim" || renounced.TargetName != "Dame Ann" {
+		t.Errorf("renounced = %#v", renounced)
+	}
+	if occupied := report.Fiefs[3]; occupied.Kind != EventTypeFiefMemberOccupied || occupied.Reason != "capital" || occupied.Occupant != "P2" {
+		t.Errorf("occupied = %#v", occupied)
+	}
+}

@@ -174,8 +174,10 @@ by the enemy army there, and become its hostages.
   one of your armies stands on it. As soon as it leaves, the territory turns
   neutral again.
 - **A fief is solid.** Its members stay yours even if an enemy army stops
-  there: it **occupies** them without taking them. Only taking the **fief's
-  capital** brings down the whole fief at once.
+  there: it **occupies** them without taking them. Only conquering the **fief's
+  capital** brings down the whole fief at once, and only an army carrying a
+  **free noble** conquers it (see "Fiefs"). An army without a noble occupies
+  the capital without taking it.
 - **A territory occupied by the enemy** serves neither as a source nor as a
   depot, and accepts no winter investment. Its income still comes to you.
 - **Your capital** stays yours, even when empty.
@@ -284,6 +286,8 @@ investments:
 | Found a fief | `T F NNN XXX YYY ZZZ…` | {{costs.fief_per_territory}} R per territory |
 | Annex a territory to a fief | `T X NNN XXX YYY` | {{costs.annex_per_territory}} R |
 | Raise a fief by one rank | `T R NNN XXX` | {{costs.rank_per_territory}} R per territory |
+| Renounce a claim | `T C HHH` | free |
+| Renounce an exiled or usurped title | `T D NNN XXX` | free |
 | Designate your capital | `E C XXX` | free |
 | Send R to another player | `G XXX YYY N` | free |
 
@@ -350,14 +354,21 @@ castle. Its title follows its size: **barony** (3), **county** (4),
 **city**.
 
 - A fief is worth **1 influence point**, whatever its rank.
-- Its members stay yours even when occupied. Only taking its capital brings
-  it down (section 3).
+- Its members stay yours even when occupied. Only conquering its capital
+  brings it down (section 3).
 - You expand it with `T X` and raise it one rank with `T R`, once per
   winter.
-- If its holder dies or the capital changes hands, the fief becomes
-  **vacant**. It still produces and still counts. Name a new holder with
-  `T A`, otherwise the first noble of your line receives it at the end of
-  winter.
+- If its holder dies, the fief becomes **vacant** and stays with your player.
+  It still produces and still counts. Name a new holder with `T A`, otherwise
+  the first noble of your line receives it at the end of winter. A vacant fief
+  that is conquered passes to the conqueror, still vacant.
+
+**Conquering a fief.** Only an army carrying a **free noble** (neither hostage
+nor prisoner) takes a fief's capital; without a noble, it occupies it. The whole
+fief passes to its player: the noble becomes the **usurper** and the previous
+holder the **exile**, whose title has no effect. Retaking the capital with an
+army, with or without a noble, restores the exile. `T D NNN XXX` renounces an
+exiled or usurped title for free. Details in the FAQ.
 
 **The line of succession** is the order in which you recruited your nobles,
 bastards always last. A noble only receives a title if the nobles **of the
@@ -394,6 +405,12 @@ One of your nobles recruited during a marriage between one of yours and
 another player's noble `CCC` can claim `CCC`'s titles: `C N HHH CCC`, with a
 claim card (`CLM`). When `CCC` dies, their fiefs pass to the first living
 heir, from the oldest Claim to the most recent. A Claim is public.
+
+- If, when `CCC` dies, the fief's capital carries an army with a free noble
+  (the former owner's garrison included), that noble usurps the fief and the
+  heir receives the **exiled** title; otherwise the heir becomes the holder.
+- `T C HHH` renounces a Claim for free: the card returns to the discard pile.
+  Details in the FAQ.
 
 ### Dignities
 
@@ -716,6 +733,8 @@ card. Army orders are free.
 | `T A NNN XXX` | Assign a vacant fief | — | 0 |
 | `T X NNN XXX YYY` | Annex `YYY` to fief `XXX` | `YYY` adjacent, held by your army; the king's consent if it belongs to another fief | {{costs.annex_per_territory}} |
 | `T R NNN XXX` | Raise the fief one rank | once per winter, no higher than duchy | {{costs.rank_per_territory}} / territory |
+| `T C HHH` | Renounce heir `HHH`'s Claim | `HHH` holds a Claim of yours | 0 |
+| `T D NNN XXX` | Renounce `NNN`'s exiled or usurped title on fief `XXX` | `NNN` holds that title | 0 |
 | `M N NNN MMM` | Marriage | matching order from the other player | 0 |
 | `W X` · `W R` · `W F` · `W G` | Royal orders | king or regent | 0 |
 | `K R NNN` · `V R NNN` | Candidacy and vote for the throne | vacant throne | 0 |
