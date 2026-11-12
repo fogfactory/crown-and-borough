@@ -20,6 +20,12 @@ func (g *GameState) SuccessionLine(playerID PlayerID) []Noble {
 			line = append(line, noble)
 		}
 	}
+	sortBySuccession(line)
+	return line
+}
+
+// sortBySuccession orders nobles of one player by line of succession.
+func sortBySuccession(line []Noble) {
 	sort.SliceStable(line, func(i, j int) bool {
 		if lastI, lastJ := line[i].LastInSuccession(), line[j].LastInSuccession(); lastI != lastJ {
 			return lastJ
@@ -31,7 +37,6 @@ func (g *GameState) SuccessionLine(playerID PlayerID) []Noble {
 		}
 		return aOK && a < b
 	})
-	return line
 }
 
 // SuccessionLines returns the line of succession of every player, keyed by

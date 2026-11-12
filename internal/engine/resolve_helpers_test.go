@@ -124,6 +124,14 @@ func addNoble(state *models.GameState, id models.NobleID, code string, ownerID m
 	})
 }
 
+func setNobleLocation(state *models.GameState, id models.NobleID, territoryID models.TerritoryID) {
+	for index := range state.Nobles {
+		if state.Nobles[index].ID == id {
+			state.Nobles[index].LocationID = territoryID
+		}
+	}
+}
+
 func setNobleStatus(state *models.GameState, id models.NobleID, status models.NobleStatus) {
 	for index := range state.Nobles {
 		if state.Nobles[index].ID == id {

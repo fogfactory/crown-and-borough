@@ -30,6 +30,8 @@ const (
 	// ClaimLapsed: the claim ended without effect (a dignity voided it, the
 	// heir or the target died, another heir was served first).
 	ClaimLapsed ClaimOutcome = "lapsed"
+	// ClaimRenounced: the player gave the claim up with a winter order.
+	ClaimRenounced ClaimOutcome = "renounced"
 )
 
 // ExpiredClaim is a claim that ended, kept like an ended marriage so the
@@ -53,6 +55,19 @@ func (g *GameState) ExpireClaims(outcomeOf func(Claim) (ClaimOutcome, bool)) {
 		}
 	}
 	g.Claims = kept
+}
+
+// RenounceClaim ends the claim the heir holds as renounced and returns it. It
+// reports false when the heir holds none.
+func (g *GameState) RenounceClaim(heir NobleID) (Claim, bool) {
+	claim, claiming := g.ClaimOf(heir)
+	if !claiming {
+		return Claim{}, false
+	}
+	g.ExpireClaims(func(candidate Claim) (ClaimOutcome, bool) {
+		return ClaimRenounced, candidate.Heir == heir
+	})
+	return claim, true
 }
 
 // ClaimsOn returns the claims staked on the noble, by priority: oldest first,

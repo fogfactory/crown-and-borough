@@ -13,6 +13,7 @@ export type WinterIntentionKind =
   | 'fief_assign'
   | 'fief_annex'
   | 'fief_rank'
+  | 'fief_renounce'
   | 'royal'
   | 'error'
 
@@ -82,6 +83,8 @@ function kindOf(preview: WinterLinePreview): WinterIntentionKind {
       return 'fief_annex'
     case 'change_rank':
       return 'fief_rank'
+    case 'renounce_title':
+      return 'fief_renounce'
     case 'royal_annex':
     case 'royal_rank':
     case 'royal_found':
@@ -111,6 +114,7 @@ export function buildWinterIntentions(
       (preview.type === 'draw_noble' ||
         preview.type === 'play_dignity' ||
         preview.type === 'calamity_veto' ||
+        preview.type === 'renounce_claim' ||
         preview.type === 'discard_noble_card') &&
       preview.status !== 'rejected' &&
       preview.status !== 'invalid'

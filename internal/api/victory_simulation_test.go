@@ -137,3 +137,44 @@ func TestVictorySimulationCrownsThenDethrones(t *testing.T) {
 		}
 	}
 }
+
+func TestVictorySimulationKillsTwoNoblesTogether(t *testing.T) {
+	handler, gameStore, id, codes := simulationFixture(t)
+	snapshot, err := gameStore.State(context.Background(), store.Actor{ID: "P1", Development: true}, id)
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	path := "/api/games/" + string(id) + "/victory/simulate?player=P1"
+	body := `{"actions":[{"type":"kill","noble":"` + codes[0] + `","alsoKill":"` + codes[1] + `","noGarrison":true}]}`
+	response := requestGames(t, handler, http.MethodPost, path, body)
+	if response.Code != http.StatusOK {
+		t.Fatalf("kill = %d: %s", response.Code, response.Body.String())
+	}
+	var view VictorySimulationView
+	if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(view.State.Deceased) != 2 {
+		t.Fatalf("deceased = %+v, want both nobles", view.State.Deceased)
+	}
+	if len(snapshot.State.Nobles) != len(view.State.Nobles)+2 {
+		t.Fatalf("nobles = %d, want %d", len(view.State.Nobles), len(snapshot.State.Nobles)-2)
+	}
+}
+
+func TestVictorySimulationRejectsImpossibleFiefActions(t *testing.T) {
+	handler, _, id, codes := simulationFixture(t)
+	path := "/api/games/" + string(id) + "/victory/simulate?player=P1"
+	for _, body := range []string{
+		`{"actions":[{"type":"conquer","noble":"` + codes[0] + `","fief":"ZZZ"}]}`,
+		`{"actions":[{"type":"restore","fief":"ZZZ"}]}`,
+		`{"actions":[{"type":"renounce_title","noble":"` + codes[0] + `","fief":"ZZZ"}]}`,
+		`{"actions":[{"type":"renounce_claim","noble":"` + codes[0] + `"}]}`,
+		`{"actions":[{"type":"kill","noble":"` + codes[0] + `","alsoKill":"` + codes[0] + `"}]}`,
+		`{"actions":[{"type":"kill","noble":"` + codes[0] + `","garrison":"` + codes[1] + `","noGarrison":true}]}`,
+	} {
+		if response := requestGames(t, handler, http.MethodPost, path, body); response.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("%s = %d: %s", body, response.Code, response.Body.String())
+		}
+	}
+}

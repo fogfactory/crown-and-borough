@@ -159,7 +159,7 @@ func (ctx *resolutionContext) freezeLoopSupport(armyID models.ArmyID) bool {
 // describes: control, then occupation. A fief makes control transitive
 // (titres.md "Contrôle et occupation"): a non-capital member stays controlled
 // by the fief's owner regardless of which army stops on it, and only the
-// capital's capture transfers the whole fief (transferFiefOnCapitalCapture).
+// capital's capture transfers the whole fief (captureFiefCapital).
 // Both passes iterate armies sorted by ID, which is also a stable per-army,
 // per-territory order since exactly one army can occupy a territory.
 //
@@ -184,7 +184,7 @@ func updateTerritorialControl(ctx *resolutionContext) {
 	}
 	// fiefAt indexes every fief by each of its member territories once, up
 	// front: neither pass appends to or removes from ctx.state.Fiefs (only
-	// transferFiefOnCapitalCapture mutates a fief's OwnerID/HolderNobleID in
+	// captureFiefCapital mutates a fief's OwnerID/HolderNobleID in
 	// place), so the *models.Fief pointers below stay valid and up to date
 	// across both passes instead of each re-scanning all fiefs per army.
 	fiefAt := make(map[models.TerritoryID]*models.Fief, len(ctx.state.Fiefs))
@@ -196,7 +196,8 @@ func updateTerritorialControl(ctx *resolutionContext) {
 	}
 
 	// Pass 1: control. A non-capital fief member never changes controller under
-	// a visiting army: it is occupied, not conquered.
+	// a visiting army: it is occupied, not conquered. A fief capital changes
+	// hands only for an army with a free noble (or the exile's owner's army).
 	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
 		army := ctx.armiesByID[armyID]
 		if army.OwnerID == models.NeutralPlayerID {
@@ -204,7 +205,28 @@ func updateTerritorialControl(ctx *resolutionContext) {
 			// stays with the previous owner until an army of a player stops.
 			continue
 		}
-		if fief := fiefAt[army.TerritoryID]; fief != nil && fief.CapitalTerritoryID != army.TerritoryID && fief.OwnerID != army.OwnerID {
+		fief := fiefAt[army.TerritoryID]
+		if fief != nil && fief.CapitalTerritoryID != army.TerritoryID && fief.OwnerID != army.OwnerID {
+			continue
+		}
+		if fief != nil && fief.CapitalTerritoryID == army.TerritoryID {
+			// A fief capital is controlled by the fief's owner as it stands now,
+			// which a claim settled earlier this turn may have changed: only an
+			// army able to conquer or restore the fief takes it, any other one
+			// occupies it.
+			previousOwnerID := fief.OwnerID
+			if !ctx.captureFiefCapital(fief, army, control) {
+				continue
+			}
+			control[army.TerritoryID] = army.OwnerID
+			ctx.clearCapitalOnControlLoss(previousOwnerID, army.TerritoryID)
+			ctx.events = append(ctx.events, Event{
+				Type:            EventTypeControlChanged,
+				Phase:           5,
+				TerritoryID:     army.TerritoryID,
+				PreviousOwnerID: previousOwnerID,
+				OwnerID:         army.OwnerID,
+			})
 			continue
 		}
 		previousOwnerID, controlled := control[army.TerritoryID]
@@ -214,7 +236,6 @@ func updateTerritorialControl(ctx *resolutionContext) {
 		ownerID := army.OwnerID
 		control[army.TerritoryID] = ownerID
 		ctx.clearCapitalOnControlLoss(previousOwnerID, army.TerritoryID)
-		ctx.transferFiefOnCapitalCapture(army.TerritoryID, ownerID, control)
 		ctx.events = append(ctx.events, Event{
 			Type:            EventTypeControlChanged,
 			Phase:           5,
@@ -225,23 +246,30 @@ func updateTerritorialControl(ctx *resolutionContext) {
 	}
 
 	// Pass 2: occupation. Any army (including a NEUTRAL revolt) stationed on
-	// a non-capital fief member whose owner differs from the fief's owner
-	// occupies it against its controller. Report it once, the turn it
+	// a fief member, capital included, whose owner differs from the fief's
+	// owner occupies it against its controller (a capital an army conquered
+	// this turn belongs to that army's owner, hence is not occupied). Report it once, the turn it
 	// starts: a garrison that merely stays under an unchanged controller does
 	// not repeat the event. A controller that changed this same turn (the
-	// capital just fell, per pass 1's transferFiefOnCapitalCapture) always
+	// capital just fell, per pass 1's captureFiefCapital) always
 	// reports its now-occupied members, even to an army that was already
 	// sitting there under the previous controller.
 	for _, armyID := range sortedArmyMap(ctx.armiesByID) {
 		army := ctx.armiesByID[armyID]
 		fief := fiefAt[army.TerritoryID]
-		if fief == nil || fief.CapitalTerritoryID == army.TerritoryID || fief.OwnerID == army.OwnerID {
+		if fief == nil || fief.OwnerID == army.OwnerID {
 			continue
 		}
 		startOwnerID, armyWasPresent := startOwnerAt[army.TerritoryID]
-		controllerUnchanged := startFiefOwnerAt[fief.ID] == fief.OwnerID
+		// A fief that changed hands before this pass (a claim settled earlier in
+		// the turn) counts as a new controller too: startControl predates it.
+		controllerUnchanged := startFiefOwnerAt[fief.ID] == fief.OwnerID && ctx.startControl[army.TerritoryID] == fief.OwnerID
 		if armyWasPresent && startOwnerID == army.OwnerID && controllerUnchanged {
 			continue
+		}
+		reason := ""
+		if fief.CapitalTerritoryID == army.TerritoryID {
+			reason = "capital"
 		}
 		ctx.events = append(ctx.events, Event{
 			Type:           EventTypeFiefMemberOccupied,
@@ -253,6 +281,7 @@ func updateTerritorialControl(ctx *resolutionContext) {
 			FiefTitle:      fief.Title,
 			OwnerID:        fief.OwnerID,
 			CaptorPlayerID: army.OwnerID,
+			Reason:         reason,
 		})
 	}
 

@@ -38,7 +38,7 @@ describe('FaqPanel', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/Comment fonctionne la carte Impôts/)).toBeInTheDocument()
     expect(screen.getByText(/D’où viennent les nouveaux villages/)).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(22)
+    expect(container.querySelectorAll('details')).toHaveLength(24)
   })
 
   it('renders the English tactical FAQ', () => {
@@ -76,6 +76,6 @@ describe('FaqPanel', () => {
     expect(
       screen.getByText(/Where do the new villages that appear on their own come from/),
     ).toBeInTheDocument()
-    expect(container.querySelectorAll('details')).toHaveLength(22)
+    expect(container.querySelectorAll('details')).toHaveLength(24)
   })
 })

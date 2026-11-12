@@ -173,6 +173,16 @@ describe('buildWinterIntentions', () => {
     expect(refused).toMatchObject({ kind: 'error', valid: false, reason: 'annex_not_adjacent' })
   })
 
+  it('maps a title renunciation to a fief marker and draws nothing for a claim renunciation', () => {
+    const lines: WinterLinePreview[] = [
+      { line: 1, status: 'applied', type: 'renounce_title', territory: 'ROS', noble: 'HUG', cost: 0 },
+      { line: 2, status: 'applied', type: 'renounce_claim', noble: 'HUG', cost: 0 },
+    ]
+    const intentions = buildWinterIntentions(lines, 'T D HUG ROS\nT C HUG')
+    expect(intentions).toHaveLength(1)
+    expect(intentions[0]).toMatchObject({ kind: 'fief_renounce', valid: true, territory: 'ROS' })
+  })
+
   it('maps royal order lines to a royal marker, and flags a refused one', () => {
     const lines: WinterLinePreview[] = [
       { line: 1, status: 'applied', type: 'royal_rank', territory: 'ROS', noble: 'HUG', cost: 0 },
