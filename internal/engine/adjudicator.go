@@ -448,7 +448,7 @@ func (adj *adjudicator) adjudicateDislodged(armyID models.ArmyID) bool {
 // adjudicateMove applies Kruijswijk's move equation with Crown & Borough
 // strengths. A head-to-head opponent must be outmatched on the forces that do
 // not come from its own owner; an army that stays must be outmatched by the
-// supports that do not come from its owner, and never by an ally; every other
+// supports that do not come from its owner; every other
 // attack on the destination keeps its full strength to prevent the move,
 // unless it was dislodged by the head-to-head winner coming from that
 // destination.
@@ -471,10 +471,13 @@ func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 	strength := 0
 	threshold := -1
 	if defender != nil && adj.stays(defender.ID) {
-		if defender.OwnerID == owner {
-			return false
+		against := defender.OwnerID
+		if against == owner {
+			// Against its own army, the attacker keeps all its supports:
+			// they come from the one player on both sides.
+			against = ""
 		}
-		force, help := adj.attackForce(armyID, defender.OwnerID)
+		force, help := adj.attackForce(armyID, against)
 		strength = force - help
 		threshold = adj.holdStrengthAgainst(*defender, armyID)
 	} else {

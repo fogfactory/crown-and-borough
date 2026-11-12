@@ -176,6 +176,7 @@ const REASON_KEYS: Record<string, MessageKey> = {
   enemy_destination: 'reports.reason.enemy_destination',
   disperse_partial: 'reports.reason.disperse_partial',
   disperse_complete: 'reports.reason.disperse_complete',
+  disperse_chain_discarded: 'reports.reason.disperse_chain_discarded',
   disperse_no_residual: 'reports.reason.disperse_no_residual',
   disperse_noble_left_behind: 'reports.reason.disperse_noble_left_behind',
   no_retreat_destination: 'reports.reason.no_retreat_destination',

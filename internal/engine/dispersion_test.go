@@ -187,7 +187,7 @@ func TestResolveDisperseLongListLoopBreaksWithoutMovement(t *testing.T) {
 	}
 }
 
-func TestResolveDisperseUnassignedNobleInvalidatesAfterPreviousOrder(t *testing.T) {
+func TestResolveDisperseSendsUnassignedNobleToLastDestination(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB"),
@@ -215,14 +215,14 @@ func TestResolveDisperseUnassignedNobleInvalidatesAfterPreviousOrder(t *testing.
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}
-	if army := armyByID(t, second.State, "A1"); army.TerritoryID != "BBB" || army.ChainID != nil {
-		t.Errorf("after invalid D = %+v, want A1 to remain at BBB without a chain", army)
+	if army := armyByID(t, second.State, "A1"); army.TerritoryID != "CCC" || army.ChainID != nil {
+		t.Errorf("after D = %+v, want A1 at CCC, its chain consumed", army)
 	}
-	if army := second.State.TerritoryStates["CCC"].Army; army != nil {
-		t.Errorf("invalid D created army %q at CCC", *army)
+	if noble := nobleByID(t, second.State, "N1"); noble.LocationID != "CCC" {
+		t.Errorf("unassigned noble location = %q, want CCC", noble.LocationID)
 	}
-	if outcome, found := findOutcome(second.Events, "O2"); !found || outcome.Outcome != OutcomeInvalid || outcome.Reason != "disperse_noble_left_behind" {
-		t.Errorf("D outcome = %#v, want invalid disperse_noble_left_behind", outcome)
+	if outcome, found := findOutcome(second.Events, "O2"); !found || outcome.Outcome != OutcomeSuccess || outcome.Reason != "disperse_complete" {
+		t.Errorf("D outcome = %#v, want a complete dispersion", outcome)
 	}
 }
 
@@ -330,7 +330,8 @@ func TestResolveInvalidDisperseDoesNotVacateOrigin(t *testing.T) {
 	addChain(t, state, "A1", "N1", models.Order{
 		Type:       models.OrderTypeDisperse,
 		PositionID: "AAA",
-		TargetIDs:  []models.TerritoryID{"BBB", "CCC"},
+		TargetIDs:  []models.TerritoryID{"BBB", "CCC", "BBB"},
+		Liaison:    models.LiaisonModeLoop,
 	})
 	addChain(t, state, "A2", "N2", models.Order{
 		Type:             models.OrderTypeDisperse,
@@ -627,7 +628,7 @@ func TestResolveFriendlyJoinAndDisperseArrivalsFuseIntoVacatedDestination(t *tes
 	}
 }
 
-func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
+func TestResolveLateVacatedDestinationReceivesUnassignedNoble(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "AAA", "BBB", "CCC", "EEE"),
@@ -672,20 +673,20 @@ func TestResolveLateVacatedDestinationCannotOrphanNoble(t *testing.T) {
 	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "BBB" || army.Size != 1 || army.ChainID != nil {
 		t.Errorf("first branch = %+v, want A1 size 1 at BBB", army)
 	}
-	if army := armyByID(t, resolution.State, "A4"); army.TerritoryID != "AAA" || army.Size != 2 {
-		t.Errorf("protected residual = %+v, want A4 size 2 at AAA after friendly fusion", army)
-	}
 	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "DDD" {
 		t.Errorf("vacating army = %+v, want A2 at DDD", army)
 	}
-	if hasArmy(resolution.State, "A3") {
-		t.Error("friendly origin arrival should fuse into the protected residual")
+	if army := armyByID(t, resolution.State, "A5"); army.TerritoryID != "CCC" || army.Size != 1 {
+		t.Errorf("last destination = %+v, want A5 size 1 at CCC, vacated by A2", army)
 	}
-	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "AAA" {
-		t.Errorf("unassigned noble location = %q, want AAA", noble.LocationID)
+	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "AAA" || army.Size != 1 {
+		t.Errorf("origin arrival = %+v, want A3 at the emptied AAA", army)
 	}
-	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_partial" {
-		t.Errorf("A1 D outcome = %#v, want disperse_partial", outcome)
+	if noble := nobleByID(t, resolution.State, "N1"); noble.LocationID != "CCC" {
+		t.Errorf("unassigned noble location = %q, want CCC, the last destination", noble.LocationID)
+	}
+	if outcome, found := findOutcome(resolution.Events, "O1"); !found || outcome.Reason != "disperse_complete" {
+		t.Errorf("A1 D outcome = %#v, want disperse_complete", outcome)
 	}
 }
 

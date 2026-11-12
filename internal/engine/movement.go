@@ -459,7 +459,6 @@ func (ctx *resolutionContext) disperseOriginStrength(result *disperseResolution)
 }
 
 func hasOrphanedDisperseNobles(result *disperseResolution) bool {
-	assigned := make(map[models.NobleID]bool)
 	resolvedTargets := make(map[models.TerritoryID]bool)
 	for index, resolved := range result.resolved {
 		if resolved {
@@ -467,19 +466,40 @@ func hasOrphanedDisperseNobles(result *disperseResolution) bool {
 		}
 	}
 	for targetID, nobleIDs := range result.intent.assignments {
-		for _, nobleID := range nobleIDs {
-			assigned[nobleID] = true
-			if !resolvedTargets[targetID] {
-				return true
-			}
-		}
-	}
-	for _, nobleID := range result.intent.nobles {
-		if !assigned[nobleID] {
+		if len(nobleIDs) > 0 && !resolvedTargets[targetID] {
 			return true
 		}
 	}
 	return false
+}
+
+// lastResolvedTarget returns the last destination of the dispersion that
+// received troops.
+func lastResolvedTarget(result *disperseResolution) (models.TerritoryID, bool) {
+	for index := len(result.intent.targets) - 1; index >= 0; index-- {
+		if result.resolved[index] {
+			return result.intent.targets[index], true
+		}
+	}
+	return "", false
+}
+
+// unassignedDisperseNobles lists the nobles on the origin that no destination
+// claims.
+func unassignedDisperseNobles(intent *disperseIntent) []models.NobleID {
+	assigned := make(map[models.NobleID]bool)
+	for _, nobleIDs := range intent.assignments {
+		for _, nobleID := range nobleIDs {
+			assigned[nobleID] = true
+		}
+	}
+	var unassigned []models.NobleID
+	for _, nobleID := range intent.nobles {
+		if !assigned[nobleID] {
+			unassigned = append(unassigned, nobleID)
+		}
+	}
+	return unassigned
 }
 
 // alliedAttackArrival reports whether a peaceful movement of ownerID can
@@ -875,6 +895,17 @@ func applyDisperse(
 	for _, targetID := range groupOrder {
 		ctx.moveNobles(intent.assignments[targetID], targetID, groupIDs[targetID])
 	}
+	lastTargetID, hasLastTarget := lastResolvedTarget(result)
+	if sourceArmyID == "" && hasLastTarget {
+		// No troop stays on the origin: the nobles no destination claims
+		// follow the group of the last destination that received troops.
+		if unassigned := unassignedDisperseNobles(intent); len(unassigned) > 0 {
+			ctx.moveNobles(unassigned, lastTargetID, groupIDs[lastTargetID])
+		}
+	}
+	if hasLastTarget {
+		ctx.passChainToLastDestination(live, record, groupIDs[lastTargetID])
+	}
 	for index, targetID := range intent.targets {
 		resolved := result.resolved[index]
 		otherArmyID := models.ArmyID("")
@@ -925,6 +956,50 @@ func applyDisperse(
 		Reason:            "disperse_summary",
 	})
 	return nil
+}
+
+// passChainToLastDestination hands the chain of a finished dispersion to the
+// army standing on the last destination that received troops, so the next
+// order of the chain starts from there. A dispersion that retries its residual
+// keeps the chain on that residual. An army that already carries another chain
+// keeps it, and the dispersion chain is discarded.
+func (ctx *resolutionContext) passChainToLastDestination(
+	live map[models.ArmyID]models.Army,
+	record *orderRecord,
+	lastID models.ArmyID,
+) {
+	if record.partialD && record.order.Liaison == models.LiaisonModeLoop {
+		return
+	}
+	chain := ctx.chainsByID[record.chainID]
+	last, exists := live[lastID]
+	pending := ctx.pendingDisperseChainOf(lastID)
+	if chain == nil || !exists || last.ChainID != nil && *last.ChainID == chain.ID || pending != nil && pending.ID == chain.ID {
+		return
+	}
+	if last.ChainID != nil || pending != nil {
+		// The army on the last destination already follows orders of its
+		// own, so the dispersion chain has nobody to continue with: it is
+		// discarded, and the report says why when orders were left.
+		if chain.CurrentIndex < len(chain.Orders)-1 {
+			record.reason = "disperse_chain_discarded"
+		}
+		ctx.dropChain(chain.ID)
+		return
+	}
+	for armyID, holder := range live {
+		if holder.ChainID != nil && *holder.ChainID == chain.ID {
+			holder.ChainID = nil
+			live[armyID] = holder
+		}
+	}
+	chainID := chain.ID
+	last.ChainID = &chainID
+	live[lastID] = last
+	chain.ArmyID = lastID
+	for index := range chain.Orders {
+		chain.Orders[index].ArmyID = lastID
+	}
 }
 
 // disperseHostAt returns the army of ownerID, other than excluded, that a

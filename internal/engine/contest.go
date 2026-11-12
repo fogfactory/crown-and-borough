@@ -76,8 +76,6 @@ func resolveContests(ctx *resolutionContext) (err error) {
 			attackerOriginID: result.attackerOriginID,
 		}
 	}
-	ctx.removeAlliedDestinationAttacks()
-	ctx.clearSupportsForRemovedAttacks()
 	ctx.clearSupportsForVoidedAttacks(ctx.contest.voidedSupports)
 	ctx.emitCombatEvents()
 	ctx.applyContestOutcomes()
@@ -199,10 +197,11 @@ func (adj *adjudicator) contestResults() map[models.TerritoryID]contestResult {
 // voidedSupports returns the offensive supports that are reported void
 // because the attack they support could not use them:
 //   - in a head-to-head battle, the supports given by the opponent's owner to
-//     the side that loses it (both sides on a tie or between allies);
+//     the side that loses it (both sides on a tie or between armies of the
+//     same player);
 //   - every support of an attack that would win its destination but is
-//     turned back because it cannot dislodge the army staying there, an ally
-//     or an army it outmatches only with the help of that army's owner.
+//     turned back because it cannot dislodge the army staying there, which
+//     it outmatches only with the help of that army's owner.
 //
 // The head-to-head rule is reported while both armies stay in place, or when
 // the losing side is itself dislodged.
@@ -315,60 +314,12 @@ func (ctx *resolutionContext) castleOwnedByAllAttackers(territoryID models.Terri
 	return hasAttacker
 }
 
-func (ctx *resolutionContext) removeAlliedDestinationAttacks() {
-	removedTargets := make(map[models.TerritoryID]bool)
-	for _, armyID := range sortedArmyMap(ctx.attacks) {
-		attack := ctx.attacks[armyID]
-		defender := ctx.startArmyAt(attack.target)
-		if defender == nil || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID] {
-			continue
-		}
-		attacker := ctx.startArmiesByID[armyID]
-		if attacker.OwnerID != defender.OwnerID || ctx.contest.dislodged[armyID] {
-			continue
-		}
-		record := ctx.records[armyID]
-		if record == nil || record.outcome != "" {
-			continue
-		}
-		record.fail("allied_destination")
-		delete(ctx.attacks, armyID)
-		removedTargets[attack.target] = true
-	}
-	for targetID := range removedTargets {
-		if !ctx.hasAttackTarget(targetID) {
-			delete(ctx.attackedTerritories, targetID)
-			delete(ctx.contest.results, targetID)
-		}
-	}
-}
-
-func (ctx *resolutionContext) clearSupportsForRemovedAttacks() {
-	for _, support := range ctx.supports {
-		if support.targetArmyID == "" || !support.offensive {
-			continue
-		}
-		if _, exists := ctx.attacks[support.targetArmyID]; !exists {
-			support.applies = false
-		}
-	}
-}
-
 func (ctx *resolutionContext) clearSupportsForVoidedAttacks(voided map[models.ArmyID]bool) {
 	for supportID, support := range ctx.supports {
 		if voided[supportID] {
 			support.applies = false
 		}
 	}
-}
-
-func (ctx *resolutionContext) hasAttackTarget(targetID models.TerritoryID) bool {
-	for _, attack := range ctx.attacks {
-		if attack.target == targetID {
-			return true
-		}
-	}
-	return false
 }
 
 func supportRelevantToTerritory(ctx *resolutionContext, support *supportIntent, territoryID models.TerritoryID) bool {

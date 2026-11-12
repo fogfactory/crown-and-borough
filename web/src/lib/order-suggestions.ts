@@ -200,6 +200,8 @@ function chainPosition(lines: string[]): string | undefined {
     // A lone word is the header of the noble, not an order.
     if (words.length < 2) continue
     if (STAYING_VERBS.has(words[0])) position = words[1]
+    // After a dispersal the chain follows the army of its last destination (engine rule, specs/gdd.md).
+    else if (words[1] === 'D' && words.length > 2) position = words[words.length - 1].split('*')[0]
     else position = MOVING_VERBS.has(words[1]) && words[2] ? words[2] : words[0]
   }
   return position

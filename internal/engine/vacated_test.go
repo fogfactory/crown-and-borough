@@ -429,7 +429,7 @@ func TestResolveDislodgedAttackerStillCutsSupport(t *testing.T) {
 	}
 }
 
-func TestResolveSelfDislodgeBounceProtectsAlliedDefender(t *testing.T) {
+func TestResolveAttackDislodgesOwnArmy(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "SVM", "BBB", "CCC", "DDD", "EEE", "FFF"),
@@ -466,23 +466,23 @@ func TestResolveSelfDislodgeBounceProtectsAlliedDefender(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" {
-		t.Errorf("A1 = %+v, want AAA protected by the self-dislodge bounce", army)
+	// A2 (1 + noble + two enemy-owned supports) outmatches A1, its own army
+	// holding AAA, and A3: it takes AAA and A1, with no retreat left, is
+	// destroyed.
+	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "AAA" {
+		t.Errorf("A2 = %+v, want AAA", army)
 	}
-	if army := armyByID(t, resolution.State, "A2"); army.TerritoryID != "BBB" {
-		t.Errorf("A2 = %+v, want self-dislodge bounce at BBB", army)
+	if hasArmy(resolution.State, "A1") {
+		t.Error("A1 should be dislodged by its own owner's army and, without a retreat, destroyed")
 	}
 	if army := armyByID(t, resolution.State, "A3"); army.TerritoryID != "CCC" {
 		t.Errorf("A3 = %+v, want third attacker to bounce at CCC", army)
 	}
-	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "allied_destination" {
-		t.Errorf("A2 outcome = %#v, found=%t, want allied_destination", event, found)
+	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "attack_wins" {
+		t.Errorf("A2 outcome = %#v, found=%t, want attack_wins", event, found)
 	}
 	if event, found := outcomeForArmy(resolution.Events, "A3"); !found || event.Reason != "combat_lost" {
 		t.Errorf("A3 outcome = %#v, found=%t, want combat_lost", event, found)
-	}
-	if event, found := combatAt(resolution.Events, "AAA"); !found || event.WinnerArmyID != "" || event.DislodgedArmyID != "" || !hasContender(event, "A2") || !hasContender(event, "A3") {
-		t.Errorf("AAA contest = %#v, found=%t, want protected defender with both bounced attackers", event, found)
 	}
 }
 
@@ -604,19 +604,17 @@ func TestResolveDisperseDepartureChangesOriginDefense(t *testing.T) {
 	})
 }
 
-func TestResolveAlliedDestinationFailureIsDeferredAndDoesNotBlockJoin(t *testing.T) {
+func TestResolveEqualAttacksOnOwnArmyFailWithCombat(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
-			territory("AAA", "SVM", "BBB", "CCC", "DDD"),
+			territory("AAA", "SVM", "BBB", "CCC"),
 			territory("BBB", "BOM", "AAA"),
 			territory("CCC", "THE", "AAA"),
-			territory("DDD", "ATL", "AAA"),
 		},
 		[]models.Army{
 			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
 			{ID: "A2", OwnerID: "P1", TerritoryID: "BBB", Size: 1},
 			{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
-			{ID: "A4", OwnerID: "P1", TerritoryID: "DDD", Size: 1},
 		},
 	)
 	for _, noble := range []struct {
@@ -627,14 +625,12 @@ func TestResolveAlliedDestinationFailureIsDeferredAndDoesNotBlockJoin(t *testing
 		{"N1", "ONE", "AAA"},
 		{"N2", "TWO", "BBB"},
 		{"N3", "THR", "CCC"},
-		{"N4", "FOU", "DDD"},
 	} {
 		addNoble(state, noble.id, noble.code, "P1", noble.territory)
 	}
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA"}})
-	addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeJoin, PositionID: "DDD", TargetIDs: []models.TerritoryID{"AAA"}})
 	validateTestState(t, state)
 
 	resolution, err := Resolve(state, testBalance())
@@ -642,22 +638,16 @@ func TestResolveAlliedDestinationFailureIsDeferredAndDoesNotBlockJoin(t *testing
 		t.Fatalf("Resolve: %v", err)
 	}
 	for _, armyID := range []models.ArmyID{"A2", "A3"} {
-		if event, found := outcomeForArmy(resolution.Events, armyID); !found || event.Reason != "allied_destination" {
-			t.Errorf("%s outcome = %#v, found=%t, want allied_destination", armyID, event, found)
+		if event, found := outcomeForArmy(resolution.Events, armyID); !found || event.Reason != "combat_lost" {
+			t.Errorf("%s outcome = %#v, found=%t, want combat_lost", armyID, event, found)
 		}
 	}
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 2 {
-		t.Errorf("host = %+v, want fused size 2 at AAA", army)
-	}
-	if hasArmy(resolution.State, "A4") {
-		t.Error("A4 should fuse into the stationary host")
-	}
-	if _, found := combatAt(resolution.Events, "AAA"); found {
-		t.Error("allied destination failures should not create a AAA combat event")
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "AAA" || army.Size != 1 {
+		t.Errorf("A1 = %+v, want unchanged at AAA", army)
 	}
 }
 
-func TestResolveSupportToAlliedFailedAttackIsVoid(t *testing.T) {
+func TestResolveSupportToAttackOnOwnArmyIsApplied(t *testing.T) {
 	state := testState(t,
 		[]models.Territory{
 			territory("AAA", "SVM", "BBB", "CCC"),
@@ -682,8 +672,8 @@ func TestResolveSupportToAlliedFailedAttackIsVoid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if event, found := outcomeForArmy(resolution.Events, "A3"); !found || event.Reason != "support_void" {
-		t.Errorf("A3 outcome = %#v, found=%t, want support_void", event, found)
+	if event, found := outcomeForArmy(resolution.Events, "A3"); !found || event.Reason != "support_applied" {
+		t.Errorf("A3 outcome = %#v, found=%t, want support_applied", event, found)
 	}
 }
 
