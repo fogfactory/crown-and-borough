@@ -151,7 +151,6 @@ a standoff: nobody gets in.
 - An attack on your own army that stays in place is resolved like any other:
   if it is strictly the strongest, the attacked army is dislodged and
   retreats. Two of your armies attacking each other both fail.
-- Supports you give an opponent never help them against you.
 
 ### Retreating
 
@@ -805,9 +804,7 @@ the order of your sheet.
 
 ### Combat
 
-- An attack on a territory held by your army fails, but blocks the other
-  attacks.
-- In a head-to-head, the opposing player's supports do not count.
+- An attack on a territory held by your army is a combat like any other.
 - A repelled attack still blocks its destination, unless it lost a
   head-to-head.
 - A ruined castle gives no defense, even as a fief capital.

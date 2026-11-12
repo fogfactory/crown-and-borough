@@ -538,16 +538,10 @@ Les règles de combat sont les suivantes :
 - une attaque contre une armée du même joueur qui reste sur place se résout
   comme toute autre : elle déloge l'armée si sa force dépasse la défense et
   chaque autre attaque sur cette case, et l'armée délogée bat en retraite selon
-  les règles habituelles ; tous les soutiens de l'attaque comptent alors, ils
-  viennent du même joueur des deux côtés ;
-- les soutiens apportés par le joueur d'une armée adverse ne comptent pas pour
-  la déloger : pour gagner, l'attaque doit dépasser la défense et chaque autre
-  attaque sans ces soutiens ; ils comptent en revanche pour empêcher les autres
-  attaques d'entrer ;
-- lorsque deux armées s'attaquent mutuellement (face-à-face), chacune oppose sa
-  force sans les soutiens du joueur adverse : la plus forte l'emporte et déloge
-  l'autre si elle bat aussi les autres attaques sur sa destination ; à égalité,
-  ou entre armées du même joueur, les deux échouent ;
+  les règles habituelles ;
+- lorsque deux armées s'attaquent mutuellement (face-à-face), la plus forte
+  l'emporte et déloge l'autre si elle bat aussi les autres attaques sur sa
+  destination ; à égalité, ou entre armées du même joueur, les deux échouent ;
 - une attaque qui échoue continue d'empêcher les autres attaques d'entrer sur
   sa destination, même si son armée est délogée, sauf si elle a perdu un
   face-à-face ;

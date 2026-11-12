@@ -446,10 +446,9 @@ func (adj *adjudicator) adjudicateDislodged(armyID models.ArmyID) bool {
 }
 
 // adjudicateMove applies Kruijswijk's move equation with Crown & Borough
-// strengths. A head-to-head opponent must be outmatched on the forces that do
-// not come from its own owner; an army that stays must be outmatched by the
-// supports that do not come from its owner; every other
-// attack on the destination keeps its full strength to prevent the move,
+// strengths. A head-to-head opponent, an army that stays and every other
+// attack on the destination must be outmatched; an attack on the destination
+// keeps its full strength to prevent the move,
 // unless it was dislodged by the head-to-head winner coming from that
 // destination.
 func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
@@ -461,9 +460,7 @@ func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 		if defender.OwnerID == owner {
 			return false
 		}
-		ourForce, ourHelp := adj.attackForce(armyID, defender.OwnerID)
-		theirForce, theirHelp := adj.attackForce(defender.ID, owner)
-		if ourForce-ourHelp <= theirForce-theirHelp {
+		if adj.attackForce(armyID) <= adj.attackForce(defender.ID) {
 			return false
 		}
 	}
@@ -471,17 +468,10 @@ func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 	strength := 0
 	threshold := -1
 	if defender != nil && adj.stays(defender.ID) {
-		against := defender.OwnerID
-		if against == owner {
-			// Against its own army, the attacker keeps all its supports:
-			// they come from the one player on both sides.
-			against = ""
-		}
-		force, help := adj.attackForce(armyID, against)
-		strength = force - help
+		strength = adj.attackForce(armyID)
 		threshold = adj.holdStrengthAgainst(*defender, armyID)
 	} else {
-		strength, _ = adj.attackForce(armyID, "")
+		strength = adj.attackForce(armyID)
 		if bonus := ctx.fortificationBonus(attack.target); bonus > 0 && !ctx.tunneledAttacks[armyID] && !ctx.castleOwnedByAllAttackers(attack.target) {
 			threshold = bonus
 		}
@@ -493,7 +483,7 @@ func (adj *adjudicator) adjudicateMove(armyID models.ArmyID) bool {
 		if otherID == armyID || adj.retiredGhost(otherID) {
 			continue
 		}
-		if prevent, _ := adj.attackForce(otherID, ""); strength <= prevent {
+		if strength <= adj.attackForce(otherID) {
 			return false
 		}
 	}
@@ -522,26 +512,21 @@ func (adj *adjudicator) retiredGhost(armyID models.ArmyID) bool {
 	return adj.moves(opponent.ID)
 }
 
-// attackForce returns the strength of an attack and the part of it given by
-// supports of against, the owner of the army it attacks.
-func (adj *adjudicator) attackForce(armyID models.ArmyID, against models.PlayerID) (int, int) {
+// attackForce returns the strength of an attack: its army, its noble and the
+// supports that count.
+func (adj *adjudicator) attackForce(armyID models.ArmyID) int {
 	ctx := adj.ctx
 	attacker := ctx.startArmiesByID[armyID]
 	force := ctx.attacks[armyID].size + nobleCommandBonus(ctx, attacker)
-	help := 0
 	for _, supportID := range sortedArmyMap(ctx.supports) {
 		support := ctx.supports[supportID]
 		if !support.offensive || support.targetArmyID != armyID || !adj.supportCounts(supportID) {
 			continue
 		}
 		supporter := ctx.startArmiesByID[supportID]
-		strength := supporter.Size + nobleCommandBonus(ctx, supporter)
-		force += strength
-		if against != "" && supporter.OwnerID == against {
-			help += strength
-		}
+		force += supporter.Size + nobleCommandBonus(ctx, supporter)
 	}
-	return force, help
+	return force
 }
 
 // supportCounts reports whether a support adds its strength: it applies, it

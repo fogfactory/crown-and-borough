@@ -155,7 +155,6 @@ sommet produit un statu quo : personne n'entre.
   n'importe quelle autre : si elle est strictement la plus forte, l'armée
   attaquée est délogée et bat en retraite. Deux de tes armées qui s'attaquent
   mutuellement échouent toutes les deux.
-- Les soutiens que tu donnes à un adversaire ne l'aident jamais contre toi.
 
 ### Battre en retraite
 
@@ -814,9 +813,7 @@ ordres dans l'ordre de ta feuille.
 
 ### Combat
 
-- Une attaque sur une case tenue par ton armée échoue, mais bloque les autres
-  attaques.
-- Dans un face-à-face, les soutiens du joueur adverse ne comptent pas.
+- Une attaque sur une case tenue par ton armée est un combat comme un autre.
 - Une attaque repoussée bloque encore sa destination, sauf si elle a perdu un
   face-à-face.
 - Un château en ruine n'apporte aucune défense, même comme capitale de fief.
