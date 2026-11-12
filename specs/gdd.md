@@ -86,7 +86,13 @@ liste d'investissements directs, traités dans l'ordre saisi :
   dont `NNN` est le titulaire ; le titre du fief ne change pas
   ([politique.md](politique.md#seigneurie-et-annexion)) ;
 - `T R NNN XXX` — monter d'un rang le titre du fief de capitale `XXX`, une
-  fois par hiver et par fief ([politique.md](politique.md#seigneurie-et-annexion)).
+  fois par hiver et par fief ([politique.md](politique.md#seigneurie-et-annexion)) ;
+- `T C HHH` — renoncer gratuitement au Claim porté par l'héritier `HHH` du
+  joueur : la prétention est éteinte et la carte de prétention retourne à la
+  défausse ([succession.md](succession.md#prétentions-claims)) ;
+- `T D NNN XXX` — renoncer gratuitement, pour le noble `NNN` du joueur, au
+  titre exilé ou usurpé qu'il porte sur le fief de capitale `XXX`
+  ([titres.md](titres.md#conquête-dun-fief-par-un-noble)).
 - `K R NNN` / `V R NNN` — présenter la candidature du noble `NNN` au trône, ou
   voter pour un candidat déclaré ([politique.md](politique.md#élection)) ;
 - `W X KKK XXX YYY`, `W R KKK XXX`, `W F KKK XXX`, `W G KKK XXX NNN` — ordres
@@ -835,8 +841,22 @@ autrement (voir [titres.md](titres.md#contrôle-et-occupation)).
 Dans un fief, le contrôle est **transitif** (titres.md) : un membre
 non-capitale reste contrôlé par le propriétaire du fief même lorsqu'une armée
 adverse, ou une révolte `NEUTRAL`, s'y arrête (elle l'**occupe** sans le
-contrôler) ; seule la prise de la **capitale** du fief transfère le contrôle
-de tous ses membres au conquérant en une seule fois.
+contrôler) ; seule la conquête de la **capitale** du fief transfère le
+contrôle de tous ses membres au conquérant en une seule fois.
+
+**Conquête d'un fief.** La capitale d'un fief n'est conquise que par une armée
+portant un **noble libre** de son propriétaire ; une armée sans noble
+l'occupe sans la prendre. Le noble conquérant devient titulaire
+**usurpateur** et l'ancien titulaire vivant devient **exilé** : un titre exilé
+n'a aucun effet de jeu (ni rang, ni vote, ni bonus). Un fief
+vacant conquis passe au conquérant sans usurpateur ni exilé. Le propriétaire de
+l'exilé qui reprend la capitale avec une armée, noble ou non, restaure le titre
+sans condition de rang. La mort de l'usurpateur rend le titre à l'exilé ; la
+mort de l'exilé fait de l'usurpateur le titulaire officiel ; si les deux
+meurent, le fief est vacant. Un fief conquis alors qu'il est déjà usurpé
+dépossède l'usurpateur de tout, l'exilé d'origine restant exilé. Les ordres
+`T D` (titre exilé ou usurpé) et `T C` (Claim) permettent d'y renoncer. Le
+détail figure dans [titres.md](titres.md#conquête-dun-fief-par-un-noble).
 
 | Infrastructure | Condition | Effet v1 | Coût |
 |---|---|---|---:|

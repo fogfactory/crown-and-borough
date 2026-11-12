@@ -23,8 +23,9 @@ Issue : [#196](https://github.com/fogfactory/crown-and-borough/issues/196)
 [#215](https://github.com/fogfactory/crown-and-borough/issues/215).
 **Livré.**
 
-La prise de contrôle reste positionnelle : une armée qui s'arrête sur une
-case en prend le contrôle. Mais le maintien de ce contrôle diffère selon
+La prise de contrôle est positionnelle : une armée qui s'arrête sur une
+case en prend le contrôle (pour la capitale d'un fief, voir « Conquête d'un
+fief par un noble »). Le maintien de ce contrôle diffère selon
 l'**ancrage** de la case :
 
 - **ancrée** : membre d'un fief, ou capitale d'un joueur (une exception
@@ -52,7 +53,7 @@ pas, pour ne pas noyer le rapport.
 - **contrôlé** : le statut de la case, dérivé par les
   règles d'ancrage ci-dessus. Dans un fief, la case est contrôlée par le
   joueur qui détient le fief, même lorsqu'une armée adverse (ou une révolte
-  `NEUTRAL`) s'y arrête. Seule la prise de la capitale du fief transfère le
+  `NEUTRAL`) s'y arrête. Seule la conquête de la capitale du fief transfère le
   fief et donc le contrôle de tous ses territoires (voir ci-dessous).
 - **occupé** : une armée est présente sur la case. C'est une information
   dérivée, jamais stockée. Une case a un **contrôleur** (case contrôlée)
@@ -60,7 +61,7 @@ pas, pour ne pas noyer le rapport.
   le propriétaire diffère de ce contrôleur — une révolte `NEUTRAL` y compris.
   Cette notion s'applique à toute case contrôlée, en fief ou non (une
   capitale de joueur occupée par une révolte en relève tout autant), mais ne
-  change jamais son contrôleur : seule la prise de la capitale d'un fief (ou
+  change jamais son contrôleur : seule la conquête de la capitale d'un fief (ou
   la prise positionnelle hors fief) transfère le contrôle.
 
 Une case d'un fief occupée contre son contrôleur :
@@ -81,11 +82,11 @@ Une case d'un fief occupée contre son contrôleur :
 - reste pillable par l'occupant, sans effet sur le fief lorsque ce n'est pas
   la capitale.
 
-La prise de la capitale d'un fief transfère le contrôle de **tous** ses
+La conquête de la capitale d'un fief (par une armée portant un noble libre,
+voir « Conquête d'un fief par un noble ») transfère le contrôle de **tous** ses
 membres au conquérant en une seule passe, même ceux occupés par une tierce
 armée (l'occupation continue, seul le contrôleur change). Hors fief, la prise
-de contrôle reste positionnelle, mais son maintien est désormais éphémère
-(voir ci-dessus, [#215](https://github.com/fogfactory/crown-and-borough/issues/215)) :
+de contrôle est positionnelle et son maintien éphémère (voir ci-dessus, [#215](https://github.com/fogfactory/crown-and-borough/issues/215)) :
 sans ancrage, il ne survit pas au départ de la dernière armée du contrôleur.
 
 La capitale d'un joueur n'est pas un fief implicite, mais elle est un ancrage
@@ -160,9 +161,11 @@ attribution par défaut livrée par
 la dissolution automatique de #194).
 
 - **Capitale du fief prise** : lorsqu'un autre joueur prend le contrôle de la
-  case de la capitale (mise à jour du contrôle territorial, immédiatement
-  après la résolution des mouvements), le fief entier passe à ce joueur,
-  **vacant** (le titulaire perd son titre), et le contrôle de **tous** les
+  case de la capitale avec une armée portant un noble libre (mise à jour du
+  contrôle territorial, immédiatement après la résolution des mouvements, voir
+  « Conquête d'un fief par un noble »), le fief entier passe à ce joueur. Le
+  noble conquérant devient titulaire usurpateur et l'ancien titulaire exilé ;
+  un fief déjà vacant reste vacant. Le contrôle de **tous** les
   autres membres du fief bascule vers ce même joueur dans la même passe
   (contrôle transitif, voir « Contrôle et occupation » ci-dessus) — y compris
   un membre occupé par une tierce armée, qui continue de l'occuper mais sous
@@ -170,9 +173,12 @@ la dissolution automatique de #194).
   case du fief occupée sans que la capitale ne tombe ne change jamais de
   contrôleur. Une révolte (armée `NEUTRAL`) ne prend jamais le contrôle d'une
   case : elle ne transfère donc jamais un fief, même en délogeant le
-  titulaire de sa capitale.
+  titulaire de sa capitale. Une armée sans noble libre ne transfère pas non
+  plus le fief : elle occupe la capitale.
 - **Mort du titulaire** (par exemple de la peste) : le fief reste au joueur
-  qui le détient mais devient vacant.
+  qui le détient mais devient vacant, sauf Claim ou usurpation (voir
+  « Conquête d'un fief par un noble » et
+  [succession.md](succession.md#prétentions-claims)).
 - **Capture du titulaire** (otage ou donjon) : aucun effet sur le fief ; le
   noble existe toujours, seul son statut change.
 - **Château de la capitale pillé** (pillage, y compris le pillage
@@ -201,27 +207,10 @@ la dissolution automatique de #194).
   de compter son point de score jusqu'à ce qu'un noble soit disponible ou que
   sa capitale soit dissoute.
 
-## Conquête d'un fief par un noble (proposé)
+## Conquête d'un fief par un noble
 
-Issue : [#610](https://github.com/fogfactory/crown-and-borough/issues/610). **Proposé, non livré.** Cette section décrit un
-changement de règle ; `gdd.md`, `succession.md` et les règles joueurs ne
-changent qu'à l'implémentation, avec le texte final sans comparaison.
-
-### Actuel et proposé
-
-| Situation | Actuel | Proposé |
-|---|---|---|
-| Une armée sans noble s'arrête sur la capitale d'un fief | Elle prend la capitale : le fief passe, vacant, au conquérant | Elle **occupe** la capitale contre son contrôleur, sans la prendre |
-| Une armée avec un noble libre s'arrête sur la capitale | Idem (le noble est sans effet) | Le fief passe au conquérant ; le noble devient titulaire **usurpateur** ; l'ancien titulaire vivant devient **exilé** |
-| Le titulaire meurt, un Claim vise son titre, capitale sans armée ou avec une armée sans noble | L'héritier prend le titre | Inchangé ; la capitale reste occupée dans le second cas |
-| Le titulaire meurt, un Claim vise son titre, capitale avec une armée et un noble libre (garnison de l'ancien propriétaire comprise) | L'héritier prend le titre ; une armée déjà en place reprend le fief au contrôle suivant | Le noble devient usurpateur et le fief passe à son propriétaire ; l'héritier reçoit le titre exilé |
-| Un fief vacant est conquis | Le fief passe au conquérant, vacant | Idem : ni usurpateur ni exilé |
-| Le joueur dépossédé reprend la capitale | Capture ordinaire, fief vacant | Restauration du titre exilé |
-| Mort de l'usurpateur ou de l'exilé | Sans objet | Usurpateur mort : l'exilé retrouve le titre. Exilé mort : l'usurpateur devient officiel, sauf Claim sur l'exilé |
-| Claim sur un fief usurpé | Sans objet | Sans effet sur l'usurpateur ; sur l'exilé, l'héritier devient le nouvel exilé à sa mort |
-| Renoncer à un Claim, à un titre exilé ou à un titre usurpé | Aucun ordre | Ordres d'hiver gratuits |
-
-### Règles proposées
+Issue : [#610](https://github.com/fogfactory/crown-and-borough/issues/610).
+**Livré.**
 
 **Conquête.** La capitale d'un fief n'est conquise que par une armée de joueur
 portant sur la case au moins un **noble libre** de son propriétaire (un otage
@@ -232,28 +221,40 @@ titulaire, le premier noble libre de l'armée, dans l'ordre de la ligne de
 succession du joueur, devient titulaire avec le statut **usurpateur** et
 l'ancien titulaire reçoit le statut **exilé**. Il faut un titulaire légitime
 pour qu'il y ait usurpation : un fief **vacant** conquis passe au conquérant
-sans usurpateur ni exilé et reste vacant (`T A` permet de l'attribuer). Un noble seul, sans armée, ne conquiert rien. Les armées sans
+sans usurpateur ni exilé et reste vacant (`T A` permet de l'attribuer). Cette
+condition de noble libre vaut aussi pour un fief vacant : sans noble libre,
+l'armée occupe seulement. Un noble seul, sans armée, ne conquiert rien. Les armées sans
 noble occupent la capitale avec les conséquences déjà décrites pour un membre
 de fief occupé (revenu du fief inchangé, case ni source de ravitaillement ni
 dépôt, investissements refusés). La capitale d'un joueur hors fief reste
 positionnelle.
 
 **Exilé.** Un titre exilé n'a aucun effet de jeu (ni rang, ni vote, ni
-bonus) : c'est un rappel de rôle, affiché comme tel dans les rapports et les
-formes d'adresse. Un fief n'a au plus qu'un exilé : le titulaire légitime
+bonus) : c'est un rappel de rôle, affiché comme tel dans les rapports et dans
+l'interface (arbre de lignée, panneau du territoire), pas dans les noms
+composés par le serveur. Un fief n'a au plus qu'un exilé : le titulaire légitime
 d'origine.
 
 **Restauration par la reprise de la capitale.** Lorsque le propriétaire du
 noble exilé reprend la capitale du fief avec une armée de lui, **sans condition
 de noble**, le fief lui revient entièrement, l'exilé redevient titulaire (plus
-d'usurpateur, plus d'exilé), sans condition de rang de succession.
+d'usurpateur, plus d'exilé), sans condition de rang de succession. Une armée du
+propriétaire de l'exilé déjà présente sur la capitale restaure le fief au
+contrôle territorial suivant. Si l'exilé et l'usurpateur appartiennent au même
+joueur, la reprise ne change rien : seule la mort de l'un ou `T D` résout la
+situation.
 
 **Durée de l'usurpation.** Une usurpation ne dure que tant que l'usurpateur et
 l'exilé vivent. Si l'usurpateur meurt, l'exilé retrouve le titre et le fief
 revient à son propriétaire. Si l'exilé meurt, l'usurpateur devient le titulaire
 officiel (plus de statut usurpateur), sauf si un Claim vise l'exilé (voir
-ci-dessous). Si les deux sont morts, le fief est vacant
-et suit les règles de « Perte et vacance d'un fief ».
+ci-dessous). Si les deux sont morts dans le même règlement, même avec un Claim vivant sur
+l'exilé, le fief est vacant, reste à son propriétaire du moment (celui de
+l'usurpateur) et suit les règles de « Perte et vacance d'un fief » ; le Claim
+n'est pas honoré. Cette règle vaut pour des morts réglées ensemble ; des morts
+réglées à des moments différents du même tour s'appliquent l'une après l'autre
+(l'usurpateur meurt : l'exilé retrouve le fief ; l'exilé meurt ensuite : le fief
+suit la règle d'un titulaire ordinaire, Claim compris).
 
 **Claims sur un fief usurpé.** Un Claim ne permet pas de récupérer un titre
 usurpé : un Claim sur l'usurpateur est sans effet sur ce fief, dont la mort
@@ -273,39 +274,33 @@ d'origine reste exilé.
 **Claim.** À la mort du titulaire, si la capitale porte une armée avec un
 noble libre, ce noble devient titulaire usurpateur et le fief passe à son
 propriétaire, l'héritier du Claim recevant le titre exilé. Une garnison de
-l'ancien propriétaire avec noble annule donc le Claim. Sans armée, ou avec une
-armée sans noble, l'héritier prend le titre.
+l'ancien propriétaire avec noble annule donc le Claim. Sans armée, avec une
+armée sans noble, ou avec une armée de la maison de l'héritier, l'héritier prend
+le titre officiellement (ni usurpation, ni exil).
 
 **Renonciation.** Deux ordres d'hiver gratuits permettent de renoncer :
-- à un Claim : le joueur qui le détient éteint la prétention de son héritier,
-  la carte de prétention retourne à la défausse et l'héritier peut réclamer à
-  nouveau avec une autre carte ;
-- à un titre contesté, exilé ou usurpé, par un même ordre sur le noble qui le
-  porte, le moteur déterminant son statut :
+- à un Claim, par `T C HHH` : le joueur qui le détient éteint la prétention de
+  son héritier `HHH` (issue « renoncée »), la carte de prétention retourne à la
+  défausse et l'héritier peut réclamer à nouveau avec une autre carte, y
+  compris par un `C N` plus bas sur la même feuille ;
+- à un titre contesté, exilé ou usurpé, par un même ordre `T D NNN XXX` sur le
+  noble `NNN` qui le porte et la capitale `XXX` du fief concerné (il ne vaut
+  que pour ce fief), le moteur déterminant son statut :
   - exilé : son propriétaire abandonne le titre, l'usurpateur devient
     titulaire officiel et plus aucune restauration n'est possible ;
   - usurpé : son propriétaire le rend, le titre retourne à l'exilé et le fief
     à son propriétaire, comme à la mort de l'usurpateur.
 
-### À trancher à l'implémentation
+Les deux ordres sont gratuits. Un noble qui ne porte ni titre exilé ni titre
+usurpé sur ce fief voit l'ordre `T D` rejeté.
 
-- Conquête d'un fief vacant : aucun titre n'est en jeu. Faut-il quand même un
-  noble dans l'armée ? Le texte l'exige, comme pour tout fief, tant que ce
-  point n'est pas tranché.
-- Choix du noble titulaire quand plusieurs nobles libres sont dans l'armée :
-  la ligne de succession du joueur est proposée.
-- Codes des ordres de renonciation : `T C HHH` (Claim porté par l'héritier
-  `HHH`) et `T D NNN` (titre exilé ou usurpé du noble `NNN`) sont proposés ;
-  carte de prétention rendue à la défausse pour un Claim. À vérifier :
-  disponibilité des deux codes dans le parseur d'ordres.
-- Restauration par la reprise de la capitale pour une usurpation issue d'un
-  Claim : la question posée est restée « sans objet » ; le texte ci-dessus
-  l'applique aux deux origines tant que ce point n'est pas tranché.
-- Modèle de données : un drapeau usurpateur sur le titulaire et un champ pour
-  le noble exilé sur `Fief`.
-- Points d'ancrage dans le moteur : la passe de contrôle de
-  `updateTerritorialControl` (`progression.go`) et `passFiefToHeir`
-  (`fief.go`), plus rapport, messages i18n, projection privée et tests.
+**Propriétaire d'un fief vacant.** Un fief vacant garde son propriétaire
+courant : il ne revient à la couronne que par la règle des fiefs orphelins
+(voir [politique.md](politique.md#héritage-dun-fief-sans-héritier)). Quand
+plusieurs nobles libres sont présents dans l'armée conquérante, le titulaire
+est le premier dans la ligne de succession du joueur. L'exilé n'est jamais un
+titulaire pour le score, les votes, les rangs ou les bonus. Conquérir un fief
+vacant efface sa marque de fief de la couronne.
 
 ## Taxe seigneuriale
 

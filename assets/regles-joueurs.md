@@ -177,8 +177,10 @@ capturés par l'armée ennemie présente, et deviennent ses otages.
 - **Hors fief, le contrôle est éphémère.** Une case est à toi tant qu'une de
   tes armées y stationne. Dès qu'elle part, la case redevient neutre.
 - **Un fief est solide.** Ses membres restent à toi même si une armée ennemie
-  s'y arrête : elle les **occupe** sans les prendre. Seule la prise de la
-  **capitale du fief** fait tomber tout le fief d'un coup.
+  s'y arrête : elle les **occupe** sans les prendre. Seule la conquête de la
+  **capitale du fief** fait tomber tout le fief d'un coup, et seule une armée
+  qui porte un **noble libre** la conquiert (voir « Les fiefs »). Une armée
+  sans noble occupe la capitale sans la prendre.
 - **Une case occupée par l'ennemi** ne sert ni de source ni de dépôt, et
   n'accepte aucun investissement d'hiver. Son revenu continue de te revenir.
 - **Ta capitale** reste à toi, même vide.
@@ -288,6 +290,8 @@ investissements :
 | Fonder un fief | `T F NNN XXX YYY ZZZ…` | {{costs.fief_per_territory}} R par territoire |
 | Annexer un territoire à un fief | `T X NNN XXX YYY` | {{costs.annex_per_territory}} R |
 | Monter un fief d'un rang | `T R NNN XXX` | {{costs.rank_per_territory}} R par territoire |
+| Renoncer à une prétention | `T C HHH` | gratuit |
+| Renoncer à un titre exilé ou usurpé | `T D NNN XXX` | gratuit |
 | Désigner ta capitale | `E C XXX` | gratuit |
 | Envoyer des R à un autre joueur | `G XXX YYY N` | gratuit |
 
@@ -352,13 +356,36 @@ sa taille : **baronnie** (3), **comté** (4), **marquisat** (5), **duché** (6
 et plus). Le château de la capitale devient une **cité**.
 
 - Un fief vaut **1 point d'influence**, quel que soit son rang.
-- Ses membres restent à toi même occupés. Seule la prise de sa capitale le
+- Ses membres restent à toi même occupés. Seule la conquête de sa capitale le
   fait tomber (section 3).
 - Tu l'agrandis avec `T X` et le fais monter d'un rang avec `T R`, une fois
   par hiver.
-- Si son titulaire meurt ou si la capitale change de main, le fief devient
-  **vacant**. Il produit et compte toujours. Désigne un nouveau titulaire avec
-  `T A`, sinon le premier noble de ta lignée le reçoit en fin d'hiver.
+- Si son titulaire meurt, le fief devient **vacant** et reste à ton joueur.
+  Il produit et compte toujours. Désigne un nouveau titulaire avec `T A`,
+  sinon le premier noble de ta lignée le reçoit en fin d'hiver. Un fief vacant
+  conquis passe au conquérant, toujours vacant.
+
+**Conquérir un fief.** Pour prendre la capitale d'un fief, ton armée doit
+porter un **noble libre** (ni otage ni prisonnier) et s'y arrêter. Une armée
+sans noble ne fait qu'occuper la capitale : le fief reste à son propriétaire.
+
+- Le fief passe tout entier à ton joueur. Ton noble devient le titulaire
+  **usurpateur** ; l'ancien titulaire, s'il est vivant, devient **exilé**.
+  Un titre exilé n'a aucun effet : ni rang, ni vote, ni bonus.
+- Si plusieurs nobles libres sont dans l'armée, le premier de ta lignée devient
+  usurpateur.
+- **Restauration.** Le propriétaire du noble exilé qui reprend la capitale
+  avec une armée, noble ou non, restaure son titre sans condition de rang. Si
+  l'exilé et l'usurpateur sont au même joueur, la reprise ne change rien.
+- Si l'usurpateur meurt, l'exilé retrouve son titre et le fief revient à son
+  propriétaire. Si l'exilé meurt, l'usurpateur devient titulaire officiel.
+  Si les deux meurent, le fief est vacant.
+- Un fief usurpé que tu conquiers à ton tour dépossède l'usurpateur de tout ;
+  l'exilé d'origine reste exilé.
+- `T D NNN XXX` te fait renoncer, gratuitement, au titre exilé ou usurpé que
+  ton noble `NNN` porte sur le fief de capitale `XXX`. Renoncer à un titre
+  exilé rend l'usurpateur officiel et ferme toute restauration ; renoncer à un
+  titre usurpé le rend à l'exilé et rend le fief à son propriétaire.
 
 **La ligne de succession** est l'ordre de recrutement de tes nobles, les
 bâtards toujours en dernier. Un noble ne reçoit un titre que si les nobles
@@ -396,6 +423,17 @@ Un de tes nobles recruté pendant un mariage entre l'un des tiens et le noble
 `CCC` d'un autre joueur peut réclamer les titres de `CCC` : `C N HHH CCC`, avec une
 carte de prétention (`CLM`). À la mort de `CCC`, ses fiefs passent au premier
 héritier vivant, du Claim le plus ancien au plus récent. Un Claim est public.
+
+- Si la capitale du fief porte, à la mort de `CCC`, une armée avec un noble
+  libre (la garnison de l'ancien propriétaire compte), ce noble usurpe le fief
+  pour son propriétaire et l'héritier reçoit le titre **exilé**. Sans armée,
+  avec une armée sans noble ou avec une armée de la maison de l'héritier,
+  l'héritier devient titulaire.
+- Un Claim sur un titulaire usurpateur est sans effet sur ce fief. Un Claim
+  sur le titre exilé s'applique à la mort de l'exilé : l'héritier devient le
+  nouvel exilé.
+- `T C HHH` renonce gratuitement au Claim de ton héritier `HHH` : la carte
+  retourne à la défausse et tu peux réclamer à nouveau avec une autre.
 
 ### Les dignités
 
@@ -722,6 +760,8 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 | `T A NNN XXX` | Attribuer un fief vacant | — | 0 |
 | `T X NNN XXX YYY` | Annexer `YYY` au fief `XXX` | `YYY` voisin, tenu par ton armée ; accord du roi s'il est dans un autre fief | {{costs.annex_per_territory}} |
 | `T R NNN XXX` | Monter le fief d'un rang | une fois par hiver, pas au-delà du duché | {{costs.rank_per_territory}} / territoire |
+| `T C HHH` | Renoncer au Claim de l'héritier `HHH` | `HHH` porte un Claim à toi | 0 |
+| `T D NNN XXX` | Renoncer au titre exilé ou usurpé de `NNN` sur le fief `XXX` | `NNN` porte ce titre | 0 |
 | `M N NNN MMM` | Mariage | ordre réciproque de l'autre joueur | 0 |
 | `W X` · `W R` · `W F` · `W G` | Ordres royaux | roi ou régente | 0 |
 | `K R NNN` · `V R NNN` | Candidature et vote pour le trône | trône vacant | 0 |
