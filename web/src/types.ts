@@ -1280,9 +1280,16 @@ export interface VictorySimulation {
   state: StateData
 }
 
-/** One hypothetical change; nobles are given by code. */
+/**
+ * One hypothetical change; nobles are given by code and fiefs by their
+ * capital. A kill may add `alsoKill` (a second noble dying in the same
+ * settlement) and `garrison` (a noble assumed on the capital of the claimed
+ * fiefs) or `noGarrison` (nobody does).
+ */
 export type SimulationAction =
-  | { type: 'kill' | 'crown'; noble: string }
+  | { type: 'kill'; noble: string; alsoKill?: string; garrison?: string; noGarrison?: boolean }
+  | { type: 'crown' | 'renounce_claim'; noble: string }
   | { type: 'dethrone' }
-  | { type: 'rank'; fief: string }
+  | { type: 'rank' | 'restore'; fief: string }
+  | { type: 'conquer' | 'renounce_title'; noble: string; fief: string }
   | { type: 'marry' | 'divorce' | 'claim'; noble: string; other: string }

@@ -2,6 +2,30 @@ import { useCallback, useState } from 'react'
 
 import type { SimulationAction } from '@/types'
 
+/**
+ * Message key and parameters (nobles and fiefs by code) of the history line of
+ * an action. A kill with a second death or a garrison assumption reads as such.
+ */
+export function simulationLog(action: SimulationAction): {
+  key: `sim.log.${string}`
+  noble: string
+  other: string
+  fief: string
+} {
+  const noble = 'noble' in action ? action.noble : ''
+  const fief = 'fief' in action ? action.fief : ''
+  if (action.type === 'kill') {
+    if (action.alsoKill)
+      return { key: 'sim.log.killTogether', noble, other: action.alsoKill, fief }
+    if (action.garrison)
+      return { key: 'sim.log.killGarrison', noble, other: action.garrison, fief }
+    if (action.noGarrison)
+      return { key: 'sim.log.killNoGarrison', noble, other: '', fief }
+  }
+  const other = 'other' in action ? action.other : ''
+  return { key: `sim.log.${action.type}`, noble, other, fief }
+}
+
 interface History {
   past: SimulationAction[]
   future: SimulationAction[]

@@ -158,47 +158,32 @@ func (ctx *resolutionContext) fortificationBonus(territoryID models.TerritoryID)
 // vacant, with neither usurper nor exile. One control_changed event per
 // transferred member, reason "fief_transferred", is reported.
 func (ctx *resolutionContext) captureFiefCapital(fief *models.Fief, army *models.Army, control map[models.TerritoryID]models.PlayerID) bool {
-	if fief == nil || fief.CapitalTerritoryID != army.TerritoryID || fief.OwnerID == army.OwnerID {
+	if fief == nil || fief.CapitalTerritoryID != army.TerritoryID {
 		return false
 	}
-	previousOwnerID := fief.OwnerID
-	if fief.ExiledNobleID != nil {
-		if exile := ctx.noblesByID[*fief.ExiledNobleID]; exile != nil && exile.OwnerID == army.OwnerID {
-			usurperID := fief.HolderNobleID
-			ctx.state.RestoreExile(fief)
-			event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, previousOwnerID, "restoration", 5)
-			ctx.setNoble(&event, exile)
-			if usurperID != nil {
-				ctx.setExiledNoble(&event, ctx.noblesByID[*usurperID])
-			}
-			ctx.events = append(ctx.events, event)
-			ctx.transferFiefMembers(fief, army.OwnerID, control)
-			return true
-		}
+	var usurper *models.Noble
+	if free := ctx.state.FreeNoblesAt(army.OwnerID, army.TerritoryID); len(free) > 0 {
+		usurper = &free[0]
 	}
-	free := ctx.state.FreeNoblesAt(army.OwnerID, army.TerritoryID)
-	if len(free) == 0 {
+	conquest, conquered := ctx.state.ConquerFief(fief, army.OwnerID, usurper)
+	if !conquered {
 		return false
 	}
 	reason := ""
-	switch {
-	case fief.HolderNobleID == nil:
-	case fief.Usurped():
-		// A fallen usurper loses everything; the original exile stays.
-		fief.Usurp(free[0], *fief.ExiledNobleID)
+	switch conquest.Kind {
+	case models.FiefConquestRestoration:
+		event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, conquest.PreviousOwner, "restoration", 5)
+		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
+		if conquest.Previous != nil {
+			ctx.setExiledNoble(&event, ctx.noblesByID[*conquest.Previous])
+		}
+		ctx.events = append(ctx.events, event)
+		ctx.transferFiefMembers(fief, army.OwnerID, control)
+		return true
+	case models.FiefConquestUsurpation:
 		reason = "usurpation"
-	case ctx.noblesByID[*fief.HolderNobleID] != nil:
-		fief.Usurp(free[0], *fief.HolderNobleID)
-		reason = "usurpation"
-	default:
-		// The titulaire is gone from play: nothing to usurp.
-		fief.HolderNobleID = nil
 	}
-	if reason == "" {
-		fief.OwnerID = army.OwnerID
-		fief.Crown = false
-	}
-	event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, previousOwnerID, reason, 5)
+	event := ctx.fiefTitleEvent(EventTypeFiefConquered, fief, conquest.PreviousOwner, reason, 5)
 	if reason != "" {
 		ctx.setNoble(&event, ctx.noblesByID[*fief.HolderNobleID])
 		ctx.setExiledNoble(&event, ctx.noblesByID[*fief.ExiledNobleID])
@@ -309,9 +294,7 @@ func (ctx *resolutionContext) passFiefToHeir(fief *models.Fief, heir models.Nobl
 		ctx.setNoble(&event, usurper)
 		ctx.setExiledNoble(&event, &heir)
 	} else {
-		fief.OwnerID = heir.OwnerID
-		fief.HolderNobleID = &heirID
-		fief.Crown = false
+		fief.GiveTo(heir)
 		ctx.setNoble(&event, &heir)
 	}
 	event.OwnerID = fief.OwnerID

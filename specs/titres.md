@@ -467,4 +467,18 @@ recalculer de tête. Le front doit exposer un simulateur — à la manière de
 demande, le score de titres et le statut de victoire (majeure/mineure/échec)
 d'un joueur pour un état hypothétique (avant de conclure un mariage, après un
 Claim, etc.), sans engager l'action : `POST /api/games/{id}/victory/simulate`
-(voir `architecture.md`). Le simulateur est un mode de la vue « Lignée et alliances » : le bouton « Simuler » permet de cliquer un noble (tuer, marier à…, prétendre à…, monter un fief d'un rang, couronner, destituer le roi) ou un lien de mariage (rompre), avec annuler/rétablir/réinitialiser. L'arbre, les liens, les scores et le panneau d'état de victoire de chaque maison (score avant/après, seuil, mode, statut) reflètent l'état hypothétique, jusqu'à réinitialisation.
+(voir `architecture.md`). Le simulateur est un mode de la vue « Lignée et alliances » : le bouton « Simuler » permet de cliquer un noble ou un lien de mariage, avec annuler/rétablir/réinitialiser. L'arbre, les liens, les scores, les statuts usurpateur et exilé et le panneau d'état de victoire de chaque maison (score avant/après, seuil, mode, statut) reflètent l'état hypothétique, jusqu'à réinitialisation.
+
+**Actions simulées.** Chaque action s'applique dans l'ordre à une copie de l'état :
+- noble : tuer, marier à…, prétendre à…, couronner, destituer le roi (hypothèse sans équivalent en jeu), conquérir un fief, renoncer à une prétention (`T C`), renoncer au titre exilé ou usurpé qu'il porte sur un fief (`T D`) ;
+- fief : monter d'un rang (`T R`), reprendre un fief dont le noble est l'exilé (restauration) ;
+- lien de mariage : rompre.
+
+La conquête, la restauration et les renonciations appliquent les mêmes règles que le moteur (« Conquête d'un fief par un noble ») : le simulateur et la résolution partagent la même implémentation. Une action impossible est refusée avec son motif (noble inconnu, fief inconnu, fief déjà au propriétaire du conquérant, exilé et usurpateur de la même maison pour une restauration, noble sans titre exilé ni usurpé pour `T D`, noble sans prétention pour `T C`).
+
+**Hypothèses.** Les armées et les positions ne sont pas simulées : le noble choisi pour une conquête est supposé se tenir avec une armée sur la capitale, et l'armée de la maison de l'exilé qui reprend la capitale pour une restauration est supposée présente. Le coût, la limite d'un ordre par hiver, les cartes (la carte de prétention n'est pas défaussée par `T C`) et l'ordre des ordres d'une feuille ne sont pas simulés non plus.
+
+**Variantes de mort.** Tuer un noble applique le règlement de « Durée de l'usurpation » et « Claim » sur l'état courant. Le menu propose chaque issue possible comme une option distincte, avec l'aperçu de qui détient ensuite chaque fief concerné, lu sur le résultat du serveur :
+- mort simple : le titre suit les règles de l'état courant (l'héritier du Claim prend le titre, ou un noble libre d'une armée présente sur la capitale usurpe) ;
+- mort avec l'autre titulaire d'un fief usurpé (« tuer avec ») : les deux morts sont réglées ensemble, le fief est vacant, reste à son propriétaire du moment et aucun Claim n'est honoré ; la mort simple de l'usurpateur restaure l'exilé, celle de l'exilé rend l'usurpateur officiel, ou donne l'exil à l'héritier d'un Claim sur l'exilé ;
+- garnison supposée (noble d'une autre maison que l'héritier, choisi par un clic) ou exclue (« sans garnison ») quand un Claim vise le titulaire d'un fief : la garnison supposée usurpe le fief et l'héritier est exilé, sans garnison l'héritier prend le titre. L'hypothèse vaut pour tous les fiefs que cette mort transmet à un héritier. L'option « sans garnison » n'est proposée que si elle change le résultat.

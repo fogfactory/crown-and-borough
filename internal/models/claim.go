@@ -57,6 +57,19 @@ func (g *GameState) ExpireClaims(outcomeOf func(Claim) (ClaimOutcome, bool)) {
 	g.Claims = kept
 }
 
+// RenounceClaim ends the claim the heir holds as renounced and returns it. It
+// reports false when the heir holds none.
+func (g *GameState) RenounceClaim(heir NobleID) (Claim, bool) {
+	claim, claiming := g.ClaimOf(heir)
+	if !claiming {
+		return Claim{}, false
+	}
+	g.ExpireClaims(func(candidate Claim) (ClaimOutcome, bool) {
+		return ClaimRenounced, candidate.Heir == heir
+	})
+	return claim, true
+}
+
 // ClaimsOn returns the claims staked on the noble, by priority: oldest first,
 // the wife's family first within a winter, then in play order.
 func (g *GameState) ClaimsOn(target NobleID) []Claim {

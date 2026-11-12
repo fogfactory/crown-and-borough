@@ -23,14 +23,11 @@ func (order renounceClaimOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "noble_not_owned")
 		return
 	}
-	claim, claiming := resolution.state.ClaimOf(heirID)
+	claim, claiming := resolution.state.RenounceClaim(heirID)
 	if !claiming {
 		resolution.rejectWinterOrder(playerID, winterOrder, "no_claim_to_renounce")
 		return
 	}
-	resolution.state.ExpireClaims(func(candidate models.Claim) (models.ClaimOutcome, bool) {
-		return models.ClaimRenounced, candidate.Heir == heirID
-	})
 	resolution.discardClaimCard(heirID)
 	event := Event{
 		Type:    EventTypeTitleRenounced,
@@ -73,15 +70,13 @@ func (order renounceTitleOrder) Apply(ctx *ExecutionContext) {
 		resolution.rejectWinterOrder(playerID, winterOrder, "fief_not_found")
 		return
 	}
-	previousOwnerID := fief.OwnerID
-	switch {
-	case fief.ExiledNobleID != nil && *fief.ExiledNobleID == nobleID:
-		fief.ExiledNobleID = nil
-		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, "exiled", noble)
-	case fief.Usurped() && fief.HolderNobleID != nil && *fief.HolderNobleID == nobleID:
-		resolution.state.RestoreExile(fief)
+	kind, previousOwnerID := resolution.state.RenounceContestedTitle(fief, nobleID)
+	switch kind {
+	case "exiled":
+		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, kind, noble)
+	case "usurped":
 		resolution.clearFiefCapitals(previousOwnerID, fief)
-		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, "usurped", noble)
+		resolution.reportTitleRenounced(fief, previousOwnerID, playerID, winterOrder, kind, noble)
 	default:
 		resolution.rejectWinterOrder(playerID, winterOrder, "noble_not_contested")
 	}
