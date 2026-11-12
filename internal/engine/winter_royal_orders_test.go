@@ -476,8 +476,11 @@ func TestConquestOfACrownFiefClearsTheCrownMark(t *testing.T) {
 	state := crownFiefState(t)
 	state.Fiefs[0].OwnerID = "P1"
 	state.Fiefs[0].Crown = true
+	setNobleLocation(state, "N2", "AAA")
 	ctx := newResolutionContext(state, testBalance())
-	ctx.transferFiefOnCapitalCapture("AAA", "P2", ctx.snapshotControlNow())
+	if !captureCapitalAs(ctx, "AAA", "P2", ctx.snapshotControlNow()) {
+		t.Fatal("captureFiefCapital = false, want the crown fief conquered by P2")
+	}
 
 	fief := ctx.fiefByCapital("AAA")
 	if fief.OwnerID != "P2" || fief.Crown {

@@ -108,7 +108,9 @@ export function WinterOrdersOverlay({
                                 ? 'X'
                                 : intention.kind === 'fief_rank'
                                   ? 'R'
-                                  : intention.kind === 'royal'
+                                  : intention.kind === 'fief_renounce'
+                                    ? 'D'
+                                    : intention.kind === 'royal'
                                     ? 'W'
                                     : 'E'
               const detail =

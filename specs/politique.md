@@ -260,12 +260,13 @@ et qu'aucun héritier de Claim ne reprend le fief, le fief **retourne
 immédiatement à la couronne** s'il y a un roi ou une régente :
 
 - le fief passe au joueur de la couronne (roi ou régente), vacant, et le
-  contrôle de tous ses territoires bascule dans la même passe (comme à la prise
-  d'une capitale, [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
+  contrôle de tous ses territoires bascule dans la même passe (comme à la
+  conquête d'une capitale, [titres.md](titres.md#perte-et-vacance-dun-fief)) ;
 - c'est un **fief de la couronne** : il n'est jamais attribué par défaut en fin
   d'hiver à la ligne du joueur de la couronne ; il reste vacant, continue de
-  produire et de compter son point, jusqu'à un `W G`. La prise de sa capitale
-  en fait un fief vacant ordinaire de son conquérant ;
+  produire et de compter son point, jusqu'à un `W G`. La conquête de sa capitale
+  par une armée avec un noble libre en fait un fief vacant ordinaire de son
+  conquérant ;
 - sans roi ni régente, le fief reste vacant chez son joueur. Au couronnement
   d'un roi, tous les fiefs vacants dont le joueur est sans noble vivant font
   retour à la couronne dans la même passe, y compris les fiefs de la couronne

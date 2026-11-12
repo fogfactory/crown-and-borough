@@ -11,13 +11,21 @@ import (
 
 // simulationActionRequest is one hypothetical change: kill (noble), marry or
 // divorce (noble, other), claim (noble is the heir, other the target), rank
-// (fief is the capital of the fief), crown (noble), dethrone. Nobles are given
+// (fief is the capital of the fief), crown (noble), dethrone, conquer (noble
+// conquers the fief), restore (fief), renounce_title (noble gives up its exiled
+// or usurped title on the fief), renounce_claim (noble is the heir). A kill may
+// add alsoKill (a second noble dying with the first) and garrison (a noble
+// assumed on the capital of the claimed fiefs) or noGarrison. Nobles are given
 // by code.
 type simulationActionRequest struct {
 	Type  engine.SimulationActionKind `json:"type"`
 	Noble models.NobleCode            `json:"noble"`
 	Other models.NobleCode            `json:"other,omitempty"`
 	Fief  models.TerritoryID          `json:"fief,omitempty"`
+
+	AlsoKill   models.NobleCode `json:"alsoKill,omitempty"`
+	Garrison   models.NobleCode `json:"garrison,omitempty"`
+	NoGarrison bool             `json:"noGarrison,omitempty"`
 }
 
 type victorySimulationRequest struct {
@@ -70,7 +78,9 @@ func (h *GamesHandler) simulateVictory(w http.ResponseWriter, r *http.Request, a
 	}
 	actions := make([]engine.SimulationAction, 0, len(request.Actions))
 	for _, action := range request.Actions {
-		actions = append(actions, engine.SimulationAction{Kind: action.Type, Noble: action.Noble, Other: action.Other, Fief: action.Fief})
+		actions = append(actions, engine.SimulationAction{Kind: action.Type, Noble: action.Noble, Other: action.Other, Fief: action.Fief,
+			AlsoKill: action.AlsoKill, Garrison: action.Garrison, NoGarrison: action.NoGarrison,
+		})
 	}
 	simulation, err := engine.SimulateVictory(snapshot.State, h.balance, actions)
 	if err != nil {

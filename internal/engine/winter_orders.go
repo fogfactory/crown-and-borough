@@ -50,6 +50,8 @@ var winterOrderFactories = map[models.WinterOrderType]winterOrderFactory{
 	models.WinterOrderTypeRoyalRank:           func(order models.WinterOrder) ExecutableOrder { return royalOrder{order: order} },
 	models.WinterOrderTypeRoyalFound:          func(order models.WinterOrder) ExecutableOrder { return royalOrder{order: order} },
 	models.WinterOrderTypeRoyalGrant:          func(order models.WinterOrder) ExecutableOrder { return royalOrder{order: order} },
+	models.WinterOrderTypeRenounceClaim:       func(order models.WinterOrder) ExecutableOrder { return renounceClaimOrder{order: order} },
+	models.WinterOrderTypeRenounceTitle:       func(order models.WinterOrder) ExecutableOrder { return renounceTitleOrder{order: order} },
 	models.WinterOrderTypeDiscardNoble:        func(order models.WinterOrder) ExecutableOrder { return discardNobleCardOrder{order: order} },
 }
 

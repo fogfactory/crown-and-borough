@@ -288,8 +288,13 @@ type FiefView struct {
 	Owner       models.PlayerID      `json:"owner"`
 	Holder      *models.NobleCode    `json:"holder,omitempty"`
 	// Crown marks a vacant fief returned to the crown player (politique.md).
-	Crown           bool `json:"crown,omitempty"`
-	ProjectedIncome int  `json:"projectedIncome"`
+	Crown bool `json:"crown,omitempty"`
+	// Exiled is the noble a usurpation ousted; when set, Holder is the usurper.
+	// The exiled title has no game effect (titres.md "Conquête d'un fief par un
+	// noble"). Both codes come from the public code map, so a masked chevalier
+	// d'Éon keeps her public identity.
+	Exiled          *models.NobleCode `json:"exiled,omitempty"`
+	ProjectedIncome int               `json:"projectedIncome"`
 }
 
 // MarriageView is one concluded marriage, public to every viewer
@@ -580,6 +585,11 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		if fief.HolderNobleID != nil {
 			if code, exists := nobleCodesByID[*fief.HolderNobleID]; exists {
 				fiefView.Holder = &code
+			}
+		}
+		if fief.ExiledNobleID != nil {
+			if code, exists := nobleCodesByID[*fief.ExiledNobleID]; exists {
+				fiefView.Exiled = &code
 			}
 		}
 		for _, territoryID := range fief.Territories {

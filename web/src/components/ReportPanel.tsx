@@ -105,6 +105,8 @@ const REASON_KEYS: Record<string, MessageKey> = {
   claim_requires_marriage: 'reports.reason.claim_requires_marriage',
   claim_on_own_noble: 'reports.reason.claim_on_own_noble',
   claim_by_bastard: 'reports.reason.claim_by_bastard',
+  no_claim_to_renounce: 'reports.reason.no_claim_to_renounce',
+  noble_not_contested: 'reports.reason.noble_not_contested',
   claim_already_staked: 'reports.reason.claim_already_staked',
   claim_against_married_eon: 'reports.reason.claim_against_married_eon',
   claim_lost_married_eon: 'reports.reason.claim_lost_married_eon',
@@ -463,6 +465,10 @@ function winterOrderLabel(order: WinterOrder, map: MapData | null, t: Translate)
       return `T X ${order.nobleCode ?? '—'} ${territory} ${territoryCode(map, order.target, t)}`
     case 'change_rank':
       return `T R ${order.nobleCode ?? '—'} ${territory}`
+    case 'renounce_claim':
+      return `T C ${order.nobleCode ?? '—'}`
+    case 'renounce_title':
+      return `T D ${order.nobleCode ?? '—'} ${territory}`
     case 'royal_annex':
       return `W X ${order.nobleCode ?? '—'} ${territory} ${territoryCode(map, order.target, t)}`
     case 'royal_rank':
@@ -650,8 +656,28 @@ function fiefEventLabel(
 ): ReactNode {
   const capital = territoryLabel(map, fief.capital, t)
   const owner = playerLabel(players, fief.owner, t)
+  const noble = fief.nobleName ?? '—'
+  const exiled = fief.exiledName ?? '—'
   switch (fief.kind) {
     case 'fief_conquered':
+      if (fief.reason === 'usurpation') {
+        return richTranslate(t, 'reports.fiefUsurped', {
+          capital,
+          previousOwner: playerLabel(players, fief.previousOwner, t),
+          owner,
+          noble,
+          exiled,
+        })
+      }
+      if (fief.reason === 'claim_usurpation') {
+        return richTranslate(t, 'reports.fiefClaimUsurped', { capital, owner, noble, exiled })
+      }
+      if (fief.reason === 'restoration') {
+        return richTranslate(t, 'reports.fiefRestored', { capital, owner, noble })
+      }
+      if (fief.reason === 'usurper_died') {
+        return richTranslate(t, 'reports.fiefUsurperDied', { capital, owner, noble })
+      }
       return richTranslate(t, 'reports.fiefConquered', {
         capital,
         previousOwner: playerLabel(players, fief.previousOwner, t),
@@ -665,7 +691,35 @@ function fiefEventLabel(
         owner,
         reason: reportReason(fief.reason, t) ?? fief.reason ?? '—',
       })
+    case 'fief_title_settled':
+      return richTranslate(
+        t,
+        fief.reason === 'exile_replaced'
+          ? 'reports.fiefExileReplaced'
+          : 'reports.fiefLegitimised',
+        { capital, noble },
+      )
+    case 'title_renounced':
+      if (fief.reason === 'claim') {
+        return richTranslate(t, 'reports.claimRenounced', {
+          noble,
+          target: fief.targetName ?? '—',
+        })
+      }
+      return richTranslate(
+        t,
+        fief.reason === 'usurped'
+          ? 'reports.titleRenouncedUsurped'
+          : 'reports.titleRenouncedExiled',
+        { capital, noble },
+      )
     case 'fief_member_occupied':
+      if (fief.reason === 'capital') {
+        return richTranslate(t, 'reports.fiefCapitalOccupied', {
+          capital,
+          occupant: playerLabel(players, fief.occupant, t),
+        })
+      }
       return richTranslate(t, 'reports.fiefMemberOccupied', {
         territory: territoryLabel(map, fief.territory, t),
         capital,

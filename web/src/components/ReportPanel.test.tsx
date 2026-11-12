@@ -662,6 +662,34 @@ describe('ReportPanel', () => {
     expect(occupiedLine.closest('[data-event-card]')).toHaveClass('text-vermilion-700')
   })
 
+  it('reports usurpations, their settlement and renunciations', () => {
+    const usurpationReport: TurnReport = {
+      ...report,
+      fiefs: [
+        {
+          kind: 'fief_conquered', owner: 'P1', previousOwner: 'P2', capital: 'ROS', title: 'barony',
+          territories: [], reason: 'usurpation', noble: 'N1', nobleName: 'Baron Hugon', exiledName: 'Sieur Anne',
+        },
+        { kind: 'fief_conquered', owner: 'P2', capital: 'ROS', title: 'barony', territories: [], reason: 'usurper_died', nobleName: 'Baron Anne' },
+        { kind: 'fief_title_settled', owner: 'P1', capital: 'ROS', title: 'barony', territories: [], reason: 'usurper_legitimised', nobleName: 'Baron Hugon' },
+        { kind: 'title_renounced', owner: 'P1', capital: '', title: 'barony', territories: [], reason: 'claim', nobleName: 'Sieur Kid', targetName: 'Dame Ann' },
+        { kind: 'fief_member_occupied', owner: 'P1', occupant: 'P2', capital: 'ROS', title: 'barony', territories: [], territory: 'ROS', reason: 'capital' },
+      ],
+    }
+
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={usurpationReport} map={map} players={players} />
+      </LanguageProvider>,
+    )
+
+    expect(screen.getByText(/Baron Hugon usurps the fief/)).toBeInTheDocument()
+    expect(screen.getByText(/the usurper is dead; Baron Anne recovers the fief/)).toBeInTheDocument()
+    expect(screen.getByText(/Baron Hugon is now the official titleholder/)).toBeInTheDocument()
+    expect(screen.getByText('Sieur Kid gives up the claim on Dame Ann')).toBeInTheDocument()
+    expect(screen.getByText(/the capital is occupied by P2 without being conquered/)).toBeInTheDocument()
+  })
+
   it('warns distinctly about a fief automatically assigned at the end of winter', () => {
     const autoAssignedReport: TurnReport = {
       ...report,

@@ -59,6 +59,10 @@ export interface HouseMember {
   excommunicated: boolean
   /** Every fief the noble holds, highest first. */
   fiefs: HeldFief[]
+  /** Fiefs the noble holds as a usurper (a subset of `fiefs`), by capital. */
+  usurped: string[]
+  /** Fiefs whose title the noble lost to a usurper: a reminder, no game effect. */
+  exiled: HeldFief[]
   /** The pretension this noble stakes as an heir, if any. */
   claim?: {
     target: string
@@ -66,7 +70,7 @@ export interface HouseMember {
     rank: number
     targetFiefs: HeldFief[]
     /** Set once the claim ended: it got its way (honoured) or not (lapsed). */
-    outcome?: 'honoured' | 'lapsed'
+    outcome?: 'honoured' | 'lapsed' | 'renounced'
   }
   /** How many pretensions bear on this noble's titles. */
   claimedBy: number
@@ -209,6 +213,12 @@ export function buildHouses(
         religious: religiousByHolder.get(noble.code) ?? [],
         excommunicated: excommunicatedCodes.has(noble.code),
         fiefs: fiefsByHolder.get(noble.code) ?? [],
+        usurped: fiefs
+          .filter((fief) => fief.exiled && fief.holder === noble.code)
+          .map((fief) => fief.capital),
+        exiled: fiefs
+          .filter((fief) => fief.exiled === noble.code)
+          .map((fief) => ({ title: fief.title, capital: fief.capital })),
         claim: claim
           ? {
               target: claim.target,
@@ -240,6 +250,8 @@ export function buildHouses(
         religious: [],
         excommunicated: false,
         fiefs: [],
+        usurped: [],
+        exiled: [],
         claimedBy: 0,
       })
     }

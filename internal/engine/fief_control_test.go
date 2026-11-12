@@ -36,6 +36,13 @@ func fiefControlTestState(t *testing.T, extraArmies []models.Army) *models.GameS
 // progressChainsAndControl.
 func placeCurrentArmyOnly(ctx *resolutionContext, armyID models.ArmyID, ownerID models.PlayerID, territoryID models.TerritoryID, size int) {
 	ctx.state.Armies = append(ctx.state.Armies, models.Army{ID: armyID, OwnerID: ownerID, TerritoryID: territoryID, Size: size})
+	// Keep the state valid: the army is referenced by its territory and the
+	// next army id stays ahead of it.
+	territoryState := ctx.state.TerritoryStates[territoryID]
+	placed := armyID
+	territoryState.Army = &placed
+	ctx.state.TerritoryStates[territoryID] = territoryState
+	ctx.state.NextArmyID = nextArmyID(ctx.state.Armies)
 	ctx.rebuildIndexes()
 }
 
@@ -139,12 +146,13 @@ func TestPositionalControlUnaffectedOutsideFief(t *testing.T) {
 }
 
 // TestFiefCapitalCaptureThroughUpdateTerritorialControl verifies the full
-// updateTerritorialControl pipeline (not transferFiefOnCapitalCapture called
-// directly): capturing the capital transfers every other member the same
-// pass, and the capital itself never also reports as a "fief member
-// occupied" (that event is reserved for non-capital members, titres.md).
+// updateTerritorialControl pipeline (not captureFiefCapital called
+// directly): an army with a noble capturing the capital transfers every other
+// member the same pass, and the capital itself never also reports as a "fief
+// member occupied" (that event is reserved for occupied members, titres.md).
 func TestFiefCapitalCaptureThroughUpdateTerritorialControl(t *testing.T) {
 	state := fiefControlTestState(t, nil)
+	addNoble(state, "N2", "ANN", "P2", "AAA")
 	validateTestState(t, state)
 	ctx := newResolutionContext(state, testBalance())
 	placeCurrentArmyOnly(ctx, "A1", "P2", "AAA", 5)
@@ -178,6 +186,7 @@ func TestFiefCapitalCaptureThroughUpdateTerritorialControl(t *testing.T) {
 // controller changing, not just off the same army staying put.
 func TestFiefMemberOccupationReportedWhenCapitalFallsWithPreExistingGarrison(t *testing.T) {
 	state := fiefControlTestState(t, []models.Army{{ID: "G1", OwnerID: "P1", TerritoryID: "BBB", Size: 3}})
+	addNoble(state, "N2", "ANN", "P2", "AAA")
 	validateTestState(t, state)
 	ctx := newResolutionContext(state, testBalance())
 	placeCurrentArmyOnly(ctx, "A1", "P2", "AAA", 5)

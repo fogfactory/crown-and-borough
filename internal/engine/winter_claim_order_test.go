@@ -373,3 +373,101 @@ func TestResolveTurnAcceptsOnlyCardOrdersOutsideWinter(t *testing.T) {
 		}
 	}
 }
+
+// killN2 executes N2, the titulaire of the fief on AAA, the way a trial does,
+// with the armies and nobles the test placed.
+func killN2(t *testing.T, state *models.GameState, armies ...models.Army) *resolutionContext {
+	t.Helper()
+	state.Claims = []models.Claim{{Heir: "N3", Target: "N2", Spouse: "N1"}}
+	ctx := newResolutionContext(state, testBalance())
+	for _, army := range armies {
+		placeCurrentArmyOnly(ctx, army.ID, army.OwnerID, army.TerritoryID, army.Size)
+	}
+	dead := *ctx.noblesByID["N2"]
+	ctx.removeNoble(dead, models.DeathCauseExecution)
+	return ctx
+}
+
+func TestClaimOnDeadHolderFacingAGarrisonWithANobleUsurps(t *testing.T) {
+	state := claimDeathState(t)
+	// P2's own garrison, with a free noble, stands on the capital.
+	addNoble(state, "N5", "GAR", "P2", "AAA")
+	ctx := killN2(t, state, models.Army{ID: "G1", OwnerID: "P2", TerritoryID: "AAA", Size: 3})
+	requireTitles(t, ctx.state.Fiefs[0], "P2", "N5", "N3", true)
+	if err := ctx.state.Validate(); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+	events := eventsOfType(ctx.events, EventTypeFiefConquered)
+	if len(events) != 1 || events[0].Reason != "claim_usurpation" || events[0].NobleCode != "GAR" || events[0].ExiledNobleID != "N3" {
+		t.Errorf("fief events = %+v, want one claim usurpation by GAR of ELE", events)
+	}
+	if len(ctx.state.Claims) != 0 || len(ctx.state.ExpiredClaims) != 1 || ctx.state.ExpiredClaims[0].Outcome != models.ClaimHonoured {
+		t.Errorf("claims = %+v expired = %+v, want the claim honoured", ctx.state.Claims, ctx.state.ExpiredClaims)
+	}
+}
+
+func TestClaimOnDeadHolderFacingAForeignArmyWithANobleHandsItsOwnerTheFief(t *testing.T) {
+	state := claimDeathState(t)
+	state.Players = append(state.Players, models.Player{ID: "P3", Name: "Three", Color: "green"})
+	addNoble(state, "N5", "FOE", "P3", "AAA")
+	ctx := killN2(t, state, models.Army{ID: "A9", OwnerID: "P3", TerritoryID: "AAA", Size: 3})
+	requireTitles(t, ctx.state.Fiefs[0], "P3", "N5", "N3", true)
+	if err := ctx.state.Validate(); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+}
+
+func TestClaimOnDeadHolderFacingAnArmyWithoutNobleGivesTheTitleToTheHeir(t *testing.T) {
+	state := claimDeathState(t)
+	ctx := killN2(t, state, models.Army{ID: "G1", OwnerID: "P2", TerritoryID: "AAA", Size: 3})
+	requireTitles(t, ctx.state.Fiefs[0], "P1", "N3", "", false)
+	if got, _ := ctx.controllerNow("AAA"); got != "P1" {
+		t.Fatalf("AAA controller = %q, want the heir's P1", got)
+	}
+	// The garrison occupies the capital but the next control pass must not
+	// re-conquer it (it carries no noble).
+	updateTerritorialControl(ctx)
+	requireTitles(t, ctx.state.Fiefs[0], "P1", "N3", "", false)
+	if len(eventsOfType(ctx.events, EventTypeFiefConquered)) != 1 {
+		t.Errorf("events = %+v, want only the claim transfer", ctx.events)
+	}
+}
+
+func TestClaimOnDeadHolderFacingTheHeirsOwnArmyWithANobleGivesTheTitleToTheHeir(t *testing.T) {
+	state := claimDeathState(t)
+	addNoble(state, "N5", "OWN", "P1", "AAA")
+	ctx := killN2(t, state, models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 3})
+	requireTitles(t, ctx.state.Fiefs[0], "P1", "N3", "", false)
+}
+
+func TestClaimOnDeadHolderIgnoresNobleCarriedAsHostage(t *testing.T) {
+	state := claimDeathState(t)
+	addNoble(state, "N5", "GAR", "P2", "AAA")
+	setNobleStatus(state, "N5", models.NobleStatusHostage)
+	ctx := killN2(t, state, models.Army{ID: "G1", OwnerID: "P2", TerritoryID: "AAA", Size: 3})
+	requireTitles(t, ctx.state.Fiefs[0], "P1", "N3", "", false)
+}
+
+func TestGarrisonOfTheFormerOwnerOccupiesTheCapitalOfAClaimHeirAndIsReported(t *testing.T) {
+	state := claimDeathState(t)
+	// P2's garrison stands on the capital from the start of the turn.
+	state.Armies = append(state.Armies, models.Army{ID: "G1", OwnerID: "P2", TerritoryID: "AAA", Size: 3})
+	state.NextArmyID = nextArmyID(state.Armies)
+	territoryState := state.TerritoryStates["AAA"]
+	garrison := models.ArmyID("G1")
+	territoryState.Army = &garrison
+	state.TerritoryStates["AAA"] = territoryState
+	state.Claims = []models.Claim{{Heir: "N3", Target: "N2", Spouse: "N1"}}
+	ctx := newResolutionContext(state, testBalance())
+	ctx.removeNoble(*ctx.noblesByID["N2"], models.DeathCauseExecution)
+	updateTerritorialControl(ctx)
+
+	requireTitles(t, ctx.state.Fiefs[0], "P1", "N3", "", false)
+	occupied := eventsOfType(ctx.events, EventTypeFiefMemberOccupied)
+	if len(occupied) == 0 || occupied[0].Reason != "capital" || occupied[0].OwnerID != "P1" || occupied[0].CaptorPlayerID != "P2" {
+		t.Errorf("occupied events = %+v, want the capital reported occupied by P2's garrison", occupied)
+	}
+	if err := ctx.state.Validate(); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+}
