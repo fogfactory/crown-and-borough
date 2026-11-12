@@ -130,3 +130,65 @@ export function getTerritoryIdFromTarget(target: EventTarget | null): string | n
     target.closest<SVGPathElement>('[data-territory-id]')?.dataset.territoryId ?? null
   )
 }
+
+/** Ray-casting test: whether `point` lies inside the polygon `points`. */
+export function pointInPolygon([x, y]: Point, points: Point[]): boolean {
+  let inside = false
+  for (
+    let index = 0, previous = points.length - 1;
+    index < points.length;
+    previous = index++
+  ) {
+    const [xi, yi] = points[index]
+    const [xj, yj] = points[previous]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+/** Whether the marker's footprint (offsets from its anchor) lies wholly inside the polygon. */
+export function footprintFits(
+  [x, y]: Point,
+  points: Point[],
+  footprint: Point[],
+): boolean {
+  return footprint.every(([dx, dy]) => pointInPolygon([x + dx, y + dy], points))
+}
+
+/**
+ * Keeps a marker on its own territory. A marker whose footprint (offsets from
+ * its anchor, in the polygon's units) fits stays at `preferred`; one that
+ * spills over a neighbour is pulled back along the line to `center` until it
+ * fits. On a cell too small for the footprint even at `center`, the first of
+ * `fallbacks` (in order) that fits is used, else the first one anyway: the
+ * marker may then overlap other elements, which beats standing on a neighbour.
+ */
+export function placeMarker(
+  preferred: Point,
+  fallbacks: Point[],
+  points: Point[],
+  center: Point,
+  footprint: Point[],
+): Point {
+  const fits = (point: Point) => footprintFits(point, points, footprint)
+  if (fits(preferred)) {
+    return preferred
+  }
+  if (!fits(center)) {
+    return fallbacks.find(fits) ?? fallbacks[0] ?? preferred
+  }
+  const along = (ratio: number): Point => [
+    center[0] + (preferred[0] - center[0]) * ratio,
+    center[1] + (preferred[1] - center[1]) * ratio,
+  ]
+  let inside = 0
+  let outside = 1
+  for (let step = 0; step < 12; step += 1) {
+    const middle = (outside + inside) / 2
+    if (fits(along(middle))) inside = middle
+    else outside = middle
+  }
+  return along(inside)
+}
