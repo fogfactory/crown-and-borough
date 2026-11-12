@@ -30,9 +30,9 @@ func TestResolveAlliedAttackCancelsDispersionOrigin(t *testing.T) {
 	keepTestArmiesSupplied(state)
 	addNoble(state, "N1", "ONE", "P1", "TAA")
 	addNoble(state, "N2", "TWO", "P1", "TCC")
-	// A2 attacks its own ally's territory TAA: the attack itself fails as
-	// allied_destination, but it still targets TAA, so A1's dispersion out of
-	// it is cancelled regardless of who attacks or whether the attack wins.
+	// A2 attacks its own ally's territory TAA: the attack itself is lost
+	// (combat_lost), but it still targets TAA, so A1's dispersion out of it is
+	// cancelled regardless of who attacks or whether the attack wins.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeDisperse, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TBB": {"ONE"}}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TAA"}})
 	validateTestState(t, state)
@@ -47,8 +47,8 @@ func TestResolveAlliedAttackCancelsDispersionOrigin(t *testing.T) {
 	if event, found := outcomeForArmy(resolution.Events, "A1"); !found || event.Reason != "attacked_origin" {
 		t.Errorf("A1 outcome = %#v, found=%t, want attacked_origin", event, found)
 	}
-	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "allied_destination" {
-		t.Errorf("A2 outcome = %#v, found=%t, want allied_destination", event, found)
+	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "combat_lost" {
+		t.Errorf("A2 outcome = %#v, found=%t, want combat_lost", event, found)
 	}
 }
 

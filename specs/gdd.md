@@ -535,17 +535,13 @@ Les règles de combat sont les suivantes :
 - toutes les intentions sont calculées ensemble avant les déplacements ;
 - la plus haute force strictement unique gagne ;
 - une égalité au sommet produit un statu quo, y compris sur une case vide ;
-- une attaque ne déloge jamais une armée de son propre joueur qui reste sur
-  place : elle échoue, mais sa force continue d'empêcher les autres attaques
-  d'entrer sur cette case ;
-- les soutiens apportés par le joueur d'une armée ne comptent pas pour la
-  déloger : pour gagner, l'attaque doit dépasser la défense et chaque autre
-  attaque sans ces soutiens ; ils comptent en revanche pour empêcher les autres
-  attaques d'entrer ;
-- lorsque deux armées s'attaquent mutuellement (face-à-face), chacune oppose sa
-  force sans les soutiens du joueur adverse : la plus forte l'emporte et déloge
-  l'autre si elle bat aussi les autres attaques sur sa destination ; à égalité,
-  ou entre armées du même joueur, les deux échouent ;
+- une attaque contre une armée du même joueur qui reste sur place se résout
+  comme toute autre : elle déloge l'armée si sa force dépasse la défense et
+  chaque autre attaque sur cette case, et l'armée délogée bat en retraite selon
+  les règles habituelles ;
+- lorsque deux armées s'attaquent mutuellement (face-à-face), la plus forte
+  l'emporte et déloge l'autre si elle bat aussi les autres attaques sur sa
+  destination ; à égalité, ou entre armées du même joueur, les deux échouent ;
 - une attaque qui échoue continue d'empêcher les autres attaques d'entrer sur
   sa destination, même si son armée est délogée, sauf si elle a perdu un
   face-à-face ;
@@ -558,7 +554,7 @@ Les règles de combat sont les suivantes :
   remporte le combat sur sa destination ; les attaques adverses qui perdent ce
   combat ne l'empêchent pas d'arriver. Si aucun attaquant n'atteint la case, la
   destination reste contestée et le mouvement pacifique est repoussé. Une destination est contestée
-  lorsqu'au moins une attaque adverse y participe et qu'aucune armée
+  lorsqu'au moins une attaque, quel qu'en soit l'auteur, y participe et qu'aucune armée
   attaquante ne remporte le combat (statu quo ou défense conservée) ;
 - un château, ou un village fortifié ([economie.md](economie.md#village-fortifié)),
   apporte son bonus défensif fixe, même sans armée, tant qu'il reste
@@ -726,6 +722,13 @@ la troupe et la fusionne avec cette armée. En mode
 dispersion partielle. En mode `loop`, le résidu retente jusqu'à l'arrivée d'une
 armée sur toutes les destinations ; une liste qui épuise l'armée avant d'avoir
 traité toutes ses destinations est invalide à l'exécution.
+
+Les nobles d'une dispersion qu'aucune destination ne réclame restent sur la case d'origine tant qu'une troupe y demeure ; si toutes les troupes partent, ils suivent le groupe de la dernière destination qui reçoit une troupe. Un noble affecté à une destination que sa troupe n'atteint pas rend la dispersion invalide (`disperse_noble_left_behind`).
+
+Une fois la dispersion terminée, la chaîne continue avec l'armée présente sur
+la dernière destination de la liste qui a reçu une troupe : le prochain ordre
+part de cette case. Une dispersion en boucle dont le résidu retente garde la
+chaîne sur ce résidu, et une armée qui porte déjà une autre chaîne la conserve, et la chaîne de la dispersion est alors abandonnée (le rapport l'indique, `disperse_chain_discarded`).
 
 Une destination occupée par une armée alliée peut recevoir une dispersion : les
 unités s'y empilent avec l'armée présente. Plusieurs dispersions d'un même joueur

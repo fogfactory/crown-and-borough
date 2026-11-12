@@ -120,7 +120,7 @@ func TestResolveDisperseFusesWithJoinHost(t *testing.T) {
 	}
 }
 
-func TestResolveJoinPairKeepsInheritedDisperseChain(t *testing.T) {
+func TestResolveJoinPairDropsChainsAndDisperseChainFollowsLastDestination(t *testing.T) {
 	state := executionScenario(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TCC"),
@@ -134,19 +134,23 @@ func TestResolveJoinPairKeepsInheritedDisperseChain(t *testing.T) {
 			{ID: "A4", OwnerID: "P1", TerritoryID: "TDD", Size: 1},
 		},
 	)
-	// The join pair arrives where A3 keeps a troop with its chain: the merged
-	// army drops the joins' chains but carries A3's on.
+	// The join pair arrives where A3 keeps a troop: the merged army drops the
+	// joins' chains. A3's chain follows its last destination, TAA.
 	addChain(t, state, "A2", nobleOf("A2"), models.Order{Type: models.OrderTypeJoin, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TCC"}})
 	addChainOrders(t, state, "A3", nobleOf("A3"),
 		models.Order{Type: models.OrderTypeDisperse, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TCC", "TAA"}},
-		models.Order{Type: models.OrderTypeHold, PositionID: "TCC"},
+		models.Order{Type: models.OrderTypeHold, PositionID: "TAA"},
 	)
 	addChain(t, state, "A4", nobleOf("A4"), models.Order{Type: models.OrderTypeJoin, PositionID: "TDD", TargetIDs: []models.TerritoryID{"TCC"}})
 
 	resolution := resolveScenario(t, state)
 	armies := armiesAt(resolution.State, "TCC")
-	if len(armies) != 1 || armies[0].Size != 3 || armies[0].ChainID == nil {
-		t.Fatalf("TCC armies = %+v, want one army of 3 carrying A3's chain", armies)
+	if len(armies) != 1 || armies[0].Size != 3 || armies[0].ChainID != nil {
+		t.Fatalf("TCC armies = %+v, want one chainless army of 3", armies)
+	}
+	armies = armiesAt(resolution.State, "TAA")
+	if len(armies) != 1 || armies[0].ChainID == nil {
+		t.Fatalf("TAA armies = %+v, want one army carrying A3's chain", armies)
 	}
 	if chain := chainOf(resolution.State, armies[0].ID); chain == nil || chain.Orders[chain.CurrentIndex].Type != models.OrderTypeHold {
 		t.Errorf("chain = %+v, want A3's chain on its hold", chain)
@@ -187,7 +191,7 @@ func TestResolvePendingDisperseResidualKeepsItsChain(t *testing.T) {
 	}
 }
 
-func TestResolveJoinIgnoresDislodgedAllyAttackOnItsDestination(t *testing.T) {
+func TestResolveJoinTurnedBackByAllyAttackOnItsDestination(t *testing.T) {
 	state := executionScenario(t,
 		[]models.Territory{
 			territory("TAA", "TAA", "TBB", "TDD"),
@@ -203,18 +207,95 @@ func TestResolveJoinIgnoresDislodgedAllyAttackOnItsDestination(t *testing.T) {
 		},
 	)
 	// A2's join origin TBB is under no attack, so it is not cancelled. A4
-	// only attacks its ally A1, which stays, so TAA is not contested and A2
-	// joins A1; A5 then dislodges A4, which retreats onto A1 as well.
+	// attacks its ally A1, which stays: TAA is attacked, so A2's join is
+	// turned back; A5 then dislodges A4, which retreats onto A1.
 	addChain(t, state, "A1", nobleOf("A1"), models.Order{Type: models.OrderTypeHold, PositionID: "TAA"})
 	addChain(t, state, "A2", nobleOf("A2"), models.Order{Type: models.OrderTypeJoin, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A4", nobleOf("A4"), models.Order{Type: models.OrderTypeAttack, PositionID: "TDD", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A5", nobleOf("A5"), models.Order{Type: models.OrderTypeAttack, PositionID: "TEE", TargetIDs: []models.TerritoryID{"TDD"}})
 
 	resolution := resolveScenario(t, state)
-	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "TAA" || army.Size != 3 {
-		t.Errorf("A1 = %+v, want A2 and the retreating A4 fused into it at TAA", army)
+	if army := armyByID(t, resolution.State, "A1"); army.TerritoryID != "TAA" || army.Size != 2 {
+		t.Errorf("A1 = %+v, want the retreating A4 fused into it at TAA", army)
 	}
-	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "join_host" {
-		t.Errorf("A2 outcome = %#v, found=%t, want join_host", event, found)
+	if event, found := outcomeForArmy(resolution.Events, "A2"); !found || event.Reason != "attacked_destination" {
+		t.Errorf("A2 outcome = %#v, found=%t, want attacked_destination", event, found)
+	}
+}
+
+func TestResolveDisperseChainContinuesFromLastDestination(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("TVV", "TVV", "TBB", "TCC"),
+			territory("TBB", "TBB", "TVV"),
+			territory("TCC", "TCC", "TVV", "TII"),
+			territory("TII", "TII", "TCC"),
+		},
+		[]models.Army{{ID: "A1", OwnerID: "P1", TerritoryID: "TVV", Size: 2}},
+	)
+	keepTestArmiesSupplied(state)
+	addNoble(state, "N1", "ONE", "P1", "TVV")
+	addChainOrders(t, state, "A1", "N1",
+		models.Order{Type: models.OrderTypeDisperse, PositionID: "TVV", TargetIDs: []models.TerritoryID{"TBB", "TCC"}, NobleAssignments: map[models.TerritoryID][]models.NobleCode{"TBB": {"*"}}},
+		models.Order{Type: models.OrderTypeAttack, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TII"}},
+	)
+	validateTestState(t, state)
+
+	first, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if armies := armiesAt(first.State, "TCC"); len(armies) != 1 || armies[0].ChainID == nil {
+		t.Fatalf("TCC armies = %+v, want the chain on the army of the last destination", armies)
+	}
+	if armies := armiesAt(first.State, "TBB"); len(armies) != 1 || armies[0].ChainID != nil {
+		t.Fatalf("TBB armies = %+v, want a chainless army", armies)
+	}
+	second, err := Resolve(first.State, testBalance())
+	if err != nil {
+		t.Fatalf("second Resolve: %v", err)
+	}
+	if armies := armiesAt(second.State, "TII"); len(armies) != 1 {
+		t.Errorf("TII armies = %+v, want the chain's attack to have run from TCC", armies)
+	}
+}
+
+func TestResolveDisperseChainDiscardedWhenLastDestinationHasOwnChain(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("TVV", "TVV", "TBB", "TCC"),
+			territory("TBB", "TBB", "TVV"),
+			territory("TCC", "TCC", "TVV", "TII"),
+			territory("TII", "TII", "TCC"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "TVV", Size: 2},
+			{ID: "A2", OwnerID: "P1", TerritoryID: "TCC", Size: 1},
+		},
+	)
+	keepTestArmiesSupplied(state)
+	addNoble(state, "N1", "ONE", "P1", "TVV")
+	addNoble(state, "N2", "TWO", "P1", "TCC")
+	addChainOrders(t, state, "A1", "N1",
+		models.Order{Type: models.OrderTypeDisperse, PositionID: "TVV", TargetIDs: []models.TerritoryID{"TBB", "TCC"}},
+		models.Order{Type: models.OrderTypeAttack, PositionID: "TCC", TargetIDs: []models.TerritoryID{"TII"}},
+	)
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeHold, PositionID: "TCC", Liaison: models.LiaisonModeLoop})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if outcome, found := outcomeForArmy(resolution.Events, "A1"); !found || outcome.Reason != "disperse_chain_discarded" || outcome.Progression != ProgressionConsumed {
+		t.Errorf("A1 outcome = %#v, found=%t, want a discarded chain", outcome, found)
+	}
+	for _, army := range resolution.State.Armies {
+		if army.OwnerID == "P1" && army.TerritoryID == "TBB" && army.ChainID != nil {
+			t.Errorf("army %+v kept the discarded chain", army)
+		}
+	}
+	if chainOf(resolution.State, "A2") == nil {
+		t.Error("the host's own chain must survive")
 	}
 }

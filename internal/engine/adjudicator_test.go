@@ -82,9 +82,9 @@ func TestResolveCancelsPeacefulCrossingAttackedOrigins(t *testing.T) {
 	addNoble(state, "N3", "THR", "P2", "THH")
 	// TAA is under attack from A3, so A1's join out of it is cancelled
 	// outright and it stays. A2's join is not cancelled, since TBB is not
-	// attacked, but TAA is now held by A1, an enemy to A2, so it is turned
-	// back. A3 only attacks its ally A1, which stays, so its own attack is
-	// deferred as allied_destination.
+	// attacked, but its destination TAA is attacked by A3, so it is turned
+	// back. A3 attacks its ally A1, which stays: the attack is an ordinary
+	// combat, lost against the defense of A1.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeJoin, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TBB"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeJoin, PositionID: "TBB", TargetIDs: []models.TerritoryID{"TAA"}})
 	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "THH", TargetIDs: []models.TerritoryID{"TAA"}})
@@ -100,8 +100,8 @@ func TestResolveCancelsPeacefulCrossingAttackedOrigins(t *testing.T) {
 		reason      string
 	}{
 		{"A1", "TAA", "attacked_origin"},
-		{"A2", "TBB", "enemy_destination"},
-		{"A3", "THH", "allied_destination"},
+		{"A2", "TBB", "attacked_destination"},
+		{"A3", "THH", "combat_lost"},
 	} {
 		if army := armyByID(t, resolution.State, want.armyID); army.TerritoryID != want.territoryID {
 			t.Errorf("%s = %+v, want %s", want.armyID, army, want.territoryID)
@@ -130,12 +130,12 @@ func TestResolveTiedHelpAgainstOwnArmyIsApplied(t *testing.T) {
 	addNoble(state, "N1", "ONE", "P3", "TAA")
 	addNoble(state, "N2", "TWO", "P1", "TFF")
 	addNoble(state, "N3", "THR", "P3", "TGG")
-	// A1 helps A2 against its own owner's army A3, which attacks A1, its ally,
-	// and therefore stays. A2's 4 ties A3's defense of 4: A2 never wins TGG, so
-	// the help it received is applied, not void.
+	// A1 helps A2 against its own owner's army A3, which holds TGG. A2's 4
+	// ties A3's defense of 4: A2 never wins TGG, so the help it received is
+	// applied, not void.
 	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeSupport, PositionID: "TAA", TargetIDs: []models.TerritoryID{"TFF", "TGG"}})
 	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "TFF", TargetIDs: []models.TerritoryID{"TGG"}})
-	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeAttack, PositionID: "TGG", TargetIDs: []models.TerritoryID{"TAA"}})
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "TGG"})
 	validateTestState(t, state)
 
 	first, err := Resolve(state, testBalance())
