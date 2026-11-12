@@ -108,7 +108,7 @@ var demoScenarios = map[string]struct {
 		apply:       forgePillage,
 	},
 	"chains": {
-		description: "spring, a line of free territories P0..P6 (printed at startup) with P1 armies: P0 (3 troops + noble) next to P1 P1 army (2 troops), to try an attack on an own army; and P4 (2 troops + noble): try `P4 D P3 P5` then `P5 A P6` (the chain follows the last destination), and a dispersion with an unassigned noble",
+		description: "spring, a line of free territories P0..P6 (printed at startup) with P1 armies: P0 (3 troops + noble) next to P1 (2 troops), to try an attack on an own army; and P4 (2 troops + noble): try `P4 D P3 P5` then `P5 A P6` (the chain follows the last destination), and a dispersion with an unassigned noble",
 		apply:       forgeChains,
 	},
 	"usurpation": {
