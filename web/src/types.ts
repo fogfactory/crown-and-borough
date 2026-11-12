@@ -75,6 +75,8 @@ export type EventType =
   | 'fief_vacated'
   | 'fief_dissolved'
   | 'fief_member_occupied'
+  | 'fief_title_settled'
+  | 'title_renounced'
   | 'fief_auto_assigned'
   | 'marriage'
   | 'marriage_refused'
@@ -394,6 +396,10 @@ export interface Fief {
   territories: string[]
   owner: PlayerId
   holder?: string
+  /** `holder` is a usurper: it took the fief by conquest or claim from `exiled`. */
+  usurped?: boolean
+  /** Code of the noble a usurpation ousted; its title has no game effect. */
+  exiled?: string
   /** Vacant fief returned to the crown player; only a `W G` order grants it. */
   crown?: boolean
   projectedIncome?: number
@@ -559,7 +565,7 @@ export interface Claim {
   /** The claim ended: kept, like an ended marriage, with how and when. */
   ended?: boolean
   endedTurn?: number
-  outcome?: 'honoured' | 'lapsed'
+  outcome?: 'honoured' | 'lapsed' | 'renounced'
 }
 
 export interface StateData {
@@ -1049,6 +1055,8 @@ export type WinterOrderType =
   | 'calamity_veto'
   | 'discard_noble_card'
   | 'claim'
+  | 'renounce_claim'
+  | 'renounce_title'
   | 'ritual'
   | 'inquiry'
   | 'trial'
@@ -1172,6 +1180,12 @@ export interface FiefReport {
   occupant?: PlayerId
   noble?: string
   nobleName?: string
+  /** Noble a usurpation ousted (or the fallen usurper of a restoration). */
+  exiled?: string
+  exiledCode?: string
+  exiledName?: string
+  /** Noble a renounced claim bore on. */
+  targetName?: string
   reason?: string
 }
 

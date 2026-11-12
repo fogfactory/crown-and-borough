@@ -123,6 +123,9 @@ export function SelectedTerritoryDetails({
   const selectedFiefHolder = selectedFief?.holder
     ? state.nobles.find((noble) => noble.code === selectedFief.holder)
     : null
+  const selectedFiefExile = selectedFief?.exiled
+    ? state.nobles.find((noble) => noble.code === selectedFief.exiled)
+    : null
   const isFiefCapital = selectedFief?.capital === selectedTerritory.id
   const occupied = isOccupiedAgainstController(selectedState)
   const selectedChain = selectedState?.army?.chain ?? null
@@ -242,11 +245,22 @@ export function SelectedTerritoryDetails({
             <dt className="text-xs text-ink-500">{t('app.fiefHolder')}</dt>
             <dd className="font-medium">
               {selectedFiefHolder ? (
-                <NobleRef code={selectedFiefHolder.code} name={selectedFiefHolder.name} />
+                <>
+                  <NobleRef code={selectedFiefHolder.code} name={selectedFiefHolder.name} />
+                  {selectedFief.usurped && ` · ${t('lineage.usurper')}`}
+                </>
               ) : (
                 t('app.fiefVacant')
               )}
             </dd>
+            {selectedFiefExile && (
+              <>
+                <dt className="text-xs text-ink-500">{t(`fief.exiledTitle.${selectedFief.title}` as MessageKey)}</dt>
+                <dd className="font-medium">
+                  <NobleRef code={selectedFiefExile.code} name={selectedFiefExile.name} />
+                </dd>
+              </>
+            )}
           </>
         )}
         {settlementLine.length > 0 && (

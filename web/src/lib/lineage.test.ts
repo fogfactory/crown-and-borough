@@ -44,6 +44,23 @@ const nobles = [
 ]
 
 describe('lineage', () => {
+  it('marks a usurper and shows the exiled title as a reminder', () => {
+    const houses = buildHouses(
+      players,
+      nobles,
+      [],
+      [
+        { capital: 'AAA', title: 'barony', territories: ['AAA'], owner: 'P2', holder: 'ANN', usurped: true, exiled: 'JEA' },
+      ],
+    )
+    const jean = houses[0].members.find((m) => m.code === 'JEA')
+    const anne = houses[1].members.find((m) => m.code === 'ANN')
+    expect(jean?.fiefs).toEqual([])
+    expect(jean?.exiled).toEqual([{ title: 'barony', capital: 'AAA' }])
+    expect(anne?.fiefs).toEqual([{ title: 'barony', capital: 'AAA' }])
+    expect(anne?.usurped).toEqual(['AAA'])
+  })
+
   it('lists every title, the deceased, and the claims on and by a noble', () => {
     const houses = buildHouses(
       players,

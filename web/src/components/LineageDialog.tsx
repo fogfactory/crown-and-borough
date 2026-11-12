@@ -999,7 +999,18 @@ function medallionTexts(member: HouseMember, t: Translate): MedallionLine[] {
   if (member.excommunicated)
     lines.push({ key: 'excommunicated', alert: true, text: t('lineage.excommunicated') })
   for (const fief of member.fiefs)
-    lines.push({ key: `fief-${fief.capital}`, text: titleLabel(t, fief) })
+    lines.push({
+      key: `fief-${fief.capital}`,
+      text: member.usurped.includes(fief.capital)
+        ? `${titleLabel(t, fief)} · ${t('lineage.usurper')}`
+        : titleLabel(t, fief),
+    })
+  for (const fief of member.exiled)
+    lines.push({
+      key: `exiled-${fief.capital}`,
+      alert: true,
+      text: `${t(`fief.exiledTitle.${fief.title}` as MessageKey)} · ${fief.capital}`,
+    })
   for (const dignity of member.dignities)
     lines.push({ key: `dignity-${dignity}`, text: t(`dignity.${dignity}` as MessageKey) })
   if (member.claim?.outcome)
@@ -1008,7 +1019,9 @@ function medallionTexts(member: HouseMember, t: Translate): MedallionLine[] {
       text: t(
         member.claim.outcome === 'honoured'
           ? 'lineage.claimHonoured'
-          : 'lineage.claimLapsed',
+          : member.claim.outcome === 'renounced'
+            ? 'lineage.claimRenounced'
+            : 'lineage.claimLapsed',
         { target: member.claim.targetName },
       ),
     })
