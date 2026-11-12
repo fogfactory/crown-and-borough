@@ -117,7 +117,7 @@ func TestFiefAssignedSameWinterSurvivesDissolution(t *testing.T) {
 // TestTransferFiefOnCapitalCapture verifies that conquering a fief's capital
 // hands the whole fief, vacant, to the conqueror, including transferring
 // control of every other member still held by the previous owner (titres.md
-// "Contrôle et occupation", #196). transferFiefOnCapitalCapture itself is a
+// "Contrôle et occupation", #196). captureFiefCapital itself is a
 // no-op when called directly on a non-capital territory: fief_control_test.go
 // covers the full updateTerritorialControl behavior for occupied members.
 func TestTransferFiefOnCapitalCapture(t *testing.T) {
@@ -128,9 +128,12 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1", HolderNobleID: &holder,
 		}}
+		addNoble(state, "N2", "ANN", "P2", "AAA")
 		ctx := newResolutionContext(state, testBalance())
 		control := ctx.snapshotControlNow()
-		ctx.transferFiefOnCapitalCapture("AAA", "P2", control)
+		if !captureCapitalAs(ctx, "AAA", "P2", control) {
+			t.Fatal("captureFiefCapital = false, want the capital conquered by an army with a noble")
+		}
 
 		if len(ctx.state.Fiefs) != 1 {
 			t.Fatalf("fiefs = %#v, want the fief to survive, transferred", ctx.state.Fiefs)
@@ -139,8 +142,9 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 		if fief.OwnerID != "P2" {
 			t.Errorf("owner = %q, want P2", fief.OwnerID)
 		}
-		if fief.HolderNobleID != nil {
-			t.Errorf("holder = %v, want nil (vacant)", fief.HolderNobleID)
+		if fief.HolderNobleID == nil || *fief.HolderNobleID != "N2" || !fief.Usurped ||
+			fief.ExiledNobleID == nil || *fief.ExiledNobleID != "N1" {
+			t.Errorf("fief = %#v, want N2 usurper and N1 exiled", fief)
 		}
 		conquered := eventsOfType(ctx.events, EventTypeFiefConquered)
 		if len(conquered) != 1 || conquered[0].PreviousOwnerID != "P1" || conquered[0].OwnerID != "P2" {
@@ -168,13 +172,16 @@ func TestTransferFiefOnCapitalCapture(t *testing.T) {
 
 	t.Run("non-capital territory changing hands does not transfer the fief", func(t *testing.T) {
 		state := foundFiefTestState(t)
+		addNoble(state, "N2", "ANN", "P2", "BBB")
 		holder := models.NobleID("N1")
 		state.Fiefs = []models.Fief{{
 			ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA",
 			Territories: []models.TerritoryID{"AAA", "BBB", "CCC"}, OwnerID: "P1", HolderNobleID: &holder,
 		}}
 		ctx := newResolutionContext(state, testBalance())
-		ctx.transferFiefOnCapitalCapture("BBB", "P2", ctx.snapshotControlNow())
+		if captureCapitalAs(ctx, "BBB", "P2", ctx.snapshotControlNow()) {
+			t.Fatal("captureFiefCapital = true on a non-capital territory")
+		}
 
 		if len(ctx.state.Fiefs) != 1 || ctx.state.Fiefs[0].OwnerID != "P1" || ctx.state.Fiefs[0].HolderNobleID == nil {
 			t.Fatalf("fiefs = %#v, want the fief unchanged", ctx.state.Fiefs)

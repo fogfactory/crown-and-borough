@@ -248,34 +248,50 @@ func simulateClaim(state *models.GameState, heir, target models.Noble) error {
 }
 
 // simulateDeath removes the noble from play: fiefs they hold go to the living
-// heir of the first claim on them, otherwise stay vacant with their owner;
+// heir of the first claim on them (or to a free noble of an army on the
+// capital, who usurps it, the heir being exiled), otherwise stay vacant with
+// their owner; a usurped fief follows its usurper and exile;
 // the crown of a king goes to the heir of a claim on the royal couple;
 // claims bearing on them are settled.
 func simulateDeath(state *models.GameState, dead models.Noble) {
-	claims := state.ClaimsOn(dead.ID)
+	state.Nobles = slices.DeleteFunc(state.Nobles, func(n models.Noble) bool { return n.ID == dead.ID })
 	served := make(map[models.NobleID]bool)
-	for index := range state.Fiefs {
-		fief := &state.Fiefs[index]
-		if fief.HolderNobleID == nil || *fief.HolderNobleID != dead.ID {
-			continue
-		}
-		fief.HolderNobleID = nil
-		for _, claim := range claims {
-			for _, heir := range state.Nobles {
-				if heir.ID == claim.Heir {
-					heirID := heir.ID
-					served[heirID] = true
-					fief.OwnerID = heir.OwnerID
-					fief.HolderNobleID = &heirID
-					break
+	livingHeirOf := func(_ *models.Fief, missing models.NobleID) *models.Noble {
+		for _, claim := range state.ClaimsOn(missing) {
+			for i := range state.Nobles {
+				if state.Nobles[i].ID == claim.Heir {
+					return &state.Nobles[i]
 				}
 			}
-			if fief.HolderNobleID != nil {
-				break
+		}
+		return nil
+	}
+	for _, settlement := range state.SettleFiefTitlesOfMissingNobles(livingHeirOf) {
+		fief := settlement.Fief
+		switch settlement.Outcome {
+		case models.FiefTitleClaimed:
+			for _, heir := range state.Nobles {
+				if heir.ID != settlement.Heir {
+					continue
+				}
+				heirID := heir.ID
+				if usurper := state.ClaimUsurperAt(fief.CapitalTerritoryID, heir.OwnerID); usurper != nil {
+					// A garrison noble on the capital usurps; the heir is exiled.
+					usurperID := usurper.ID
+					fief.OwnerID = usurper.OwnerID
+					fief.HolderNobleID = &usurperID
+					fief.ExiledNobleID = &heirID
+					fief.Usurped = true
+				} else {
+					fief.OwnerID = heir.OwnerID
+					fief.HolderNobleID = &heirID
+				}
 			}
+			served[settlement.Heir] = true
+		case models.FiefTitleReexiled:
+			served[settlement.Heir] = true
 		}
 	}
-	state.Nobles = slices.DeleteFunc(state.Nobles, func(n models.Noble) bool { return n.ID == dead.ID })
 	if crowned, passed := state.PassCrownOfMissingKing(); passed {
 		served[crowned] = true
 	}

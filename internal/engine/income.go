@@ -208,7 +208,7 @@ func harvestAdjustedParts(ctx *resolutionContext, territoryID models.TerritoryID
 // territoryFief returns the fief territoryID belongs to when it is owned by
 // ownerID (its capital included), or nil otherwise: a territory transferred
 // to a fief's conqueror this same turn already reports the conqueror as
-// owner (transferFiefOnCapitalCapture), so this stays a simple membership
+// owner (captureFiefCapital), so this stays a simple membership
 // check rather than a positional one.
 func (ctx *resolutionContext) territoryFief(ownerID models.PlayerID, territoryID models.TerritoryID) *models.Fief {
 	fief := ctx.fiefContaining(territoryID)

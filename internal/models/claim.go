@@ -30,6 +30,8 @@ const (
 	// ClaimLapsed: the claim ended without effect (a dignity voided it, the
 	// heir or the target died, another heir was served first).
 	ClaimLapsed ClaimOutcome = "lapsed"
+	// ClaimRenounced: the player gave the claim up with a winter order.
+	ClaimRenounced ClaimOutcome = "renounced"
 )
 
 // ExpiredClaim is a claim that ended, kept like an ended marriage so the

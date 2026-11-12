@@ -107,6 +107,10 @@ var demoScenarios = map[string]struct {
 		description: "spring; P1's barony F1 has its capital castle under a P1 army: P <army> pillages it (the castle falls into ruin, the fief and P1's capital stay). Three more P1 armies stand on a level-2 mill, a level-1 village and a fortified level-1 village (pillage degrades them), and free territories carry a ruined castle and a level-0 village (cannot be pillaged)",
 		apply:       forgePillage,
 	},
+	"usurpation": {
+		description: "spring, P2's capital is the capital of a usurped barony: its first noble is the usurper and P1's first noble the exile. A P1 army, strong enough to win and with the exile, waits on a free territory next to it: A <origin> <capital> retakes the capital and restores the exile (no noble needed for that). The army without its noble (move the noble away) or an army of P3/P4 would only occupy the capital",
+		apply:       forgeUsurpation,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -1318,5 +1322,49 @@ func forgeArmies(state *models.GameState) error {
 		crowded++
 	}
 	fmt.Printf("demo armies: %d armies placed, member %s occupied by P2, barony capital %s\n", next, member, capitalID)
+	return nil
+}
+
+// forgeUsurpation builds the ambush situation (a P1 army that beats the
+// defense of P2's capital, standing next to it) and makes the capital the one
+// of a barony of P2 (titres.md "Conquête d'un fief par un noble"): P2's first
+// noble holds it as usurper and P1's first noble is the exile. The winning
+// attack A <origin> <capital> restores the exile and gives the fief back to P1.
+func forgeUsurpation(state *models.GameState) error {
+	if err := forgeAmbush(state); err != nil {
+		return err
+	}
+	capitalID := playerCapitalTerritory(state, "P2")
+	p1, p2 := ownedNobles(state, "P1"), ownedNobles(state, "P2")
+	if capitalID == "" || len(p1) == 0 || len(p2) == 0 {
+		return fmt.Errorf("the base game lacks a P2 capital or a noble for P1 or P2")
+	}
+	members := []models.TerritoryID{capitalID}
+	for _, wantFree := range []bool{false, true} {
+		for _, territory := range state.Territories {
+			if territory.ID != capitalID {
+				continue
+			}
+			for _, id := range territory.Adjacencies {
+				owner, controlled := state.TerritoryController(id)
+				if len(members) == models.FiefMinTerritories || containsTerritory(members, id) {
+					continue
+				}
+				if (!wantFree && (!controlled || owner != "P2")) || (wantFree && !isFreeTerritory(state, id)) {
+					continue
+				}
+				members = append(members, id)
+			}
+		}
+	}
+	if len(members) < models.FiefMinTerritories {
+		return fmt.Errorf("no room for a barony around %s", capitalID)
+	}
+	usurper, exile := state.Nobles[p2[0]].ID, state.Nobles[p1[0]].ID
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: capitalID,
+		Territories: members, OwnerID: "P2", HolderNobleID: &usurper, ExiledNobleID: &exile, Usurped: true,
+	})
+	fmt.Printf("demo usurpation: barony %v of P2, usurper %s, exile %s (P1)\n", members, state.Nobles[p2[0]].Code, state.Nobles[p1[0]].Code)
 	return nil
 }

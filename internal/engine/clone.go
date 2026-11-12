@@ -62,6 +62,10 @@ func cloneGameState(source *models.GameState) *models.GameState {
 				holderNobleID := *fief.HolderNobleID
 				clone.Fiefs[i].HolderNobleID = &holderNobleID
 			}
+			if fief.ExiledNobleID != nil {
+				exiledNobleID := *fief.ExiledNobleID
+				clone.Fiefs[i].ExiledNobleID = &exiledNobleID
+			}
 		}
 	}
 	if source.Marriages != nil {

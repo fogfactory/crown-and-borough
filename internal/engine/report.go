@@ -380,7 +380,11 @@ type MarriageReport struct {
 // its capital's castle, or a non-capital member newly occupied by an army
 // (including a NEUTRAL revolt) whose owner differs from the fief's. For that
 // last kind, Territory is the occupied member (distinct from Capital, which
-// still identifies the fief) and Occupant is the occupying army's owner.
+// still identifies the fief) and Occupant is the occupying army's owner; the
+// reason "capital" marks the capital itself occupied by an army that cannot
+// conquer it. Usurpations and their settlement (titres.md "Conquête d'un fief
+// par un noble") are reported with their reason, and a renounced claim or
+// title as a title_renounced entry.
 type FiefReport struct {
 	Kind          EventType            `json:"kind"`
 	Owner         models.PlayerID      `json:"owner"`
@@ -392,7 +396,14 @@ type FiefReport struct {
 	Occupant      models.PlayerID      `json:"occupant,omitempty"`
 	Noble         models.NobleID       `json:"noble,omitempty"`
 	NobleName     string               `json:"nobleName,omitempty"`
-	Reason        string               `json:"reason,omitempty"`
+	// Exiled is the noble a usurpation ousted (or the fallen usurper of a
+	// restoration), ExiledCode and ExiledName its public code and display
+	// name. TargetName is the noble a renounced claim bore on.
+	Exiled     models.NobleID   `json:"exiled,omitempty"`
+	ExiledCode models.NobleCode `json:"exiledCode,omitempty"`
+	ExiledName string           `json:"exiledName,omitempty"`
+	TargetName string           `json:"targetName,omitempty"`
+	Reason     string           `json:"reason,omitempty"`
 }
 
 type WinterStockReport struct {
@@ -741,12 +752,14 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				Infrastructure: event.InfrastructureID, Type: event.InfrastructureType,
 				Reason: event.Reason,
 			})
-		case EventTypeFiefConquered, EventTypeFiefVacated, EventTypeFiefDissolved:
+		case EventTypeFiefConquered, EventTypeFiefVacated, EventTypeFiefDissolved, EventTypeFiefTitleSettled, EventTypeTitleRenounced:
 			report.Fiefs = append(report.Fiefs, FiefReport{
 				Kind: event.Type, Owner: event.OwnerID, PreviousOwner: event.PreviousOwnerID,
 				Capital: event.TerritoryID, Title: event.FiefTitle,
 				Territories: append([]models.TerritoryID(nil), event.FiefTerritories...),
 				Noble:       event.NobleID, NobleName: event.NobleName, Reason: event.Reason,
+				Exiled: event.ExiledNobleID, ExiledCode: event.ExiledNobleCode, ExiledName: event.ExiledNobleName,
+				TargetName: event.SpouseNobleName,
 			})
 		case EventTypeMarriageRefused:
 			// The player who did not order the marriage sees it refused; every
@@ -784,7 +797,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 			report.Fiefs = append(report.Fiefs, FiefReport{
 				Kind: event.Type, Owner: event.OwnerID, Occupant: event.CaptorPlayerID,
 				Capital: event.DestinationID, Title: event.FiefTitle,
-				Territory: event.TerritoryID,
+				Territory: event.TerritoryID, Reason: event.Reason,
 			})
 		case EventTypeChainProgression:
 			if index, exists := orderIndexes[eventKey(event.ChainID, event.OrderID)]; exists {

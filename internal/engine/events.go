@@ -79,18 +79,27 @@ const (
 	EventTypeFiefVacated        EventType = "fief_vacated"
 	EventTypeFiefDissolved      EventType = "fief_dissolved"
 	EventTypeFiefMemberOccupied EventType = "fief_member_occupied"
-	EventTypeFiefAutoAssigned   EventType = "fief_auto_assigned"
-	EventTypeProsperityFounded  EventType = "prosperity_founded"
-	EventTypeMarriage           EventType = "marriage"
-	EventTypeMarriageRefused    EventType = "marriage_refused"
-	EventTypeMarriageDissolved  EventType = "marriage_dissolved"
-	EventTypeNobleDraw          EventType = "noble_draw"
-	EventTypeDignity            EventType = "dignity"
-	EventTypeTrial              EventType = "trial"
-	EventTypeTunnel             EventType = "tunnel"
-	EventTypeAmbush             EventType = "ambush"
-	EventTypeAssassination      EventType = "assassination"
-	EventTypeJustice            EventType = "justice"
+	// EventTypeFiefTitleSettled reports a usurped fief whose exile died while
+	// the usurper lives: Reason "usurper_legitimised" (the usurper is now the
+	// official titulaire) or "exile_replaced" (NobleID, a claim heir, is the new
+	// exile).
+	EventTypeFiefTitleSettled EventType = "fief_title_settled"
+	// EventTypeTitleRenounced reports a free winter order giving up a claim
+	// (Reason "claim") or an exiled or usurped title (Reason "exiled" or
+	// "usurped").
+	EventTypeTitleRenounced    EventType = "title_renounced"
+	EventTypeFiefAutoAssigned  EventType = "fief_auto_assigned"
+	EventTypeProsperityFounded EventType = "prosperity_founded"
+	EventTypeMarriage          EventType = "marriage"
+	EventTypeMarriageRefused   EventType = "marriage_refused"
+	EventTypeMarriageDissolved EventType = "marriage_dissolved"
+	EventTypeNobleDraw         EventType = "noble_draw"
+	EventTypeDignity           EventType = "dignity"
+	EventTypeTrial             EventType = "trial"
+	EventTypeTunnel            EventType = "tunnel"
+	EventTypeAmbush            EventType = "ambush"
+	EventTypeAssassination     EventType = "assassination"
+	EventTypeJustice           EventType = "justice"
 	// EventTypeAssassinationRevealed is private to its owner, the inquirer: an
 	// inquiry taught them who commissioned an assassination (NobleCode: the
 	// victim, CommissionerCode: the commissioner).
@@ -197,6 +206,12 @@ type Event struct {
 	// Ritual marks a calamity scheduled by a Witch's ritual.
 	Ritual      bool        `json:"ritual,omitempty"`
 	Progression Progression `json:"progression,omitempty"`
+
+	// ExiledNobleID names the noble a usurpation exiled (fief_conquered,
+	// reason "usurpation"), or the fallen usurper of a restoration.
+	ExiledNobleID   models.NobleID   `json:"exiledNoble,omitempty"`
+	ExiledNobleCode models.NobleCode `json:"exiledNobleCode,omitempty"`
+	ExiledNobleName string           `json:"exiledNobleName,omitempty"`
 
 	TerritoryID       models.TerritoryID `json:"territory,omitempty"`
 	SourceID          models.TerritoryID `json:"source,omitempty"`

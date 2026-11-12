@@ -254,3 +254,61 @@ func TestSimulateVictoryCrownedHeirChangesTheHeadMarriage(t *testing.T) {
 		t.Fatalf("P1 titles = %d, want %d (the crown)", got, want)
 	}
 }
+
+func TestSimulateVictoryKillOfAUsurperRestoresTheExile(t *testing.T) {
+	state := allianceState()
+	// N3 of P2 holds the fief as usurper; N1 of P1 is the exile, whose title
+	// counts for nothing.
+	holder, exile := models.NobleID("N3"), models.NobleID("N1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", OwnerID: "P2", HolderNobleID: &holder, ExiledNobleID: &exile, Usurped: true, Title: models.FiefTitleDuchy,
+	}}
+	for index := range state.Nobles {
+		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
+	}
+
+	simulation, err := SimulateVictory(state, allianceBalance(), []SimulationAction{
+		{Kind: SimulationKill, Noble: "CN3"},
+	})
+	if err != nil {
+		t.Fatalf("SimulateVictory: %v", err)
+	}
+	fief := simulation.State.Fiefs[0]
+	if fief.OwnerID != "P1" || fief.HolderNobleID == nil || *fief.HolderNobleID != "N1" || fief.ExiledNobleID != nil || fief.Usurped {
+		t.Fatalf("fief = %+v, want it restored to N1 of P1", fief)
+	}
+	if got, want := simulation.Projected["P1"].Score.Titles, simulation.Current["P1"].Score.Titles+1; got != want {
+		t.Errorf("P1 titles = %d, want %d once restored", got, want)
+	}
+}
+
+func TestSimulateVictoryClaimOnAFiefWithAGarrisonNobleUsurpsIt(t *testing.T) {
+	state := allianceState()
+	state.Marriages = []models.Marriage{{NobleA: "N1", NobleB: "N3", Turn: 1}}
+	holder := models.NobleID("N3")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", OwnerID: "P2", HolderNobleID: &holder, Title: models.FiefTitleDuchy, CapitalTerritoryID: "AAA",
+		Territories: []models.TerritoryID{"AAA"},
+	}}
+	// N4 of P2 garrisons the capital with an army.
+	state.Armies = []models.Army{{ID: "A1", OwnerID: "P2", TerritoryID: "AAA", Size: 2}}
+	for index := range state.Nobles {
+		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
+		state.Nobles[index].Status = models.NobleStatusFree
+		if state.Nobles[index].ID == "N4" {
+			state.Nobles[index].LocationID = "AAA"
+		}
+	}
+
+	simulation, err := SimulateVictory(state, allianceBalance(), []SimulationAction{
+		{Kind: SimulationClaim, Noble: "CN2", Other: "CN3"},
+		{Kind: SimulationKill, Noble: "CN3"},
+	})
+	if err != nil {
+		t.Fatalf("SimulateVictory: %v", err)
+	}
+	fief := simulation.State.Fiefs[0]
+	if fief.OwnerID != "P2" || fief.HolderNobleID == nil || *fief.HolderNobleID != "N4" || fief.ExiledNobleID == nil || *fief.ExiledNobleID != "N2" || !fief.Usurped {
+		t.Fatalf("fief = %+v, want N4 of P2 as usurper and N2 exiled", fief)
+	}
+}

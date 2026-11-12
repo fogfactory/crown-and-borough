@@ -188,3 +188,21 @@ func TestRedactHiddenDignitiesHidesRejectedBallots(t *testing.T) {
 		t.Fatalf("author sees %d investments, want 2", len(got))
 	}
 }
+
+func TestProjectStateExposesUsurpedFiefWithThePublicCodeOfAMaskedEon(t *testing.T) {
+	state := eonState()
+	state.Nobles = append(state.Nobles, models.Noble{
+		ID: "N2", Code: "HUG", Name: "Hugon", Sex: models.SexMale, OwnerID: "P2", Status: models.NobleStatusFree,
+	})
+	holder, exile := models.NobleID("N2"), models.NobleID("N1")
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleBarony, CapitalTerritoryID: "AAA", Territories: []models.TerritoryID{"AAA"},
+		OwnerID: "P2", HolderNobleID: &holder, ExiledNobleID: &exile, Usurped: true,
+	}}
+	for _, viewer := range []models.PlayerID{"P1", "P2"} {
+		fief := ProjectStateForPlayer(state, viewer, assetgen.Balance{}).Fiefs[0]
+		if !fief.Usurped || fief.Holder == nil || *fief.Holder != "HUG" || fief.Exiled == nil || *fief.Exiled != "GUI" {
+			t.Errorf("fief seen by %s = %+v, want usurped by HUG with GUI (public code) exiled", viewer, fief)
+		}
+	}
+}

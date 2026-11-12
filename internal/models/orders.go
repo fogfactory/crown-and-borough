@@ -67,6 +67,8 @@ const (
 	WinterOrderTypeInquiry             WinterOrderType = "inquiry"
 	WinterOrderTypeDissolveMarriage    WinterOrderType = "dissolve_marriage"
 	WinterOrderTypeTrial               WinterOrderType = "trial"
+	WinterOrderTypeRenounceClaim       WinterOrderType = "renounce_claim"
+	WinterOrderTypeRenounceTitle       WinterOrderType = "renounce_title"
 	// Royal orders (W X, W R, W F, W G), issued by the king or the regent and
 	// resolved at stage 2a (specs/politique.md § Pouvoirs royaux).
 	WinterOrderTypeRoyalAnnex WinterOrderType = "royal_annex"
@@ -96,6 +98,7 @@ func (t WinterOrderType) IsValid() bool {
 		WinterOrderTypeClaim, WinterOrderTypeCalamityVeto,
 		WinterOrderTypeCandidacy, WinterOrderTypeVote, WinterOrderTypeBuyCardinal,
 		WinterOrderTypeExcommunicate, WinterOrderTypeLiftExcommunication, WinterOrderTypeRitual, WinterOrderTypeInquiry, WinterOrderTypeTrial,
+		WinterOrderTypeRenounceClaim, WinterOrderTypeRenounceTitle,
 		WinterOrderTypeRoyalAnnex, WinterOrderTypeRoyalRank, WinterOrderTypeRoyalFound, WinterOrderTypeRoyalGrant:
 		return true
 	}
@@ -176,6 +179,10 @@ type Order struct {
 // 3: specs/religieux.md § Enquête). For WinterOrderTypeTrial, NobleCode is the
 // cardinal backing the trial and TargetCode the noble put on trial (filed at
 // stage 3, judged at stage 9: specs/religieux.md § Procès à deux cardinaux).
+// For WinterOrderTypeRenounceClaim, NobleCode is the player's own heir whose
+// claim is given up; for WinterOrderTypeRenounceTitle, NobleCode is the
+// player's own noble carrying an exiled or usurped title and TerritoryID the
+// capital of that fief (specs/titres.md § Conquête d'un fief par un noble).
 type WinterOrder struct {
 	ID           OrderID         `json:"id"`
 	Type         WinterOrderType `json:"type"`
