@@ -128,11 +128,10 @@ func (ctx *resolutionContext) enumeratePendingDisperse(record *orderRecord, chai
 
 // cancelAttackedOriginPeaceful cancels every join and dispersion whose origin
 // is the target of an attack, whoever the attacker is and whatever it wins:
-// an ally, an enemy, a starving attack at strength zero, or one that later
-// fails as allied_destination all count, since the rule looks at the attack,
-// not its outcome. A cancelled army's intent is removed before the
-// adjudicator ever sees it, so it settles like a hold: none of its troops
-// leaves, and applyContestOutcomes records why.
+// an ally, an enemy or a starving attack at strength zero all count, since
+// the rule looks at the attack, not its outcome. A cancelled army's intent is
+// removed before the adjudicator ever sees it, so it settles like a hold: none
+// of its troops leaves, and applyContestOutcomes records why.
 func cancelAttackedOriginPeaceful(ctx *resolutionContext) {
 	attackedOrigins := make(map[models.TerritoryID]bool, len(ctx.attacks))
 	for _, attack := range ctx.attacks {

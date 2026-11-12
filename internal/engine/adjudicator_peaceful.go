@@ -11,8 +11,8 @@ type combatFacts interface {
 	attackMoves(armyID models.ArmyID) bool
 	// dislodged reports whether an army is dislodged from its origin.
 	dislodged(armyID models.ArmyID) bool
-	// attacked reports whether a territory is the destination of an attack
-	// that is not an ally's attack on an army staying there.
+	// attacked reports whether a territory is the destination of an attack,
+	// whoever the attacker is.
 	attacked(territoryID models.TerritoryID) bool
 	// winnerAt returns the attack that wins the combat on a territory.
 	winnerAt(territoryID models.TerritoryID) models.ArmyID
@@ -35,16 +35,11 @@ func (facts settledFacts) dislodged(armyID models.ArmyID) bool {
 	return facts.ctx.dislodged[armyID] != nil
 }
 
-// attacked applies the adjudicator's definition: an ally's attack on an army
-// that stays there does not count, even when the attacker is dislodged.
+// attacked reports whether any attack, an ally's included, targets the
+// territory.
 func (facts settledFacts) attacked(territoryID models.TerritoryID) bool {
-	ctx := facts.ctx
-	defender := ctx.startArmyAt(territoryID)
-	for _, attack := range ctx.attacks {
-		if attack.target != territoryID {
-			continue
-		}
-		if defender == nil || ctx.startArmiesByID[attack.armyID].OwnerID != defender.OwnerID || ctx.contest.vacated[defender.ID] || ctx.contest.dislodged[defender.ID] {
+	for _, attack := range facts.ctx.attacks {
+		if attack.target == territoryID {
 			return true
 		}
 	}
@@ -92,17 +87,7 @@ func (facts decisionFacts) dislodged(armyID models.ArmyID) bool {
 }
 
 func (facts decisionFacts) attacked(territoryID models.TerritoryID) bool {
-	ctx := facts.adj.ctx
-	defender := ctx.startArmyAt(territoryID)
-	for _, armyID := range facts.adj.attacksByTarget[territoryID] {
-		if defender == nil || ctx.startArmiesByID[armyID].OwnerID != defender.OwnerID {
-			return true
-		}
-		if !facts.stays(defender.ID) || facts.dislodged(defender.ID) {
-			return true
-		}
-	}
-	return false
+	return len(facts.adj.attacksByTarget[territoryID]) > 0
 }
 
 func (facts decisionFacts) winnerAt(territoryID models.TerritoryID) models.ArmyID {
