@@ -28,6 +28,8 @@ export interface IntentSegment {
   from: Point
   to: Point
   kind: IntentSegmentKind
+  /** Nobles riding this leg of a dispersion (`*` stands for all the remaining ones). */
+  nobles?: string[]
 }
 
 export interface Intention {
@@ -210,10 +212,14 @@ function makeIntention(
       }
       const segments: IntentSegment[] = []
       const seen = new Set<string>()
+      const noblesAt = (target: string): { nobles?: string[] } => {
+        const nobles = order.nobleAssignments?.[target]
+        return nobles && nobles.length > 0 ? { nobles } : {}
+      }
       const holdsGround =
         targets.includes(position) || territoryState.size > targets.length
       if (holdsGround) {
-        segments.push({ from, to: from, kind: 'loop' })
+        segments.push({ from, to: from, kind: 'loop', ...noblesAt(position) })
         seen.add(position)
       }
       for (const target of targets) {
@@ -221,7 +227,7 @@ function makeIntention(
         seen.add(target)
         const to = territoryCentroid(map, target)
         if (!to) return null
-        segments.push({ from, to, kind: 'movement' })
+        segments.push({ from, to, kind: 'movement', ...noblesAt(target) })
       }
       if (segments.length === 0) return null
       return { ...base, type: order.type, segments }

@@ -39,7 +39,11 @@ function parseDisperseTarget(token: string): {
   const parts = token.split('*')
   const territory = parts[0] ?? ''
   if (territory === '') return null
-  const assignments = parts.slice(1).filter((part) => part !== '')
+  // `ROS*` is the wildcard (all remaining nobles); `ROS*JEA` names one.
+  const assignments =
+    parts.length === 2 && parts[1] === ''
+      ? ['*']
+      : parts.slice(1).filter((part) => part !== '')
   return { territory, assignments }
 }
 
