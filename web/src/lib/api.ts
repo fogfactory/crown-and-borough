@@ -1,3 +1,4 @@
+import { deployedVersion } from '@/components/VersionBadge'
 import { recordApiCall } from '@/lib/bug-report'
 
 export interface TokenProvider {
@@ -54,6 +55,8 @@ export async function apiRequest<T>(
 
   const headers = new Headers(init.headers)
   headers.set('Authorization', `Bearer ${token}`)
+  // The server refuses (client_outdated) a page left open across a deploy.
+  headers.set('X-Client-Version', deployedVersion())
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }

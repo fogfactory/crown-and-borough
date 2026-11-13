@@ -26,7 +26,7 @@ func WithCORSMode(next http.Handler, allowDevelopmentHeaders bool) http.Handler 
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-		allowedHeaders := "Authorization, Content-Type"
+		allowedHeaders := "Authorization, Content-Type, " + ClientVersionHeader
 		if allowDevelopmentHeaders {
 			allowedHeaders += ", X-Dev-Player"
 		}

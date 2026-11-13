@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,6 +40,9 @@ type gameClient struct {
 	base   string
 	http   *http.Client
 	tokens *tokenSource
+
+	versionMu sync.Mutex
+	version   string
 }
 
 func newGameClient(base string, tokens *tokenSource) *gameClient {
@@ -46,6 +50,15 @@ func newGameClient(base string, tokens *tokenSource) *gameClient {
 }
 
 func (c *gameClient) do(ctx context.Context, method, path string, body any, out any) error {
+	// The server refuses the writes of a client that does not declare its build:
+	// the bots run the server's own version.
+	version := ""
+	if method != http.MethodGet {
+		var err error
+		if version, err = c.serverVersion(ctx); err != nil {
+			return err
+		}
+	}
 	var payload []byte
 	if body != nil {
 		var err error
@@ -66,6 +79,9 @@ func (c *gameClient) do(ctx context.Context, method, path string, body any, out 
 		request.Header.Set("Authorization", "Bearer "+token)
 		if payload != nil {
 			request.Header.Set("Content-Type", "application/json")
+		}
+		if version != "" {
+			request.Header.Set("X-Client-Version", version)
 		}
 		response, err := c.http.Do(request)
 		if err == nil {
@@ -223,6 +239,24 @@ func (c *gameClient) Submit(ctx context.Context, id string, orders Orders) error
 		orders.Winter = []WinterOrder{}
 	}
 	return c.do(ctx, http.MethodPost, "/api/games/"+id+"/orders", orders, nil)
+}
+
+// serverVersion reads the build version of the server once it has answered: it
+// is constant for the life of the process. A failed read is not remembered.
+func (c *gameClient) serverVersion(ctx context.Context) (string, error) {
+	c.versionMu.Lock()
+	defer c.versionMu.Unlock()
+	if c.version != "" {
+		return c.version, nil
+	}
+	var body struct {
+		Version string `json:"version"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/api/version", nil, &body); err != nil {
+		return "", err
+	}
+	c.version = body.Version
+	return c.version, nil
 }
 
 func (c *gameClient) ForceResolve(ctx context.Context, id string) error {

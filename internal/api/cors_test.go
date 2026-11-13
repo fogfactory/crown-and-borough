@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -27,5 +28,15 @@ func TestWithCORSOptions(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != developmentOrigin {
 		t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, developmentOrigin)
+	}
+}
+
+func TestWithCORSAllowsTheClientVersionHeader(t *testing.T) {
+	handler := WithCORSMode(http.NotFoundHandler(), false)
+	request := httptest.NewRequest(http.MethodOptions, "/api/games/G/orders", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if got := recorder.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, ClientVersionHeader) {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want it to include %s", got, ClientVersionHeader)
 	}
 }
