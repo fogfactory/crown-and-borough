@@ -82,9 +82,12 @@ interface Invitation {
   inviteUrl: string
 }
 
-/** The special-card sheet saved on the server (a player has a single one). */
+/**
+ * The special-card sheet saved on the server. The panel edits a single text:
+ * the sheets some other client sent in several entries are joined, not dropped.
+ */
 function serverSpecial(submission: MySubmissionResponse): string {
-  return submission.special?.[0]?.text ?? ''
+  return (submission.special ?? []).map((entry) => entry.text).join('\n')
 }
 
 function newerSummary(
