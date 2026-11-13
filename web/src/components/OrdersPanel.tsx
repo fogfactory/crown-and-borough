@@ -1139,6 +1139,24 @@ function useCodeSuggesters(
 // A stable default, so the code suggestions are not rebuilt on every render.
 const NO_REGIONS: Region[] = []
 
+/** Tells that the local draft differs from the submitted one, with a way back. */
+function DraftDiffersNote({ t, onRestore }: { t: Translate; onRestore?: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-xs text-brass-700">
+      <span>{t('orders.draftDiffers')}</span>
+      {onRestore && (
+        <button
+          type="button"
+          className="font-semibold underline hover:text-brass-700"
+          onClick={onRestore}
+        >
+          {t('orders.restoreFromServer')}
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function OrdersPanel({
   state,
   player,
@@ -1191,18 +1209,12 @@ export function OrdersPanel({
           titleClassName="flex items-center gap-2 font-display text-lg font-bold text-winter-700"
         />
         {draftDiffers?.winter && (
-          <div className="flex items-center justify-between gap-2 rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-xs text-brass-700">
-            <span>{t('orders.draftDiffers')}</span>
-            {onRestoreFromServer && (
-              <button
-                type="button"
-                className="font-semibold underline hover:text-brass-700"
-                onClick={() => onRestoreFromServer('winter')}
-              >
-                {t('orders.restoreFromServer')}
-              </button>
-            )}
-          </div>
+          <DraftDiffersNote
+            t={t}
+            onRestore={
+              onRestoreFromServer && (() => onRestoreFromServer('winter'))
+            }
+          />
         )}
         <TitleOrdersSection
           state={state}
@@ -1292,6 +1304,14 @@ export function OrdersPanel({
       />
       {(state.nobleHand ?? []).length > 0 && (
         <>
+          {draftDiffers?.winter && (
+            <DraftDiffersNote
+              t={t}
+              onRestore={
+                onRestoreFromServer && (() => onRestoreFromServer('winter'))
+              }
+            />
+          )}
           <EditorZone
             value={winterDraft}
             onChange={onWinterChange}
@@ -1330,18 +1350,12 @@ export function OrdersPanel({
               </span>
             </span>
             {draftDiffers?.chains?.[noble.code] && (
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-brass-700/40 bg-brass-300/30 px-3 py-2 text-xs text-brass-700">
-                <span>{t('orders.draftDiffers')}</span>
-                {onRestoreFromServer && (
-                  <button
-                    type="button"
-                    className="font-semibold underline hover:text-brass-700"
-                    onClick={() => onRestoreFromServer(noble.code)}
-                  >
-                    {t('orders.restoreFromServer')}
-                  </button>
-                )}
-              </div>
+              <DraftDiffersNote
+                t={t}
+                onRestore={
+                  onRestoreFromServer && (() => onRestoreFromServer(noble.code))
+                }
+              />
             )}
             <EditorZone
               value={chainDrafts[noble.code] ?? ''}

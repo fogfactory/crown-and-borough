@@ -300,6 +300,51 @@ describe('GamePage submission rehydration and divergence', () => {
     expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
   })
 
+  it('rehydrates saved card orders outside winter and shows divergence', async () => {
+    const handState = {
+      ...state,
+      nobleHand: [{ id: 1, name: 'Test', status: 'hand' }],
+    } as unknown as StateData
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...handState, revision: 1 }))
+      }
+      if (url.endsWith('/api/games/GAME1/my-submission')) {
+        return Promise.resolve(
+          jsonResponse({
+            turn: 1,
+            season: 'spring',
+            submitted: true,
+            chains: [],
+            winter: { lines: 'R 1 ROS JEA' },
+          }),
+        )
+      }
+      if (url.includes('/orders/preview')) {
+        return Promise.resolve(jsonResponse({ errors: [], chains: [], winter: [] }))
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderGame()
+
+    await screen.findByText('Online game')
+    const textarea = await screen.findByLabelText('Noble card orders of P1')
+    await waitFor(() => {
+      expect(textarea).toHaveValue('R 1 ROS JEA')
+    })
+    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+
+    fireEvent.change(textarea, { target: { value: '' } })
+    expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Restore from server' }))
+    expect(textarea).toHaveValue('R 1 ROS JEA')
+  })
+
   it('rehydrates winter orders and shows divergence when modified', async () => {
     const winterState: StateData = {
       ...state,
