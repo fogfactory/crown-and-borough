@@ -179,6 +179,7 @@ function renderGame(language: 'en' | 'fr' = 'en') {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   authMocks.getIdToken.mockClear()
   authMocks.signOut.mockClear()
   subscriptionMocks.current = {
@@ -343,6 +344,51 @@ describe('GamePage submission rehydration and divergence', () => {
     expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Restore from server' }))
     expect(textarea).toHaveValue('R 1 ROS JEA')
+  })
+
+  it('sends its build version with the orders and asks for a reload when refused', async () => {
+    vi.stubEnv('VITE_APP_VERSION', 'v1.0.0')
+    let ordersHeaders: Headers | undefined
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+      if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+      if (url.endsWith('/api/games/GAME1/state')) {
+        return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+      }
+      if (url.endsWith('/api/games/GAME1/my-submission')) {
+        return Promise.resolve(
+          jsonResponse({ turn: 1, season: 'spring', submitted: false, chains: [] }),
+        )
+      }
+      if (url.includes('/orders/preview')) {
+        return Promise.resolve(jsonResponse({ errors: [], chains: [], winter: [] }))
+      }
+      if (url.includes('/api/games/GAME1/orders?')) {
+        ordersHeaders = new Headers(init?.headers)
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ error: 'client_outdated', message: 'outdated' }),
+            {
+              status: 409,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          ),
+        )
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderGame()
+
+    await screen.findByText('Online game')
+    fireEvent.click(await screen.findByRole('button', { name: 'Seal orders' }))
+
+    expect(
+      (await screen.findAllByText(/A new version of the game is available/)).length,
+    ).toBeGreaterThan(0)
+    expect(ordersHeaders?.get('X-Client-Version')).toBe('v1.0.0')
   })
 
   it('rehydrates winter orders and shows divergence when modified', async () => {
