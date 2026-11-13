@@ -257,8 +257,13 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 		Chat:             chat,
 		Notifier:         notifier,
 	})
-	mux.Handle("/api/games", games)
-	mux.Handle("/api/games/", games)
+	// The hotseat client does not declare a build: only the hosted server checks it.
+	var gamesRoute http.Handler = games
+	if !options.Development {
+		gamesRoute = api.RequireClientVersion(applicationVersion(), games)
+	}
+	mux.Handle("/api/games", gamesRoute)
+	mux.Handle("/api/games/", gamesRoute)
 	mux.Handle("/api/auth/", api.NewAuthHandler(profiles, resolveActor))
 	// Firestore keeps bug reports in their own collection; without it the
 	// handler keeps them in memory.

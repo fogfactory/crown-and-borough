@@ -1526,6 +1526,8 @@ const englishMessages = {
   'error.api.invite_unavailable': 'Invitations are not available.',
   'error.api.invalid_orders': 'Invalid orders.',
   'error.api.invalid_orders_request': 'Invalid orders.',
+  'error.api.client_outdated':
+    'A new version of the game is available: reload the page to submit your orders. Your draft is kept in the form.',
   'error.api.invalid_simulation': 'Invalid simulation.',
   'error.api.invalid_simulation_request': 'Invalid simulation.',
   'app.progress': '{season} {year} · turn {turn} of {total}',
@@ -3165,6 +3167,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'error.api.invite_unavailable': 'Les invitations ne sont pas disponibles.',
   'error.api.invalid_orders': 'Ordres invalides.',
   'error.api.invalid_orders_request': 'Ordres invalides.',
+  'error.api.client_outdated':
+    'Une nouvelle version du jeu est disponible : recharge la page pour envoyer tes ordres. Ton brouillon reste dans le formulaire.',
   'error.api.invalid_simulation': 'Simulation invalide.',
   'error.api.invalid_simulation_request': 'Simulation invalide.',
   'app.progress': '{season} {year} · tour {turn} sur {total}',

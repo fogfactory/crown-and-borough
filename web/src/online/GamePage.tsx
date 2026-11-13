@@ -402,11 +402,12 @@ export function GamePage() {
     hydratedTurnRef.current = state.turn
 
     if (serverSubmission.submitted) {
-      if (serverSubmission.season === 'winter') {
-        setWinterDraft((current) =>
-          current.trim() === '' ? (serverSubmission.winter?.lines ?? '') : current,
-        )
-      } else {
+      // Outside winter the winter sheet only carries the card orders
+      // (R N / C N / D N); restore it in every season.
+      setWinterDraft((current) =>
+        current.trim() === '' ? (serverSubmission.winter?.lines ?? '') : current,
+      )
+      if (serverSubmission.season !== 'winter') {
         setChainDrafts((current) => {
           const next = { ...current }
           for (const chain of serverSubmission.chains) {
@@ -447,8 +448,10 @@ export function GamePage() {
         anyChainDiff = true
       }
     }
+    const serverCards = (serverSubmission.winter?.lines ?? '').trim()
     return {
       chains: anyChainDiff ? chainsDiff : undefined,
+      winter: winterDraft.trim() !== serverCards,
     }
   }, [chainDrafts, playerID, serverChains, serverSubmission, state, winterDraft])
 
@@ -467,6 +470,7 @@ export function GamePage() {
       return
     }
     setChainDrafts(serverChains)
+    setWinterDraft(serverSubmission.winter?.lines ?? '')
   }
 
   useEffect(() => {
