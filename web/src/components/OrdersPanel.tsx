@@ -67,6 +67,7 @@ interface OrdersPanelProps {
   draftDiffers?: {
     chains?: Record<string, boolean>
     winter?: boolean
+    special?: boolean
   }
   onChainChange: (noble: string, text: string) => void
   onWinterChange: (text: string) => void
@@ -312,6 +313,8 @@ function DeckOrdersSection({
   suggest,
   onSpecialChange,
   onOpenRules,
+  differs,
+  onRestore,
 }: {
   state: StateData
   player: PlayerId
@@ -320,6 +323,9 @@ function DeckOrdersSection({
   errors: DraftError[]
   suggest?: CodeSuggester
   onSpecialChange: (text: string) => void
+  /** The draft differs from the submitted one, and how to get it back. */
+  differs?: boolean
+  onRestore?: () => void
 }) {
   const { t } = useLanguage()
   return (
@@ -339,6 +345,7 @@ function DeckOrdersSection({
         draft={specialDraft}
         onChange={onSpecialChange}
       />
+      {differs && <DraftDiffersNote t={t} onRestore={onRestore} />}
       <EditorZone
         value={specialDraft}
         onChange={onSpecialChange}
@@ -1301,6 +1308,8 @@ export function OrdersPanel({
         suggest={suggesters.special}
         onSpecialChange={onSpecialChange}
         onOpenRules={onOpenRules}
+        differs={draftDiffers?.special}
+        onRestore={onRestoreFromServer && (() => onRestoreFromServer('special'))}
       />
       {(state.nobleHand ?? []).length > 0 && (
         <>
