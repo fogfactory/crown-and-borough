@@ -82,9 +82,9 @@ interface Invitation {
   inviteUrl: string
 }
 
-/** The special-card sheet saved on the server, as the textarea shows it. */
+/** The special-card sheet saved on the server (a player has a single one). */
 function serverSpecial(submission: MySubmissionResponse): string {
-  return (submission.special ?? []).map((entry) => entry.text).join('\n')
+  return submission.special?.[0]?.text ?? ''
 }
 
 function newerSummary(
