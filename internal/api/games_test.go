@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
@@ -505,5 +506,42 @@ func TestGamesHandlerPlayerStateLabelsTheView(t *testing.T) {
 	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(game.ID)+"/state?player=intruder", "")
 	if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), `"actor is not a member of this game"`) {
 		t.Fatalf("outsider state = %d %s", response.Code, response.Body.String())
+	}
+}
+
+// savedSubmissionStore answers my-submission with a canned submission.
+type savedSubmissionStore struct {
+	store.GameStore
+	submission store.PlayerSubmission
+}
+
+func (s savedSubmissionStore) MySubmission(context.Context, store.Actor, store.GameID) (store.PlayerSubmission, error) {
+	return s.submission, nil
+}
+
+func TestGamesHandlerMySubmissionReturnsTheSpecialSheet(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	handler := NewGamesHandler(savedSubmissionStore{
+		GameStore: gameStore,
+		submission: store.PlayerSubmission{
+			Turn:      2,
+			Season:    models.SeasonSummer,
+			Submitted: true,
+			Orders: engine.OrdersInput{
+				Special: []engine.DeckSubmission{{Player: "P1", Text: "P RA ROS"}},
+			},
+		},
+	}, rules, DevActorResolver("alice"))
+
+	response := requestGames(t, handler, http.MethodGet, "/api/games/G/my-submission?player=alice", "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("my-submission = %d: %s", response.Code, response.Body.String())
+	}
+	var view mySubmissionView
+	if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
+		t.Fatalf("decode view: %v", err)
+	}
+	if len(view.Special) != 1 || view.Special[0].Text != "P RA ROS" {
+		t.Fatalf("special = %#v, want the saved sheet", view.Special)
 	}
 }

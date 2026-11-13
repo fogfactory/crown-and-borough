@@ -462,12 +462,17 @@ func (h *GamesHandler) mySubmission(w http.ResponseWriter, r *http.Request, acto
 			Lines: submission.Orders.Winter[0].Lines,
 		}
 	}
+	var special []specialSubmissionView
+	for _, deck := range submission.Orders.Special {
+		special = append(special, specialSubmissionView{Text: deck.Text})
+	}
 	writeJSON(w, http.StatusOK, mySubmissionView{
 		Turn:      submission.Turn,
 		Season:    submission.Season,
 		Submitted: submission.Submitted,
 		Chains:    chains,
 		Winter:    winter,
+		Special:   special,
 	})
 }
 
@@ -808,11 +813,12 @@ type joinGameRequest struct {
 }
 
 type mySubmissionView struct {
-	Turn      int                   `json:"turn"`
-	Season    models.Season         `json:"season"`
-	Submitted bool                  `json:"submitted"`
-	Chains    []chainSubmissionView `json:"chains"`
-	Winter    *winterSubmissionView `json:"winter,omitempty"`
+	Turn      int                     `json:"turn"`
+	Season    models.Season           `json:"season"`
+	Submitted bool                    `json:"submitted"`
+	Chains    []chainSubmissionView   `json:"chains"`
+	Winter    *winterSubmissionView   `json:"winter,omitempty"`
+	Special   []specialSubmissionView `json:"special,omitempty"`
 }
 
 type submittedOrdersView struct {
@@ -835,6 +841,11 @@ type chainSubmissionView struct {
 
 type winterSubmissionView struct {
 	Lines string `json:"lines"`
+}
+
+// specialSubmissionView is the text of the player's special-card sheet.
+type specialSubmissionView struct {
+	Text string `json:"text"`
 }
 
 type gameOrdersResponse struct {
