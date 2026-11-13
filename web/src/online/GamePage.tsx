@@ -82,6 +82,11 @@ interface Invitation {
   inviteUrl: string
 }
 
+/** The special-card sheet saved on the server, as the textarea shows it. */
+function serverSpecial(submission: MySubmissionResponse): string {
+  return (submission.special ?? []).map((entry) => entry.text).join('\n')
+}
+
 function newerSummary(
   left: GameSummary | null,
   right: GameSummary | null,
@@ -408,6 +413,9 @@ export function GamePage() {
         current.trim() === '' ? (serverSubmission.winter?.lines ?? '') : current,
       )
       if (serverSubmission.season !== 'winter') {
+        setSpecialDraft((current) =>
+          current.trim() === '' ? serverSpecial(serverSubmission) : current,
+        )
         setChainDrafts((current) => {
           const next = { ...current }
           for (const chain of serverSubmission.chains) {
@@ -452,13 +460,18 @@ export function GamePage() {
     return {
       chains: anyChainDiff ? chainsDiff : undefined,
       winter: winterDraft.trim() !== serverCards,
+      special: specialDraft.trim() !== serverSpecial(serverSubmission).trim(),
     }
-  }, [chainDrafts, playerID, serverChains, serverSubmission, state, winterDraft])
+  }, [chainDrafts, playerID, serverChains, serverSubmission, specialDraft, state, winterDraft])
 
   const restoreFromServer = (target?: string) => {
     if (!serverSubmission || !state) return
     if (target === 'winter' || state.season === 'winter') {
       setWinterDraft(serverSubmission.winter?.lines ?? '')
+      return
+    }
+    if (target === 'special') {
+      setSpecialDraft(serverSpecial(serverSubmission))
       return
     }
     if (target) {
@@ -471,6 +484,7 @@ export function GamePage() {
     }
     setChainDrafts(serverChains)
     setWinterDraft(serverSubmission.winter?.lines ?? '')
+    setSpecialDraft(serverSpecial(serverSubmission))
   }
 
   useEffect(() => {
@@ -729,6 +743,7 @@ export function GamePage() {
           submitted: true,
           chains: body.chains,
           winter: body.winter[0],
+          special: body.special,
         })
       }
       applyOrdersResponse(response)

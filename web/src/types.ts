@@ -736,6 +736,8 @@ export interface MySubmissionResponse {
   submitted: boolean
   chains: SubmittedChain[]
   winter?: SubmittedWinter
+  /** The special-card sheet, outside winter (in winter it is part of `winter`). */
+  special?: { text: string }[]
 }
 
 export interface SubmittedPlayerOrders {
