@@ -1711,6 +1711,34 @@ describe('MapViewer intentions overlay', () => {
     )
   })
 
+  it('marks the disperse leg that carries the nobles', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS D BRU CHA ROS*'),
+    )
+    const marks = svg.querySelectorAll('g[aria-label="Intentions overlay"] [data-intent-nobles]')
+
+    expect(marks).toHaveLength(1)
+    expect(marks[0]).toHaveAttribute('data-intent-nobles', '*')
+  })
+
+  it('labels a named noble on the disperse leg that carries it', () => {
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      intentionsFor('HUG\nROS D BRU*JEA CHA'),
+    )
+    const mark = svg.querySelector('g[aria-label="Intentions overlay"] [data-intent-nobles]')
+
+    expect(mark).toHaveAttribute('data-intent-nobles', 'JEA')
+    expect(mark?.textContent).toContain('JEA')
+  })
+
   it('renders hold as a stationary icon badge without an arrow', () => {
     const { svg } = renderMap(
       triangleMap,

@@ -415,6 +415,17 @@ export function ControlShield({
 const PAWN_BASE = 'M-5.5 5.6 H5.5 V7.3 Q5.5 8.5 4.3 8.5 H-4.3 Q-5.5 8.5 -5.5 7.3 Z'
 const PAWN_BODY = 'M-4.1 5.6 L-2 -2.6 Q0 -3.6 2 -2.6 L4.1 5.6 Z'
 const PAWN_HEAD = { cy: -5.6, r: 2.9 }
+/** The bare pawn shape in a single flat fill, for badges. */
+export function NoblePawnSilhouette({ fill }: { fill?: string }) {
+  return (
+    <g fill={fill} data-noble-silhouette="true">
+      <path d={PAWN_BASE} />
+      <path d={PAWN_BODY} />
+      <circle cy={PAWN_HEAD.cy} r={PAWN_HEAD.r} />
+    </g>
+  )
+}
+
 const CARDINAL_HAT =
   'M-4.7 -7.9 Q0 -9.4 4.7 -7.9 Q0 -6.9 -4.7 -7.9 Z M-2.4 -8.3 Q0 -11.4 2.4 -8.3 Z'
 const TIARA = 'M-2.3 -7.9 Q-2.6 -12.4 0 -12.9 Q2.6 -12.4 2.3 -7.9 Z'
@@ -448,17 +459,10 @@ export function NoblePawn({
   const bodyFill =
     robe === 'pope' ? POPE_ROBE : robe === 'cardinal' ? CARDINAL_ROBE : tincture
   const crown = attributes?.crown ?? attributes?.courtesyCrown
-  const parts = (
-    <>
-      <path d={PAWN_BASE} />
-      <path d={PAWN_BODY} />
-      <circle cy={PAWN_HEAD.cy} r={PAWN_HEAD.r} />
-    </>
-  )
   return (
     <g data-noble-pawn={status} strokeLinejoin="round" strokeLinecap="round">
       <g fill={MAP_HALO} stroke={MAP_HALO} strokeWidth={2.6}>
-        {parts}
+        <NoblePawnSilhouette />
       </g>
       {attributes?.crosier && (
         <g data-attribute="crosier" fill="none">

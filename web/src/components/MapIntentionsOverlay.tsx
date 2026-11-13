@@ -1,7 +1,54 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { Intention } from '@/lib/intent-overlay'
+import { NoblePawnSilhouette } from '@/components/MapHeraldry'
 import { IntentBadge } from '@/components/MapMarkers'
-import { DRAFT_INTENTION_OPACITY, INTENT_OUTLINE_COLOR } from '@/lib/map-palette'
+import { DRAFT_INTENTION_OPACITY, INTENT_OUTLINE_COLOR, MAP_PARCHMENT } from '@/lib/map-palette'
+
+/** Marks the leg a dispersion's nobles take: the pawn silhouette in a disc of the order's colour. */
+function NobleCarrierMark({
+  x,
+  y,
+  nobles,
+  color,
+  scale,
+}: {
+  x: number
+  y: number
+  nobles: string[]
+  color: string
+  scale: number
+}) {
+  const named = nobles.filter((noble) => noble !== '*')
+  return (
+    <g transform={`translate(${x} ${y})`} data-intent-nobles={nobles.join(',')}>
+      <title>{named.length > 0 ? named.join(', ') : '*'}</title>
+      <circle
+        r={8 * scale}
+        fill={color}
+        stroke={MAP_PARCHMENT}
+        strokeWidth={1.5 * scale}
+      />
+      <g transform={`scale(${0.6 * scale})`}>
+        <NoblePawnSilhouette fill={MAP_PARCHMENT} />
+      </g>
+      {named.length > 0 && (
+        <text
+          x={11 * scale}
+          y={-1 * scale}
+          fill={color}
+          fontSize={9 * scale}
+          fontWeight="700"
+          textAnchor="start"
+          stroke={MAP_PARCHMENT}
+          strokeWidth={2.5 * scale}
+          paintOrder="stroke"
+        >
+          {named.join(' ')}
+        </text>
+      )}
+    </g>
+  )
+}
 
 export function IntentionsOverlay({
   intentions,
@@ -25,6 +72,16 @@ export function IntentionsOverlay({
         const markerEndFor = (kind: 'arrow' | 'circle') => `url(#intent-${kind})`
         // A draft keeps the same arrow, faded and dashed.
         const draftDash = isDraft ? passableBorderDash : undefined
+        const carrierMark = (segment: Intention['segments'][number], x: number, y: number) =>
+          segment.nobles && (
+            <NobleCarrierMark
+              x={x}
+              y={y}
+              nobles={segment.nobles}
+              color={intentionColor}
+              scale={annotationScale}
+            />
+          )
 
         return (
           <g
@@ -77,6 +134,11 @@ export function IntentionsOverlay({
                       color={intentionColor}
                       scale={annotationScale}
                     />
+                    {carrierMark(
+                      segment,
+                      segment.from[0] + direction * 30 * annotationScale,
+                      segment.from[1] - 8 * annotationScale,
+                    )}
                   </g>
                 )
               }
@@ -120,6 +182,11 @@ export function IntentionsOverlay({
                     color={intentionColor}
                     scale={annotationScale}
                   />
+                  {carrierMark(
+                    segment,
+                    segment.from[0] + (segment.to[0] - segment.from[0]) * 0.8,
+                    segment.from[1] + (segment.to[1] - segment.from[1]) * 0.8,
+                  )}
                 </g>
               )
             })}
