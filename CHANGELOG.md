@@ -1,5 +1,64 @@
 # Changelog
 
+## [1.3.0](https://github.com/fogfactory/crown-and-borough/compare/v1.2.1...v1.3.0) (2026-11-13)
+
+
+### Features
+
+* **api:** refuse writes from a client of another build ([fef7cb0](https://github.com/fogfactory/crown-and-borough/commit/fef7cb08aa1a71492dfb4be0a9fbd1696ae00b99))
+* **demo:** add a claim scenario and a claim on the exile of the usurpation one ([fc30146](https://github.com/fogfactory/crown-and-borough/commit/fc301469554a9adfc651052468a1ad25c7a2a78b))
+* **engine:** conquer fiefs with a noble, usurper and exile titles ([f2ec177](https://github.com/fogfactory/crown-and-borough/commit/f2ec177be310eebaa78c9b90f10a6fb9e6793c42))
+* **engine:** conquer fiefs with a noble, usurper and exile titles ([10bdb24](https://github.com/fogfactory/crown-and-borough/commit/10bdb24105b2493e5415bd0639982e7a48adc705))
+* **online:** email notifications for new turn and new message ([17b3d08](https://github.com/fogfactory/crown-and-borough/commit/17b3d08f9fa5a61c590839714f505b49ccc629dc))
+* **web:** show usurper and exile titles and T C / T D orders ([be6fe22](https://github.com/fogfactory/crown-and-borough/commit/be6fe226829a8aef34704c44a2863513b20eff57))
+* **web:** simulate fief conquest, restoration, renunciation and death variants ([5ff9c7e](https://github.com/fogfactory/crown-and-borough/commit/5ff9c7e480aeeefa5bfcd8380190f2578d0ba9e8))
+
+
+### Bug Fixes
+
+* **deps:** update module firebase.google.com/go/v4 to v4.23.0 ([#624](https://github.com/fogfactory/crown-and-borough/issues/624)) ([7cfba59](https://github.com/fogfactory/crown-and-borough/commit/7cfba590f1fb57d082ce106eacd61b60f106b209))
+* **deps:** update module google.golang.org/api to v0.313.0 ([#620](https://github.com/fogfactory/crown-and-borough/issues/620)) ([8ec4f2d](https://github.com/fogfactory/crown-and-borough/commit/8ec4f2da744325c06e67940508c31ac379709c94))
+* **deps:** update module google.golang.org/api to v0.314.0 ([#643](https://github.com/fogfactory/crown-and-borough/issues/643)) ([b908ca9](https://github.com/fogfactory/crown-and-borough/commit/b908ca94c282ac5d05238c01102d49ebf506ed4d))
+* **deps:** update module google.golang.org/api to v0.315.0 ([#657](https://github.com/fogfactory/crown-and-borough/issues/657)) ([ba066d7](https://github.com/fogfactory/crown-and-borough/commit/ba066d7fcbb93879ca359d83b73d86bea0d8a704))
+* **docs:** say a dispersal destination can be repeated ([4b88151](https://github.com/fogfactory/crown-and-borough/commit/4b881513cd99f8f16efc62863760b7ab1ad57615))
+* **docs:** say a dispersal destination can be repeated ([2f4ad54](https://github.com/fogfactory/crown-and-borough/commit/2f4ad54572b5f3e4f9a2a7b4e9cbf06b74df2978))
+* **engine:** count every support, whoever gives it ([b8a8fea](https://github.com/fogfactory/crown-and-borough/commit/b8a8fea8d7342636757daffe4115f3c924c0aa7b))
+* **engine:** resolve attacks on own armies and chain dispersions ([aaa4019](https://github.com/fogfactory/crown-and-borough/commit/aaa4019bbf93165f35101f6029993988238c6b6d))
+* **engine:** resolve attacks on own armies and chain dispersions ([61244c0](https://github.com/fogfactory/crown-and-borough/commit/61244c078b9c911d7f2e1f9852d8b1e910651046))
+* **online:** email notifications for new turn and new message ([62c3a6f](https://github.com/fogfactory/crown-and-borough/commit/62c3a6f749aa097cc02ebb4877c4b0f1e3a6c661))
+* **orders:** restore saved special orders after reload ([43213c2](https://github.com/fogfactory/crown-and-borough/commit/43213c21771e3872b09ca50bb412b924d8f6a572))
+* **orders:** restore saved special orders after reload ([3756f5d](https://github.com/fogfactory/crown-and-borough/commit/3756f5d4730fe86a1b3d3f54a205e48059143349)), closes [#640](https://github.com/fogfactory/crown-and-borough/issues/640)
+* **web:** keep army and noble markers inside their own territory ([e7b7c9d](https://github.com/fogfactory/crown-and-borough/commit/e7b7c9d03436bc248ccd819a653eede4eabc16c8))
+* **web:** keep army and noble markers inside their own territory ([0be96af](https://github.com/fogfactory/crown-and-borough/commit/0be96afba94449528ac6c208a53e19f2c7461b1c))
+* **web:** keep every saved special sheet entry when restoring ([17c8f85](https://github.com/fogfactory/crown-and-borough/commit/17c8f85c2a7dd7d45b1606bb55ca3a288e6d3e05))
+* **web:** restore card orders after reload and refuse stale clients ([65c0b25](https://github.com/fogfactory/crown-and-borough/commit/65c0b256c7a35c21533d7356650b6514735ee689))
+* **web:** restore saved card orders outside winter after reload ([2f4f4bf](https://github.com/fogfactory/crown-and-borough/commit/2f4f4bf84d129d8a8177983dbc74d2792d77af02)), closes [#647](https://github.com/fogfactory/crown-and-borough/issues/647)
+* **web:** show which disperse leg carries the nobles ([77ea333](https://github.com/fogfactory/crown-and-borough/commit/77ea3331be29d0ff1c3caac46238c9a64951f125))
+* **web:** show which disperse leg carries the nobles ([dade618](https://github.com/fogfactory/crown-and-borough/commit/dade6181cbaacbfabde189408c9c1ced43873595)), closes [#605](https://github.com/fogfactory/crown-and-borough/issues/605)
+
+
+### Documentation
+
+* **faq:** explain where troops, nobles and the chain go in a dispersal ([04d08db](https://github.com/fogfactory/crown-and-borough/commit/04d08dbd4f460bc38bfe46345195f534f98e6010))
+* **rules:** condense the fief conquest rules and detail them in the FAQ ([ea9ff46](https://github.com/fogfactory/crown-and-borough/commit/ea9ff46546ce5edf8273224c6fc01c7f8688f9b8))
+* **titres:** add usurpation lifetime, claim exclusion and renunciation ([d90f652](https://github.com/fogfactory/crown-and-borough/commit/d90f652628243a554b473360089db2cbce0feee3))
+* **titres:** allow any owner for exiled titles and renouncing usurped ones ([8a3bff4](https://github.com/fogfactory/crown-and-borough/commit/8a3bff402fcac4cec0fdc5c8c30f303538442990))
+* **titres:** let claims apply to exiled titles only ([acfd3d5](https://github.com/fogfactory/crown-and-borough/commit/acfd3d5a14fc1d2fab37790ac8206c258ffe7499))
+* **titres:** move renunciation orders to the T family ([e3b0170](https://github.com/fogfactory/crown-and-borough/commit/e3b01705c1c67885cf3f2ff31a83f001079234e5))
+* **titres:** no usurper when a vacant fief is conquered ([d925bd2](https://github.com/fogfactory/crown-and-borough/commit/d925bd2ce6b2933a82840b83d47037ca0e12668a))
+* **titres:** propose noble-only fief conquest with usurpation and exile ([557fff7](https://github.com/fogfactory/crown-and-borough/commit/557fff769f775f9d74c95cfb4a039acc9a6a934c))
+* **titres:** use a single order to renounce an exiled or usurped title ([7762dc7](https://github.com/fogfactory/crown-and-borough/commit/7762dc7242b2bc911b2508973922f85e16d9743f))
+* **titres:** write the noble fief conquest as final rules ([0c113d3](https://github.com/fogfactory/crown-and-borough/commit/0c113d35a7b9c35d18a527fc2af3ab9b0640befb))
+
+
+### Refactoring
+
+* **engine:** look up the fief once per army in the control pass ([2ec30ba](https://github.com/fogfactory/crown-and-borough/commit/2ec30bae2bc307939837333c297b72cecc59e2e7))
+* **engine:** share usurpation helpers and drop the redundant usurped flag ([ac7c0eb](https://github.com/fogfactory/crown-and-borough/commit/ac7c0eb323a3c5c1ee926677fd7227a089b30070))
+* **engine:** simplify adjudicateMove and share chain rebinding ([de2d4ec](https://github.com/fogfactory/crown-and-borough/commit/de2d4ece35391df0a64d6a139939b4c9429d1eae))
+* **web:** read the single special sheet of the saved submission ([dad4911](https://github.com/fogfactory/crown-and-borough/commit/dad4911cd720cc5224cfda32b1890a02cb5a4879))
+* **web:** share fief and noble lookups and cache simulator previews ([d8f345b](https://github.com/fogfactory/crown-and-borough/commit/d8f345b330ac6eb54e8927e0faec855b56fb3f0e))
+
 ## [1.2.1](https://github.com/fogfactory/crown-and-borough/compare/v1.2.0...v1.2.1) (2026-11-11)
 
 
