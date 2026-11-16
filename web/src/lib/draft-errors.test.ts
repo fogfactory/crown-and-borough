@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { chainDraftLine, mapPreviewErrors } from '@/lib/draft-errors'
-import type { OrdersPreview, OrdersPreviewError, StateData } from '@/types'
+import { chainDraftLine, mapPreviewErrors, mapPreviewWarnings } from '@/lib/draft-errors'
+import type { OrdersPreview, OrdersPreviewError, OrdersPreviewWarning, StateData } from '@/types'
 
 function stateOf(season: StateData['season']): StateData {
   return {
@@ -128,5 +128,44 @@ describe('mapPreviewErrors', () => {
       { line: undefined, message: 'appeasement' },
     ])
     expect(result.chains).toEqual({})
+  })
+})
+
+describe('mapPreviewWarnings', () => {
+  const warn = (extra: Partial<OrdersPreviewWarning>): OrdersPreviewWarning => ({
+    source: 'chain',
+    code: 'x',
+    message: 'm',
+    level: 'warning',
+    ...extra,
+  })
+  const preview = (warnings: OrdersPreviewWarning[]): OrdersPreview => ({
+    errors: [],
+    warnings,
+    chains: [],
+    winter: [],
+  })
+
+  it('puts chain warnings under their noble, with the level, or aside for a foreign noble', () => {
+    const result = mapPreviewWarnings(
+      stateOf('spring'),
+      'P1',
+      { ...drafts, chainDrafts: { ABC: 'H AAA\nH BBB' } },
+      preview([warn({ noble: 'ABC', line: 3, level: 'note' }), warn({ noble: 'DEF' }), warn({})]),
+    )
+    expect(result.chains.ABC).toEqual([{ line: 2, message: 'm', level: 'note' }])
+    expect(result.other).toHaveLength(1)
+  })
+
+  it('maps winter lines to the winter draft and keeps the engine reason', () => {
+    const result = mapPreviewWarnings(
+      stateOf('winter'),
+      'P1',
+      { ...drafts, winterDraft: 'R T AAA\nC M AAA' },
+      preview([warn({ source: 'winter', line: 2, code: 'structure_present', level: 'error' })]),
+    )
+    expect(result.winter).toEqual([
+      { line: 2, message: 'm', level: 'error', reason: 'structure_present' },
+    ])
   })
 })

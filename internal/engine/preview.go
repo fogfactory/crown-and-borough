@@ -19,6 +19,11 @@ type OrdersPreview struct {
 	// Errors lists every problem that would reject the submission, followed by
 	// the chains the engine would refuse to receive.
 	Errors []InputError
+	// Warnings lists what does not reject the submission but may not run as
+	// written. It covers the chains already under way (game state) and those of
+	// the submission, taken one against the other. Its entries use the shape of
+	// Errors: a code, a localizable message, the source and the noble.
+	Warnings []PreviewWarning
 	// Chains holds, per submitted chain, the order lines that parse.
 	Chains []ChainPreview
 	// Winter holds one entry per non-empty winter line, in source order.
@@ -59,7 +64,7 @@ type WinterCostPreview struct {
 
 // PreviewOrders dry-runs input, which must already belong to playerID.
 func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID models.PlayerID, input OrdersInput) (OrdersPreview, error) {
-	preview := OrdersPreview{Errors: []InputError{}, Chains: []ChainPreview{}, Winter: []WinterLinePreview{}}
+	preview := OrdersPreview{Errors: []InputError{}, Warnings: []PreviewWarning{}, Chains: []ChainPreview{}, Winter: []WinterLinePreview{}}
 	if game == nil {
 		return preview, fmt.Errorf("engine: preview orders: nil game state")
 	}
@@ -93,6 +98,7 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 	preview.Errors = append(preview.Errors, appeasementErrors...)
 
 	if game.Season != models.SeasonWinter {
+		preview.Warnings = previewChainWarnings(game, balance, playerID, input)
 		for _, submission := range input.Chains {
 			chain, _ := orders.ParseChain(submission.Text, game)
 			preview.Chains = append(preview.Chains, ChainPreview{Noble: submission.Noble, Orders: chain.Orders})
@@ -109,6 +115,7 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 	if err := previewWinter(&preview, game, balance, playerID, strings.Join(lines, "\n")); err != nil {
 		return preview, err
 	}
+	preview.Warnings = append(preview.Warnings, rejectedWinterWarnings(playerID, preview.Winter)...)
 	return preview, nil
 }
 

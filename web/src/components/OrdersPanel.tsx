@@ -29,7 +29,13 @@ import { isSettlement } from '@/lib/supply'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
-import { mapPreviewErrors, type DraftError, type DraftErrors } from '@/lib/draft-errors'
+import {
+  mapPreviewErrors,
+  mapPreviewWarnings,
+  type DraftError,
+  type DraftErrors,
+  type DraftWarnings,
+} from '@/lib/draft-errors'
 import type { OrdersBody, OrdersDrafts } from '@/lib/orders-body'
 import { appendDraftLine, draftLines } from '@/lib/winter-draft'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -46,7 +52,6 @@ import type {
   Territory,
   StateData,
   VoiceSource,
-  WinterLinePreview,
 } from '@/types'
 
 interface OrdersPanelProps {
@@ -205,6 +210,44 @@ function PreviewErrors({
 }
 
 /**
+ * Non-blocking notices of a draft: the orders are accepted, but may not run as
+ * written (`warning`), will be rejected by the engine (`error`), or only call
+ * for attention (`note`). The reason of a winter line is worded here.
+ */
+function PreviewWarnings({ warnings, label }: { warnings: DraftError[]; label: string }) {
+  const { t } = useLanguage()
+  if (warnings.length === 0) return null
+
+  return (
+    <ul
+      role="status"
+      aria-label={label}
+      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-warning-700/40 bg-warning-100 px-3 py-2 pl-7 text-xs text-warning-700"
+    >
+      {warnings.map((warning, index) => {
+        const message = warning.reason
+          ? t(`reports.reason.${warning.reason}` as MessageKey)
+          : warning.message
+        return (
+          <li
+            key={`${warning.line ?? 0}-${index}`}
+            className={
+              warning.level === 'error'
+                ? 'font-semibold'
+                : warning.level === 'note'
+                  ? 'italic text-ink-500'
+                  : undefined
+            }
+          >
+            {warning.line ? t('error.line', { line: warning.line, message }) : message}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/**
  * Frames and selects on the map each territory code the player finishes
  * typing or chooses (charte-graphique.md § Saisie des ordres). A chosen code
  * tells its kind; a typed one that also names a noble may mean the noble and
@@ -310,6 +353,7 @@ function DeckOrdersSection({
   player,
   specialDraft,
   errors,
+  warnings,
   suggest,
   onSpecialChange,
   onOpenRules,
@@ -321,6 +365,7 @@ function DeckOrdersSection({
   onOpenRules?: (section: RulesSection) => void
   specialDraft: string
   errors: DraftError[]
+  warnings: DraftError[]
   suggest?: CodeSuggester
   onSpecialChange: (text: string) => void
   /** The draft differs from the submitted one, and how to get it back. */
@@ -356,6 +401,7 @@ function DeckOrdersSection({
         placeholder={t('orders.deckPlaceholder')}
         ariaLabel={t('orders.deckAria')}
       />
+      <PreviewWarnings warnings={warnings} label={t('orders.specialWarningsAria')} />
     </section>
   )
 }
@@ -1041,43 +1087,9 @@ function OpenElectionsSection({
   )
 }
 
-function WinterOrderDiagnostics({
-  diagnostics,
-  t,
-}: {
-  diagnostics: WinterLinePreview[]
-  t: Translate
-}) {
-  if (diagnostics.length === 0) return null
-
-  return (
-    <ul
-      role="status"
-      aria-label={t('orders.winterDiagnosticsAria')}
-      className="max-h-32 list-disc space-y-1 overflow-y-auto rounded-md border border-warning-700/40 bg-warning-100 px-3 py-2 pl-7 text-xs text-warning-700"
-    >
-      {diagnostics.map((diagnostic) => (
-        <li
-          key={`${diagnostic.line}-${diagnostic.reason ?? ''}`}
-          className={
-            diagnostic.reason === 'insufficient_resources' ? undefined : 'font-semibold'
-          }
-        >
-          {t('error.line', {
-            line: diagnostic.line,
-            message: t(
-              `reports.reason.${diagnostic.reason ?? 'insufficient_resources'}` as MessageKey,
-            ),
-          })}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 /** Errors of a zone whose sent text changed since the preview: messages without their stale line. */
 function withoutLines(errors: DraftError[], stale: boolean): DraftError[] {
-  return stale ? errors.map(({ message }) => ({ message })) : errors
+  return stale ? errors.map((error) => ({ ...error, line: undefined })) : errors
 }
 
 /** Text a body sends for each zone, to tell which zones changed since a preview. */
@@ -1120,6 +1132,35 @@ function usePreviewDraftErrors(
       winter: withoutLines(errors.winter, winterStale),
       special: withoutLines(errors.special, now.special !== then.special),
       other: errors.other,
+    }
+  }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
+}
+
+/** Preview warnings sorted by draft, with the same stale-line handling as the errors. */
+function usePreviewDraftWarnings(
+  state: StateData,
+  player: PlayerId,
+  drafts: OrdersDrafts,
+  preview: OrdersPreview | null,
+  ordersBody: OrdersBody | null,
+  previewedBody: OrdersBody | null,
+): DraftWarnings {
+  const { chainDrafts, winterDraft, specialDraft } = drafts
+  return useMemo(() => {
+    const warnings = mapPreviewWarnings(state, player, { chainDrafts, winterDraft, specialDraft }, preview)
+    if (!ordersBody || !previewedBody) return warnings
+    const now = sentTexts(ordersBody)
+    const then = sentTexts(previewedBody)
+    return {
+      chains: Object.fromEntries(
+        Object.entries(warnings.chains).map(([noble, list]) => [
+          noble,
+          withoutLines(list, now.chain(noble) !== then.chain(noble)),
+        ]),
+      ),
+      winter: withoutLines(warnings.winter, now.winter !== then.winter),
+      special: withoutLines(warnings.special, now.special !== then.special),
+      other: warnings.other,
     }
   }, [state, player, chainDrafts, winterDraft, specialDraft, preview, ordersBody, previewedBody])
 }
@@ -1213,11 +1254,17 @@ export function OrdersPanel({
     ordersBody,
     previewedBody,
   )
+  const draftWarnings = usePreviewDraftWarnings(
+    state,
+    player,
+    { chainDrafts, winterDraft, specialDraft },
+    preview,
+    ordersBody,
+    previewedBody,
+  )
   const suggesters = useCodeSuggesters(state, player, mapTerritories, regions)
 
   if (state.season === 'winter') {
-    const winterLines = preview?.winter ?? []
-    const winterDiagnostics = winterLines.filter((line) => line.status === 'rejected')
     const winterEstimate = preview?.winterCost ?? null
     return (
       <section className="space-y-3 rounded-xl border border-winter-700/30 bg-winter-100/80 p-4 shadow-inner shadow-winter-700/40">
@@ -1290,7 +1337,10 @@ export function OrdersPanel({
             })}
           </p>
         )}
-        <WinterOrderDiagnostics diagnostics={winterDiagnostics} t={t} />
+        <PreviewWarnings
+          warnings={draftWarnings.winter}
+          label={t('orders.winterDiagnosticsAria')}
+        />
         <RulesButton section="winter-orders" onOpenRules={onOpenRules} />
       </section>
     )
@@ -1327,6 +1377,7 @@ export function OrdersPanel({
         player={player}
         specialDraft={specialDraft}
         errors={draftErrors.special}
+        warnings={draftWarnings.special}
         suggest={suggesters.special}
         onSpecialChange={onSpecialChange}
         onOpenRules={onOpenRules}
@@ -1353,11 +1404,9 @@ export function OrdersPanel({
             placeholder={t('orders.nobleCardsPlaceholder')}
             ariaLabel={t('orders.nobleCardsAria', { player })}
           />
-          <WinterOrderDiagnostics
-            diagnostics={(preview?.winter ?? []).filter(
-              (line) => line.status === 'rejected',
-            )}
-            t={t}
+          <PreviewWarnings
+            warnings={draftWarnings.winter}
+            label={t('orders.winterDiagnosticsAria')}
           />
         </>
       )}
@@ -1399,10 +1448,15 @@ export function OrdersPanel({
               placeholder={chainPlaceholder()}
               ariaLabel={t('orders.chainAria', { noble: noble.code })}
             />
+            <PreviewWarnings
+              warnings={draftWarnings.chains[noble.code] ?? []}
+              label={t('orders.chainWarningsOfAria', { noble: `${noble.name} (${noble.code})` })}
+            />
           </div>
         ))
       )}
       <PreviewErrors errors={draftErrors.other} label={t('orders.chainErrorsAria')} />
+      <PreviewWarnings warnings={draftWarnings.other} label={t('orders.chainWarningsAria')} />
       {!hasEmittingNoble && (
         <p className="rounded-lg border border-dashed border-line bg-paper-100 p-3 text-sm italic text-ink-500">
           {t('orders.noEmittingNoble')}
