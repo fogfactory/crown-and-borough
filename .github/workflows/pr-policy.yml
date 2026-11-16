@@ -90,7 +90,8 @@ jobs:
               // Branches created by Claude Code worktrees carry no change-type
               // prefix: the Conventional Commit title decides the target.
               if (commitType === "feat") {
-                requireBase("develop", "Feature pull requests");
+                // Features may also go straight to main while it is pushed to directly.
+                if (base !== "main") requireBase("develop", "Feature pull requests");
                 if (!hasLabel("release:minor") && !hasLabel("release:major")) {
                   errors.push("Feature pull requests need release:minor or release:major.");
                 }
