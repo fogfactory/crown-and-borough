@@ -1,4 +1,5 @@
 import type { Translate, MessageKey } from '@/i18n/messages'
+import type { RulesSection } from '@/components/RulesPanel'
 import type { CardKind, NobleCard } from '@/types'
 
 const CARD_KIND_ORDER: CardKind[] = [
@@ -96,4 +97,39 @@ export function formatCardHand(hand: readonly CardKind[], t: Translate): string 
       return `${formatCardLabel(kind, t)}${count > 1 ? `x${count}` : ''}`
     })
     .join(', ')
+}
+
+/** Playable special cards (the calamities are never played from a hand). */
+type PlayableCardKind = Exclude<CardKind, 'plague' | 'bad_weather' | 'famine'>
+
+const SPECIAL_CARD_HELP_KEYS: Record<PlayableCardKind, MessageKey> = {
+  fair_weather: 'cardHelp.fair_weather',
+  abundant_harvest: 'cardHelp.abundant_harvest',
+  revolt: 'cardHelp.revolt',
+  seigneurial_tax: 'cardHelp.seigneurial_tax',
+  tunnel: 'cardHelp.tunnel',
+  ambush: 'cardHelp.ambush',
+  assassination: 'cardHelp.assassination',
+  justice: 'cardHelp.justice',
+}
+
+/** Tooltip text and rules section of a special card of the hand. */
+export function specialCardHelp(kind: CardKind, t: Translate) {
+  if (CALAMITY_KINDS.includes(kind)) return undefined
+  return {
+    text: t(SPECIAL_CARD_HELP_KEYS[kind as PlayableCardKind]),
+    section: 'bonus-cards' as RulesSection,
+  }
+}
+
+const NOBLE_CARD_HELP: Record<NobleCard['kind'], [MessageKey, RulesSection]> = {
+  noble: ['hand.nobleHelp', 'noble-deck'],
+  claim: ['hand.claimHelp', 'claims'],
+  dignity: ['hand.dignityHelp', 'dignities'],
+}
+
+/** Tooltip text and rules section of a card of the noble deck. */
+export function nobleCardHelp(card: NobleCard, t: Translate) {
+  const [key, section] = NOBLE_CARD_HELP[card.kind]
+  return { text: t(key, { name: nobleCardName(card, t) }), section }
 }

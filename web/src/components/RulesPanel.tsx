@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
@@ -7,12 +7,16 @@ import { Alert } from '@/components/ui/alert'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { apiTextRequest, type TokenProvider } from '@/lib/api'
 
-export type RulesSection = 'action-orders' | 'winter-orders'
-
-export const RULE_SECTION_IDS: Record<RulesSection, string> = {
+export const RULE_SECTION_IDS = {
   'action-orders': 'rules-action-orders',
   'winter-orders': 'rules-winter-orders',
-}
+  'bonus-cards': 'rules-bonus-cards',
+  'noble-deck': 'rules-noble-deck',
+  claims: 'rules-claims',
+  dignities: 'rules-dignities',
+} as const
+
+export type RulesSection = keyof typeof RULE_SECTION_IDS
 
 interface RulesPanelProps {
   variant?: 'panel' | 'page'
@@ -20,34 +24,6 @@ interface RulesPanelProps {
   navigationKey?: number
   gameId?: string
   tokenProvider?: TokenProvider
-}
-
-function markdownText(children: ReactNode): string {
-  if (typeof children === 'string' || typeof children === 'number') {
-    return String(children)
-  }
-  if (Array.isArray(children)) {
-    return children.map(markdownText).join('')
-  }
-  return ''
-}
-
-function sectionAnchor(children: ReactNode): string | undefined {
-  const heading = markdownText(children).toLowerCase()
-  if (
-    heading.includes('aide-mémoire des ordres') ||
-    heading.includes('order cheat sheet')
-  ) {
-    return RULE_SECTION_IDS['action-orders']
-  }
-  if (
-    heading.includes("ordres d'hiver") ||
-    heading.includes('ordres d’hiver') ||
-    heading.includes('winter orders')
-  ) {
-    return RULE_SECTION_IDS['winter-orders']
-  }
-  return undefined
 }
 
 export function RulesPanel({
@@ -104,14 +80,29 @@ export function RulesPanel({
   useEffect(() => {
     if (!targetSection || !rulesMarkdown) return
 
+    const container = rulesContainerRef.current
+    const findAnchor = () =>
+      container?.querySelector<HTMLElement>(`#${RULE_SECTION_IDS[targetSection]}`)
     const frame = window.requestAnimationFrame(() => {
-      const anchor = rulesContainerRef.current?.querySelector<HTMLElement>(
-        `#${RULE_SECTION_IDS[targetSection]}`,
-      )
-      anchor?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+      findAnchor()?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
     })
+    // Images above the anchor load after the first scroll and push it down:
+    // keep it in place until the reader scrolls (or four seconds pass).
+    const keepInPlace = () => findAnchor()?.scrollIntoView?.({ block: 'start' })
+    const userInput = ['wheel', 'touchstart', 'keydown'] as const
+    const stop = () => {
+      container?.removeEventListener('load', keepInPlace, true)
+      for (const type of userInput) window.removeEventListener(type, stop)
+    }
+    container?.addEventListener('load', keepInPlace, true)
+    for (const type of userInput) window.addEventListener(type, stop, { passive: true })
+    const stopTimer = window.setTimeout(stop, 4000)
 
-    return () => window.cancelAnimationFrame(frame)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(stopTimer)
+      stop()
+    }
   }, [navigationKey, rulesMarkdown, targetSection])
 
   return (
@@ -144,10 +135,7 @@ export function RulesPanel({
                 </h2>
               ),
               h2: ({ children }) => (
-                <h3
-                  id={sectionAnchor(children)}
-                  className="mt-7 border-t border-line/60 pt-4 font-display text-lg font-medium text-ink-900 first:mt-0 first:border-t-0 first:pt-0"
-                >
+                <h3 className="mt-7 border-t border-line/60 pt-4 font-display text-lg font-medium text-ink-900 first:mt-0 first:border-t-0 first:pt-0">
                   {children}
                 </h3>
               ),
@@ -211,16 +199,20 @@ export function RulesPanel({
                     className="mx-auto mt-3 block h-auto max-h-[32rem] w-auto max-w-full rounded-lg border border-line/60"
                   />
                 ),
-              a: ({ children, href }) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-vermilion-700 underline decoration-brass-700/40 underline-offset-2 hover:text-brass-700"
-                >
-                  {children}
-                </a>
-              ),
+              a: ({ children, href, id }) =>
+                href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-vermilion-700 underline decoration-brass-700/40 underline-offset-2 hover:text-brass-700"
+                  >
+                    {children}
+                  </a>
+                ) : (
+                  // Anchor of a rules section (`<a id="rules-…"></a>` in the markdown).
+                  <span id={id}>{children}</span>
+                ),
               strong: ({ children }) => (
                 <strong className="font-semibold text-ink-900">{children}</strong>
               ),

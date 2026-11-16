@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react'
 
 import { CodeTag } from '@/components/MapLinks'
+import { HelpPopover } from '@/components/HelpPopover'
 import { NoblePawnIcon } from '@/components/NobleHolder'
+import type { RulesSection } from '@/components/RulesPanel'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
 import { useIsDesktop } from '@/lib/use-media-query'
@@ -25,6 +27,8 @@ export interface FanCard {
   copies?: number
   /** Discarded by this turn's draft: greyed and struck through. */
   discarded?: boolean
+  /** Short explanation and rules section, shown by the card's "?" popover. */
+  help?: { text: string; section: RulesSection }
   /** Controls shown once the card is picked: play, discard. */
   actions: ReactNode
 }
@@ -42,53 +46,74 @@ function HandCardFace({
   card,
   selected,
   onSelect,
+  onOpenRules,
 }: {
   card: FanCard
   selected: boolean
   onSelect: () => void
+  onOpenRules?: (section: RulesSection) => void
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      aria-label={`${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`}
-      data-hand-card={card.code}
-      data-card-family={card.family}
-      data-discarded={card.discarded || undefined}
+    <div
       className={cn(
-        'relative flex h-[88px] w-16 flex-col items-center justify-between rounded-sm bg-paper-50 px-1 pt-2 pb-1 text-ink-900 shadow-panel transition hover:-translate-y-1 motion-reduce:transition-none lg:h-20 lg:w-14',
-        FAMILY_CLASSES[card.family],
-        selected && '-translate-y-2 ring-2 ring-brass-700 ring-offset-1 ring-offset-paper-100',
+        'relative transition hover:-translate-y-1 motion-reduce:transition-none',
+        selected && '-translate-y-2 hover:-translate-y-2',
         card.discarded && 'opacity-50 grayscale',
       )}
-      onClick={onSelect}
     >
-      {card.family === 'noble' && (
-        <span aria-hidden="true" className="absolute top-0.5 left-0.5 text-[0.6rem]">
-          <NoblePawnIcon noble={{ status: 'free' }} color={NEUTRAL_ARMY_COLOR} />
-        </span>
-      )}
-      <span aria-hidden="true" className="flex size-6 items-center justify-center text-ink-900">
-        {card.icon}
-      </span>
-      <span
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`}
+        data-hand-card={card.code}
+        data-card-family={card.family}
+        data-discarded={card.discarded || undefined}
         className={cn(
-          'line-clamp-2 text-center text-2xs leading-tight',
-          card.discarded && 'line-through',
+          'flex h-[88px] w-16 flex-col items-center justify-between rounded-sm bg-paper-50 px-1 pt-2 pb-1 text-ink-900 shadow-panel lg:h-20 lg:w-14',
+          FAMILY_CLASSES[card.family],
+          selected && 'ring-2 ring-brass-700 ring-offset-1 ring-offset-paper-100',
         )}
+        onClick={onSelect}
       >
-        {card.name}
-      </span>
-      <span className="font-mono text-2xs text-ink-500">{card.code}</span>
-      {card.copies && card.copies > 1 ? (
+        {card.family === 'noble' && (
+          <span aria-hidden="true" className="absolute top-0.5 left-0.5 text-[0.6rem]">
+            <NoblePawnIcon noble={{ status: 'free' }} color={NEUTRAL_ARMY_COLOR} />
+          </span>
+        )}
         <span
           aria-hidden="true"
-          className="absolute -top-1.5 -right-1.5 rounded-full bg-ink-900 px-1 text-2xs text-paper-50"
+          className="flex size-6 items-center justify-center text-ink-900"
         >
-          ×{card.copies}
+          {card.icon}
         </span>
-      ) : null}
-    </button>
+        <span
+          className={cn(
+            'line-clamp-2 text-center text-2xs leading-tight',
+            card.discarded && 'line-through',
+          )}
+        >
+          {card.name}
+        </span>
+        <span className="font-mono text-2xs text-ink-500">{card.code}</span>
+        {card.copies && card.copies > 1 ? (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 rounded-full bg-ink-900 px-1 text-2xs text-paper-50"
+          >
+            ×{card.copies}
+          </span>
+        ) : null}
+      </button>
+      {card.help && (
+        <HelpPopover
+          variant="card"
+          topic={card.name}
+          help={card.help.text}
+          rulesSection={card.help.section}
+          onOpenRules={onOpenRules}
+        />
+      )}
+    </div>
   )
 }
 
@@ -102,12 +127,14 @@ export function HandFan({
   cards,
   label,
   footer,
+  onOpenRules,
 }: {
   cards: FanCard[]
   /** Accessible name of the card list. */
   label: string
   /** Deck and hand limit, written under the fan. */
   footer?: ReactNode
+  onOpenRules?: (section: RulesSection) => void
 }) {
   const { t } = useLanguage()
   const desktop = useIsDesktop()
@@ -136,6 +163,7 @@ export function HandFan({
             >
               <HandCardFace
                 card={card}
+                onOpenRules={onOpenRules}
                 selected={card.key === selectedKey}
                 onSelect={() =>
                   setSelectedKey((current) => (current === card.key ? null : card.key))

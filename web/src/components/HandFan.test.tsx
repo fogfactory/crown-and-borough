@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { HandFan, type FanCard } from '@/components/HandFan'
+import type { RulesSection } from '@/components/RulesPanel'
 import { LanguageProvider } from '@/i18n/LanguageContext'
 import { stubPhoneViewport } from '@/test/viewport'
 
@@ -30,14 +31,20 @@ const cards: FanCard[] = [
     name: 'Bâtard',
     code: 'BAS',
     icon: null,
+    help: { text: 'Confère une dignité.', section: 'dignities' },
     actions: <button type="button">Jouer le bâtard</button>,
   },
 ]
 
-const renderFan = () =>
+const renderFan = (onOpenRules?: (section: RulesSection) => void) =>
   render(
     <LanguageProvider initialLanguage="fr">
-      <HandFan cards={cards} label="Cartes en main" footer={<p>Deck : 3 · Main : 4/6</p>} />
+      <HandFan
+        cards={cards}
+        label="Cartes en main"
+        footer={<p>Deck : 3 · Main : 4/6</p>}
+        onOpenRules={onOpenRules}
+      />
     </LanguageProvider>,
   )
 
@@ -83,5 +90,17 @@ describe('HandFan', () => {
     const phone = renderFan()
     expect(phone.container.querySelector('li')?.getAttribute('style')).toBeNull()
     expect(phone.container.querySelector('[data-hand-card]')).toHaveClass('h-[88px]', 'w-16')
+  })
+
+  it('explains a card in a popover that links to its rule', () => {
+    const onOpenRules = vi.fn()
+    renderFan(onOpenRules)
+
+    expect(screen.getAllByRole('button', { name: /^Aide/ })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Aide : Bâtard' }))
+    expect(screen.getByText('Confère une dignité.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voir la règle' }))
+    expect(onOpenRules).toHaveBeenCalledWith('dignities')
   })
 })

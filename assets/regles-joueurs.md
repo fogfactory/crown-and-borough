@@ -322,6 +322,8 @@ assassinats. Le détail est en annexe B.
 
 ## 6. Nobles, fiefs et couronne
 
+<a id="rules-noble-deck"></a>
+
 ### Le deck de nobles
 
 Les nobles se piochent dans un **deck commun** à tous les joueurs, qui mêle
@@ -409,6 +411,8 @@ deux mêmes maisons.
 La vue **Lignée et alliances** montre les familles, les mariages, les
 prétentions, et propose un simulateur de victoire.
 
+<a id="rules-claims"></a>
+
 ### Prétentions (Claims)
 
 Un de tes nobles recruté pendant un mariage entre l'un des tiens et le noble
@@ -421,6 +425,8 @@ héritier vivant, du Claim le plus ancien au plus récent. Un Claim est public.
   l'héritier reçoit le titre **exilé** ; sinon l'héritier devient titulaire.
 - `T C HHH` renonce gratuitement à un Claim : la carte retourne à la défausse.
   Détails dans la FAQ.
+
+<a id="rules-dignities"></a>
 
 ### Les dignités
 
@@ -550,6 +556,8 @@ Le deck compte {{special_orders.deck_size}} cartes.
 Une calamité piochée est programmée pour l'année suivante, au plus une par
 saison. Elle est annoncée dès son tirage, et le **présage du printemps**
 révèle la saison et la région de toutes les calamités de l'année.
+
+<a id="rules-bonus-cards"></a>
 
 ### Les cartes bonus
 
@@ -687,6 +695,8 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 
 ---
 
+<a id="rules-action-orders"></a>
+
 ## Annexe A — Aide-mémoire des ordres
 
 `XXX`, `YYY`, `ZZZ` désignent des territoires ; `NNN`, `HHH` des nobles ;
@@ -729,6 +739,8 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 | `P JU HHH` | Justice (aussi en hiver) |
 
 ---
+
+<a id="rules-winter-orders"></a>
 
 ## Annexe B — Ordres d'hiver
 
