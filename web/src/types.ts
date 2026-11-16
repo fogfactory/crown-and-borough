@@ -759,6 +759,15 @@ export interface OrdersPreviewError {
   message: string
 }
 
+/**
+ * Notice of a draft the server accepts. `error`: the engine will reject the
+ * line; `warning`: the order may not run as written; `note`: a possibly
+ * intended situation. On a winter line `code` is the engine rejection reason.
+ */
+export interface OrdersPreviewWarning extends OrdersPreviewError {
+  level: 'warning' | 'note' | 'error'
+}
+
 /** Order lines of one drafted chain that the server could parse. */
 export interface ChainPreview {
   noble: string
@@ -792,6 +801,8 @@ export interface WinterLinePreview {
 /** Server dry run of the current player's draft (`POST .../orders/preview`). */
 export interface OrdersPreview {
   errors: OrdersPreviewError[]
+  /** Non-blocking notices: the submission is accepted but may not run as written. */
+  warnings?: OrdersPreviewWarning[]
   chains: ChainPreview[]
   winter: WinterLinePreview[]
   winterCost?: { spent: number; available: number }

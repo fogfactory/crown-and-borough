@@ -25,6 +25,7 @@ const (
 // the player types, so the client never re-implements the order rules.
 type OrdersPreviewView struct {
 	Errors     []engine.InputError     `json:"errors"`
+	Warnings   []engine.PreviewWarning `json:"warnings"`
 	Chains     []ChainPreviewView      `json:"chains"`
 	Winter     []WinterLinePreviewView `json:"winter"`
 	WinterCost *WinterCostPreviewView  `json:"winterCost,omitempty"`
@@ -109,12 +110,17 @@ func previewView(state *models.GameState, balance assetgen.Balance, playerID mod
 		return OrdersPreviewView{}, err
 	}
 	view := OrdersPreviewView{
-		Errors: make([]engine.InputError, len(preview.Errors)),
-		Chains: make([]ChainPreviewView, 0, len(preview.Chains)),
-		Winter: make([]WinterLinePreviewView, 0, len(preview.Winter)),
+		Errors:   make([]engine.InputError, len(preview.Errors)),
+		Warnings: make([]engine.PreviewWarning, len(preview.Warnings)),
+		Chains:   make([]ChainPreviewView, 0, len(preview.Chains)),
+		Winter:   make([]WinterLinePreviewView, 0, len(preview.Winter)),
 	}
 	for index, inputError := range preview.Errors {
 		view.Errors[index] = localizedInputError(inputError, language)
+	}
+	for index, warning := range preview.Warnings {
+		warning.InputError = localizedInputError(warning.InputError, language)
+		view.Warnings[index] = warning
 	}
 	for _, chain := range preview.Chains {
 		orders := make([]OrderView, 0, len(chain.Orders))

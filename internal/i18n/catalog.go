@@ -38,6 +38,22 @@ const (
 	ErrorTransferPathBlocked = "error.transfer_path_blocked"
 	ErrorSupportNoAttack     = "error.support_no_attack"
 
+	WarningChainReplaced         = "warning.chain_replaced"
+	WarningStarvingAttack        = "warning.starving_attack"
+	WarningStarvingSupport       = "warning.starving_support"
+	WarningStarvingTransfer      = "warning.starving_transfer"
+	WarningPillageNoInfra        = "warning.pillage_no_infrastructure"
+	WarningPillageRuin           = "warning.pillage_ruin"
+	WarningTransferSourceLost    = "warning.transfer_source_lost"
+	WarningTransferDestination   = "warning.transfer_destination"
+	WarningTransferBlocked       = "warning.transfer_blocked"
+	WarningDisperseNobles        = "warning.disperse_nobles"
+	WarningDisperseTooMany       = "warning.disperse_too_many"
+	WarningSupportAttacker       = "warning.support_attacker"
+	WarningSupportNoAttack       = "warning.support_no_attack"
+	WarningSupportOpposing       = "warning.support_opposing"
+	WarningRunningChainInapplied = "warning.running_chain_inapplicable"
+
 	ParseNoHeader                    = "error.parse.no_header"
 	ParseBadHeader                   = "error.parse.bad_header"
 	ParseNobleNotFound               = "error.parse.noble_not_found"
@@ -167,6 +183,21 @@ func init() {
 	register(ErrorNobleNotOwned, "noble %q belongs to player %q", "le noble %q appartient au joueur %q")
 	register(ErrorDuplicateEmission, "noble %q appears more than once", "le noble %q apparaît plusieurs fois")
 	register(ErrorTransferPathBlocked, "the transfer route from %q to %q is blocked", "la route de transfert de %q vers %q est bloquée")
+	register(WarningChainReplaced, "this chain replaces the one under way for the army on %q, which is dropped", "cette chaîne remplace celle en cours de l'armée en %q, qui est abandonnée")
+	register(WarningStarvingAttack, "the army on %q is starving and cannot attack: this order will fail", "l'armée en %q est affamée et ne peut pas attaquer : cet ordre échouera")
+	register(WarningStarvingSupport, "the army on %q is starving and cannot support: this support will count for nothing", "l'armée en %q est affamée et ne peut pas soutenir : ce soutien ne comptera pas")
+	register(WarningStarvingTransfer, "the army on %q is starving and cannot transfer: this transfer will fail", "l'armée en %q est affamée et ne peut pas transférer : ce transfert échouera")
+	register(WarningPillageNoInfra, "there is nothing to pillage on %q", "il n'y a rien à piller en %q")
+	register(WarningPillageRuin, "the infrastructure on %q is a ruin and cannot be pillaged", "l'infrastructure de %q est une ruine et ne peut pas être pillée")
+	register(WarningTransferSourceLost, "the army on %q is not on a territory you control: it cannot send a transfer", "l'armée en %q n'est pas sur un territoire que tu contrôles : elle ne peut pas envoyer de transfert")
+	register(WarningTransferDestination, "the transfer from %q has no valid recipient: the destination does not accept it", "le transfert depuis %q n'a pas de destinataire valide : la destination ne peut pas le recevoir")
+	register(WarningTransferBlocked, "no supply route lets the transfer from %q reach its destination", "aucune route de ravitaillement ne permet au transfert depuis %q d'atteindre sa destination")
+	register(WarningDisperseNobles, "the noble assignments of the dispersion from %q cannot be honored: the dispersion will be invalid", "les affectations de nobles de la dispersion depuis %q ne peuvent pas être respectées : la dispersion sera invalide")
+	register(WarningDisperseTooMany, "the looped dispersion from %q lists %d destinations for %d troops: it will be invalid", "la dispersion en boucle depuis %q liste %d destinations pour %d troupes : elle sera invalide")
+	register(WarningSupportAttacker, "the army on %q attacks this turn: it gives up the defensive support of %q", "l'armée en %q attaque ce tour : elle renonce au soutien défensif de %q")
+	register(WarningSupportNoAttack, "the army on %q does not attack %q this turn: the support of %q has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien de %q n'a rien à soutenir")
+	register(WarningSupportOpposing, "this support reinforces the army on %q, which belongs to %q and not to you", "ce soutien renforce l'armée en %q, qui appartient à %q et non à toi")
+	register(WarningRunningChainInapplied, "the chain under way for the army on %q cannot run its %s order this turn: without a new order, the army risks losing its chain", "la chaîne en cours de l'armée en %q ne peut pas exécuter son ordre %s ce tour-ci : sans nouvel ordre, l'armée risque de perdre sa chaîne")
 	register(ErrorSupportNoAttack, "the army on %q does not attack %q this turn: its support has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien n'a rien à soutenir")
 
 	register(ParseNoHeader, "an order chain requires a noble header", "une chaîne d'ordres doit commencer par un en-tête de noble")

@@ -171,8 +171,12 @@ describe('OrdersPanel seasonal presentation', () => {
           reason: 'insufficient_resources',
         },
       ],
+      warnings: [
+        { source: 'winter', line: 1, code: 'troop_requires_adjacent_noble', message: 'troop_requires_adjacent_noble', level: 'error' },
+        { source: 'winter', line: 2, code: 'insufficient_resources', message: 'insufficient_resources', level: 'warning' },
+      ],
       winterCost: { spent: 0, available: 0 },
-    })
+    }, 'fr', { winterDraft: 'R T BRU\nC M BRU' })
 
     const diagnostics = screen.getByRole('status', {
       name: "Diagnostics des ordres d'hiver",
