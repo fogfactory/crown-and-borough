@@ -338,11 +338,31 @@ export function unreadCount(
   lastReadAt: string | undefined,
   ownHouse: PlayerId | null,
 ): number {
-  return messages.filter(
-    (message) =>
-      message.authorHouseId !== ownHouse &&
-      (!lastReadAt || message.createdAt > lastReadAt),
-  ).length
+  return totalUnread(unreadByAuthor(messages, lastReadAt, ownHouse))
+}
+
+/** Unread messages of a channel grouped by author house, in order of first appearance. */
+export function unreadByAuthor(
+  messages: readonly ChatMessage[],
+  lastReadAt: string | undefined,
+  ownHouse: PlayerId | null,
+): Record<PlayerId, number> {
+  const counts: Record<PlayerId, number> = {}
+  for (const message of messages) {
+    if (message.authorHouseId === ownHouse) continue
+    if (lastReadAt && message.createdAt <= lastReadAt) continue
+    counts[message.authorHouseId] = (counts[message.authorHouseId] ?? 0) + 1
+  }
+  return counts
+}
+
+/**
+ * The channel to show when the chat opens: the only channel (public room
+ * included) with unread messages, otherwise the public room.
+ */
+export function initialChannel(channelUnread: Record<string, number>): string {
+  const withUnread = Object.entries(channelUnread).filter(([, count]) => count > 0)
+  return withUnread.length === 1 ? withUnread[0][0] : PUBLIC_CHANNEL
 }
 
 export function totalUnread(counts: Record<string, number>): number {
