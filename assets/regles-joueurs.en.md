@@ -94,7 +94,7 @@ for you: you only write the order lines, one per line, in the form
 - **Warnings block nothing.** The interface also flags an accepted order that
   will not run as written: a starving army that attacks, supports or
   transfers, a pillage with nothing to pillage, a transfer without a
-  recipient, an invalid dispersion, a support that brings nothing to one of
+  recipient, an invalid dispersion, an attack on one of your own armies that stays in place, a support that brings nothing to one of
   your armies, or a chain that replaces one under way. A chain under way whose
   order cannot run this season is flagged the same way: send the army a new
   order, or it risks losing its chain. Supporting another player's army is

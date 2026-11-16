@@ -97,7 +97,7 @@ par ligne, sous la forme `POSITION SYMBOLE [cibles]`.
 - **Les avertissements ne bloquent rien.** L'interface signale aussi un ordre
   accepté qui ne s'exécutera pas comme écrit : armée affamée qui attaque,
   soutient ou transfère, pillage sans cible, transfert sans destinataire,
-  dispersion invalide, soutien qui n'apporte rien à l'une de tes armées, ou
+  dispersion invalide, attaque d'une de tes armées qui reste en place, soutien qui n'apporte rien à l'une de tes armées, ou
   chaîne qui en remplace une en cours. Une chaîne en cours dont l'ordre ne peut
   plus s'exécuter ce tour-ci est signalée de la même façon : envoie un nouvel
   ordre à l'armée, sinon elle risque de perdre sa chaîne. Un soutien à l'armée

@@ -52,6 +52,7 @@ const (
 	WarningSupportAttacker       = "warning.support_attacker"
 	WarningSupportNoAttack       = "warning.support_no_attack"
 	WarningSupportOpposing       = "warning.support_opposing"
+	WarningAttackOwnArmy         = "warning.attack_own_army"
 	WarningRunningChainInapplied = "warning.running_chain_inapplicable"
 
 	ParseNoHeader                    = "error.parse.no_header"
@@ -197,6 +198,7 @@ func init() {
 	register(WarningSupportAttacker, "the army on %q attacks this turn: it gives up the defensive support of %q", "l'armée en %q attaque ce tour : elle renonce au soutien défensif de %q")
 	register(WarningSupportNoAttack, "the army on %q does not attack %q this turn: the support of %q has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien de %q n'a rien à soutenir")
 	register(WarningSupportOpposing, "this support reinforces the army on %q, which belongs to %q and not to you", "ce soutien renforce l'armée en %q, qui appartient à %q et non à toi")
+	register(WarningAttackOwnArmy, "the army on %q attacks your own army on %q, which stays in place: it will be dislodged if the attack is the strongest", "l'armée en %q attaque ta propre armée en %q, qui reste en place : elle sera délogée si l'attaque est la plus forte")
 	register(WarningRunningChainInapplied, "the chain under way for the army on %q cannot run its %s order this turn: without a new order, the army risks losing its chain", "la chaîne en cours de l'armée en %q ne peut pas exécuter son ordre %s ce tour-ci : sans nouvel ordre, l'armée risque de perdre sa chaîne")
 	register(ErrorSupportNoAttack, "the army on %q does not attack %q this turn: its support has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien n'a rien à soutenir")
 

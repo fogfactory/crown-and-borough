@@ -146,6 +146,11 @@ func orderWarnings(ctx *resolutionContext, playerID models.PlayerID, army models
 	}
 
 	switch order.Type {
+	case models.OrderTypeAttack:
+		targetID := order.TargetIDs[0]
+		if target := ctx.startArmyAt(targetID); target != nil && target.OwnerID == playerID && !armyMoves(ctx.records[target.ID]) {
+			return []PreviewWarning{newPreviewWarning(playerID, noble, line, "attack_own_army", i18n.WarningAttackOwnArmy, territory, string(targetID))}
+		}
 	case models.OrderTypeTransfer:
 		if ctx.famished[army.ID] {
 			return inapplicable("starving_transfer", i18n.WarningStarvingTransfer, territory)
@@ -233,6 +238,20 @@ func knownOrder(ctx *resolutionContext, playerID models.PlayerID, army models.Ar
 		return nil, true
 	}
 	return &record.order, true
+}
+
+// armyMoves reports whether the order of an army of the player moves it: an
+// attack, a join or a dispersion that can run. An army without an order, or
+// holding, supporting, pillaging or transferring, stays on its territory.
+func armyMoves(record *orderRecord) bool {
+	if record == nil || record.outcome == OutcomeInvalid || record.outcome == OutcomeFailure {
+		return false
+	}
+	switch record.order.Type {
+	case models.OrderTypeAttack, models.OrderTypeJoin, models.OrderTypeDisperse:
+		return true
+	}
+	return false
 }
 
 // chainKnownTo reports whether playerID has learned the chain under way of

@@ -168,3 +168,36 @@ func TestPreviewKnowsAnOpposingChainThePlayerHasLearned(t *testing.T) {
 	warnings = previewWarningsFor(t, setup(false), support)
 	requireWarning(t, warnings, "support_opposing", WarningLevelNote)
 }
+
+func TestPreviewWarnsAnAttackOnOwnArmyThatStaysPut(t *testing.T) {
+	attack := ChainSubmission{Player: "P1", Noble: "TWO", Text: "TWO\nBBB A AAA"}
+
+	// The army on AAA has no order: it stays, and the attack would dislodge it.
+	warnings := previewWarningsFor(t, supportPlanState(t, "P1"), attack)
+	warning := requireWarning(t, warnings, "attack_own_army", WarningLevelWarning)
+	if warning.Line != 2 || warning.Noble != "TWO" {
+		t.Errorf("warning = %#v, want line 2 of noble TWO", warning)
+	}
+
+	// The army on AAA leaves: the attack has nothing to dislodge.
+	leaving := ChainSubmission{Player: "P1", Noble: "ONE", Text: "ONE\nAAA A CCC"}
+	for _, warning := range previewWarningsFor(t, supportPlanState(t, "P1"), attack, leaving) {
+		if warning.Code == "attack_own_army" {
+			t.Errorf("warnings = %#v, want no attack_own_army when the target army leaves", warning)
+		}
+	}
+
+	// An army that holds, or whose own chain under way attacks nothing, stays too.
+	holding := ChainSubmission{Player: "P1", Noble: "ONE", Text: "ONE\nH AAA"}
+	requireWarning(t, previewWarningsFor(t, supportPlanState(t, "P1"), attack, holding), "attack_own_army", WarningLevelWarning)
+	state := supportPlanState(t, "P1")
+	storeChain(t, state, "TWO\nBBB A AAA")
+	requireWarning(t, previewWarningsFor(t, state), "attack_own_army", WarningLevelWarning)
+
+	// An army of another player is not concerned.
+	for _, warning := range previewWarningsFor(t, supportPlanState(t, "P2"), attack) {
+		if warning.Code == "attack_own_army" {
+			t.Errorf("warnings = %#v, want none for an opposing army", warning)
+		}
+	}
+}
