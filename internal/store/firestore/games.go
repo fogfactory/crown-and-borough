@@ -569,25 +569,20 @@ func gameSnapshot(balance assetgen.Balance, document gameDocument, state *models
 		value := models.PlayerID(document.WinnerUID)
 		winner = &value
 	}
-	scores := make(map[models.PlayerID]engine.ScoreBreakdown, len(document.Scores))
-	for playerID, score := range document.Scores {
-		scores[models.PlayerID(playerID)] = score
-	}
-	if len(scores) == 0 {
-		scores = engine.ComputeScores(state, balance)
-	}
 	yearCount := document.YearCount
 	if yearCount == 0 {
 		yearCount = state.YearCount
 	}
 	return store.GameSnapshot{
-		ID:           document.ID,
-		Name:         document.Name,
-		Seed:         document.Seed,
-		YearCount:    yearCount,
-		Status:       document.Status,
-		Winner:       winner,
-		Scores:       scores,
+		ID:        document.ID,
+		Name:      document.Name,
+		Seed:      document.Seed,
+		YearCount: yearCount,
+		Status:    document.Status,
+		Winner:    winner,
+		// Derived from the state, never read from the stored copy, which can
+		// predate later changes (e.g. titles granted since).
+		Scores:       engine.ComputeScores(state, balance),
 		Players:      players,
 		Map:          mapData,
 		State:        state,
