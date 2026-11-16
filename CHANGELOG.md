@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.4.0](https://github.com/fogfactory/crown-and-borough/compare/v1.3.0...v1.4.0) (2026-11-16)
+
+
+### Features
+
+* **chat:** show which channels hold unread messages on the selector trigger ([1d49c16](https://github.com/fogfactory/crown-and-borough/commit/1d49c161d9d5422060f36cfa8bbaef22595b2a05))
+* **chat:** unread pills in the channel selector and smart initial channel ([8629d04](https://github.com/fogfactory/crown-and-borough/commit/8629d04f220d489d077ae5131f1166d09904a434))
+* **chat:** unread pills in the channel selector and smart initial channel ([ff93f44](https://github.com/fogfactory/crown-and-borough/commit/ff93f44ba71a66b6953d54fbd40fb534dd6168fd)), closes [#596](https://github.com/fogfactory/crown-and-borough/issues/596)
+* **web:** explain hand cards with a help popover ([910a402](https://github.com/fogfactory/crown-and-borough/commit/910a402d5312ebf25a6786d5836d8a892c95f1db))
+* **web:** vote for my candidate by default when filing a candidacy ([6f821b8](https://github.com/fogfactory/crown-and-borough/commit/6f821b87048c621b4ca755b49145c27bde1638ab))
+* **web:** vote for my candidate by default when filing a candidacy ([4913805](https://github.com/fogfactory/crown-and-borough/commit/49138053a80c1d81745a7f006065986d70f5c6c8))
+
+
+### Bug Fixes
+
+* **engine:** forbid marriage of bishops, cardinals and the pope ([cd2de69](https://github.com/fogfactory/crown-and-borough/commit/cd2de69081d0c5178c46eb90a8fac878ce66ea0e))
+* **engine:** forbid marriage of bishops, cardinals and the pope ([533bf13](https://github.com/fogfactory/crown-and-borough/commit/533bf13bfbbb51b5769b12b5234a436a41a86c1b)), closes [#665](https://github.com/fogfactory/crown-and-borough/issues/665)
+* **orders:** warn in the orders preview about orders that will not run as written ([0f04f32](https://github.com/fogfactory/crown-and-borough/commit/0f04f32c701e8e9de64ccf5424a617ca5a033c99))
+* **orders:** warn in the orders preview about orders that will not run as written ([4763604](https://github.com/fogfactory/crown-and-borough/commit/4763604418e616b69b3b11d8166ce91a4cac4200))
+* **orders:** warn when an attack targets an own army that stays in place ([a3eaa86](https://github.com/fogfactory/crown-and-borough/commit/a3eaa86f8f3d33c613af1f76b7ba330a96a1c6d4))
+* **release:** drop duplicate entries from release notes ([f1631b4](https://github.com/fogfactory/crown-and-borough/commit/f1631b4bc752eac36adbb04ce48f95509935a41d))
+* **store:** recompute game scores from state in the games list ([35a1774](https://github.com/fogfactory/crown-and-borough/commit/35a177464ed4b3bbdcfd4ae88d4d7236412147c7))
+* **store:** recompute game scores from state in the games list ([40acb6f](https://github.com/fogfactory/crown-and-borough/commit/40acb6f72ec0c76d0d7c443ec6cd1fe0e08b4c4d))
+* **web:** explain hand cards with a help popover ([20e9f32](https://github.com/fogfactory/crown-and-borough/commit/20e9f3223f26112434d5ea6ce94ba59eff2734fc))
+
 ## [1.3.0](https://github.com/fogfactory/crown-and-borough/compare/v1.2.1...v1.3.0) (2026-11-13)
 
 
