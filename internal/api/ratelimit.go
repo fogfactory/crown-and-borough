@@ -54,7 +54,7 @@ func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if wait, ok := limiter.allow(ClientIP(r, cfg.TrustedProxyHops)); !ok {
+		if wait, ok := limiter.allow(clientIP(r, cfg.TrustedProxyHops)); !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 			writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
 			return
@@ -100,11 +100,11 @@ func (l *rateLimiter) allow(key string) (time.Duration, bool) {
 	return 0, true
 }
 
-// ClientIP returns the address of the client. X-Forwarded-For is client
+// clientIP returns the address of the client. X-Forwarded-For is client
 // controlled except for the entries appended by our own proxies, so only the
 // entry that many hops from the right is trusted; any shortfall falls back to
 // the peer address.
-func ClientIP(r *http.Request, trustedHops int) string {
+func clientIP(r *http.Request, trustedHops int) string {
 	if trustedHops > 0 {
 		var hops []string
 		for _, value := range r.Header.Values("X-Forwarded-For") {

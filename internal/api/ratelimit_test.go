@@ -79,13 +79,13 @@ func TestClientIPTrustsOnlyProxyHops(t *testing.T) {
 	r := httptest.NewRequest("GET", "/", nil)
 	r.RemoteAddr = "10.0.0.1:99"
 	r.Header.Set("X-Forwarded-For", "6.6.6.6, 9.9.9.9")
-	if got := ClientIP(r, 0); got != "10.0.0.1" {
+	if got := clientIP(r, 0); got != "10.0.0.1" {
 		t.Fatalf("no proxy: %s", got)
 	}
-	if got := ClientIP(r, 1); got != "9.9.9.9" {
+	if got := clientIP(r, 1); got != "9.9.9.9" {
 		t.Fatalf("one hop: %s", got)
 	}
-	if got := ClientIP(r, 3); got != "10.0.0.1" {
+	if got := clientIP(r, 3); got != "10.0.0.1" {
 		t.Fatalf("shortfall: %s", got)
 	}
 }
