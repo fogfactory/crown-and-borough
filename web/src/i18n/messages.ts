@@ -1598,6 +1598,11 @@ const englishMessages = {
   'hand.discard': 'Discard',
   'hand.noTarget': 'No possible target this turn',
   'hand.claimCard': 'Claim',
+  'hand.nobleHelp':
+    'Noble card: play it on one of your castles or villages with one of your armies to recruit {name}, who acts from the next season on.',
+  'hand.claimHelp':
+    'Claim card: name one of your nobles as heir to a claimed noble.',
+  'hand.dignityHelp': 'Dignity card: confers the dignity on an eligible noble.',
   'hand.counter': 'Deck: {deck} · Hand: {count}/{limit}',
   'treasury.stock': '{amount} R',
   'treasury.income': '+{amount} R / turn',
@@ -1606,6 +1611,22 @@ const englishMessages = {
   'treasury.famineArmy': 'famine: 1 army',
   'treasury.famineArmies': 'famine: {count} armies',
   'help.seeRule': 'See the rule',
+  'cardHelp.fair_weather':
+    'Cancels bad weather in a region; otherwise doubles its mill output.',
+  'cardHelp.abundant_harvest':
+    'Cancels a bad harvest in a region; otherwise doubles its rations and income.',
+  'cardHelp.revolt':
+    'Raises rebels on a territory in distress, or turns a famished army neutral.',
+  'cardHelp.seigneurial_tax':
+    'Doubles a fief’s income (seigneurial tax), copies a fief’s income for the king (royal tax), or diverts a bishopric’s mills (tithe).',
+  'cardHelp.tunnel':
+    'Frees a captive noble, or lets an attack ignore walls.',
+  'cardHelp.ambush':
+    'If your attack wins, captures a noble of the beaten army.',
+  'cardHelp.assassination':
+    'Kills a noble in secret. Playable in winter too.',
+  'cardHelp.justice':
+    'Executes a noble who commissioned an assassination. Playable in winter too.',
   'orders.winterSummary': 'Direct investments only: no chains, no troop movement.',
   'orders.actionSummary': 'One chain per noble; an empty chain leaves the noble idle.',
   'orders.titlesSummary': 'Orders of your titles: each button opens a form.',
@@ -3243,6 +3264,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'hand.discard': 'Défausser',
   'hand.noTarget': 'Aucune cible possible ce tour',
   'hand.claimCard': 'Prétention',
+  'hand.nobleHelp':
+    'Carte de noble : à jouer sur un de tes châteaux ou villages où se trouve une de tes armées pour recruter {name}, qui agit dès la saison suivante.',
+  'hand.claimHelp':
+    'Carte de prétention : désigne un de tes nobles comme héritier d’un noble visé.',
+  'hand.dignityHelp': 'Carte de dignité : confère la dignité à un noble éligible.',
   'hand.counter': 'Deck : {deck} · Main : {count}/{limit}',
   'treasury.stock': '{amount} R',
   'treasury.income': '+{amount} R / tour',
@@ -3251,6 +3277,22 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'treasury.famineArmy': 'famine : 1 armée',
   'treasury.famineArmies': 'famine : {count} armées',
   'help.seeRule': 'Voir la règle',
+  'cardHelp.fair_weather':
+    'Annule le mauvais temps d’une région ; sinon double la production de ses moulins.',
+  'cardHelp.abundant_harvest':
+    'Annule une mauvaise récolte ; sinon double les rations et les revenus de la région.',
+  'cardHelp.revolt':
+    'Fait lever des rebelles sur un territoire en difficulté, ou rend neutre une armée affamée.',
+  'cardHelp.seigneurial_tax':
+    'Double le revenu d’un fief (impôt seigneurial), copie celui d’un fief pour le roi (impôt royal) ou détourne les moulins d’un évêché (dîme).',
+  'cardHelp.tunnel':
+    'Libère un noble prisonnier, ou permet à une attaque d’ignorer les remparts.',
+  'cardHelp.ambush':
+    'Si ton attaque l’emporte, capture un noble de l’armée battue.',
+  'cardHelp.assassination':
+    'Tue un noble en secret. Jouable aussi en hiver.',
+  'cardHelp.justice':
+    'Exécute un noble qui a commandité un assassinat. Jouable aussi en hiver.',
   'orders.winterSummary':
     'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
   'orders.actionSummary':

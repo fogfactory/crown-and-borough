@@ -304,7 +304,7 @@ describe('GamePage submission rehydration and divergence', () => {
   it('rehydrates saved card orders outside winter and shows divergence', async () => {
     const handState = {
       ...state,
-      nobleHand: [{ id: 1, name: 'Test', status: 'hand' }],
+      nobleHand: [{ id: '1', kind: 'noble', code: 'TST', name: 'Test' }],
     } as unknown as StateData
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input)

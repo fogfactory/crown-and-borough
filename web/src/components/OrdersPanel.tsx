@@ -24,7 +24,7 @@ import type { RulesSection } from '@/components/RulesPanel'
 import { SectionHeading } from '@/components/SectionHeading'
 import { RegionRef, useMapLinks } from '@/components/MapLinks'
 import { richTranslate } from '@/lib/rich-text'
-import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardName, shortCode } from '@/lib/card-hand'
+import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardHelp, nobleCardName, shortCode, specialCardHelp } from '@/lib/card-hand'
 import { isSettlement } from '@/lib/supply'
 import { CardPictogram } from '@/components/CardPictogram'
 import { HandFan, type FanCard } from '@/components/HandFan'
@@ -707,6 +707,7 @@ function HandSection({
         code,
         icon: <CardPictogram kind={kind} />,
         copies,
+        help: specialCardHelp(kind, t),
         discarded: discarded > 0 && discarded >= copies,
         actions: (
           <SpecialCardActions
@@ -731,6 +732,7 @@ function HandSection({
         family: card.kind === 'dignity' ? 'dignity' : 'noble',
         name: nobleName(card),
         code: card.code,
+        help: nobleCardHelp(card, t),
         icon: <CardPictogram kind={card.kind} />,
         discarded: draftDiscardCount(lines, card.code) > 0,
         actions: (
@@ -782,6 +784,7 @@ function HandSection({
       )}
       <HandFan
         cards={cards}
+        onOpenRules={onOpenRules}
         label={t('orders.hand')}
         footer={
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
