@@ -11,6 +11,8 @@ import {
   toChatTimestamp,
   totalUnread,
   unreadCount,
+  unreadByAuthor,
+  initialChannel,
   type ChatMessage,
   type ChatPostBody,
 } from '@/lib/chat'
@@ -315,5 +317,26 @@ describe('sendChatText', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('unread by author and initial channel', () => {
+  const at = (id: string, author: string, time: string) =>
+    ({ id, authorHouseId: author, createdAt: toChatTimestamp(time) }) as ChatMessage
+  it('groups unread messages by author, ignoring own and read ones', () => {
+    const messages = [
+      at('1', 'P2', '2026-01-01T10:00:00Z'),
+      at('2', 'P3', '2026-01-01T10:00:05Z'),
+      at('3', 'P3', '2026-01-01T10:00:06Z'),
+      at('4', 'P1', '2026-01-01T10:00:07Z'),
+    ]
+    expect(
+      unreadByAuthor(messages, toChatTimestamp('2026-01-01T10:00:01Z') as string, 'P1'),
+    ).toEqual({ P3: 2 })
+  })
+  it('picks the single conversation with unread, else public', () => {
+    expect(initialChannel({ public: 0, P1_P2: 2, P1_P3: 0 })).toBe('P1_P2')
+    expect(initialChannel({ P1_P2: 2, P1_P3: 1 })).toBe('public')
+    expect(initialChannel({})).toBe('public')
   })
 })

@@ -679,8 +679,13 @@ It exists in online games only: it is absent in hotseat.
   them: if you play in a game, know that what you write in private can be read
   by that host. A host who plays a house reads like everyone else.
 - **History and unread.** History is kept; the latest 50 messages are shown,
-  and you can load older ones. A badge counts the unread messages of each
-  channel. Separators ("Spring 1011") mark the turns.
+  and you can load older ones. In the channel list, each channel with unread
+  messages carries a badge in the colours of the house that wrote them, one
+  per house when they come from several; the channel on display also signals
+  the unread messages of the other channels. When you open the chat, if only
+  one channel (the public room included) holds unread messages, it is shown
+  straight away; otherwise the public room is. Separators ("Spring 1011") mark
+  the turns.
 - **Limits.** A message holds 500 characters at most, and you can send one per
   second. A longer text, up to 4,000 characters, is split and sent piece by
   piece; you can cancel it while it is being sent.
