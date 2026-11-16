@@ -541,3 +541,16 @@ func TestSimulateVictoryKillOptionErrors(t *testing.T) {
 	state.Nobles[5].Status = models.NobleStatusDungeon
 	requireSimulationError(t, state, SimulationAction{Kind: SimulationKill, Noble: "CN3", Garrison: "CN6"})
 }
+
+func TestSimulateVictoryRefusesMarriageOfReligiousTitleHolder(t *testing.T) {
+	state := allianceState()
+	for index := range state.Nobles {
+		state.Nobles[index].Code = "C" + string(state.Nobles[index].ID)
+	}
+	state.Regions = []models.Region{{ID: "R1", Name: "Ros", Seed: "AAA", Territories: []models.TerritoryID{"AAA"}}}
+	state.Bishops = []models.Bishop{{Region: "R1", Noble: "N1"}}
+	_, err := SimulateVictory(state, allianceBalance(), []SimulationAction{{Kind: SimulationMarry, Noble: "CN1", Other: "CN3"}})
+	if err == nil {
+		t.Fatal("SimulateVictory() = nil, want an error for a bishop's marriage")
+	}
+}
