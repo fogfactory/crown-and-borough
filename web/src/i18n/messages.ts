@@ -389,6 +389,7 @@ const englishMessages = {
   'orders.electionCandidateHint': 'Click a noble to add their candidacy:',
   'orders.electionCandidateAdded': 'Candidacy added',
   'orders.electionCandidacyComment': 'candidacy {name}',
+  'orders.electionVoteForMe': 'Vote for this candidate too',
   'orders.electionNoCandidate':
     'None of your nobles can run (free, unmarried, not excommunicated men only).',
   'orders.calamityForecast':
@@ -2001,6 +2002,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.electionCandidateHint': 'Cliquez sur un noble pour ajouter sa candidature :',
   'orders.electionCandidateAdded': 'Candidature ajoutée',
   'orders.electionCandidacyComment': 'candidature {name}',
+  'orders.electionVoteForMe': 'Voter aussi pour ce candidat',
   'orders.electionNoCandidate':
     'Aucun de vos nobles ne peut se présenter (hommes libres, célibataires et non excommuniés).',
   'orders.calamityForecast':
