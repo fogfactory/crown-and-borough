@@ -144,10 +144,13 @@ describe('ChatPanel', () => {
   })
 
   it('shows the shield and name of the active conversation in the trigger', () => {
-    setChat({
-      public: channel([]),
-      P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
-    })
+    setChat(
+      {
+        public: channel([]),
+        P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+      },
+      { P1_P3: toChatTimestamp('2026-01-01T10:00:09Z') as string },
+    )
     renderPanel()
     expect(trigger(CHANNELS)).toHaveTextContent('Public room')
     expect(shields(trigger(CHANNELS))).toHaveLength(0)
@@ -380,7 +383,13 @@ describe('ChatPanel', () => {
       {},
     )
     renderPanel({ visible: true })
-    expect(trigger(CHANNELS)).toHaveAccessibleName(/2 unread in other rooms/)
+    expect(trigger(CHANNELS)).toHaveAccessibleName(
+      /2 unread in other rooms: Maison Brieuc \(1\), Maison Cérès \(1\)/,
+    )
+    const chips = trigger(CHANNELS).querySelectorAll('[data-chat-unread-channel]')
+    expect(
+      [...chips].map((chip) => chip.getAttribute('data-chat-unread-channel')),
+    ).toEqual(['P1_P2', 'P1_P3'])
     expect(trigger(CHANNELS).querySelectorAll('[data-chat-unread-house]')).toHaveLength(2)
   })
 

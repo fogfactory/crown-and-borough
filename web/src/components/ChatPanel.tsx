@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { IconLock, IconSend } from '@tabler/icons-react'
+import { IconLock, IconSend, IconUsers } from '@tabler/icons-react'
 
 import { ShieldIcon } from '@/components/ArmsIcons'
 import { MapMention } from '@/components/MapLinks'
@@ -287,17 +287,6 @@ export function ChatPanel({
     }
     return counts
   }, [open, unreadAuthors, visible])
-  // Unread waiting in the channels that are not open, by author house.
-  const otherUnreadAuthors = useMemo(() => {
-    const sums: Record<string, number> = {}
-    for (const [key, authors] of Object.entries(unreadAuthors)) {
-      if (key === open) continue
-      for (const [author, count] of Object.entries(authors))
-        sums[author] = (sums[author] ?? 0) + count
-    }
-    return sums
-  }, [open, unreadAuthors])
-  const otherUnread = totalUnread(otherUnreadAuthors)
   const unreadTotal = totalUnread(unread)
   useEffect(() => {
     onUnreadChange?.(unreadTotal)
@@ -380,6 +369,20 @@ export function ChatPanel({
         : houseName(first)
     },
     [channelHouses, houseName, t],
+  )
+
+  // The channels other than the open one that hold unread messages, with their
+  // authors: what the trigger shows without opening the list.
+  const otherUnreadChannels = useMemo(
+    () =>
+      Object.entries(unreadAuthors).filter(
+        ([key, authors]) => key !== open && totalUnread(authors) > 0,
+      ),
+    [open, unreadAuthors],
+  )
+  const otherUnread = otherUnreadChannels.reduce(
+    (sum, [, authors]) => sum + totalUnread(authors),
+    0,
   )
 
   const privateChannels = useMemo(() => {
@@ -527,7 +530,15 @@ export function ChatPanel({
             ref={channelTrigger}
             aria-label={`${t('chat.channels')} ${channelLabel(open)}${
               otherUnread > 0
-                ? `, ${t('chat.unreadElsewhere', { count: otherUnread })}`
+                ? `, ${t('chat.unreadElsewhere', {
+                    count: otherUnread,
+                    rooms: otherUnreadChannels
+                      .map(
+                        ([key, authors]) =>
+                          `${channelLabel(key)} (${totalUnread(authors)})`,
+                      )
+                      .join(', '),
+                  })}`
                 : ''
             }`}
             className={SELECT_TRIGGER_CLASS}
@@ -537,13 +548,32 @@ export function ChatPanel({
               <span
                 data-chat-unread-elsewhere={otherUnread}
                 aria-hidden="true"
-                className="mr-1 ml-auto"
+                className="mr-1 ml-auto flex min-w-0 items-center gap-1.5 overflow-hidden"
               >
-                <ChannelUnread
-                  authors={otherUnreadAuthors}
-                  houseName={houseName}
-                  playerOf={playerOf}
-                />
+                {otherUnreadChannels.map(([key, authors]) => (
+                  <span
+                    key={key}
+                    data-chat-unread-channel={key}
+                    className="flex shrink-0 items-center gap-0.5"
+                  >
+                    {key === PUBLIC_CHANNEL ? (
+                      <IconUsers className="size-4 text-ink-500" />
+                    ) : (
+                      channelHouses(key).map((houseId) => (
+                        <HouseMark
+                          key={houseId}
+                          player={playerOf(houseId)}
+                          className="size-4 shrink-0"
+                        />
+                      ))
+                    )}
+                    <ChannelUnread
+                      authors={authors}
+                      houseName={houseName}
+                      playerOf={playerOf}
+                    />
+                  </span>
+                ))}
               </span>
             )}
           </SelectTrigger>
