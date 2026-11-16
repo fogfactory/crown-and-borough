@@ -33,6 +33,10 @@ export interface OrderField {
   options?: OrderFieldOption[] | ((values: Record<string, string>) => OrderFieldOption[])
   /** Checkboxes instead of a select: the value is the space-joined codes. */
   multi?: boolean
+  /** A single checkbox: the value is `true` when checked, empty otherwise. */
+  checkbox?: boolean
+  /** Greys the field out; a disabled checkbox is unchecked. */
+  disabled?: boolean
   placeholder?: string
   maxLength?: number
   /** Skips the field, and its value, while the other values make it pointless. */
@@ -43,6 +47,8 @@ export interface OrderField {
 export interface BuiltOrder {
   line: string
   comment: string
+  /** A second order confirmed together with the first (e.g. the matching vote). */
+  extra?: { line: string; comment: string }
 }
 
 interface OrderDialogProps {
@@ -68,6 +74,10 @@ function fieldOptions(
 function initialValues(fields: OrderField[]): Record<string, string> {
   const values: Record<string, string> = {}
   for (const field of fields) {
+    if (field.checkbox) {
+      values[field.key] = field.disabled ? '' : 'true'
+      continue
+    }
     values[field.key] = field.multi ? '' : (fieldOptions(field, values)?.[0]?.value ?? '')
   }
   return values
@@ -321,6 +331,7 @@ function OrderDialogBody({
 
   const ring = (field: OrderField) => (active?.key === field.key ? MAP_TARGET_RING : '')
   const comment = order ? fullLabelComment(order.comment, links) : ''
+  const extraComment = order?.extra ? fullLabelComment(order.extra.comment, links) : ''
 
   return (
     <div
@@ -343,6 +354,27 @@ function OrderDialogBody({
       />
       {fields.map((field) => {
         if (field.hidden?.(values)) return null
+        if (field.checkbox) {
+          return (
+            <label
+              key={field.key}
+              className={cn(
+                'flex items-center gap-1.5 text-xs font-semibold',
+                field.disabled && 'text-ink-500',
+              )}
+            >
+              <input
+                type="checkbox"
+                disabled={field.disabled}
+                checked={!field.disabled && values[field.key] === 'true'}
+                onChange={(event) =>
+                  setValues({ ...values, [field.key]: event.target.checked ? 'true' : '' })
+                }
+              />
+              {field.label}
+            </label>
+          )
+        }
         const options = fieldOptions(field, values)
         if (field.multi && options) {
           const chosen = values[field.key].split(' ').filter(Boolean)
@@ -419,6 +451,12 @@ function OrderDialogBody({
       <div data-order-preview className="rounded bg-paper-100 px-2 py-1 text-xs">
         <p className="font-mono text-ink-900">{order ? order.line : '—'}</p>
         {order && <p className="text-ink-500">{comment}</p>}
+        {order?.extra && (
+          <>
+            <p className="font-mono text-ink-900">{order.extra.line}</p>
+            <p className="text-ink-500">{extraComment}</p>
+          </>
+        )}
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
@@ -430,7 +468,9 @@ function OrderDialogBody({
           disabled={order === null}
           onClick={() => {
             if (!order) return
-            onConfirm(`${order.line} # ${comment}`)
+            const lines = [`${order.line} # ${comment}`]
+            if (order.extra) lines.push(`${order.extra.line} # ${extraComment}`)
+            onConfirm(lines.join('\n'))
             onClose()
           }}
         >
