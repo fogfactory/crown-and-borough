@@ -106,7 +106,7 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORSMode(server, onlineDevMode)); err != nil {
+	if err := http.ListenAndServe(addr, api.WithSecurityHeaders(api.WithCORSMode(server, onlineDevMode), !onlineDevMode)); err != nil {
 		log.Fatal(err)
 	}
 }
