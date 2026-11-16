@@ -91,6 +91,15 @@ for you: you only write the order lines, one per line, in the form
 - **Errors are refused up front.** A faulty submission (syntax, territories
   that are not adjacent, and so on) is rejected whole, with the line to fix.
   The interface flags these while you type.
+- **Warnings block nothing.** The interface also flags an accepted order that
+  will not run as written: a starving army that attacks, supports or
+  transfers, a pillage with nothing to pillage, a transfer without a
+  recipient, an invalid dispersion, an attack on one of your own armies that stays in place, a support that brings nothing to one of
+  your armies, or a chain that replaces one under way. A chain under way whose
+  order cannot run this season is flagged the same way: send the army a new
+  order, or it risks losing its chain. Supporting another player's army is
+  only recalled by a note, unless you can read its chain because one of its nobles
+  is your hostage: the support is then judged as for your own armies.
 
 ### The orders
 

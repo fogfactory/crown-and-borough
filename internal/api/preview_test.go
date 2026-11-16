@@ -49,6 +49,12 @@ func TestOrdersPreviewReturnsParsedChainsAndLocalizedErrors(t *testing.T) {
 	if len(preview.Errors) != 1 || preview.Errors[0].Line != 3 || preview.Errors[0].Message == "" {
 		t.Fatalf("errors = %#v, want one localized error on line 3", preview.Errors)
 	}
+	if preview.Warnings == nil || len(preview.Warnings) != 0 {
+		t.Errorf("warnings = %#v, want an empty, non-null list", preview.Warnings)
+	}
+	if !strings.Contains(response.Body.String(), `"warnings":[]`) {
+		t.Errorf("body = %s, want an empty warnings array", response.Body.String())
+	}
 	if preview.Errors[0].Source != "chain" {
 		t.Errorf("preview error source = %q, want chain", preview.Errors[0].Source)
 	}

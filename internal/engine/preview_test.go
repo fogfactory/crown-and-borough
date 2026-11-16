@@ -106,6 +106,10 @@ func TestPreviewOrdersSimulatesEachWinterLine(t *testing.T) {
 	if castle.Line != 4 || castle.Order == nil || castle.Applied || castle.Reason != "structure_present" {
 		t.Errorf("castle line = %#v, want a structure_present rejection on line 4", castle)
 	}
+	if len(preview.Warnings) != 1 || preview.Warnings[0].Code != "structure_present" || preview.Warnings[0].Line != 4 ||
+		preview.Warnings[0].Source != InputSourceWinter || preview.Warnings[0].Level != WarningLevelError {
+		t.Errorf("warnings = %#v, want the structure_present rejection of line 4 as an error", preview.Warnings)
+	}
 	want := &WinterCostPreview{Spent: testBalance().Costs.Troop, Available: testBalance().StartingResources}
 	if !reflect.DeepEqual(preview.WinterCost, want) {
 		t.Errorf("winter cost = %#v, want %#v", preview.WinterCost, want)
