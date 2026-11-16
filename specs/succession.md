@@ -230,12 +230,12 @@ respecte pas une est rejeté avec le motif indiqué :
   (`marriage_same_sex`) ;
 - les deux nobles sont libres : ni otage ni au cachot (`noble_not_free`) ;
 - aucun des deux n'est déjà marié (`noble_already_married`).
-- aucun des deux ne porte une dignité qui interdit le mariage
-  (`marriage_forbidden`). Cette condition est un point d'extension : tant que
-  les dignités n'existent pas ([dames.md](dames.md#dignités)), elle ne rejette
-  rien ; l'issue des dignités (#259) précise lesquelles interdisent le
-  mariage, la règle posée dans dames.md étant qu'une dame titulaire d'une
-  dignité ne peut pas se marier tant qu'elle la détient.
+- aucun des deux ne porte une dignité qui interdit le mariage, et aucun
+  n'est évêque, cardinal ou pape (`marriage_forbidden`). Une dame titulaire
+  d'une dignité « Bloqué » ne peut pas se marier tant qu'elle la détient
+  ([dames.md](dames.md#dignités)) ; un noble titulaire d'un titre religieux ne
+  peut pas se marier tant qu'il le détient ([religieux.md](religieux.md)).
+  Un noble qui perd son titre (mort exclue) redevient libre de se marier.
 
 Un noble n'a qu'un seul mariage à la fois. Le mariage prend fin à la mort de
 l'un des époux (il reste enregistré dans la lignée) et le survivant peut se

@@ -195,6 +195,11 @@ func applySimulationAction(state *models.GameState, action SimulationAction) err
 	}
 	switch action.Kind {
 	case SimulationMarry:
+		for _, candidate := range []*models.Noble{noble, other} {
+			if state.MarriageForbidden(*candidate) {
+				return fmt.Errorf("noble %q may not marry", candidate.ID)
+			}
+		}
 		for _, id := range []models.NobleID{noble.ID, other.ID} {
 			if _, married := state.MarriageOf(id); married {
 				return fmt.Errorf("noble %q is already married", id)

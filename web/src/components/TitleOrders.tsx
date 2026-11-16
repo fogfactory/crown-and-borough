@@ -219,6 +219,7 @@ export function TitleOrdersSection({
   const canMarry = (noble: Noble) =>
     noble.status === 'free' &&
     !noble.spouse &&
+    !noble.religiousTitle &&
     !(noble.dignities ?? []).some((dignity) => MARRIAGE_BLOCKING_DIGNITIES.includes(dignity))
   const fiances = own.filter(
     (noble) => canMarry(noble) && !lines.some((line) => line.startsWith(`M N ${noble.code} `)),

@@ -386,6 +386,11 @@ marry in winter if **each player** writes the order: `M N NNN MMM` on one
 side, `M N MMM NNN` on the other. Without the matching order, the marriage
 is refused.
 
+A bishop, a cardinal or the pope cannot marry while holding the title.
+Marriages are concluded before elections: a man who is both betrothed
+(matching orders) and a candidate is married first, his candidacy is rejected
+and the votes backing him are lost.
+
 Each marriage has a **weight**: that of the weaker spouse, based on their
 rank in the line and their title, plus 1 for each other marriage between the
 same two houses.

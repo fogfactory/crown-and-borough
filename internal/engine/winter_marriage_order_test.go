@@ -14,6 +14,9 @@ func marriageTestState(t *testing.T) *models.GameState {
 		territory("AAA", "AAA", "BBB"),
 		territory("BBB", "BBB", "AAA"),
 	}, nil)
+	state.Regions = []models.Region{
+		{ID: "R1", Name: "Ros", Seed: "AAA", Territories: []models.TerritoryID{"AAA", "BBB"}},
+	}
 	addNoble(state, "N1", "HUG", "P1", "AAA")
 	addNoble(state, "N2", "ANN", "P2", "BBB")
 	addNoble(state, "N3", "EVE", "P3", "BBB")
@@ -90,6 +93,42 @@ func TestMarriageRejections(t *testing.T) {
 				"P3": {marriageSheetOrder("O1", "EVE", "HUG")},
 			},
 			player: "P1", reason: "marriage_not_reciprocated",
+		},
+		{
+			name: "bishop",
+			mutate: func(state *models.GameState) {
+				state.Bishops = append(state.Bishops, models.Bishop{Region: state.Regions[0].ID, Noble: "N1"})
+			},
+			sheets: map[models.PlayerID][]models.WinterOrder{
+				"P1": {marriageSheetOrder("O1", "HUG", "ANN")},
+				"P2": {marriageSheetOrder("O1", "ANN", "HUG")},
+			},
+			player: "P1", reason: "marriage_forbidden",
+		},
+		{
+			name: "cardinal",
+			mutate: func(state *models.GameState) {
+				state.Bishops = append(state.Bishops, models.Bishop{Region: state.Regions[0].ID, Noble: "N1"})
+				state.Cardinals = append(state.Cardinals, "N1")
+			},
+			sheets: map[models.PlayerID][]models.WinterOrder{
+				"P1": {marriageSheetOrder("O1", "HUG", "ANN")},
+				"P2": {marriageSheetOrder("O1", "ANN", "HUG")},
+			},
+			player: "P1", reason: "marriage_forbidden",
+		},
+		{
+			name: "pope",
+			mutate: func(state *models.GameState) {
+				pope := models.NobleID("N1")
+				state.Bishops = append(state.Bishops, models.Bishop{Region: state.Regions[0].ID, Noble: "N1"})
+				state.Pope = &pope
+			},
+			sheets: map[models.PlayerID][]models.WinterOrder{
+				"P1": {marriageSheetOrder("O1", "HUG", "ANN")},
+				"P2": {marriageSheetOrder("O1", "ANN", "HUG")},
+			},
+			player: "P1", reason: "marriage_forbidden",
 		},
 		{
 			name: "not own noble",

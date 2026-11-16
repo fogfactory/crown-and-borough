@@ -1027,7 +1027,7 @@ const englishMessages = {
     'Marriage pending: it only takes place if the other player submits the matching order.',
   'reports.reason.marriage_same_owner': 'Both nobles belong to the same player.',
   'reports.reason.marriage_same_sex': 'A marriage needs a man and a lady.',
-  'reports.reason.marriage_forbidden': 'A dignity forbids this noble to marry.',
+  'reports.reason.marriage_forbidden': 'A dignity or a religious title forbids this noble to marry.',
   'reports.reason.noble_not_owned': 'The noble does not belong to this player.',
   'reports.reason.noble_not_free':
     'Both nobles must be free (neither hostage nor imprisoned).',
@@ -1302,6 +1302,9 @@ const englishMessages = {
     'How does a dispersal work: where do the troops, the nobles and the chain go?',
   'faq.a25':
     'A dispersal (`XXX D DEST1 DEST2 …`) sends one troop to each destination listed, in order. Troops that do not leave stay on the starting territory. Two other things move with it:\n\n- **The chain** continues with the army on the **last** destination that received a troop: write the next order from that territory. If that army already follows orders of its own, the rest of your chain is discarded and the report says so.\n- **The nobles**: `*` after a destination sends all the remaining nobles with that group, `*NNN` a single one. A noble you do not assign stays on the starting territory as long as a troop stays there; if every troop leaves, it follows the last destination.\n\nExamples, for an army of 3 troops with a noble on `XXX`, next to `BBB` and `CCC`:\n\n- `XXX D BBB`: 1 troop on `BBB` (the chain continues from `BBB`), 2 troops and the noble stay on `XXX`.\n- `XXX D BBB CCC`: 1 troop on each, 1 troop and the noble stay on `XXX`; the chain continues from `CCC`.\n- `XXX D XXX BBB BBB`: 1 troop and the noble stay on `XXX`, 2 troops on `BBB`; the chain continues from `BBB`, without the noble.\n- `XXX D XXX BBB*`: 2 troops stay on `XXX`, 1 troop on `BBB` with the noble and the chain.\n- `XXX D BBB* CCC`: the noble goes to `BBB`, the chain continues from `CCC`.\n- `XXX D BBB BBB BBB`: every troop leaves: the army of 3 stands on `BBB` with the noble and the chain.\n- To keep the chain at home, list the starting territory last: `XXX D BBB CCC XXX` leaves 1 troop on each of `BBB`, `CCC` and `XXX`, and the chain continues from `XXX`.',
+  'faq.q26': 'Can a candidate bishop also marry the same winter?',
+  'faq.a26':
+    'Marriages resolve before elections. If the matching marriage orders are both written, the man is married first: his candidacy is rejected and the votes backing him are lost. Without the matching order he stays single and can be elected. A bishop, cardinal or pope cannot marry while holding the title.',
   'error.line': 'Line {line}: {message}',
   'error.invalidOrder': 'Invalid order',
   'error.winter.order_shape':
@@ -2653,7 +2656,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     "Mariage en attente : il n'a lieu que si l'autre joueur soumet l'ordre correspondant.",
   'reports.reason.marriage_same_owner': 'Les deux nobles appartiennent au même joueur.',
   'reports.reason.marriage_same_sex': 'Un mariage exige un homme et une dame.',
-  'reports.reason.marriage_forbidden': 'Une dignité interdit à ce noble de se marier.',
+  'reports.reason.marriage_forbidden': 'Une dignité ou un titre religieux interdit à ce noble de se marier.',
   'reports.reason.noble_not_owned': "Le noble n'appartient pas à ce joueur.",
   'reports.reason.noble_not_free':
     'Les deux nobles doivent être libres (ni otage ni au cachot).',
@@ -2940,6 +2943,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Comment fonctionne une dispersion : où vont les troupes, les nobles et la chaîne ?',
   'faq.a25':
     'Une dispersion (`XXX D DEST1 DEST2 …`) envoie une troupe à chaque destination listée, dans l’ordre. Les troupes qui ne partent pas restent sur la case de départ. Deux autres choses suivent :\n\n- **La chaîne** continue avec l’armée de la **dernière** destination qui a reçu une troupe : écris l’ordre suivant depuis cette case. Si cette armée suit déjà ses propres ordres, la suite de ta chaîne est abandonnée et le rapport l’indique.\n- **Les nobles** : `*` après une destination y envoie tous les nobles restants, `*NNN` un seul. Un noble sans affectation reste sur la case de départ tant qu’une troupe y demeure ; si toutes les troupes partent, il suit la dernière destination.\n\nExemples, pour une armée de 3 troupes avec un noble sur `XXX`, à côté de `BBB` et `CCC` :\n\n- `XXX D BBB` : 1 troupe sur `BBB` (la chaîne continue depuis `BBB`), 2 troupes et le noble restent sur `XXX`.\n- `XXX D BBB CCC` : 1 troupe sur chacune, 1 troupe et le noble restent sur `XXX` ; la chaîne continue depuis `CCC`.\n- `XXX D XXX BBB BBB` : 1 troupe et le noble restent sur `XXX`, 2 troupes sur `BBB` ; la chaîne continue depuis `BBB`, sans le noble.\n- `XXX D XXX BBB*` : 2 troupes restent sur `XXX`, 1 troupe sur `BBB` avec le noble et la chaîne.\n- `XXX D BBB* CCC` : le noble va sur `BBB`, la chaîne continue depuis `CCC`.\n- `XXX D BBB BBB BBB` : toutes les troupes partent : l’armée de 3 est sur `BBB` avec le noble et la chaîne.\n- Pour garder la chaîne sur place, liste la case de départ en dernier : `XXX D BBB CCC XXX` laisse 1 troupe sur `BBB`, `CCC` et `XXX`, et la chaîne continue depuis `XXX`.',
+  'faq.q26': 'Un candidat à l’épiscopat peut-il aussi se marier le même hiver ?',
+  'faq.a26':
+    'Les mariages se résolvent avant les élections. Si les deux ordres de mariage réciproques sont écrits, l’homme est marié d’abord : sa candidature est rejetée et les voix qui le soutenaient sont perdues. Sans ordre réciproque, il reste célibataire et peut être élu. Un évêque, un cardinal ou le pape ne peut pas se marier tant qu’il garde son titre.',
   'error.line': 'Ligne {line} : {message}',
   'error.invalidOrder': 'Ordre invalide',
   'error.winter.order_shape':

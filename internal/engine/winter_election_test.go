@@ -384,3 +384,25 @@ func TestBishopVoicesCountInhabitedPlacesOnly(t *testing.T) {
 		t.Fatalf("P2 voices = %d, want 1 for the ruined village", other[0].Voices)
 	}
 }
+
+// A reciprocal marriage resolves (stage 5) before the elections (stage 6): the
+// candidate is married by then and his candidacy is rejected.
+func TestCandidacyRejectedWhenMarriedTheSameWinter(t *testing.T) {
+	state := electionTestState(t)
+	addNoble(state, "N7", "BER", "P2", "CCC")
+	for index := range state.Nobles {
+		if state.Nobles[index].ID == "N7" {
+			state.Nobles[index].Sex = models.SexFemale
+		}
+	}
+	resolution := resolveElectionSheets(t, state, map[models.PlayerID][]models.WinterOrder{
+		"P1": {marriageSheetOrder("O1", "HUG", "BER"), candidacy("O2", "HUG", "AAA")},
+		"P2": {marriageSheetOrder("O3", "BER", "HUG")},
+	})
+	if len(resolution.State.Marriages) != 1 {
+		t.Fatalf("marriages = %#v, want the marriage concluded", resolution.State.Marriages)
+	}
+	if reason := electionRejections(resolution.Events)["O2"]; reason != "candidate_not_eligible" {
+		t.Errorf("candidacy rejected with %q, want candidate_not_eligible", reason)
+	}
+}

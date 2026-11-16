@@ -819,7 +819,7 @@ function SimulationBar({
           <button
             type="button"
             className={button}
-            disabled={!alive || Boolean(noble?.spouse)}
+            disabled={!alive || Boolean(noble?.spouse) || Boolean(noble?.religiousTitle)}
             onClick={() => onPending({ kind: 'marry', from: selection.code })}
           >
             {t('sim.marry')}
