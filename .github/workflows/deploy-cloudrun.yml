@@ -405,7 +405,7 @@ jobs:
           [[ "$games_status" == 401 ]]
           [[ "$auth_status" == 401 ]]
 
-          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/api/version" | tr -d '\r')"
+          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/" | tr -d '\r')"
           for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy-Report-Only; do
             grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header"; exit 1; }
           done
@@ -522,7 +522,7 @@ jobs:
           [[ "$games_status" == 401 ]]
           [[ "$auth_status" == 401 ]]
 
-          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/api/version" | tr -d '\r')"
+          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/" | tr -d '\r')"
           for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy-Report-Only; do
             grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header"; exit 1; }
           done

@@ -84,7 +84,8 @@ Hosting, déclenché par un tag `v*` (voir `docs/deploy-cloudrun.md`).
 Toutes les réponses portent des en-têtes de sécurité : `nosniff`,
 `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: SAMEORIGIN`, HSTS
 (production uniquement) et une `Content-Security-Policy-Report-Only` qui liste
-les hôtes Firebase Auth et Firestore. Le serveur Go les pose via
+les hôtes que le client contacte (Firebase Auth, Firestore, API GitHub des
+release notes). Le serveur Go les pose via
 `api.WithSecurityHeaders` et `firebase.json` les reproduit pour Hosting. La CSP
 reste en mode rapport tant que ses violations n'ont pas été examinées.
 

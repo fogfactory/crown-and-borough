@@ -709,7 +709,7 @@ tag URL:
 - `/` and a client-side route return the embedded SPA root;
 - `/api/rules` is reachable;
 - `/api/games` and `/api/auth/me` return `401` without a Firebase token;
-- API responses carry the security headers (`X-Content-Type-Options`,
+- `/` carries the security headers (`X-Content-Type-Options`,
   `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`,
   `Strict-Transport-Security` and `Content-Security-Policy-Report-Only`).
 

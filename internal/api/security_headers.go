@@ -3,16 +3,17 @@ package api
 import "net/http"
 
 // contentSecurityPolicy is deployed in report-only mode first: it lists the
-// Firebase Auth and Firestore endpoints the web client talks to, and allows
-// inline styles because the map SVG is styled inline. Framing is limited to
-// the same origin (not denied outright) so that Firebase Auth can embed its
-// own handler page when the auth domain is the application domain.
+// Firebase Auth, Firestore and GitHub release API endpoints the web client
+// talks to, and allows inline styles because the map SVG is styled inline.
+// Framing is limited to the same origin (not denied outright) so that Firebase
+// Auth can embed its own handler page when the auth domain is the application
+// domain.
 const contentSecurityPolicy = "default-src 'self'; " +
 	"script-src 'self' https://apis.google.com; " +
 	"style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' data: blob:; " +
 	"font-src 'self' data:; " +
-	"connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com; " +
+	"connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://api.github.com; " +
 	"frame-src 'self' https://*.firebaseapp.com; " +
 	"object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
 
