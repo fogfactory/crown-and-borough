@@ -318,6 +318,8 @@ assassinations. The details are in appendix B.
 
 ## 6. Nobles, fiefs and the crown
 
+<a id="rules-noble-deck"></a>
+
 ### The noble deck
 
 Nobles are drawn from a **deck shared** by all players, which mixes noble
@@ -401,6 +403,8 @@ same two houses.
 The **Lineage and alliances** view shows the families, marriages and claims,
 and offers a victory simulator.
 
+<a id="rules-claims"></a>
+
 ### Claims
 
 One of your nobles recruited during a marriage between one of yours and
@@ -413,6 +417,8 @@ heir, from the oldest Claim to the most recent. A Claim is public.
   heir receives the **exiled** title; otherwise the heir becomes the holder.
 - `T C HHH` renounces a Claim for free: the card returns to the discard pile.
   Details in the FAQ.
+
+<a id="rules-dignities"></a>
 
 ### Dignities
 
@@ -539,6 +545,8 @@ The deck holds {{special_orders.deck_size}} cards.
 A drawn calamity is scheduled for the following year, at most one per
 season. It is announced as soon as it is drawn, and the **spring omen**
 reveals the season and region of every calamity of the year.
+
+<a id="rules-bonus-cards"></a>
 
 ### Bonus cards
 
@@ -671,6 +679,8 @@ It exists in online games only: it is absent in hotseat.
 
 ---
 
+<a id="rules-action-orders"></a>
+
 ## Appendix A — Order cheat sheet
 
 `XXX`, `YYY`, `ZZZ` are territories; `NNN`, `HHH` are nobles; `CCC` is a
@@ -713,6 +723,8 @@ card. Army orders are free.
 | `P JU HHH` | Justice (also in winter) |
 
 ---
+
+<a id="rules-winter-orders"></a>
 
 ## Appendix B — Winter orders
 
