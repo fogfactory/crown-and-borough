@@ -173,16 +173,22 @@ export function crownShape(kind: CrownKind): {
 // Control shield: the heater shield, reduced to sit beside a territory name.
 export const CONTROL_SHIELD_SCALE = 0.8
 
-/** A color's grey of equal luminance (Rec. 709 weights). */
-export function desaturate(hex: string): string {
+/** A hex color's luminance, 0–255 (Rec. 709 weights); null for anything else. */
+export function luminance(hex: string): number | null {
   const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
-  if (!match) return NEUTRAL_ARMY_COLOR
+  if (!match) return null
   const value =
     match[1].length === 3
       ? [...match[1]].map((digit) => digit + digit).join('')
       : match[1]
   const channel = (index: number) => parseInt(value.slice(index * 2, index * 2 + 2), 16)
-  const grey = Math.round(0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2))
+  return Math.round(0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2))
+}
+
+/** A color's grey of equal luminance (Rec. 709 weights). */
+export function desaturate(hex: string): string {
+  const grey = luminance(hex)
+  if (grey === null) return NEUTRAL_ARMY_COLOR
   const digits = grey.toString(16).padStart(2, '0')
   return `#${digits}${digits}${digits}`
 }
