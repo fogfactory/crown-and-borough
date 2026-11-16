@@ -18,9 +18,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create or update the release pull request
+        id: release
         uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           target-branch: main
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # Merge commits repeat the PR title, so release-please lists each such
+      # change twice. Strip the entries that point at a merge commit.
+      - name: Remove duplicate entries from the release pull request
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+          PR_BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: |
+          git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
+          git checkout --quiet "$PR_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          scripts/dedupe-release-notes.sh CHANGELOG.md
+          if ! git diff --quiet; then
+            git commit --quiet -am "chore(release): drop duplicate changelog entries"
+            git push --quiet origin "$PR_BRANCH"
+          fi
+
+          gh pr view "$PR_NUMBER" --json body --jq .body > "$RUNNER_TEMP/body.md"
+          scripts/dedupe-release-notes.sh "$RUNNER_TEMP/body.md"
+          gh pr edit "$PR_NUMBER" --body-file "$RUNNER_TEMP/body.md"
