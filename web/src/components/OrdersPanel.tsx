@@ -881,10 +881,18 @@ function OpenElectionsSection({
           const noSeat = isPope || isKing
           const kind = isKing ? 'R' : 'P'
           const seat = election.seat ?? ''
-          const filable = election.candidates.filter((candidate) => {
-            const line = noSeat ? `K ${kind} ${candidate.code}` : `K E ${candidate.code} ${seat}`
-            return !lines.includes(line.toUpperCase())
-          })
+          const orderLine = (verb: 'K' | 'V', code: string) =>
+            noSeat ? `${verb} ${kind} ${code}` : `${verb} E ${code} ${seat}`
+          const filable = election.candidates.filter(
+            (candidate) => !lines.includes(orderLine('K', candidate.code).toUpperCase()),
+          )
+          // One vote per election: the box is greyed out without a voice or
+          // once a vote is already in the draft.
+          const castsVote = (line: string) =>
+            noSeat
+              ? line.startsWith(`V ${kind} `)
+              : line.startsWith('V E ') && line.endsWith(` ${seat.toUpperCase()}`)
+          const canVote = election.voices > 0 && !lines.some(castsVote)
           return (
             <details
               key={`${election.kind}-${election.region ?? ''}`}
@@ -957,15 +965,26 @@ function OpenElectionsSection({
                           label: `${candidate.name} (${candidate.code})`,
                         })),
                       },
+                      {
+                        key: 'voteForMe',
+                        label: t('orders.electionVoteForMe'),
+                        checkbox: true,
+                        disabled: !canVote,
+                      },
                     ]}
                     buildOrder={(values) => {
                       const candidate = filable.find((entry) => entry.code === values.noble)
                       if (!candidate) return null
                       return {
-                        line: noSeat
-                          ? `K ${kind} ${candidate.code}`
-                          : `K E ${candidate.code} ${seat}`,
+                        line: orderLine('K', candidate.code),
                         comment: t('orders.electionCandidacyComment', { name: candidate.name }),
+                        extra:
+                          canVote && values.voteForMe === 'true'
+                            ? {
+                                line: orderLine('V', candidate.code),
+                                comment: t('orders.comment.vote', { name: candidate.name }),
+                              }
+                            : undefined,
                       }
                     }}
                     onConfirm={(line) => onWinterChange(appendDraftLine(winterDraft, line))}
@@ -997,7 +1016,7 @@ function OpenElectionsSection({
                       const code = values.noble.trim().toUpperCase()
                       if (!/^[A-Z]{3}$/.test(code)) return null
                       return {
-                        line: noSeat ? `V ${kind} ${code}` : `V E ${code} ${seat}`,
+                        line: orderLine('V', code),
                         comment: t('orders.comment.vote', {
                           name:
                             state.nobles.find((noble) => noble.code === code)?.name ?? code,
