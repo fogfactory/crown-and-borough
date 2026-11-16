@@ -57,7 +57,9 @@ go build -o bin/server-league ./cmd/server
 SERVER_PORT="$port" FIRESTORE_PORT="$firestore_port" AUTH_PORT="$auth_port" \
 	docker compose -p "$project" up -d --wait firestore auth >/dev/null
 
+# The agents of a league all call from this machine: no per-client limit.
 ASSETS_DIR=assets \
+	RATE_LIMIT_REQUESTS=0 \
 	FIRESTORE_EMULATOR_HOST="127.0.0.1:$firestore_port" \
 	FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:$auth_port" \
 	FIREBASE_PROJECT_ID=demo-crown-and-borough \
