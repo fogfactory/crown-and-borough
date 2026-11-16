@@ -190,8 +190,9 @@ func TestGameDocumentCarriesDurationAndScores(t *testing.T) {
 		t.Fatalf("document scores = %#v, want P1 score", document.Scores)
 	}
 	restored := gameSnapshot(assetgen.Balance{}, document, state, mapgen.MapData{}, nil, nil)
-	if restored.Scores["P1"].Total != 1 {
-		t.Fatalf("restored scores = %#v, want P1 score", restored.Scores)
+	// Scores are recomputed from the state, not read back from the stale copy.
+	if want := engine.ComputeScores(state, assetgen.Balance{}); restored.Scores["P1"] != want["P1"] {
+		t.Fatalf("restored scores = %#v, want %#v", restored.Scores, want)
 	}
 }
 
