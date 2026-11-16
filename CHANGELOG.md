@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/fogfactory/crown-and-borough/compare/v1.3.0...v1.4.0) (2026-11-16)
+
+
+### Features
+
+* **chat:** show which channels hold unread messages on the selector trigger ([1d49c16](https://github.com/fogfactory/crown-and-borough/commit/1d49c161d9d5422060f36cfa8bbaef22595b2a05))
+* **chat:** unread pills in the channel selector and smart initial channel ([ff93f44](https://github.com/fogfactory/crown-and-borough/commit/ff93f44ba71a66b6953d54fbd40fb534dd6168fd)), closes [#596](https://github.com/fogfactory/crown-and-borough/issues/596)
+* **web:** explain hand cards with a help popover ([910a402](https://github.com/fogfactory/crown-and-borough/commit/910a402d5312ebf25a6786d5836d8a892c95f1db))
+* **web:** vote for my candidate by default when filing a candidacy ([4913805](https://github.com/fogfactory/crown-and-borough/commit/49138053a80c1d81745a7f006065986d70f5c6c8))
+
+
+### Bug Fixes
+
+* **engine:** forbid marriage of bishops, cardinals and the pope ([533bf13](https://github.com/fogfactory/crown-and-borough/commit/533bf13bfbbb51b5769b12b5234a436a41a86c1b)), closes [#665](https://github.com/fogfactory/crown-and-borough/issues/665)
+* **orders:** warn in the orders preview about orders that will not run as written ([4763604](https://github.com/fogfactory/crown-and-borough/commit/4763604418e616b69b3b11d8166ce91a4cac4200))
+* **orders:** warn when an attack targets an own army that stays in place ([a3eaa86](https://github.com/fogfactory/crown-and-borough/commit/a3eaa86f8f3d33c613af1f76b7ba330a96a1c6d4))
+* **release:** drop duplicate entries from release notes ([f1631b4](https://github.com/fogfactory/crown-and-borough/commit/f1631b4bc752eac36adbb04ce48f95509935a41d))
+* **store:** recompute game scores from state in the games list ([40acb6f](https://github.com/fogfactory/crown-and-borough/commit/40acb6f72ec0c76d0d7c443ec6cd1fe0e08b4c4d))
+
 ## [1.3.0](https://github.com/fogfactory/crown-and-borough/compare/v1.2.1...v1.3.0) (2026-11-13)
 
 
@@ -7,7 +26,6 @@
 
 * **api:** refuse writes from a client of another build ([fef7cb0](https://github.com/fogfactory/crown-and-borough/commit/fef7cb08aa1a71492dfb4be0a9fbd1696ae00b99))
 * **demo:** add a claim scenario and a claim on the exile of the usurpation one ([fc30146](https://github.com/fogfactory/crown-and-borough/commit/fc301469554a9adfc651052468a1ad25c7a2a78b))
-* **engine:** conquer fiefs with a noble, usurper and exile titles ([f2ec177](https://github.com/fogfactory/crown-and-borough/commit/f2ec177be310eebaa78c9b90f10a6fb9e6793c42))
 * **engine:** conquer fiefs with a noble, usurper and exile titles ([10bdb24](https://github.com/fogfactory/crown-and-borough/commit/10bdb24105b2493e5415bd0639982e7a48adc705))
 * **online:** email notifications for new turn and new message ([17b3d08](https://github.com/fogfactory/crown-and-borough/commit/17b3d08f9fa5a61c590839714f505b49ccc629dc))
 * **web:** show usurper and exile titles and T C / T D orders ([be6fe22](https://github.com/fogfactory/crown-and-borough/commit/be6fe226829a8aef34704c44a2863513b20eff57))
@@ -20,20 +38,14 @@
 * **deps:** update module google.golang.org/api to v0.313.0 ([#620](https://github.com/fogfactory/crown-and-borough/issues/620)) ([8ec4f2d](https://github.com/fogfactory/crown-and-borough/commit/8ec4f2da744325c06e67940508c31ac379709c94))
 * **deps:** update module google.golang.org/api to v0.314.0 ([#643](https://github.com/fogfactory/crown-and-borough/issues/643)) ([b908ca9](https://github.com/fogfactory/crown-and-borough/commit/b908ca94c282ac5d05238c01102d49ebf506ed4d))
 * **deps:** update module google.golang.org/api to v0.315.0 ([#657](https://github.com/fogfactory/crown-and-borough/issues/657)) ([ba066d7](https://github.com/fogfactory/crown-and-borough/commit/ba066d7fcbb93879ca359d83b73d86bea0d8a704))
-* **docs:** say a dispersal destination can be repeated ([4b88151](https://github.com/fogfactory/crown-and-borough/commit/4b881513cd99f8f16efc62863760b7ab1ad57615))
 * **docs:** say a dispersal destination can be repeated ([2f4ad54](https://github.com/fogfactory/crown-and-borough/commit/2f4ad54572b5f3e4f9a2a7b4e9cbf06b74df2978))
 * **engine:** count every support, whoever gives it ([b8a8fea](https://github.com/fogfactory/crown-and-borough/commit/b8a8fea8d7342636757daffe4115f3c924c0aa7b))
-* **engine:** resolve attacks on own armies and chain dispersions ([aaa4019](https://github.com/fogfactory/crown-and-borough/commit/aaa4019bbf93165f35101f6029993988238c6b6d))
 * **engine:** resolve attacks on own armies and chain dispersions ([61244c0](https://github.com/fogfactory/crown-and-borough/commit/61244c078b9c911d7f2e1f9852d8b1e910651046))
-* **online:** email notifications for new turn and new message ([62c3a6f](https://github.com/fogfactory/crown-and-borough/commit/62c3a6f749aa097cc02ebb4877c4b0f1e3a6c661))
-* **orders:** restore saved special orders after reload ([43213c2](https://github.com/fogfactory/crown-and-borough/commit/43213c21771e3872b09ca50bb412b924d8f6a572))
 * **orders:** restore saved special orders after reload ([3756f5d](https://github.com/fogfactory/crown-and-borough/commit/3756f5d4730fe86a1b3d3f54a205e48059143349)), closes [#640](https://github.com/fogfactory/crown-and-borough/issues/640)
-* **web:** keep army and noble markers inside their own territory ([e7b7c9d](https://github.com/fogfactory/crown-and-borough/commit/e7b7c9d03436bc248ccd819a653eede4eabc16c8))
 * **web:** keep army and noble markers inside their own territory ([0be96af](https://github.com/fogfactory/crown-and-borough/commit/0be96afba94449528ac6c208a53e19f2c7461b1c))
 * **web:** keep every saved special sheet entry when restoring ([17c8f85](https://github.com/fogfactory/crown-and-borough/commit/17c8f85c2a7dd7d45b1606bb55ca3a288e6d3e05))
 * **web:** restore card orders after reload and refuse stale clients ([65c0b25](https://github.com/fogfactory/crown-and-borough/commit/65c0b256c7a35c21533d7356650b6514735ee689))
 * **web:** restore saved card orders outside winter after reload ([2f4f4bf](https://github.com/fogfactory/crown-and-borough/commit/2f4f4bf84d129d8a8177983dbc74d2792d77af02)), closes [#647](https://github.com/fogfactory/crown-and-borough/issues/647)
-* **web:** show which disperse leg carries the nobles ([77ea333](https://github.com/fogfactory/crown-and-borough/commit/77ea3331be29d0ff1c3caac46238c9a64951f125))
 * **web:** show which disperse leg carries the nobles ([dade618](https://github.com/fogfactory/crown-and-borough/commit/dade6181cbaacbfabde189408c9c1ced43873595)), closes [#605](https://github.com/fogfactory/crown-and-borough/issues/605)
 
 
@@ -66,11 +78,8 @@
 
 * **deps:** update module golang.org/x/text to v0.44.0 ([#590](https://github.com/fogfactory/crown-and-borough/issues/590)) ([43bed5b](https://github.com/fogfactory/crown-and-borough/commit/43bed5b580b035d33a3662a4acfd8f90e0143cca))
 * **deps:** update module google.golang.org/api to v0.312.0 ([#601](https://github.com/fogfactory/crown-and-borough/issues/601)) ([fecbd22](https://github.com/fogfactory/crown-and-borough/commit/fecbd223bdfd06992d0cba81214459f6b85d5bce))
-* **elections:** open bishop elections on inhabited places ([cbff33f](https://github.com/fogfactory/crown-and-borough/commit/cbff33f0feca0b4813ccb987e4cb15797a714b7f))
 * **elections:** open bishop elections on inhabited places ([197b6af](https://github.com/fogfactory/crown-and-borough/commit/197b6af5f4594d10d7fe4a73a45f8950e5b575d8)), closes [#597](https://github.com/fogfactory/crown-and-borough/issues/597)
-* **online:** restore live updates on the game list ([2040f5e](https://github.com/fogfactory/crown-and-borough/commit/2040f5e67e1402e7f3ecda1ed3b63bdfd929c97e))
 * **online:** restore live updates on the game list ([e622195](https://github.com/fogfactory/crown-and-borough/commit/e622195c98268586bbe957ec1157d08606045265)), closes [#568](https://github.com/fogfactory/crown-and-borough/issues/568)
-* **web:** translate report and api error messages ([745797e](https://github.com/fogfactory/crown-and-borough/commit/745797e3cd8ebd69b972fa4527712c91219af18a))
 * **web:** translate report and api error messages ([f3119eb](https://github.com/fogfactory/crown-and-borough/commit/f3119eb29b337d715b397ee72b14b47de7fd2c19))
 
 ## [1.2.0](https://github.com/fogfactory/crown-and-borough/compare/v1.1.0...v1.2.0) (2026-11-09)
@@ -78,7 +87,6 @@
 
 ### Features
 
-* **web:** link territory and noble names in chat messages to the map ([9a2a04b](https://github.com/fogfactory/crown-and-borough/commit/9a2a04bef158c2e1e99cf6e98dfe28769e680973))
 * **web:** link territory and noble names in chat messages to the map ([c2a9acc](https://github.com/fogfactory/crown-and-borough/commit/c2a9accf1c36ebeeaf12cadb62d6d6269d9e20e4)), closes [#567](https://github.com/fogfactory/crown-and-borough/issues/567)
 
 
@@ -87,17 +95,12 @@
 * **chat:** keep focus and screen reader context in selectors ([b78fd21](https://github.com/fogfactory/crown-and-borough/commit/b78fd214d35185782fe2a391bd505a26dd338974))
 * **chat:** polish conversation selectors after review ([9bce0a3](https://github.com/fogfactory/crown-and-borough/commit/9bce0a32d46b1502539474a2c015540302e85c04))
 * **chat:** restore focus to the opened trigger unless a house was picked ([6057fcf](https://github.com/fogfactory/crown-and-borough/commit/6057fcf6fe7d106898beaea84487049978b399fe))
-* **chat:** show house arms in conversation selectors ([ccf9f97](https://github.com/fogfactory/crown-and-borough/commit/ccf9f97fbe527d73bce013a779d890d2069c3068))
 * **chat:** show house arms in conversation selectors ([538719f](https://github.com/fogfactory/crown-and-borough/commit/538719f7dc68b79b8625d1d3a60c261c03758c76)), closes [#564](https://github.com/fogfactory/crown-and-borough/issues/564)
 * **docs:** regenerate lineage and winter rules screenshots ([9998f65](https://github.com/fogfactory/crown-and-borough/commit/9998f6561e50b8ec97458c0668631188cdccbc45))
-* **docs:** show male clergy in the rules realm screenshots ([485a590](https://github.com/fogfactory/crown-and-borough/commit/485a590ad46a08f44a499e0c490f1ef622ec47a6))
 * **docs:** show male clergy in the rules realm screenshots ([feab7fa](https://github.com/fogfactory/crown-and-borough/commit/feab7fa881123f43aac3a5d123609910967bd5cf)), closes [#560](https://github.com/fogfactory/crown-and-borough/issues/560)
-* **engine:** count only the spouse's titles in influence marriages ([b8ff98c](https://github.com/fogfactory/crown-and-borough/commit/b8ff98ce8279c45f7d6a2a2c71ab1064d1715af3))
 * **engine:** count only the spouse's titles in influence marriages ([675561e](https://github.com/fogfactory/crown-and-borough/commit/675561e6f99a04386426ea2b45bcca223ea813a4)), closes [#577](https://github.com/fogfactory/crown-and-borough/issues/577)
-* **web:** highlight a bishopric on the map when hovering its name ([042f741](https://github.com/fogfactory/crown-and-borough/commit/042f741251765bfe021a67aff53c27bda4f1a993))
 * **web:** highlight a bishopric on the map when hovering its name ([4449ceb](https://github.com/fogfactory/crown-and-borough/commit/4449cebfe88ee61da2c91ce48e9608bde4420d16))
 * **web:** link a bishopric to its seed territory ([294e58a](https://github.com/fogfactory/crown-and-borough/commit/294e58a2cdc58f77d5d18a87491c77aed3906650))
-* **web:** remove duplicate scores from the players panel ([24499d8](https://github.com/fogfactory/crown-and-borough/commit/24499d8096f3438dd83c2f97ef6752022b1e8729))
 * **web:** remove duplicate scores from the players panel ([b5fbb41](https://github.com/fogfactory/crown-and-borough/commit/b5fbb413bef74ed0bf5294d46139b0956e0bf041))
 
 
@@ -147,27 +150,17 @@
 * **api:** expose lineage, marriage categories, head successors and claims ([aa00766](https://github.com/fogfactory/crown-and-borough/commit/aa00766a2e89011720dc65bfb06d59845416035b))
 * **balance:** count the bishopric seat as two votes in its bishop election ([e645182](https://github.com/fogfactory/crown-and-borough/commit/e64518209ea40a7d39562591fc8f7cb9eeb18713))
 * **balance:** raise the hand limit to 6 cards ([e17c8f9](https://github.com/fogfactory/crown-and-borough/commit/e17c8f9a0d1f9e61982472ecc8a32025e484df38))
-* **bots:** add botleague to play games between language-model houses ([be91804](https://github.com/fogfactory/crown-and-borough/commit/be918042ec1cce5dc6ad6036c3bce2cb0cc91133))
 * **bots:** add botleague to play games between language-model houses ([637c8d8](https://github.com/fogfactory/crown-and-borough/commit/637c8d82f005905ac5db9f511261b83c9c6cf102))
-* **cards:** add ambush card and validate attack designations at submission ([c9520a2](https://github.com/fogfactory/crown-and-borough/commit/c9520a2ca7b1b4194191daa7493e03df5b9fece2))
 * **cards:** add ambush card and validate attack designations at submission ([259d14c](https://github.com/fogfactory/crown-and-borough/commit/259d14cf287bdc205a03e4ab58d4a88548806a46))
-* **cards:** add assassination card (noble death, recorded commissioner) ([536a161](https://github.com/fogfactory/crown-and-borough/commit/536a161efbb161b0ee5f518a0270720ad0ba9711))
 * **cards:** add assassination card (noble death, recorded commissioner) ([dbf1b88](https://github.com/fogfactory/crown-and-borough/commit/dbf1b8884023982dfa696f2ad154686ee23cc6fe))
-* **cards:** add justice card and trial of an assassination commissioner ([a527ec5](https://github.com/fogfactory/crown-and-borough/commit/a527ec517c539cb939f2994a719b9bae18789e1e))
 * **cards:** add justice card and trial of an assassination commissioner ([f09783c](https://github.com/fogfactory/crown-and-borough/commit/f09783c568934dde3411a70699750b1d0270dbdc))
-* **cards:** add the lady dignities played from the noble deck ([692d3f0](https://github.com/fogfactory/crown-and-borough/commit/692d3f0ae5e86f19cca954c565efe28f9aef6697))
 * **cards:** add the lady dignities played from the noble deck ([c331296](https://github.com/fogfactory/crown-and-borough/commit/c331296481ff1da2679ec44336e0b42680c2c4c2))
 * **cards:** add trial card with revolt window after an execution ([f5d1842](https://github.com/fogfactory/crown-and-borough/commit/f5d1842974ba7894dd841033c6371abd7600ecec))
-* **cards:** add tunnel card (noble escape, tunneled attack) ([54d91c2](https://github.com/fogfactory/crown-and-borough/commit/54d91c2dda8e5dea4813e3d818b457e78cfecd2a))
 * **cards:** add tunnel card (noble escape, tunneled attack) ([3bdb1c5](https://github.com/fogfactory/crown-and-borough/commit/3bdb1c51736115c3e3d81befe6dae00dc30c4e8b))
-* **cards:** let a trial reveal a hidden dignity and execute ([c4b5c58](https://github.com/fogfactory/crown-and-borough/commit/c4b5c58f4b9a1eb1739318cd89be095b18b500f4))
 * **cards:** let a trial reveal a hidden dignity and execute ([246287a](https://github.com/fogfactory/crown-and-borough/commit/246287a5f52ac649bb4d05bb03f8579772e15cc8))
-* **cards:** trial of excommunicated nobles and two-cardinal trials ([675f3e8](https://github.com/fogfactory/crown-and-borough/commit/675f3e87cff513b04d5d0bf8afdbc60f1c078aca))
 * **cards:** trial of excommunicated nobles and two-cardinal trials ([2c26b1f](https://github.com/fogfactory/crown-and-borough/commit/2c26b1f1a93ea4c8a056588b7ca34986f186117e))
 * **charte:** shield for control, soldier pack with banner for armies ([#518](https://github.com/fogfactory/crown-and-borough/issues/518)) ([f5fe202](https://github.com/fogfactory/crown-and-borough/commit/f5fe2025848ed36b5f683c24002194c5d26bd419))
-* **chat:** add chat backend and firestore rules ([fe661b5](https://github.com/fogfactory/crown-and-borough/commit/fe661b5987f926c924e37b93644d6fdb3a41b8b2))
 * **chat:** add chat backend and firestore rules ([268747a](https://github.com/fogfactory/crown-and-borough/commit/268747adc5d703e6f4414a42b6fc18dc1251fde0))
-* **chat:** add chat panel to the game screen ([fcd5010](https://github.com/fogfactory/crown-and-borough/commit/fcd50106329de9da21d3e84fa6cfbf742f8dfb1c))
 * **chat:** add chat panel to the game screen ([c2e56e9](https://github.com/fogfactory/crown-and-borough/commit/c2e56e90f13af28abd5c69cc1bcff2d5c257cf71))
 * **dames:** add the Witch ritual and rename the old Witch to Poisoner ([09ecd51](https://github.com/fogfactory/crown-and-borough/commit/09ecd51c4496cada6ef3f1483ec953f0d7807677))
 * **dames:** d'Arc replaces the family name of her carrier ([c00602d](https://github.com/fogfactory/crown-and-borough/commit/c00602d41f701f5cafb640160d3433bea769f487))
@@ -175,7 +168,6 @@
 * **dames:** one visible and one hidden dignity per lady, hidden ones on own ladies ([720c1be](https://github.com/fogfactory/crown-and-borough/commit/720c1beafc6f8dded4457a34aad4b52be64e5119))
 * **deck:** add free and paid revolt appeasement for clerics ([f772375](https://github.com/fogfactory/crown-and-borough/commit/f77237593f3e499c15471773affc4cfa41d2538a))
 * **deck:** add revolt appeasement for clerics ([8917fc7](https://github.com/fogfactory/crown-and-borough/commit/8917fc7aed6aec5044f575869d8a75aa4a687029))
-* **deck:** add seigneurial tax card ([d618796](https://github.com/fogfactory/crown-and-borough/commit/d618796e1ee90672f1fe13fc791f63edc374aa4d))
 * **deck:** add seigneurial tax card ([7ac2ade](https://github.com/fogfactory/crown-and-borough/commit/7ac2ade5b7612e230bd51432ee5e6dd3ae2f75ad))
 * **deck:** cardinal and papal inquiry order revealing a hidden dignity ([20062b1](https://github.com/fogfactory/crown-and-borough/commit/20062b1576deb6eab630de7aab77fb1376b6606a))
 * **deck:** dissolution de mariage par le pape ([e8ee4de](https://github.com/fogfactory/crown-and-borough/commit/e8ee4de7a331595a44bbc30860f122c13141d5b3))
@@ -183,7 +175,6 @@
 * **deck:** marriage dissolution by the pope ([6b573ca](https://github.com/fogfactory/crown-and-borough/commit/6b573cac6e00f0db3de66559c8fe4e771720d791))
 * **deck:** ordre d'enquête de cardinal ou de pape (révèle une dignité cachée) ([4f9080a](https://github.com/fogfactory/crown-and-borough/commit/4f9080ad210396ce52e5493c96f34d836a4f071e))
 * **deck:** papal excommunication and lift orders ([212eb04](https://github.com/fogfactory/crown-and-borough/commit/212eb045f0d13c71f6807336c56a5119d084c3bf))
-* **deck:** religious tithe on the tax card ([7735d30](https://github.com/fogfactory/crown-and-borough/commit/7735d3079ec403d318a65b3cd1be6759a621a78a))
 * **deck:** religious tithe on the tax card ([786927b](https://github.com/fogfactory/crown-and-borough/commit/786927bd37a031cccbaa55e3df27564df1ddfcc3))
 * **deck:** single-calamity astrologer veto and valid revolt targets ([74ee95f](https://github.com/fogfactory/crown-and-borough/commit/74ee95fc0c921abb5a277ebf93a7ff57d5f51618))
 * **economy:** fortify a village with C C instead of replacing it ([315d0b2](https://github.com/fogfactory/crown-and-borough/commit/315d0b27b09c74de6d721cd1de81ecd9f76b5aa4))
@@ -192,61 +183,44 @@
 * **economy:** pay mill production to a single recipient ([a0c431f](https://github.com/fogfactory/crown-and-borough/commit/a0c431f35a9c77605e03a49f9fad8244d56aa597))
 * **economy:** pay territory income to the capital ([ce43f85](https://github.com/fogfactory/crown-and-borough/commit/ce43f85bb5971af27cb827522b240e3d2180833a)), closes [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 * **economy:** reduce terrain rations and split weather and harvest effects ([160adc8](https://github.com/fogfactory/crown-and-borough/commit/160adc88ced823325818ede8a675646051fbbf26)), closes [#191](https://github.com/fogfactory/crown-and-borough/issues/191)
-* **elections:** announce open elections and resolve them sequentially ([aabba92](https://github.com/fogfactory/crown-and-borough/commit/aabba92637d4fe9b7a62a8a7a190e08f20887aab))
 * **elections:** announce open elections and resolve them sequentially ([658d72e](https://github.com/fogfactory/crown-and-borough/commit/658d72e400273848509c0d12df8dc8adb02abb10))
 * **engine:** add claim cards on top of the noble deck and document the card orders ([498bec3](https://github.com/fogfactory/crown-and-borough/commit/498bec3a93436619903db640c8ee557b74bc34ef))
 * **engine:** add generic election engine and staged winter resolution ([fa867ef](https://github.com/fogfactory/crown-and-borough/commit/fa867efb89c842b25d2b5061b9a1328efc88f55e))
 * **engine:** add levels to villages ([#529](https://github.com/fogfactory/crown-and-borough/issues/529)) ([faed1cd](https://github.com/fogfactory/crown-and-borough/commit/faed1cd15f8db59a9728a7d17c6c8db8643ed3bd))
-* **engine:** add noble sex and restrict religious/royal titles to men ([d5ae110](https://github.com/fogfactory/crown-and-borough/commit/d5ae11004ab2c2c0cf6b3c07b3bffe1adae81971))
 * **engine:** add noble sex and restrict religious/royal titles to men ([30ac35a](https://github.com/fogfactory/crown-and-borough/commit/30ac35acfc01cf5716b433797c03200d35c68515)), closes [#245](https://github.com/fogfactory/crown-and-borough/issues/245)
 * **engine:** add papal excommunication and lift winter orders ([c076bc8](https://github.com/fogfactory/crown-and-borough/commit/c076bc89db06d763c325d944c8d2bad6344a697d))
 * **engine:** add royal tax and king and queen rent ([147f037](https://github.com/fogfactory/crown-and-borough/commit/147f03772ad96f1ae94b8d4e57a092f62dfe2afb)), closes [#408](https://github.com/fogfactory/crown-and-borough/issues/408)
-* **engine:** add royal winter orders W X, W R, W F and W G ([d9c5fa1](https://github.com/fogfactory/crown-and-borough/commit/d9c5fa156c70514f06f4f504608a60415d05d587))
 * **engine:** add royal winter orders W X, W R, W F and W G ([7d87e07](https://github.com/fogfactory/crown-and-borough/commit/7d87e075249a8aa6cbbf9f6d74a1c3a5d955092b))
-* **engine:** add territory annexation (T X) and rank change (T R) ([de21e48](https://github.com/fogfactory/crown-and-borough/commit/de21e48f57918be208fd973032362fbb43f377ca))
 * **engine:** add territory annexation (T X) and rank change (T R) ([d27b857](https://github.com/fogfactory/crown-and-borough/commit/d27b8576e7d9af7049e3f9138dae9eb8d2cc6efc))
-* **engine:** add the claim event and stackable heir claims ([60ac65c](https://github.com/fogfactory/crown-and-borough/commit/60ac65c559797a5ec679b579a0476e069cb14c72))
 * **engine:** add the claim event and stackable heir claims ([22dd85b](https://github.com/fogfactory/crown-and-borough/commit/22dd85bb7c50251c397f4633b75a89950e6425ee))
-* **engine:** allow playing a dignity card on an opponent's noble ([bc59f66](https://github.com/fogfactory/crown-and-borough/commit/bc59f66ea83a503b885976fcd1ec8048e66a86e3))
 * **engine:** allow playing a dignity card on an opponent's noble ([04d0331](https://github.com/fogfactory/crown-and-borough/commit/04d0331e190267a2ce23a78d8dc13091323b9e93))
-* **engine:** apply marriage bonuses to the title score ([0af3fed](https://github.com/fogfactory/crown-and-borough/commit/0af3fedd22da944a5e7a37867d3209ffd3aa18a5))
 * **engine:** apply marriage bonuses to the title score ([b24dd9b](https://github.com/fogfactory/crown-and-borough/commit/b24dd9b852b59f2f6ceb166c70f94079185445ed))
-* **engine:** build succession line by noble purchase order ([37d9388](https://github.com/fogfactory/crown-and-borough/commit/37d9388cc7837c0f6365a69e0e283940fb93704f))
 * **engine:** build succession line by noble purchase order ([ecf077e](https://github.com/fogfactory/crown-and-borough/commit/ecf077ec61b43307a9d01187d37739e4a2221e87))
 * **engine:** buy cardinals and play cardinal cards ([8476612](https://github.com/fogfactory/crown-and-borough/commit/84766122213539e0ec3d6d850d567dabf265e092))
 * **engine:** buy cardinals and play cardinal cards with separate caps ([f88e9ee](https://github.com/fogfactory/crown-and-borough/commit/f88e9eef91a9c1c3ba9e9bd974f922a5f22c4901))
 * **engine:** calculer les seuils solo et d'alliance (alliance &gt; solo) et la fin de partie ([6e68964](https://github.com/fogfactory/crown-and-borough/commit/6e689649c8ab1ff3aeb50769925ed5e858e5a418))
 * **engine:** calculer les seuils solo et d'alliance et terminer la partie au franchissement ([882496f](https://github.com/fogfactory/crown-and-borough/commit/882496fac3d38c20fbbd1dd801385d1aa201118f))
-* **engine:** cap living nobles per player ([e01492a](https://github.com/fogfactory/crown-and-borough/commit/e01492a96815f747e607e3d3b843d19cdaa68f64))
 * **engine:** cap living nobles per player ([4827ad7](https://github.com/fogfactory/crown-and-borough/commit/4827ad76ad2bc40faee7b52e50dfbf5ff28c25b2))
 * **engine:** cap starving armies at supplied strength and remove the excess ([#526](https://github.com/fogfactory/crown-and-borough/issues/526)) ([8cf4465](https://github.com/fogfactory/crown-and-borough/commit/8cf44653d3a7ee3fee0b5bf01e544aa86b755158))
-* **engine:** classify marriages as head, mixed or secondary by alliance weight ([4edc11c](https://github.com/fogfactory/crown-and-borough/commit/4edc11c0cb8b224a5988ee436713a3b450cc6127))
 * **engine:** classify marriages as head, mixed or secondary by alliance weight ([2c50418](https://github.com/fogfactory/crown-and-borough/commit/2c50418c20c92823b3c2c8adab358510e41cba4a))
-* **engine:** compute the alliance weight of a marriage ([b68ee87](https://github.com/fogfactory/crown-and-borough/commit/b68ee8791b37f78726748557652076d53c10bce9))
 * **engine:** compute the alliance weight of a marriage ([1a7319d](https://github.com/fogfactory/crown-and-borough/commit/1a7319d7f9341439d934da762e37dd72d0f881c9))
 * **engine:** conclure et annoncer un mariage (spec et moteur) ([9cfb382](https://github.com/fogfactory/crown-and-borough/commit/9cfb38218e66d85830a3f0285e01813e3f598737))
 * **engine:** conclure et annoncer un mariage par ordre d'hiver symétrique ([df7456b](https://github.com/fogfactory/crown-and-borough/commit/df7456b7a7d4a39e9c575ea149515a0662df31fd)), closes [#288](https://github.com/fogfactory/crown-and-borough/issues/288)
 * **engine:** conditionner l'octroi d'un titre au rang de succession ([7eb2b9f](https://github.com/fogfactory/crown-and-borough/commit/7eb2b9fbc4c5f6dc1b5dad986d75bfb273b0fdbb))
-* **engine:** count the crown in the title score and alliance weight ([95aa230](https://github.com/fogfactory/crown-and-borough/commit/95aa2305ac8a73e5507fa9a6d159f8d17425c93c))
 * **engine:** count the crown in the title score and alliance weight ([741b77b](https://github.com/fogfactory/crown-and-borough/commit/741b77b59c15a35b5c2458c09714d3f7a00c1974))
-* **engine:** derive the active head marriage and its dynamic switch ([4d16b72](https://github.com/fogfactory/crown-and-borough/commit/4d16b72d5d3ddd3a72b5a2d297f6e5a617e04cd9))
 * **engine:** derive the active head marriage and its dynamic switch ([01f32b2](https://github.com/fogfactory/crown-and-borough/commit/01f32b2c35c994d6f95263b46ed76039b3958387))
 * **engine:** dériver les seuils de la part de territoires et de la taille de fief ([e2a4eb0](https://github.com/fogfactory/crown-and-borough/commit/e2a4eb07a93abb7dd7850ecc03a5d3f473cad9de))
 * **engine:** discard cards from the noble hand ([7a732bb](https://github.com/fogfactory/crown-and-borough/commit/7a732bb99f117bf8cc4705d94414b2a9894073ef))
 * **engine:** display courtesy titles for the spouse of a fief holder ([d2d1679](https://github.com/fogfactory/crown-and-borough/commit/d2d1679640eb28110df70c87de139caeb7dc2e9d))
 * **engine:** display nobles with their fief title or Sieur/Dame ([a4b57b1](https://github.com/fogfactory/crown-and-borough/commit/a4b57b1fa844088344cf709221b2a2b019385c90))
-* **engine:** elect the king (K R candidacy, V R vote, clergy anointment) ([6971654](https://github.com/fogfactory/crown-and-borough/commit/6971654e551cc49fcfda9388fad9edc269b5566d))
 * **engine:** elect the king (K R candidacy, V R vote, clergy anointment) ([9e22c93](https://github.com/fogfactory/crown-and-borough/commit/9e22c9374be85fc5f641aed00c2538d6dbd7da9d))
 * **engine:** excommunicate unmasked eon ex officio and strip religious titles ([0c1ae30](https://github.com/fogfactory/crown-and-borough/commit/0c1ae3052429b9670cf2fb6875421eabcd361556))
 * **engine:** fin de titre religieux (excommunication d'office) ([77ff972](https://github.com/fogfactory/crown-and-borough/commit/77ff972844e24f1101c1e8f247d75a63a26c1f66))
 * **engine:** forbid one noble from being both king and pope ([8d77684](https://github.com/fogfactory/crown-and-borough/commit/8d7768460cf997bdd5491392206fe8dc1e7ada76))
-* **engine:** found fiefs held by nobles ([3ccffe7](https://github.com/fogfactory/crown-and-borough/commit/3ccffe7432366f59c5826681c27aa66a1c6fa1d8))
 * **engine:** found fiefs held by nobles ([65b576c](https://github.com/fogfactory/crown-and-borough/commit/65b576c29a38f28ad10f1017aa491e877eecab8d)), closes [#194](https://github.com/fogfactory/crown-and-borough/issues/194)
 * **engine:** gate fief titles on succession rank ([109ce37](https://github.com/fogfactory/crown-and-borough/commit/109ce378cf3d218eb74ac35d18651f2868deef42))
-* **engine:** generate the noble deck and cap draws per winter ([25bb33b](https://github.com/fogfactory/crown-and-borough/commit/25bb33be444af09583888efda2faf9bd0b52ff40))
 * **engine:** generate the noble deck and cap draws per winter ([edb609f](https://github.com/fogfactory/crown-and-borough/commit/edb609fa649f9f435be5858a12a0d99e3144ff91))
 * **engine:** generic election engine and staged winter resolution ([5393330](https://github.com/fogfactory/crown-and-borough/commit/5393330cbb6347c15775f0175061b2df3a3e3ead))
-* **engine:** give the abbess an abbey voice in her bishop election ([0d990d9](https://github.com/fogfactory/crown-and-borough/commit/0d990d9672b5bcf30689364e38841f838f1e88ef))
 * **engine:** give the abbess an abbey voice in her bishop election ([fbbdc94](https://github.com/fogfactory/crown-and-borough/commit/fbbdc940becbf660515c78f6646087ca74653868))
 * **engine:** guarantee a viable starting position and forces ([5b8cb29](https://github.com/fogfactory/crown-and-borough/commit/5b8cb29db102b45d477d19a99edd71810885d9aa)), closes [#203](https://github.com/fogfactory/crown-and-borough/issues/203)
 * **engine:** include the ally's share in the influence score ([713e533](https://github.com/fogfactory/crown-and-borough/commit/713e53397f38c52e2731720fe3d98ec8c98933c5))
@@ -258,19 +232,16 @@
 * **engine:** make territorial control ephemeral outside fiefs ([4e86f0a](https://github.com/fogfactory/crown-and-borough/commit/4e86f0ad707e987d69f16a5e311c57d4d4466e05))
 * **engine:** move supply resolution to end of turn ([a018ebf](https://github.com/fogfactory/crown-and-borough/commit/a018ebfb2b5fc12011f9c1c1ff71257900f10b0d)), closes [#208](https://github.com/fogfactory/crown-and-borough/issues/208)
 * **engine:** pass the crown to the heir of a claim on the royal couple ([527ec01](https://github.com/fogfactory/crown-and-borough/commit/527ec01e6ab3e0624253f4013645a4b5e452b6ce)), closes [#405](https://github.com/fogfactory/crown-and-borough/issues/405)
-* **engine:** pay the king's rent to the regent on a vacant throne ([5c464e9](https://github.com/fogfactory/crown-and-borough/commit/5c464e921ee0aa9fac5f89cec23463145beadf6e))
 * **engine:** pay the king's rent to the regent on a vacant throne ([6d563db](https://github.com/fogfactory/crown-and-borough/commit/6d563dbe2e4d5e9de61aebb893d63141271366e4))
 * **engine:** play claims with a claim card from the noble deck, in any season ([34c6e58](https://github.com/fogfactory/crown-and-borough/commit/34c6e58ee77a56b0e8a324048f2d381a066623ed))
 * **engine:** raise victory thresholds to 75/90 percent ([30ed43a](https://github.com/fogfactory/crown-and-borough/commit/30ed43a2a4bcff7e27e44e1015c739c92e14e839)), closes [#252](https://github.com/fogfactory/crown-and-borough/issues/252)
 * **engine:** rank starving hosts last as retreat destinations ([59eb019](https://github.com/fogfactory/crown-and-borough/commit/59eb019a0bfe3ed6fb6acc4d9e69d6287aae429a))
 * **engine:** relax the succession line for women and clergy ([#524](https://github.com/fogfactory/crown-and-borough/issues/524)) ([dd76365](https://github.com/fogfactory/crown-and-borough/commit/dd76365ee462da772dbdbc192b444f31cc49a893))
-* **engine:** remplacer le score du GDD §9 par le score de titres ([76d19d5](https://github.com/fogfactory/crown-and-borough/commit/76d19d51d46481f792918e441120e6324a1c3296))
 * **engine:** remplacer le score du GDD §9 par le score de titres ([d621cc5](https://github.com/fogfactory/crown-and-borough/commit/d621cc584218c471c12d76e998e3511f5fcb9b9a))
 * **engine:** renovate and level up villages through prosperity ([#532](https://github.com/fogfactory/crown-and-borough/issues/532)) ([c487594](https://github.com/fogfactory/crown-and-borough/commit/c487594910b351c33b9f2737ec531ccbb88c7879))
 * **engine:** replace a fief holder's birthplace by its fief capital in its display name ([7c5c3a9](https://github.com/fogfactory/crown-and-borough/commit/7c5c3a9eb9ad3c04ab2f8d4b7dda511f2a288351))
 * **engine:** resolve major/minor victory and lock active-head players ([8abfef6](https://github.com/fogfactory/crown-and-borough/commit/8abfef6b6ebdb122ca2315eb04826610d4ae19cd))
 * **engine:** resolve major/minor victory and lock active-head players to alliance ([8ef7e95](https://github.com/fogfactory/crown-and-borough/commit/8ef7e95957dba5d2a15da483fabc3353ddbaf5e4))
-* **engine:** return fiefs without heir to the crown ([4a6a65b](https://github.com/fogfactory/crown-and-borough/commit/4a6a65b085bc9bddbc6a4d53a03d096217e3d5e1))
 * **engine:** return fiefs without heir to the crown ([525f5cb](https://github.com/fogfactory/crown-and-borough/commit/525f5cb12541d23bdc019cf4bb43782b09dc8dde))
 * **engine:** royal mandate, capture and crown claims on the royal couple ([5216cb7](https://github.com/fogfactory/crown-and-borough/commit/5216cb7fa0aca2071b8e2539686928444deae4da))
 * **engine:** royal tax and rent of the king and queen ([ace27a6](https://github.com/fogfactory/crown-and-borough/commit/ace27a6e82466fac01bc307e683a5d9e2ca267a9))
@@ -279,16 +250,12 @@
 * **engine:** simplify marriage bonus to alliance versus influence ([d531265](https://github.com/fogfactory/crown-and-borough/commit/d531265f8acfc0dec7771c8e3dacfa6fdfe1907e))
 * **engine:** skip unsupplied hosts as retreat destinations ([b92e1d6](https://github.com/fogfactory/crown-and-borough/commit/b92e1d6925e41af45b16a2c55799d790e4df5047))
 * **engine:** titres de courtoisie du conjoint (affichage seul) ([1935788](https://github.com/fogfactory/crown-and-borough/commit/1935788c6b3e7742321ef928b4c64fdc46a6cd00))
-* **engine:** unmask chevalier d'Éon on capture, imprisonment or Claim ([a1f78d9](https://github.com/fogfactory/crown-and-borough/commit/a1f78d9d5cda6544fd292a2ce605d7da1dfa1a42))
 * **engine:** unmask chevalier d'Éon on capture, imprisonment or Claim ([8e31e63](https://github.com/fogfactory/crown-and-borough/commit/8e31e63a0ec61488c9323d6c4bec2423fba48ad2))
 * **mapgen:** densify villages for the new economy ([95e6043](https://github.com/fogfactory/crown-and-borough/commit/95e60437c2963918cef87128fa1f54872f88f9e3))
-* **models:** add religious titles, bishoprics and effective religious status ([3fe9ad2](https://github.com/fogfactory/crown-and-borough/commit/3fe9ad29c93550ded420caba2539b25b6e0692e6))
 * **models:** add religious titles, bishoprics and effective religious status ([5bdd3af](https://github.com/fogfactory/crown-and-borough/commit/5bdd3af81535b14feee8d9ddb73766b92fbbd4d3))
 * **models:** cap cardinals at 1 plus one per 6 players ([cc39e20](https://github.com/fogfactory/crown-and-borough/commit/cc39e202d09b5f74800d8d1400bad5de273eb364))
-* **models:** represent noble lineage for death and succession tracking ([26653a1](https://github.com/fogfactory/crown-and-borough/commit/26653a1bfb828c932c251417c18dbd4c859b37df))
 * **models:** represent noble lineage for death and succession tracking ([2ce264e](https://github.com/fogfactory/crown-and-borough/commit/2ce264ee94f746c3c8246efa1a7fe53d5924df93))
 * **orders:** let a winter order target a noble recruited earlier in the same sheet ([9676e79](https://github.com/fogfactory/crown-and-borough/commit/9676e79cd531efa83c9c45bb40b256247924cf4a))
-* **rules:** add noble transfer winter order replacing liberation ([c1cbeb9](https://github.com/fogfactory/crown-and-borough/commit/c1cbeb9fcd0d9e4d93c9cf33b88fa63c18da45a5))
 * **rules:** add noble transfer winter order replacing liberation ([752dfc3](https://github.com/fogfactory/crown-and-borough/commit/752dfc3d896566a01c4e2e86861cee04a5422dfa))
 * **rules:** make the best marriage of two houses their head alliance, drop mixed and weight thresholds ([e4fe63d](https://github.com/fogfactory/crown-and-borough/commit/e4fe63d43898ba159df169d36edbe5601d13807d))
 * **rules:** rewrite the player rules, score the papacy and fix the tactical faq ([e15ed31](https://github.com/fogfactory/crown-and-borough/commit/e15ed3149151e8054daf6886faa2bc942d4c8030))
@@ -308,13 +275,9 @@
 * **ui:** configure revolt appeasement orders in dialogs ([2b5a414](https://github.com/fogfactory/crown-and-borough/commit/2b5a4147cd363bdce38bf22fb304c55deaa8d680))
 * **ui:** draw the lineage as a tapestry family tree (phase 7b) ([#508](https://github.com/fogfactory/crown-and-borough/issues/508)) ([d66f46d](https://github.com/fogfactory/crown-and-borough/commit/d66f46d2aabddbcdc7f0115f6be8b7a33523cbe5))
 * **ui:** draw the wax seal emblem (phase 7a) ([#514](https://github.com/fogfactory/crown-and-borough/issues/514)) ([be6fb09](https://github.com/fogfactory/crown-and-borough/commit/be6fb09e132dc23ff87a2ea5590eea3a61e36b97)), closes [#449](https://github.com/fogfactory/crown-and-borough/issues/449)
-* **ui:** dress the map in player arms (phase 4b) ([de058f6](https://github.com/fogfactory/crown-and-borough/commit/de058f6306b07fdb168b095f78dd29e335a2a4f8))
 * **ui:** dress the map in player arms (phase 4b) ([4ae586f](https://github.com/fogfactory/crown-and-borough/commit/4ae586f2f126629f41f87943ad9a1abf87417c90))
-* **ui:** engrave territory labels with a level of detail (phase 4d) ([61712a3](https://github.com/fogfactory/crown-and-borough/commit/61712a36e982326081438664c004c95c29c051d1))
 * **ui:** engrave territory labels with a level of detail (phase 4d) ([a6b10c1](https://github.com/fogfactory/crown-and-borough/commit/a6b10c17c32ef571842532cb7c91619757aa6f77))
-* **ui:** engrave the map terrain, borders and bishoprics (phase 4a) ([c25c147](https://github.com/fogfactory/crown-and-borough/commit/c25c147bf8dff9d7cd824f35e73dd0cd415069b5))
 * **ui:** engrave the map terrain, borders and bishoprics (phase 4a) ([b3c3e80](https://github.com/fogfactory/crown-and-borough/commit/b3c3e80832247c1cea05d89c8f54316bcfa33c53))
-* **ui:** give nobles pawns with their title attributes (phase 4c) ([16999a8](https://github.com/fogfactory/crown-and-borough/commit/16999a829b97ef2f781aa694fd2b1eface07e105))
 * **ui:** give nobles pawns with their title attributes (phase 4c) ([c02f63b](https://github.com/fogfactory/crown-and-borough/commit/c02f63bb9e68658d1a371526d04c384edd48b6b1))
 * **ui:** give phones a tab bar and a split orders screen (phase 5b) ([#463](https://github.com/fogfactory/crown-and-borough/issues/463)) ([4329968](https://github.com/fogfactory/crown-and-borough/commit/43299689b6d0251d781788fc883b9c354bcaadb2))
 * **ui:** group title orders by holder with forms in the drawer (phase 5d-2) ([#467](https://github.com/fogfactory/crown-and-borough/issues/467)) ([81155d0](https://github.com/fogfactory/crown-and-borough/commit/81155d079970c29a1260bbed53c619962245f98f))
@@ -334,14 +297,10 @@
 * **ui:** show crown, king, queen, regent and crown fiefs ([09c768f](https://github.com/fogfactory/crown-and-borough/commit/09c768f7db9bd97cfe30a762e050d10d89f56437))
 * **ui:** show fief occupation and per-fief projected income ([63c0d0e](https://github.com/fogfactory/crown-and-borough/commit/63c0d0eae92f77f2ff19c9a0d24e77673dc48dc4))
 * **ui:** show lineage tree, marriages, active head and claims ([c342580](https://github.com/fogfactory/crown-and-borough/commit/c342580cb63c9cf4273f637cb8fb488367696355))
-* **ui:** show projected consumption and famine risk at the command post ([236eb4a](https://github.com/fogfactory/crown-and-borough/commit/236eb4a0a7db130af228cfed5212a502567bfa4d))
 * **ui:** show projected consumption and famine risk at the command post ([9cf9a8c](https://github.com/fogfactory/crown-and-borough/commit/9cf9a8c890b39042724fe0435b8b27942da358f0)), closes [#206](https://github.com/fogfactory/crown-and-borough/issues/206)
-* **ui:** show the religious hierarchy, election reports and titles ([bdb8dfd](https://github.com/fogfactory/crown-and-borough/commit/bdb8dfd82fa14425f20e757d9771ceef6ae9dd5b))
 * **ui:** show the religious hierarchy, election reports and titles ([2efe053](https://github.com/fogfactory/crown-and-borough/commit/2efe05392cd36be48b41b9a7121b841db29b516c))
-* **ui:** simulate fief rank-ups and the crown in the lineage simulator ([a24a779](https://github.com/fogfactory/crown-and-borough/commit/a24a779588ca11332a24bb72d837c34403334d30))
 * **ui:** simulate fief rank-ups and the crown in the lineage simulator ([be729b6](https://github.com/fogfactory/crown-and-borough/commit/be729b6387fb9e686d676692f7bc024bbefd2104))
 * **ui:** suggest codes while typing orders (phase 6b) ([#504](https://github.com/fogfactory/crown-and-borough/issues/504)) ([ae3723a](https://github.com/fogfactory/crown-and-borough/commit/ae3723a87aa20d0cf00ba4836cdfef9dd54cbf52))
-* **ui:** switch theme tokens to the graphic charter (phase 3) ([d6da8fa](https://github.com/fogfactory/crown-and-borough/commit/d6da8fa2220078ec7bc7b3d98b13861738d24e5d))
 * **ui:** switch theme tokens to the graphic charter (phase 3) ([8f526d6](https://github.com/fogfactory/crown-and-borough/commit/8f526d6e4392002e12032414a05698fbce106b15))
 * **ui:** turn the report into event cards and restyle the scores (phase 5f) ([#469](https://github.com/fogfactory/crown-and-borough/issues/469)) ([c460521](https://github.com/fogfactory/crown-and-borough/commit/c460521d49a4160de9e904dbb2f210934dbc1469))
 * **ui:** write names in full and link them to the map (phase 5c) ([#464](https://github.com/fogfactory/crown-and-borough/issues/464)) ([796b591](https://github.com/fogfactory/crown-and-borough/commit/796b5916818ee40f942ce3a246be4638c03f7464))
@@ -349,7 +308,6 @@
 * **web:** pick chat channels from a select ([9c2c3e5](https://github.com/fogfactory/crown-and-borough/commit/9c2c3e5af406ba670c16d3e0562c620eb3aa3d73))
 * **web:** show king, queen and excommunicated status on nobles ([0166b88](https://github.com/fogfactory/crown-and-borough/commit/0166b886d8a22316be1618ef19b369d9e32bccdd))
 * **web:** show the marriage influence bonus in the scoreboard ([bec721e](https://github.com/fogfactory/crown-and-borough/commit/bec721e00db2b66738a1495260787e31d55ab503)), closes [#252](https://github.com/fogfactory/crown-and-borough/issues/252)
-* **web:** show victory status on the scoreboard ([e49bb34](https://github.com/fogfactory/crown-and-borough/commit/e49bb343b3231106e2994b00f024ad0b6a435f9a))
 * **web:** show victory status on the scoreboard ([daf7e16](https://github.com/fogfactory/crown-and-borough/commit/daf7e16f8752ecc6cce2e3c17c38a8102991e292))
 
 
@@ -357,13 +315,11 @@
 
 * **botleague:** stop instead of passing turns when the provider is unreachable ([47c7c91](https://github.com/fogfactory/crown-and-borough/commit/47c7c911c78b6217f5947bc71fcf7feeccdf8fde))
 * **chat:** restrict every-conversation reads to the observer ([6695523](https://github.com/fogfactory/crown-and-borough/commit/669552372496fc3aebe65f073e2e1bc3dcda52f3))
-* **ci:** accept claude/* branches in the pull request policy ([8e56cae](https://github.com/fogfactory/crown-and-borough/commit/8e56cae1bdea2aef873d2d1cbc9dc678f143be51))
 * **ci:** accept claude/* branches in the pull request policy ([2783277](https://github.com/fogfactory/crown-and-borough/commit/2783277872d47d785a11d8b1d25a929f841e7239))
 * **ci:** pin trivy-action to its actual v0.36.0 release tag ([e8b86c4](https://github.com/fogfactory/crown-and-borough/commit/e8b86c4acbda5d3f5bb84cbc4399a4ce027342c7))
 * **ci:** target main for dependency PRs and automerge minor/patch updates ([ee2ecea](https://github.com/fogfactory/crown-and-borough/commit/ee2eceae16eb3a1791715fb001e6c79ea6300a38))
 * **deck:** keep inquiries private to their author in the winter report ([6d78f80](https://github.com/fogfactory/crown-and-borough/commit/6d78f80506ac1a1381216ebd79109d5ddb3b9604))
 * **deps:** bump golang.org/x/net to v0.60.0 ([8b08f4a](https://github.com/fogfactory/crown-and-borough/commit/8b08f4acb2bff90d0cf8b78387fe761439abe4f6))
-* **deps:** update firebase to v13 and @firebase/rules-unit-testing to v6 ([5cb6bd4](https://github.com/fogfactory/crown-and-borough/commit/5cb6bd41d20624ee86b79bbc2b5cf3913570c093))
 * **deps:** update firebase to v13 and @firebase/rules-unit-testing to v6 ([2a78849](https://github.com/fogfactory/crown-and-borough/commit/2a78849d791f21113328d596762f1585b6cb5770))
 * **deps:** update grpc, x/crypto and x/net to fix known vulnerabilities ([bc82bd1](https://github.com/fogfactory/crown-and-borough/commit/bc82bd11fb33f22dab48b649d6d311349448c2a6))
 * **deps:** update module cloud.google.com/go/firestore to v1.26.0 ([#305](https://github.com/fogfactory/crown-and-borough/issues/305)) ([b76648e](https://github.com/fogfactory/crown-and-borough/commit/b76648e013d1ea17e0423f60e9ea418d15ae5982))
@@ -388,16 +344,13 @@
 * **deps:** update module google.golang.org/api to v0.310.0 ([#498](https://github.com/fogfactory/crown-and-borough/issues/498)) ([e2f531c](https://github.com/fogfactory/crown-and-borough/commit/e2f531cfdf0415f4dd312601cd512b91968bfbbc))
 * **deps:** update module google.golang.org/api to v0.311.0 ([#527](https://github.com/fogfactory/crown-and-borough/issues/527)) ([f797f9b](https://github.com/fogfactory/crown-and-borough/commit/f797f9bb9513305eedaa62d920676e0044466aae))
 * **deps:** update module google.golang.org/grpc to v1.85.0 ([#491](https://github.com/fogfactory/crown-and-borough/issues/491)) ([c3b1513](https://github.com/fogfactory/crown-and-borough/commit/c3b1513bf44cae8fe925dd6f484c46996d584571))
-* **deps:** update vite 8, plugin-react 6, react-hooks 7 and firebase 12 ([2f39816](https://github.com/fogfactory/crown-and-borough/commit/2f398163693ae9c310ec487af5f9d49e11797ccd))
 * **deps:** update vite 8, plugin-react 6, react-hooks 7 and firebase 12 ([bba23f3](https://github.com/fogfactory/crown-and-borough/commit/bba23f3b199a97a6243672a288d2bd316e79f2b1))
 * **engine:** delay famine pillage to a second consecutive deficit ([f51b8e1](https://github.com/fogfactory/crown-and-borough/commit/f51b8e1b9d8a0ea7ae21e86849ef8dea19c939ac))
 * **engine:** dispatch starting nobles across starting armies ([4db120f](https://github.com/fogfactory/crown-and-borough/commit/4db120f630e3e90a9bc76a147e431f350632c7bd))
 * **engine:** keep defensive support for every army that does not attack ([#522](https://github.com/fogfactory/crown-and-borough/issues/522)) ([f08cae8](https://github.com/fogfactory/crown-and-borough/commit/f08cae8438107a69434bde8f3de6bfbd477605f1))
-* **engine:** keep starving status on dispersion splinters ([c5ab57d](https://github.com/fogfactory/crown-and-borough/commit/c5ab57d24d0164f04a4a6b42610b98404fa53d6f))
 * **engine:** keep starving status on dispersion splinters ([aa50ef5](https://github.com/fogfactory/crown-and-borough/commit/aa50ef5ae9e9ae75c4581e77a1dcd8f34fb77551))
 * **engine:** let a same-turn revolt see its fief's own tax ([996d6ec](https://github.com/fogfactory/crown-and-borough/commit/996d6ec23a278dc984420d519d84463de544bf6a))
 * **engine:** permettre au survivant d'un mariage de se remarier ([d272492](https://github.com/fogfactory/crown-and-borough/commit/d2724922161b4b1718df69dbc1ed5864657a17ee))
-* **engine:** plague also strikes armies and nobles entering the region ([ec247b7](https://github.com/fogfactory/crown-and-borough/commit/ec247b7c9b659805a05f51dea0ddf680f7b140e1))
 * **engine:** plague also strikes armies and nobles entering the region ([6f5d7f0](https://github.com/fogfactory/crown-and-borough/commit/6f5d7f03022b5d94d67f326ce67407c88fdf3d84))
 * **engine:** recycle the calamity cards of the ending year into the discard pile ([52adf54](https://github.com/fogfactory/crown-and-borough/commit/52adf542cf347307dd714a5201b37367f294ece8))
 * **engine:** reject an illegal appeasement alone instead of failing the turn ([385b5db](https://github.com/fogfactory/crown-and-borough/commit/385b5db3838f09538d356a07c2dacd1a95438bf8))
@@ -427,15 +380,11 @@
 * **agents:** require current-state wording for the game rules ([a7ba1c6](https://github.com/fogfactory/crown-and-borough/commit/a7ba1c6721be56e2e48be41fc6193ae5afe8ab64))
 * **charte:** drop the phone note that phase 6 has delivered ([#507](https://github.com/fogfactory/crown-and-borough/issues/507)) ([d9e8de3](https://github.com/fogfactory/crown-and-borough/commit/d9e8de3f7e53c43e8bb3cc33c64db0be887df4fd))
 * **charte:** mark the graphic overhaul as delivered ([#516](https://github.com/fogfactory/crown-and-borough/issues/516)) ([2e8c61d](https://github.com/fogfactory/crown-and-borough/commit/2e8c61d4f10a3fa04337c709ffcd86783ebbe1cb))
-* **chat:** document the in-game chat ([22a6f01](https://github.com/fogfactory/crown-and-borough/commit/22a6f01a33c3e137064753ba2be9c4d595cf3797))
 * **chat:** document the in-game chat ([df17efe](https://github.com/fogfactory/crown-and-borough/commit/df17efefa20a79d6de7a890b86bd322a3afb1edc))
 * **dames:** abandonner les ordres réservés Châtelaine et Espionne ([#363](https://github.com/fogfactory/crown-and-borough/issues/363)) ([9b6e7bf](https://github.com/fogfactory/crown-and-borough/commit/9b6e7bff92ce7e9172719d33d2ff71afb88c6133))
-* **economie:** rework prosperity as surplus-driven founding ([fa828f5](https://github.com/fogfactory/crown-and-borough/commit/fa828f5bf132645efd4c2ba1af3856de94b2d0a4))
 * **economie:** rework prosperity as surplus-driven founding ([45edc99](https://github.com/fogfactory/crown-and-borough/commit/45edc99994c83416282e4874d950b87aa82d618a))
-* **hiver:** specify winter resolution order and religious cross-effects ([f493be9](https://github.com/fogfactory/crown-and-borough/commit/f493be95da9324c0de5d9cfd5e160051bae78250))
 * **hiver:** specify winter resolution order and religious cross-effects ([46636da](https://github.com/fogfactory/crown-and-borough/commit/46636daed1db33ed5fe74d2792f73e4114c8065e))
 * **religieux:** clarifier que le pape est un noble, pas le joueur ([1593b65](https://github.com/fogfactory/crown-and-borough/commit/1593b65951581913f1b72b89e183714761b12eec))
-* **religieux:** finaliser les règles d'élections et de titres religieux ([c17a343](https://github.com/fogfactory/crown-and-borough/commit/c17a3435c680860415fb2b40680f47eec2d072e1))
 * **religieux:** finaliser les règles d'élections et de titres religieux ([c162576](https://github.com/fogfactory/crown-and-borough/commit/c16257643f93ae1c0d38f295dd863323590f8f82))
 * **religieux:** price untitled inquiry targets and add marquisat to GDD ([bc219fa](https://github.com/fogfactory/crown-and-borough/commit/bc219fa4935c9839cfa18fe3344af40a154ba0d0))
 * **religieux:** scale inquiry cost with target title ([57ecd7d](https://github.com/fogfactory/crown-and-borough/commit/57ecd7d9eef8c24091c2ce80ce25cb8a502687e1))
@@ -447,34 +396,27 @@
 * **rules:** keep the live rules and player rulebook in current-state form ([7cfb5ef](https://github.com/fogfactory/crown-and-borough/commit/7cfb5ef2ee81a2eab389d219ecb4d6a3953b21bf))
 * **rules:** remove stale before/after wording from the live rules ([cf67292](https://github.com/fogfactory/crown-and-borough/commit/cf67292ff5781d4e0e151e7e5aa77ac62536eafa))
 * **rules:** remove stale before/after wording from the player rulebook ([4d5a888](https://github.com/fogfactory/crown-and-borough/commit/4d5a888de6f6345c2c86dfe11193e2e1a3393078))
-* **rules:** report winter resolution order in gdd and player rules ([4d6938a](https://github.com/fogfactory/crown-and-borough/commit/4d6938a0a11339739114b4bdeaab432e70f98765))
 * **rules:** report winter resolution order in gdd and player rules ([2f6796b](https://github.com/fogfactory/crown-and-borough/commit/2f6796b2f00cfe952d46f536a6146570fc702a27))
 * **rules:** rewrite the player rules and fix the tactical faq ([7a88b7d](https://github.com/fogfactory/crown-and-borough/commit/7a88b7de76b736c0721063f75069dc2ac8c14873))
 * **specs:** add fief event cards tunnel, assassination, justice and ambush ([8e9a25a](https://github.com/fogfactory/crown-and-borough/commit/8e9a25a1a8856e1aa40f06d52ec01616a7cfbd8b))
-* **specs:** add graphic charter for the medieval redesign ([eebf1e0](https://github.com/fogfactory/crown-and-borough/commit/eebf1e00fdc3048d6c5c0fd537d681ae16257dd2))
 * **specs:** add graphic charter for the medieval redesign ([a62d457](https://github.com/fogfactory/crown-and-borough/commit/a62d457f7234591b22cd374f18c1dce989f793b3))
 * **specs:** align royalty rules after review ([bb29378](https://github.com/fogfactory/crown-and-borough/commit/bb293786118ee9c3615e6162f822574f9d324bb7))
 * **specs:** align winter deaths and trial eligibility with the dropped trial card ([67ad5c6](https://github.com/fogfactory/crown-and-borough/commit/67ad5c6aef24b292886769b0b0446edcaf251040))
 * **specs:** appliquer la revue — titres féminins, ordre de recrutement, score plat ([17dbc82](https://github.com/fogfactory/crown-and-borough/commit/17dbc8239d04f4583cf1fab7baa31e55c227e887))
-* **specs:** définir les dignités des dames et la règle de procès ([3ac9385](https://github.com/fogfactory/crown-and-borough/commit/3ac9385bce895e5ac3e72f680dd71fcc6303594a))
 * **specs:** définir les dignités des dames et la règle de procès ([f4bb749](https://github.com/fogfactory/crown-and-borough/commit/f4bb7495fa67a9aae313343952581f455d05962a))
 * **specs:** describe derived territorial control in titres and economie ([1eb3018](https://github.com/fogfactory/crown-and-borough/commit/1eb301889eb3987177a73286181c8b221ef5653f))
 * **specs:** document ephemeral territorial control outside fiefs ([768bf83](https://github.com/fogfactory/crown-and-borough/commit/768bf836733ee0357538c64a257d4b9f717b0b6a))
 * **specs:** document transitive fief control and vacancy rules ([c89ee63](https://github.com/fogfactory/crown-and-borough/commit/c89ee63ad41f075f4679ac042a0d60ec694820f5))
 * **specs:** extend graphic charter to royalty and fief interfaces ([e107d72](https://github.com/fogfactory/crown-and-borough/commit/e107d7240306fd9eb592cc78d205aaea51ff83ae))
-* **specs:** le bâtard adverse remplace l'annulation de Claim par le roi/pape ([8c57f62](https://github.com/fogfactory/crown-and-borough/commit/8c57f6234808a46c104493abc6481b3593943820))
 * **specs:** le bâtard adverse remplace l'annulation de Claim par le roi/pape ([e3ee96e](https://github.com/fogfactory/crown-and-borough/commit/e3ee96ec7b06d5d11398a16c64920b1ab9728ce3))
 * **specs:** le ciblage adverse d'une dignité n'est pas une propriété par carte ([675bd0c](https://github.com/fogfactory/crown-and-borough/commit/675bd0c80e72482f0d83b929de54b45627d5456c))
 * **specs:** link graphic charter phases to their issues ([0e7e888](https://github.com/fogfactory/crown-and-borough/commit/0e7e8888dac1e764489ea396e7beb337ca21f141))
-* **specs:** port kingship into gdd and player rules ([443baaf](https://github.com/fogfactory/crown-and-borough/commit/443baaf76f451f727bce5f2bc4e04da45d6e9987))
 * **specs:** port kingship into gdd and player rules ([6886f03](https://github.com/fogfactory/crown-and-borough/commit/6886f03d2457f79178ec65b28c37cb2b4ee1189f))
 * **specs:** refine royalty rules for the royauté milestone ([130f5e8](https://github.com/fogfactory/crown-and-borough/commit/130f5e82fff334d5c2ca8e0064fe4654f026f9a4))
-* **specs:** refonte de la victoire par titres, mariages et pouvoirs féminins ([5275157](https://github.com/fogfactory/crown-and-borough/commit/5275157f540eacf92a9e295c8a9cf765f9ecd5da))
 * **specs:** refonte de la victoire par titres, mariages et pouvoirs féminins ([53ef025](https://github.com/fogfactory/crown-and-borough/commit/53ef02502014f75b739ea128f5a63cb49a79a75c))
 * **specs:** renommer titres féminins en dignités, terme non genré ([37b61f2](https://github.com/fogfactory/crown-and-borough/commit/37b61f2291d5b2cc224b7e464c14cdf46caf1fb3))
 * **specs:** require full labels and map links for identifiers ([df333bd](https://github.com/fogfactory/crown-and-borough/commit/df333bd1457f10eddaf90fd006082f92a914fca4))
 * **specs:** revise graphic charter after decision review ([88e6eba](https://github.com/fogfactory/crown-and-borough/commit/88e6ebafde3616bf9b2e4d99d90706b0ac3947b6))
-* **specs:** rewrite gdd section 9 with title score and major/minor victory ([6162e17](https://github.com/fogfactory/crown-and-borough/commit/6162e173463738a1ff9fd7b2f67d316db9a10cc9))
 * **specs:** rewrite gdd section 9 with title score and major/minor victory ([f34b5d8](https://github.com/fogfactory/crown-and-borough/commit/f34b5d8cd1867738619e231bc1139ed6e6e8b1ee))
 * **specs:** royauté milestone spec and fief event cards ([9659c81](https://github.com/fogfactory/crown-and-borough/commit/9659c81a082227a1bb37c47d0ea04c58a28c5130))
 * **specs:** tie seigneurial tax to a fief-wide revolt window ([05e1395](https://github.com/fogfactory/crown-and-borough/commit/05e139539b2a0efaed1e77de18ed9a551674a128))
@@ -484,26 +426,20 @@
 
 ### Refactoring
 
-* **cards:** drop the trial card and show the defense a tunnel faced ([1bf3c16](https://github.com/fogfactory/crown-and-borough/commit/1bf3c16e8c7c718dc531ed209353f8106b2c0e78))
 * **cards:** drop the trial card and show the defense a tunnel faced ([2d26e3d](https://github.com/fogfactory/crown-and-borough/commit/2d26e3d7ecdb517030d6eb9264b2c37ef69104cc))
-* **engine:** derive territorial control instead of storing OwnerID ([246bab0](https://github.com/fogfactory/crown-and-borough/commit/246bab0ecd9c87462413f0444225101f05739a15))
 * **engine:** derive territorial control instead of storing OwnerID ([5b30caf](https://github.com/fogfactory/crown-and-borough/commit/5b30caf491986bc36ff67114f6a4e9133a4e02e2))
-* **engine:** drop dead winter order resolvers ([564febe](https://github.com/fogfactory/crown-and-borough/commit/564febe50d399e4525601e0f12197a64e912a0b5))
 * **engine:** drop dead winter order resolvers ([85aa12d](https://github.com/fogfactory/crown-and-borough/commit/85aa12d4dcc951407cf4fd118460ca2cd4ed59c4))
 * **models:** drop the derived religious status in favour of the noble status ([7ab4aa0](https://github.com/fogfactory/crown-and-borough/commit/7ab4aa068e737e7af58f583796a8039026867e9a))
 * **ui:** charte states final rules, game page uses Alert and label-caps ([#517](https://github.com/fogfactory/crown-and-borough/issues/517)) ([61d7414](https://github.com/fogfactory/crown-and-borough/commit/61d7414a467dacfe195c29e8df2a6bbcfd889568))
-* **ui:** introduce theme tokens without visible change ([5f911da](https://github.com/fogfactory/crown-and-borough/commit/5f911da9448d06ae1cd55c1b045a3b37e38fa980))
 * **ui:** introduce theme tokens without visible change ([4161be6](https://github.com/fogfactory/crown-and-borough/commit/4161be6f671800063a80c6d15da468033dffa347))
 * **ui:** one list state per word in the order editor ([#505](https://github.com/fogfactory/crown-and-borough/issues/505)) ([a5f1499](https://github.com/fogfactory/crown-and-borough/commit/a5f1499e734c30a4352ee2ab4403121522314fcd))
 * **ui:** share noble holder rendering and document fief crown flag ([e94eb4c](https://github.com/fogfactory/crown-and-borough/commit/e94eb4c5b34f11f6e2153a53007d8d0e3ec035f2))
-* **ui:** show nobles and territories by full name in reports ([2dd6d8c](https://github.com/fogfactory/crown-and-borough/commit/2dd6d8cca6765a40f55bc51e0bf3ee45af556665))
 
 ## [0.10.0](https://github.com/fogfactory/crown-and-borough/compare/v0.9.1...v0.10.0) (2026-09-23)
 
 
 ### Features
 
-* **web:** winter orders overlay with validation and diagnostics ([d09d500](https://github.com/fogfactory/crown-and-borough/commit/d09d50066010dfbf6bf433c097cd1fe7054df876))
 * **web:** winter orders overlay with validation and diagnostics ([12cf1b7](https://github.com/fogfactory/crown-and-borough/commit/12cf1b71f79a0a451fbb01ec30f6649a935e2ace))
 
 
@@ -516,7 +452,6 @@
 
 ### Bug Fixes
 
-* **map:** scatter and shrink winter snowflakes ([d46f839](https://github.com/fogfactory/crown-and-borough/commit/d46f8391fc82e315d3b9d8c6469d5307943fe76e))
 * **map:** scatter and shrink winter snowflakes ([0f9b1d0](https://github.com/fogfactory/crown-and-borough/commit/0f9b1d0f9e75189063656b859b44dca77ba2028d))
 
 ## [0.9.0](https://github.com/fogfactory/crown-and-borough/compare/v0.8.0...v0.9.0) (2026-09-17)
@@ -567,7 +502,6 @@
 
 ### Features
 
-* **orders:** estimate winter order costs ([fc75ad6](https://github.com/fogfactory/crown-and-borough/commit/fc75ad638f44dd1af9b2ab00e90ad5d29e5e06ed))
 * **orders:** estimate winter order costs ([483210a](https://github.com/fogfactory/crown-and-borough/commit/483210ac0e1ed62198ec8688fb5d790bd5d371b7))
 * **orders:** surface winter order syntax errors ([b028eca](https://github.com/fogfactory/crown-and-borough/commit/b028ecafe15bccd6e359cce0d7bfddceafa90294))
 
@@ -576,7 +510,6 @@
 
 ### Features
 
-* **online:** réhydrater ma dernière soumission + note si diverge ([feff620](https://github.com/fogfactory/crown-and-borough/commit/feff620d6215fad88df1d56e5dacbea9f8b0214c))
 * **online:** réhydrater ma dernière soumission + note si diverge ([0c4109f](https://github.com/fogfactory/crown-and-borough/commit/0c4109fc82512e13ce623855a3591bf4133bacae))
 
 ## [0.5.0](https://github.com/fogfactory/crown-and-borough/compare/v0.4.4...v0.5.0) (2026-09-08)
@@ -584,15 +517,11 @@
 
 ### Features
 
-* **balance:** rebalance terrain rations ([e39c928](https://github.com/fogfactory/crown-and-borough/commit/e39c928ed6c7109d6ce500671475ef98b99c8656))
 * **balance:** rebalance terrain rations ([6fec885](https://github.com/fogfactory/crown-and-borough/commit/6fec885d0c0e3f0130ebc774873d91f827bc1a62))
-* **economy:** cap mill level at 3 with progressive costs ([9242c4e](https://github.com/fogfactory/crown-and-borough/commit/9242c4e5e10644ac97d91100d964eab4675fec0c))
 * **economy:** cap mill level at 3 with progressive costs ([36bb7f4](https://github.com/fogfactory/crown-and-borough/commit/36bb7f47be7354249ef89c1f7efa7bb5415eb01f))
-* **engine:** add resource transfer orders ([1213e30](https://github.com/fogfactory/crown-and-borough/commit/1213e30ac078572b03d8e3a51a33f48fce85d434))
 * **engine:** add resource transfer orders ([1bc7214](https://github.com/fogfactory/crown-and-borough/commit/1bc7214245ddae489baa258352cbc805ab87c11b))
 * **mapgen:** double terrain seed density ([f51cc7c](https://github.com/fogfactory/crown-and-borough/commit/f51cc7cd69b471ee8f6402049e4eda7843865e60))
 * **mapgen:** double terrain seed density (sites/8 -&gt; sites/4) ([c1d26ea](https://github.com/fogfactory/crown-and-borough/commit/c1d26ea138d35436a2a79453a12c259152f9b325))
-* **mapgen:** enforce two vertex-disjoint paths ([0c01ff7](https://github.com/fogfactory/crown-and-borough/commit/0c01ff7507d8dd97fbb7127808559a3a221086d4))
 * **mapgen:** enforce two vertex-disjoint paths ([3fdef12](https://github.com/fogfactory/crown-and-borough/commit/3fdef1249c3f568848fc2e4a9987e0f50da78d93))
 * **release:** promote develop to main for 0.5.0 ([02122eb](https://github.com/fogfactory/crown-and-borough/commit/02122eb0956eb53f79746358c61a2a17fc977ee3))
 
@@ -600,10 +529,8 @@
 ### Bug Fixes
 
 * **docs:** template mill costs from balance ([bb7199c](https://github.com/fogfactory/crown-and-borough/commit/bb7199c81c2cd25bfcb16b190a48554639b11a13))
-* **engine:** block supply only on enemy armies ([7885f61](https://github.com/fogfactory/crown-and-borough/commit/7885f612c8c4e661babb4bea8e39441fa5c56805))
 * **engine:** block supply only on enemy armies ([70c791c](https://github.com/fogfactory/crown-and-borough/commit/70c791cbb383454c99cbb397884e1075c3e80fdd))
 * **engine:** consume local terrain production ([beae901](https://github.com/fogfactory/crown-and-borough/commit/beae9019d0aea4968b862354561acbc4f61a0c96))
-* **ui:** preview action transfer routes ([9312ae0](https://github.com/fogfactory/crown-and-borough/commit/9312ae0034b3c4ac2b74b8b6811e68cd3039e3b2))
 * **ui:** preview action transfer routes ([7e98281](https://github.com/fogfactory/crown-and-borough/commit/7e98281ea4b16895fab68804c63bb9bd30ae8e6e))
 
 ## [0.4.4](https://github.com/fogfactory/crown-and-borough/compare/v0.4.3...v0.4.4) (2026-09-05)
@@ -611,7 +538,6 @@
 
 ### Bug Fixes
 
-* **ui:** mark pending loop orders with ? in overlay ([fba67a3](https://github.com/fogfactory/crown-and-borough/commit/fba67a3e5480f6f45136c59e2c78ed8e232ee1aa))
 * **ui:** mark pending loop orders with ? in overlay ([e87bf24](https://github.com/fogfactory/crown-and-borough/commit/e87bf24c8e55b23d94dfe2fbb489da0304d85f02))
 
 ## [0.4.3](https://github.com/fogfactory/crown-and-borough/compare/v0.4.2...v0.4.3) (2026-09-04)
@@ -621,18 +547,15 @@
 
 * **engine:** reject non-adjacent order chains ([00b60db](https://github.com/fogfactory/crown-and-borough/commit/00b60db22fa9b4536e866e2d60f0518ff8b85424))
 * **map:** distinguish draft intentions visually ([b9b5b55](https://github.com/fogfactory/crown-and-borough/commit/b9b5b55a02c68b19aba1a7c92034f2d7d53df1ec))
-* **map:** overlay local des intentions (brouillons + chaînes connues) ([d1986fc](https://github.com/fogfactory/crown-and-borough/commit/d1986fc6589cdd2d968f2487f43ecf5a3caa526a))
 * **map:** overlay local des intentions (brouillons + chaînes connues) ([fcd896b](https://github.com/fogfactory/crown-and-borough/commit/fcd896b4ee8d4300759d0ffb41ced14993af78f5))
 * **map:** render complete order chains with outlined arrows ([e91affb](https://github.com/fogfactory/crown-and-borough/commit/e91affba4189933bfce6a1deade555f43fd89f41))
 * **map:** show first draft order in overlay ([8b9e59d](https://github.com/fogfactory/crown-and-borough/commit/8b9e59ddb203dd4cf67c0358e167e4e8d3015895))
-* **ui:** expose rules and FAQ pages ([6285083](https://github.com/fogfactory/crown-and-borough/commit/6285083b80afc5d5f998808b9299a723244a2593))
 * **ui:** expose rules and FAQ pages ([722326a](https://github.com/fogfactory/crown-and-borough/commit/722326a2125e7910acd2f34349ed6eb8a789f54c))
 
 
 ### Documentation
 
 * **rules:** corrige la distribution des rations locales — une armée par case ([891c1f8](https://github.com/fogfactory/crown-and-borough/commit/891c1f821b95d03a1ccf037a671f3d988ddb086e))
-* **rules:** lot règles unique — famine, moulins, dispersion, synchro join, FAQ ([8312b64](https://github.com/fogfactory/crown-and-borough/commit/8312b6400b1fdf2d6ae3d5b6dcf3f8dccfc8b0f5))
 * **rules:** lot règles unique — famine, moulins, dispersion, synchro join, FAQ ([2fc4cc2](https://github.com/fogfactory/crown-and-borough/commit/2fc4cc23d585c9640aaff618548f9a357ddbb81c))
 
 ## [0.4.2](https://github.com/fogfactory/crown-and-borough/compare/v0.4.1...v0.4.2) (2026-09-01)
@@ -653,7 +576,6 @@
 
 ### Bug Fixes
 
-* **deploy:** avoid curl smoke test pipe errors ([7667ae8](https://github.com/fogfactory/crown-and-borough/commit/7667ae8a2d3f3aa663c47ca5d0a7776f6b33ea2b))
 * **deploy:** avoid curl smoke test pipe errors ([4312989](https://github.com/fogfactory/crown-and-borough/commit/431298916dcff003e89d01e190ae3d72227dfc5e))
 
 ## [0.4.0](https://github.com/fogfactory/crown-and-borough/compare/v0.3.1...v0.4.0) (2026-08-26)
@@ -661,7 +583,6 @@
 
 ### Features
 
-* **deploy:** display deployed version ([c92d356](https://github.com/fogfactory/crown-and-borough/commit/c92d356ac8689f1c2e1b7e56d58d2eac0268d942))
 * **deploy:** display deployed version ([bb1ef7e](https://github.com/fogfactory/crown-and-borough/commit/bb1ef7eb6df1ff920547982b60fc1d8a4aa08132))
 * **workflow:** define main and develop release flow ([518b7dd](https://github.com/fogfactory/crown-and-borough/commit/518b7dde8bc160a674e2d957d19f7b6ab0de902c))
 
