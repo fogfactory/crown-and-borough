@@ -810,3 +810,23 @@ gcloud run services update-traffic "$CLOUD_RUN_SERVICE" \
 Rules and indexes are versioned in Git. To roll those back, restore the desired
 repository revision and run a new controlled promotion; do not edit the live
 rules only in the Firebase console.
+
+## HTTP timeouts and rate limit
+
+The server sets explicit timeouts (headers 10 s, request 30 s, response 60 s,
+idle 120 s) so slow clients cannot hold a Cloud Run concurrency slot.
+
+An in-memory token bucket per client address limits `/api/auth/*` and every
+non-read `/api/*` request (game creation, join, orders, resolution, chat
+posts, bug reports). Reads, health checks and static files are not limited.
+Excess requests get `429` with `Retry-After`. The limit is per instance.
+
+| Variable              | Default | Meaning                                             |
+|-----------------------|---------|-----------------------------------------------------|
+| `RATE_LIMIT_REQUESTS` | `120`   | Burst size and requests refilled per window; `0` disables |
+| `RATE_LIMIT_WINDOW`   | `1m`    | Go duration of the refill window                    |
+| `TRUSTED_PROXY_HOPS`  | `1` on Cloud Run (`K_SERVICE` set), else `0` | Proxies appending to `X-Forwarded-For` |
+
+`X-Forwarded-For` is client controlled: only the entry added by the trusted
+proxies (the one `TRUSTED_PROXY_HOPS` from the right) is used, otherwise the
+peer address.

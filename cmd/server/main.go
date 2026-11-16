@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/auth"
@@ -106,9 +107,53 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	if err := http.ListenAndServe(addr, api.WithCORSMode(server, onlineDevMode)); err != nil {
+	httpServer := newHTTPServer(addr, api.WithRateLimit(api.WithCORSMode(server, onlineDevMode), rateLimitFromEnv()))
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// HTTP server timeouts. They bound how long a slow or stalled client can keep
+// a connection (and a Cloud Run concurrency slot) busy; request bodies are
+// additionally capped by http.MaxBytesReader in the handlers.
+const (
+	readHeaderTimeout = 10 * time.Second
+	readTimeout       = 30 * time.Second
+	writeTimeout      = 60 * time.Second
+	idleTimeout       = 120 * time.Second
+	maxHeaderBytes    = 32 << 10
+)
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+		MaxHeaderBytes:    maxHeaderBytes,
+	}
+}
+
+// rateLimitFromEnv reads RATE_LIMIT_REQUESTS (default 120, 0 disables),
+// RATE_LIMIT_WINDOW (Go duration, default 1m) and TRUSTED_PROXY_HOPS (default
+// 1 on Cloud Run, where K_SERVICE is set, else 0).
+func rateLimitFromEnv() api.RateLimitConfig {
+	cfg := api.RateLimitConfig{Requests: 120, Window: time.Minute}
+	if os.Getenv("K_SERVICE") != "" {
+		cfg.TrustedProxyHops = 1
+	}
+	if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("RATE_LIMIT_REQUESTS"))); err == nil && v >= 0 {
+		cfg.Requests = v
+	}
+	if v, err := time.ParseDuration(strings.TrimSpace(os.Getenv("RATE_LIMIT_WINDOW"))); err == nil && v > 0 {
+		cfg.Window = v
+	}
+	if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("TRUSTED_PROXY_HOPS"))); err == nil && v >= 0 {
+		cfg.TrustedProxyHops = v
+	}
+	return cfg
 }
 
 // bugIssueClient authenticates as the GitHub App described by
