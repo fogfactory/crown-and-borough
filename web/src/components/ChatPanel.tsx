@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 import { IconLock, IconSend } from '@tabler/icons-react'
 
@@ -38,8 +39,9 @@ import {
   otherHouse,
   sendChatText,
   splitChatMessage,
+  initialChannel,
   totalUnread,
-  unreadCount,
+  unreadByAuthor,
   type ChatMessage,
 } from '@/lib/chat'
 import {
@@ -48,7 +50,7 @@ import {
   type MentionIndex,
 } from '@/lib/chat-mentions'
 import { markChatRead, postChatMessage } from '@/lib/chat-api'
-import { playerArms } from '@/lib/heraldry'
+import { luminance, playerArms } from '@/lib/heraldry'
 import { playerDisplayName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useChat, type ChatSubscriptionSpec } from '@/lib/use-chat'
@@ -83,6 +85,50 @@ export function ChatUnreadBadge({ count }: { count: number }) {
       className="inline-flex min-w-4 items-center justify-center rounded-full bg-vermilion-700 px-1 text-2xs font-semibold leading-4 text-paper-50"
     >
       {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
+// Above this luminance (0–255) a house color takes dark text.
+const LIGHT_COLOR_LUMINANCE = 150
+
+/** Unread pills of a channel: one per author house, in the house color. */
+function ChannelUnread({
+  authors,
+  houseName,
+  playerOf,
+}: {
+  authors?: Record<string, number>
+  houseName: (id: string) => string
+  playerOf: (id: string) => Player | undefined
+}) {
+  const { t } = useLanguage()
+  const entries = Object.entries(authors ?? {})
+  if (entries.length === 0) return null
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      {entries.map(([author, count]) => {
+        const color = playerOf(author)?.color
+        return (
+          <span
+            key={author}
+            data-chat-unread={count}
+            data-chat-unread-house={author}
+            role="img"
+            aria-label={t('chat.unreadFromHouse', { count, house: houseName(author) })}
+            style={color ? { backgroundColor: color } : undefined}
+            className={cn(
+              'inline-flex min-w-4 items-center justify-center rounded-full px-1 text-2xs font-semibold leading-4 ring-1 ring-ink-900/30',
+              (luminance(color ?? '') ?? 0) > LIGHT_COLOR_LUMINANCE
+                ? 'text-ink-900'
+                : 'text-paper-50',
+              !color && 'bg-vermilion-700',
+            )}
+          >
+            {count > 99 ? '99+' : count}
+          </span>
+        )
+      })}
     </span>
   )
 }
@@ -123,16 +169,16 @@ const SELECT_TRIGGER_CLASS = 'w-full data-[size=default]:h-11 lg:data-[size=defa
 // Rows keep a 44px touch target on phones; the label may shrink and truncate.
 const SELECT_ITEM_CLASS = 'max-lg:min-h-11'
 
-/** A selector entry: the arms of the house(s) concerned, the label, then the unread suffix. */
+/** A selector entry: the arms of the house(s) concerned, the label, then what trails it (unread pills). */
 function ChannelOption({
   houses,
   label,
-  suffix,
+  trailing,
   playerOf,
 }: {
   houses: string[]
   label: string
-  suffix?: string
+  trailing?: ReactNode
   playerOf: (id: string) => Player | undefined
 }) {
   return (
@@ -141,7 +187,7 @@ function ChannelOption({
         <HouseMark key={houseId} player={playerOf(houseId)} className="size-5 shrink-0" />
       ))}
       <span className="truncate">{label}</span>
-      {suffix && <span className="shrink-0">{suffix}</span>}
+      {trailing}
     </span>
   )
 }
@@ -220,23 +266,69 @@ export function ChatPanel({
   )
   const { channels, lastRead, loadMore } = useChat({ gameId, uid, specs })
 
-  const unread = useMemo(() => {
-    const counts: Record<string, number> = {}
-    if (!house || !lastRead) return counts
+  // Unread messages per channel and author house, whatever the open channel.
+  const unreadAuthors = useMemo(() => {
+    const result: Record<string, Record<string, number>> = {}
+    if (!house || !lastRead) return result
     for (const spec of specs) {
       if (!spec.own && spec.channel !== PUBLIC_CHANNEL) continue
-      const messages = channels[spec.channel]?.messages ?? []
-      counts[spec.channel] =
-        visible && open === spec.channel
-          ? 0
-          : unreadCount(messages, lastRead[spec.channel], house)
+      result[spec.channel] = unreadByAuthor(
+        channels[spec.channel]?.messages ?? [],
+        lastRead[spec.channel],
+        house,
+      )
+    }
+    return result
+  }, [channels, house, lastRead, specs])
+  const unread = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const [key, authors] of Object.entries(unreadAuthors)) {
+      counts[key] = visible && open === key ? 0 : totalUnread(authors)
     }
     return counts
-  }, [channels, house, lastRead, open, specs, visible])
+  }, [open, unreadAuthors, visible])
+  // Unread waiting in the channels that are not open, by author house.
+  const otherUnreadAuthors = useMemo(() => {
+    const sums: Record<string, number> = {}
+    for (const [key, authors] of Object.entries(unreadAuthors)) {
+      if (key === open) continue
+      for (const [author, count] of Object.entries(authors))
+        sums[author] = (sums[author] ?? 0) + count
+    }
+    return sums
+  }, [open, unreadAuthors])
+  const otherUnread = totalUnread(otherUnreadAuthors)
   const unreadTotal = totalUnread(unread)
   useEffect(() => {
     onUnreadChange?.(unreadTotal)
   }, [onUnreadChange, unreadTotal])
+
+  // `settled`: the channel shown first is known, chosen by the reader or by the
+  // rule below. Nothing is marked read before that.
+  const [settled, setSettled] = useState(false)
+  const select = useCallback((channel: string) => {
+    setSettled(true)
+    setOpen(channel)
+    setOpened((current) =>
+      current.has(channel) ? current : new Set(current).add(channel),
+    )
+  }, [])
+
+  // The first time the chat is shown, once the public room and every own
+  // conversation have loaded: the only channel with unread messages, else the
+  // public room. A pick made by the reader meanwhile stands.
+  useEffect(() => {
+    if (settled || !visible || !house || !lastRead) return
+    const counted = specs.filter((spec) => spec.own || spec.channel === PUBLIC_CHANNEL)
+    if (counted.some((spec) => !channels[spec.channel]?.loaded)) return
+    select(
+      initialChannel(
+        Object.fromEntries(
+          counted.map((spec) => [spec.channel, totalUnread(unreadAuthors[spec.channel])]),
+        ),
+      ),
+    )
+  }, [channels, house, lastRead, select, settled, specs, unreadAuthors, visible])
 
   // Reading the open channel moves its cursor.
   const openState = channels[open]
@@ -244,7 +336,8 @@ export function ChatPanel({
     .filter((message) => message.authorHouseId !== house)
     .at(-1)?.createdAt
   useEffect(() => {
-    if (!visible || !house || !lastRead || !openState?.loaded || !latestFromOthers) return
+    if (!settled || !visible || !house || !lastRead) return
+    if (!openState?.loaded || !latestFromOthers) return
     if ((lastRead[open] ?? '') >= latestFromOthers) return
     if ((marked.current.get(open) ?? '') >= latestFromOthers) return
     marked.current.set(open, latestFromOthers)
@@ -258,6 +351,7 @@ export function ChatPanel({
     latestFromOthers,
     open,
     openState?.loaded,
+    settled,
     tokenProvider,
     visible,
   ])
@@ -312,29 +406,39 @@ export function ChatPanel({
     [channels, house, open, state],
   )
 
-  const select = (channel: string) => {
-    setOpen(channel)
-    setOpened((current) => new Set(current).add(channel))
-  }
-
   // The closed Select still renders its items: keep their elements stable so that
   // typing in the composer does not rebuild every shield.
   const channelItems = useMemo(
     () =>
       [PUBLIC_CHANNEL, ...privateChannels].map((key) => {
-        const count = unread[key] ?? 0
+        const shown = !(key === open && visible)
         return (
           <SelectItem key={key} value={key} className={SELECT_ITEM_CLASS}>
             <ChannelOption
               houses={channelHouses(key)}
               label={channelLabel(key)}
-              suffix={count > 0 ? ` (${count > 99 ? '99+' : count})` : undefined}
+              trailing={
+                <ChannelUnread
+                  authors={shown ? unreadAuthors[key] : undefined}
+                  houseName={houseName}
+                  playerOf={playerOf}
+                />
+              }
               playerOf={playerOf}
             />
           </SelectItem>
         )
       }),
-    [channelHouses, channelLabel, playerOf, privateChannels, unread],
+    [
+      channelHouses,
+      channelLabel,
+      houseName,
+      open,
+      playerOf,
+      privateChannels,
+      unreadAuthors,
+      visible,
+    ],
   )
   const newConversationItems = useMemo(
     () =>
@@ -421,10 +525,27 @@ export function ChatPanel({
         <Select value={open} onValueChange={select}>
           <SelectTrigger
             ref={channelTrigger}
-            aria-label={`${t('chat.channels')} ${channelLabel(open)}`}
+            aria-label={`${t('chat.channels')} ${channelLabel(open)}${
+              otherUnread > 0
+                ? `, ${t('chat.unreadElsewhere', { count: otherUnread })}`
+                : ''
+            }`}
             className={SELECT_TRIGGER_CLASS}
           >
             <SelectValue />
+            {otherUnread > 0 && (
+              <span
+                data-chat-unread-elsewhere={otherUnread}
+                aria-hidden="true"
+                className="mr-1 ml-auto"
+              >
+                <ChannelUnread
+                  authors={otherUnreadAuthors}
+                  houseName={houseName}
+                  playerOf={playerOf}
+                />
+              </span>
+            )}
           </SelectTrigger>
           <SelectContent position="popper" aria-label={t('chat.channels')}>
             {channelItems}

@@ -688,9 +688,14 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
   écrire : si tu joues dans une partie, sache que ce que tu écris en privé
   peut être lu par cet hôte. Un hôte qui joue une maison lit comme les autres.
 - **Historique et non-lus.** L'historique est conservé ; les 50 derniers
-  messages s'affichent, et tu peux charger les plus anciens. Une pastille
-  compte les messages non lus de chaque canal. Des séparateurs (« Printemps
-  1011 ») marquent les tours.
+  messages s'affichent, et tu peux charger les plus anciens. Dans la liste des
+  canaux, chaque canal qui contient des messages non lus porte une pastille
+  aux couleurs de la maison qui les a écrits, une par maison quand ils
+  viennent de plusieurs ; le canal affiché signale aussi les non-lus des
+  autres canaux. À l'ouverture du chat, si un seul canal (salon public
+  compris) contient des messages non lus, il s'affiche directement ; sinon,
+  c'est le salon public. Des séparateurs (« Printemps 1011 ») marquent les
+  tours.
 - **Limites.** Un message compte 500 caractères au plus, et tu peux en
   envoyer un par seconde. Un texte plus long, jusqu'à 4 000 caractères, est
   découpé et envoyé morceau par morceau ; tu peux l'annuler en cours d'envoi.

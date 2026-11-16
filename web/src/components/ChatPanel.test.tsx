@@ -78,13 +78,20 @@ function setChat(
   chat.result = { channels, lastRead, loadMore: vi.fn() } satisfies UseChatResult
 }
 
+// The reader's conversations (P1 against P2, P3 and P4), loaded and empty.
+const NO_CONVERSATION = {
+  P1_P2: channel([]),
+  P1_P3: channel([]),
+  P1_P4: channel([]),
+}
+
 function channel(messages: ChatMessage[]) {
   return { messages, loaded: true, hasMore: false, loadingMore: false, error: null }
 }
 
 function renderPanel(props: Partial<Parameters<typeof ChatPanel>[0]> = {}) {
   const onUnreadChange = vi.fn()
-  render(
+  const tree = () => (
     <LanguageProvider initialLanguage="en">
       <ChatPanel
         gameId="g1"
@@ -97,9 +104,12 @@ function renderPanel(props: Partial<Parameters<typeof ChatPanel>[0]> = {}) {
         onUnreadChange={onUnreadChange}
         {...props}
       />
-    </LanguageProvider>,
+    </LanguageProvider>
   )
-  return { onUnreadChange }
+  const view = render(tree())
+  // Renders again (a new element: React skips an identical one) after `setChat`
+  // changed what the mocked chat hook returns.
+  return { onUnreadChange, reload: () => view.rerender(tree()) }
 }
 
 beforeEach(() => {
@@ -227,12 +237,155 @@ describe('ChatPanel', () => {
     expect(onUnreadChange).toHaveBeenLastCalledWith(3)
     openSelect(CHANNELS)
     expect(
-      screen.getByRole('option', { name: /^Public room\s*\(1\)/ }),
+      screen.getByRole('option', { name: /^Public room\s*1 unread from Maison Brieuc/ }),
     ).toBeInTheDocument()
   })
 
+  it('opens the only conversation with unread messages', () => {
+    setChat(
+      {
+        public: channel([]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([]),
+        P1_P4: channel([]),
+      },
+      {},
+    )
+    renderPanel({ visible: true })
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Brieuc')
+  })
+
+  it('keeps the public room when it also has unread messages', () => {
+    setChat(
+      {
+        public: channel([message('1', 'P2', 1)]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([]),
+        P1_P4: channel([]),
+      },
+      {},
+    )
+    renderPanel({ visible: true })
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+  })
+
+  it('keeps the public room when several conversations have unread messages', () => {
+    setChat(
+      {
+        public: channel([]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([message('4', 'P3', 1, 'P1_P3')]),
+        P1_P4: channel([]),
+      },
+      {},
+    )
+    renderPanel({ visible: true })
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+    expect(trigger(CHANNELS).querySelector('[data-chat-unread-elsewhere]')).not.toBeNull()
+  })
+
+  it('keeps the channel the reader picked while the first one was pending', () => {
+    const read = { P1_P3: toChatTimestamp('2026-01-01T10:00:09Z') as string }
+    setChat(
+      {
+        public: channel([]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([message('4', 'P3', 1, 'P1_P3')]),
+      },
+      read,
+    )
+    const { reload } = renderPanel({ visible: true })
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+    chooseOption(CHANNELS, /^Maison Cérès/)
+    // P1_P4 loads at last: P2 is the only conversation with unread messages.
+    setChat(
+      {
+        public: channel([]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([message('4', 'P3', 1, 'P1_P3')]),
+        P1_P4: channel([]),
+      },
+      read,
+    )
+    reload()
+    expect(trigger(CHANNELS)).toHaveTextContent('Maison Cérès')
+  })
+
+  it('waits for the public room before choosing the first channel', () => {
+    setChat({ ...NO_CONVERSATION, P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]) }, {})
+    const { reload } = renderPanel({ visible: true })
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+    setChat(
+      {
+        public: channel([message('1', 'P3', 1)]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([]),
+        P1_P4: channel([]),
+      },
+      {},
+    )
+    reload()
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+  })
+
+  it('marks nothing read before the first channel is chosen', () => {
+    setChat({ public: channel([message('1', 'P3', 1)]), P1_P2: channel([]) }, {})
+    const { reload } = renderPanel({ visible: true })
+    expect(markChatRead).not.toHaveBeenCalled()
+    setChat(
+      {
+        public: channel([message('1', 'P3', 1)]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([]),
+        P1_P4: channel([]),
+      },
+      {},
+    )
+    reload()
+    // The public room had unread messages too: it stays, and is read.
+    expect(trigger(CHANNELS)).toHaveTextContent('Public room')
+    expect(markChatRead).toHaveBeenCalledWith(expect.anything(), 'g1', 'public')
+  })
+
+  it('shows one pill per author house, in its color', () => {
+    setChat(
+      {
+        public: channel([
+          message('1', 'P2', 1),
+          message('2', 'P3', 1),
+          message('3', 'P3', 1),
+        ]),
+        ...NO_CONVERSATION,
+      },
+      {},
+    )
+    renderPanel()
+    openSelect(CHANNELS)
+    const option = screen.getByRole('option', { name: /^Public room/ })
+    const pills = option.querySelectorAll<HTMLElement>('[data-chat-unread-house]')
+    expect([...pills].map((pill) => pill.dataset.chatUnreadHouse)).toEqual(['P2', 'P3'])
+    expect(pills[0]).toHaveStyle({ backgroundColor: '#33a' })
+    expect(pills[1]).toHaveStyle({ backgroundColor: '#3a3' })
+    expect(pills[1]).toHaveAttribute('aria-label', '2 unread from Maison Cérès')
+  })
+
+  it('signals on the trigger the unread messages of the other channels', () => {
+    setChat(
+      {
+        public: channel([]),
+        P1_P2: channel([message('3', 'P2', 1, 'P1_P2')]),
+        P1_P3: channel([message('4', 'P3', 1, 'P1_P3')]),
+        P1_P4: channel([]),
+      },
+      {},
+    )
+    renderPanel({ visible: true })
+    expect(trigger(CHANNELS)).toHaveAccessibleName(/2 unread in other rooms/)
+    expect(trigger(CHANNELS).querySelectorAll('[data-chat-unread-house]')).toHaveLength(2)
+  })
+
   it('marks the open channel read when the chat is on screen', () => {
-    setChat({ public: channel([message('1', 'P2', 1)]) }, {})
+    setChat({ ...NO_CONVERSATION, public: channel([message('1', 'P2', 1)]) }, {})
     renderPanel({ visible: true })
     expect(markChatRead).toHaveBeenCalledWith(expect.anything(), 'g1', 'public')
   })

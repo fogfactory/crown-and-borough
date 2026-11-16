@@ -99,9 +99,16 @@ page suivante après le plus ancien message reçu, par curseur de document.
 ### Non-lus
 
 Le nombre de non-lus d'un canal est celui des messages d'autres maisons
-postérieurs à `lastReadAt` (tous, si le canal n'a jamais été lu). Une pastille
-s'affiche par canal et sur l'onglet (somme). Un canal ouvert dans un panneau
-visible compte pour zéro ; son curseur avance par
+postérieurs à `lastReadAt` (tous, si le canal n'a jamais été lu). Sur l'onglet,
+une pastille affiche la somme. Dans le sélecteur de canal, chaque entrée avec
+du non-lu porte une pastille par maison auteure, à la couleur de cette maison ;
+le déclencheur du sélecteur affiche de même le non-lu des autres canaux.
+À la première ouverture du panneau, une fois le salon public et les
+conversations de la maison chargés, le seul canal (salon public compris) avec
+du non-lu est ouvert directement ; sinon (aucun ou plusieurs) le salon public
+l'est. Ce choix n'est fait qu'une fois, et un canal choisi par le joueur
+entre-temps est conservé ; aucun curseur n'avance avant ce choix. Un canal
+ouvert dans un panneau visible compte pour zéro ; son curseur avance par
 `POST /api/games/{id}/messages/read` dès que des messages d'autres maisons
 sont à l'écran. L'observateur n'a ni curseur ni pastille.
 
