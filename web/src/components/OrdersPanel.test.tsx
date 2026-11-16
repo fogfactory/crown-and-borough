@@ -852,8 +852,27 @@ describe('OrdersPanel winter elections', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Candidacy (K)' })[0])
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
     expect(onWinterChange).toHaveBeenCalledWith(
+      'K E HUG AAA # candidacy Sieur Hugues de Ros\nV E HUG AAA # vote Sieur Hugues de Ros\n',
+    )
+  })
+
+  it('files the candidacy alone when the vote-for-me box is unchecked', () => {
+    const onWinterChange = vi.fn()
+    renderElections(onWinterChange)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Candidacy (K)' })[0])
+    fireEvent.click(screen.getByLabelText('Vote for this candidate too'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
+    expect(onWinterChange).toHaveBeenCalledWith(
       'K E HUG AAA # candidacy Sieur Hugues de Ros\n',
     )
+  })
+
+  it('greys out the vote-for-me box once the sheet already holds a vote', () => {
+    renderElections(vi.fn(), 'V E ZEM AAA # vote ZEM\n')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Candidacy (K)' })[0])
+    const box = screen.getByLabelText('Vote for this candidate too') as HTMLInputElement
+    expect(box.disabled).toBe(true)
+    expect(box.checked).toBe(false)
   })
 
   it('adds a commented vote line from the vote dialog', () => {
@@ -873,7 +892,9 @@ describe('OrdersPanel winter elections', () => {
     expect(screen.getByText(/Clergy among your voices: 1 \(cardinal or pope: no\)/)).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: 'Candidacy (K)' })[2])
     fireEvent.click(screen.getByRole('button', { name: 'Add the order' }))
-    expect(onWinterChange).toHaveBeenCalledWith('K R OTO # candidacy Baron Oton\n')
+    expect(onWinterChange).toHaveBeenCalledWith(
+      'K R OTO # candidacy Baron Oton\nV R OTO # vote Baron Oton\n',
+    )
   })
 
   it('disables a candidate already on the sheet', () => {
