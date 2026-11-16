@@ -53,6 +53,7 @@ func TestRateLimitScope(t *testing.T) {
 	h := limited(t, RateLimitConfig{Requests: 1, Window: time.Hour})
 	for _, c := range []struct{ method, path string }{
 		{"GET", "/api/games"}, {"GET", "/healthz"}, {"POST", "/healthz"}, {"GET", "/assets/app.js"}, {"GET", "/api/games/x/state"},
+		{"OPTIONS", "/api/games"},
 	} {
 		for i := 0; i < 3; i++ {
 			if rec := do(h, c.method, c.path, "1.1.1.1:1", ""); rec.Code != http.StatusNoContent {
@@ -87,5 +88,34 @@ func TestClientIPTrustsOnlyProxyHops(t *testing.T) {
 	}
 	if got := clientIP(r, 3); got != "10.0.0.1" {
 		t.Fatalf("shortfall: %s", got)
+	}
+}
+
+func TestRateLimitClassesAreIndependent(t *testing.T) {
+	h := limited(t, RateLimitConfig{Requests: 1, Window: time.Hour})
+	for _, path := range []string{"/api/games/g/orders/preview", "/api/games/g/orders", "/api/auth/me"} {
+		if rec := do(h, "POST", path, "1.1.1.1:1", ""); rec.Code != http.StatusNoContent {
+			t.Fatalf("%s: first request limited (%d)", path, rec.Code)
+		}
+		if rec := do(h, "POST", path, "1.1.1.1:1", ""); rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("%s: second request not limited (%d)", path, rec.Code)
+		}
+	}
+}
+
+func TestClientIPGroupsIPv6ByNetwork(t *testing.T) {
+	key := func(remote string) string {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = remote
+		return clientIP(r, 0)
+	}
+	if key("[2001:db8:1:2::1]:1") != key("[2001:db8:1:2:ffff::9]:1") {
+		t.Fatal("addresses of one /64 must share a key")
+	}
+	if key("[2001:db8:1:2::1]:1") == key("[2001:db8:1:3::1]:1") {
+		t.Fatal("different /64 networks must not share a key")
+	}
+	if got := key("[::ffff:1.2.3.4]:1"); got != "1.2.3.4" {
+		t.Fatalf("mapped IPv4: %s", got)
 	}
 }

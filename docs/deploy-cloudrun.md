@@ -816,10 +816,13 @@ rules only in the Firebase console.
 The server sets explicit timeouts (headers 10 s, request 30 s, response 60 s,
 idle 120 s) so slow clients cannot hold a Cloud Run concurrency slot.
 
-An in-memory token bucket per client address limits `/api/auth/*` and every
-non-read `/api/*` request (game creation, join, orders, resolution, chat
-posts, bug reports). Reads, health checks and static files are not limited.
-Excess requests get `429` with `Retry-After`. The limit is per instance.
+An in-memory token bucket per client address limits three classes of request,
+each with its own bucket: `/api/auth/*`, the order preview and victory
+simulation routes, and every other non-read `/api/*` request (game creation,
+join, orders, resolution, chat posts, bug reports). Reads, health checks and
+static files are not limited. Excess requests get `429` with `Retry-After`.
+The limit is per instance, and `scripts/league-server.sh` disables it because
+every agent of a league calls from the same address.
 
 | Variable              | Default | Meaning                                             |
 |-----------------------|---------|-----------------------------------------------------|
@@ -827,6 +830,15 @@ Excess requests get `429` with `Retry-After`. The limit is per instance.
 | `RATE_LIMIT_WINDOW`   | `1m`    | Go duration of the refill window                    |
 | `TRUSTED_PROXY_HOPS`  | `1` on Cloud Run (`K_SERVICE` set), else `0` | Proxies appending to `X-Forwarded-For` |
 
+The effective values are logged at startup; an invalid value is reported and
+ignored.
+
 `X-Forwarded-For` is client controlled: only the entry added by the trusted
 proxies (the one `TRUSTED_PROXY_HOPS` from the right) is used, otherwise the
-peer address.
+peer address. IPv6 clients are keyed by their `/64` network.
+
+The default of `1` fits a request that reaches the Cloud Run URL directly. The
+Firebase Hosting rewrite is a second proxy: check the `X-Forwarded-For` chain
+that Cloud Run receives through `PUBLIC_HOSTING_URL`, and raise
+`TRUSTED_PROXY_HOPS` to `2` if its last entry is a Hosting address rather than
+the player. Otherwise every player behind that address shares one bucket.

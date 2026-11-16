@@ -457,6 +457,20 @@ l'environnement du serveur, sans dépendance Go supplémentaire :
 | `SMTP_FROM` | Expéditeur (`adresse` ou `Nom <adresse>`) ; vide : aucun email n'est envoyé |
 | `PUBLIC_APP_URL` | Origine des liens des emails (`/games/{id}`, `/profile`) |
 
+### Limites HTTP
+
+Le serveur impose des timeouts (en-têtes 10 s, requête 30 s, réponse 60 s,
+inactivité 120 s) et plafonne la taille des en-têtes à 32 Kio ; les corps JSON
+ont chacun leur plafond. Un limiteur en mémoire (jetons par client et par
+classe de route) répond `429` avec `Retry-After` sur `/api/auth/*`, sur
+`orders/preview` et `victory/simulate`, et sur toute autre requête `/api/*`
+qui n'est pas une lecture ; les lectures, `/healthz*` et les fichiers
+statiques ne sont jamais limités. Le client est l'entrée de `X-Forwarded-For`
+posée par les proxys de confiance (`TRUSTED_PROXY_HOPS`), jamais une valeur
+fournie par le navigateur. `RATE_LIMIT_REQUESTS` (120 ; `0` désactive) et
+`RATE_LIMIT_WINDOW` (`1m`) règlent le quota ; le détail d'exploitation est dans
+[`docs/deploy-cloudrun.md`](../docs/deploy-cloudrun.md).
+
 ### Contrat MVP hébergé
 
 Le MVP accepte plusieurs parties, chacune avec deux à huit joueurs online.

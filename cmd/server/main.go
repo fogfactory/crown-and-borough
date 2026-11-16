@@ -107,7 +107,15 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting server on %s", addr)
-	httpServer := newHTTPServer(addr, api.WithRateLimit(api.WithCORSMode(server, onlineDevMode), rateLimitFromEnv()))
+	rateLimit := rateLimitFromEnv()
+	if rateLimit.Requests > 0 {
+		log.Printf("rate limit: %d requests per %s per client and route class, %d trusted proxy hops", rateLimit.Requests, rateLimit.Window, rateLimit.TrustedProxyHops)
+	} else {
+		log.Print("rate limit: disabled")
+	}
+	// CORS wraps the limiter so that a 429 stays readable cross-origin and
+	// preflight requests never draw from a bucket.
+	httpServer := newHTTPServer(addr, api.WithCORSMode(api.WithRateLimit(server, rateLimit), onlineDevMode))
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
@@ -144,16 +152,35 @@ func rateLimitFromEnv() api.RateLimitConfig {
 	if os.Getenv("K_SERVICE") != "" {
 		cfg.TrustedProxyHops = 1
 	}
-	if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("RATE_LIMIT_REQUESTS"))); err == nil && v >= 0 {
+	if v, ok := envCount("RATE_LIMIT_REQUESTS"); ok {
 		cfg.Requests = v
 	}
-	if v, err := time.ParseDuration(strings.TrimSpace(os.Getenv("RATE_LIMIT_WINDOW"))); err == nil && v > 0 {
-		cfg.Window = v
-	}
-	if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("TRUSTED_PROXY_HOPS"))); err == nil && v >= 0 {
+	if v, ok := envCount("TRUSTED_PROXY_HOPS"); ok {
 		cfg.TrustedProxyHops = v
 	}
+	if raw := strings.TrimSpace(os.Getenv("RATE_LIMIT_WINDOW")); raw != "" {
+		if v, err := time.ParseDuration(raw); err == nil && v > 0 {
+			cfg.Window = v
+		} else {
+			log.Printf("RATE_LIMIT_WINDOW=%q ignored: want a positive duration such as 1m", raw)
+		}
+	}
 	return cfg
+}
+
+// envCount reads a non-negative integer variable and warns about any other
+// value, so a typo does not silently leave a default in force.
+func envCount(name string) (int, bool) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return 0, false
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 0 {
+		log.Printf("%s=%q ignored: want a non-negative integer", name, raw)
+		return 0, false
+	}
+	return value, true
 }
 
 // bugIssueClient authenticates as the GitHub App described by

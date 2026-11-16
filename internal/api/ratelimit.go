@@ -10,10 +10,12 @@ import (
 	"time"
 )
 
-// RateLimitConfig configures the in-memory limiter of mutating routes.
+// RateLimitConfig configures the in-memory limiter of costly and mutating
+// routes.
 type RateLimitConfig struct {
 	// Requests is the burst size and the number of requests refilled per
-	// Window. Zero or less disables the limiter.
+	// Window, for each client and route class. Zero or less disables the
+	// limiter.
 	Requests int
 	// Window is the time over which Requests tokens are refilled.
 	Window time.Duration
@@ -38,8 +40,10 @@ type rateLimiter struct {
 }
 
 // WithRateLimit answers 429 with a Retry-After header to clients that exceed
-// a token bucket per client address on authentication routes and on every
-// mutating API request. Reads, health checks and static files are never
+// a token bucket on authentication routes, on the order preview and victory
+// simulation routes, and on every other mutating API request. Each of these
+// three classes has its own bucket per client, so previews never starve the
+// submission of orders. Reads, health checks and static files are never
 // limited.
 func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 	if cfg.Requests <= 0 || cfg.Window <= 0 {
@@ -50,11 +54,12 @@ func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 	}
 	limiter := &rateLimiter{cfg: cfg, buckets: map[string]*bucket{}}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !rateLimited(r) {
+		class := rateClass(r)
+		if class == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if wait, ok := limiter.allow(clientIP(r, cfg.TrustedProxyHops)); !ok {
+		if wait, ok := limiter.allow(class + "|" + clientIP(r, cfg.TrustedProxyHops)); !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 			writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
 			return
@@ -63,13 +68,21 @@ func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 	})
 }
 
-func rateLimited(r *http.Request) bool {
+// rateClass names the bucket a request draws from, or "" when it is not
+// limited.
+func rateClass(r *http.Request) string {
 	path := r.URL.Path
-	switch r.Method {
-	case http.MethodGet, http.MethodHead, http.MethodOptions:
-		return strings.HasPrefix(path, "/api/auth/")
+	switch {
+	case strings.HasPrefix(path, "/api/auth/"):
+		return "auth"
+	case !strings.HasPrefix(path, "/api/"):
+		return ""
+	case r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions:
+		return ""
+	case strings.HasSuffix(path, "/orders/preview") || strings.HasSuffix(path, "/victory/simulate"):
+		return "compute"
 	}
-	return strings.HasPrefix(path, "/api/")
+	return "write"
 }
 
 func (l *rateLimiter) allow(key string) (time.Duration, bool) {
@@ -100,27 +113,34 @@ func (l *rateLimiter) allow(key string) (time.Duration, bool) {
 	return 0, true
 }
 
-// clientIP returns the address of the client. X-Forwarded-For is client
-// controlled except for the entries appended by our own proxies, so only the
-// entry that many hops from the right is trusted; any shortfall falls back to
-// the peer address.
+// clientIP returns the address that identifies the client. X-Forwarded-For is
+// client controlled except for the entries appended by our own proxies, so
+// only the entry that many hops from the right is trusted; any shortfall falls
+// back to the peer address. IPv6 clients are keyed by their /64 network: a
+// single subscriber owns that whole range and could otherwise mint unlimited
+// identities.
 func clientIP(r *http.Request, trustedHops int) string {
 	if trustedHops > 0 {
-		var hops []string
-		for _, value := range r.Header.Values("X-Forwarded-For") {
-			for _, part := range strings.Split(value, ",") {
-				hops = append(hops, strings.TrimSpace(part))
-			}
-		}
+		hops := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
 		if len(hops) >= trustedHops {
-			if ip := net.ParseIP(hops[len(hops)-trustedHops]); ip != nil {
-				return ip.String()
+			if ip := net.ParseIP(strings.TrimSpace(hops[len(hops)-trustedHops])); ip != nil {
+				return networkKey(ip)
 			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return networkKey(ip)
 	}
 	return host
+}
+
+func networkKey(ip net.IP) string {
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+	return ip.Mask(net.CIDRMask(64, 128)).String()
 }
