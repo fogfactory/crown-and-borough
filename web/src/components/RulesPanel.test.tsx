@@ -92,7 +92,7 @@ describe('RulesPanel', () => {
         Promise.resolve({
           ok: true,
           text: async () =>
-            '# Règles\n\n## 4. Aide-mémoire des ordres\n\n## 5. Ordres d’hiver\n',
+            '# Règles\n\n<a id="rules-action-orders"></a>\n\n## 4. Aide-mémoire des ordres\n\n<a id="rules-winter-orders"></a>\n\n## 5. Ordres d’hiver\n',
         } as Response),
       ),
     )
@@ -120,12 +120,12 @@ describe('RulesPanel', () => {
     })
   })
 
-  it('loads the English document and preserves English section anchors', async () => {
+  it('loads the English document and keeps the section anchors of the document', async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: true,
         text: async () =>
-          '# Game Rules\n\n## 4. Order Cheat Sheet\n\n## 5. Winter Orders\n',
+          '# Game Rules\n\n<a id="rules-action-orders"></a>\n\n## 4. Order Cheat Sheet\n\n<a id="rules-bonus-cards"></a>\n\n### Bonus cards\n',
       } as Response),
     )
     vi.stubGlobal('fetch', fetchMock)
@@ -137,14 +137,8 @@ describe('RulesPanel', () => {
     )
 
     expect(await screen.findByRole('heading', { name: 'Game Rules' })).toBeInTheDocument()
-    expect(screen.getByText('4. Order Cheat Sheet')).toHaveAttribute(
-      'id',
-      'rules-action-orders',
-    )
-    expect(screen.getByText('5. Winter Orders')).toHaveAttribute(
-      'id',
-      'rules-winter-orders',
-    )
+    expect(document.getElementById('rules-action-orders')).toBeInTheDocument()
+    expect(document.getElementById('rules-bonus-cards')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/rules?lang=en', {
       signal: expect.anything(),
     })
