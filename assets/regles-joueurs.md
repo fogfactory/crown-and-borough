@@ -388,6 +388,11 @@ différents, se marient l'hiver si **chaque joueur** écrit l'ordre :
 `M N NNN MMM` d'un côté, `M N MMM NNN` de l'autre. Sans réciproque, le
 mariage est refusé.
 
+Un évêque, un cardinal ou le pape ne peut pas se marier tant qu'il garde son
+titre. Les mariages se concluent avant les élections : un homme à la fois
+fiancé (ordre réciproque) et candidat est marié d'abord, sa candidature est
+rejetée et les voix qui le soutenaient sont perdues.
+
 Chaque mariage a un **poids** : celui de l'époux le plus faible, d'après son
 rang dans la lignée et son titre, plus 1 pour chaque autre mariage entre les
 deux mêmes maisons.

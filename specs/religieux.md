@@ -53,6 +53,16 @@ feuille d'ordres d'hiver ; les joueurs s'accordent hors jeu. Un noble est
 l'élection épiscopale, il n'est pas non plus déjà évêque. Aucune présence
 physique dans l'évêché n'est requise.
 
+Un évêque, un cardinal ou le pape ne peut pas se marier tant qu'il détient son
+titre (`marriage_forbidden`, [succession.md](succession.md#conclusion-dun-mariage)).
+Les mariages se concluent (étape 5) avant les élections (étape 6) et
+l'investiture (étape 7) : si un homme est candidat et fiancé le même hiver,
+le mariage réciproque est conclu d'abord, sa candidature est alors rejetée
+(`candidate_not_eligible`) et les voix qui le soutenaient sont sans effet ;
+sans réciproque, il n'est pas marié et peut être élu. Un titre gagné cet hiver
+n'est conféré qu'après les mariages, donc il ne bloque pas un mariage du même
+hiver.
+
 Syntaxe (une ligne par ordre, sans coût) :
 
 - `K E NNN BBB` : candidature du noble `NNN` du joueur à l'évêché dont le

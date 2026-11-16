@@ -137,7 +137,7 @@ func (ctx *resolutionContext) marriageRejection(declaration pendingMarriage) str
 		return "marriage_same_sex"
 	case noble.Status != models.NobleStatusFree || spouse.Status != models.NobleStatusFree:
 		return "noble_not_free"
-	case marriageForbidden(ctx, noble) || marriageForbidden(ctx, spouse):
+	case ctx.state.MarriageForbidden(*noble) || ctx.state.MarriageForbidden(*spouse):
 		return "marriage_forbidden"
 	}
 	if _, married := ctx.state.MarriageOf(noble.ID); married {
@@ -147,10 +147,4 @@ func (ctx *resolutionContext) marriageRejection(declaration pendingMarriage) str
 		return "noble_already_married"
 	}
 	return ""
-}
-
-// marriageForbidden reports whether a dignity forbids the noble to marry
-// (specs/dames.md § Dignités, the Bloqué dignities).
-func marriageForbidden(_ *resolutionContext, noble *models.Noble) bool {
-	return noble.MarriageBlockedByDignity()
 }
