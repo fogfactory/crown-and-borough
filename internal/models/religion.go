@@ -171,6 +171,12 @@ func (g *GameState) ReligiousTitleOf(id NobleID) ReligiousTitle {
 	return ReligiousTitleNone
 }
 
+// MarriageForbidden reports whether the noble may not marry: a dignity that
+// forbids it, or a religious title (bishop, cardinal, pope) while it is held.
+func (g *GameState) MarriageForbidden(noble Noble) bool {
+	return noble.MarriageBlockedByDignity() || g.ReligiousTitleOf(noble.ID) != ReligiousTitleNone
+}
+
 // VotingReligiousTitle is the title that counts for the noble's votes and
 // powers: its highest title unless the noble is excommunicated or in a dungeon
 // (titles are then suspended, not lost), none otherwise.
