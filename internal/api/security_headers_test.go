@@ -5,22 +5,72 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
 func TestWithSecurityHeaders(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	for _, hsts := range []bool{false, true} {
+	for _, production := range []bool{false, true} {
 		rec := httptest.NewRecorder()
-		WithSecurityHeaders(next, hsts).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
-		for _, k := range []string{"X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-Frame-Options", "Content-Security-Policy-Report-Only"} {
+		WithSecurityHeaders(next, production).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		for _, k := range []string{"X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-Frame-Options", "Content-Security-Policy"} {
 			if rec.Header().Get(k) == "" {
-				t.Errorf("hsts=%v: missing %s", hsts, k)
+				t.Errorf("production=%v: missing %s", production, k)
 			}
 		}
-		if got := rec.Header().Get("Strict-Transport-Security") != ""; got != hsts {
-			t.Errorf("hsts=%v: Strict-Transport-Security present=%v", hsts, got)
+		if rec.Header().Get("Content-Security-Policy-Report-Only") != "" {
+			t.Errorf("production=%v: the policy must be enforced, not report-only", production)
 		}
+		if got := rec.Header().Get("Strict-Transport-Security") != ""; got != production {
+			t.Errorf("production=%v: Strict-Transport-Security present=%v", production, got)
+		}
+	}
+}
+
+func TestContentSecurityPolicyStaysStrict(t *testing.T) {
+	policy := ContentSecurityPolicy(true)
+	for _, source := range strings.Fields(strings.ReplaceAll(policy, ";", " ")) {
+		if source == "*" || source == "'unsafe-eval'" || source == "http:" || source == "https:" {
+			t.Errorf("policy allows %s", source)
+		}
+	}
+	for _, directive := range strings.Split(policy, "; ") {
+		if strings.Contains(directive, "'unsafe-inline'") && !strings.HasPrefix(directive, "style-src ") {
+			t.Errorf("'unsafe-inline' outside style-src: %s", directive)
+		}
+	}
+	if strings.Contains(policy, "127.0.0.1") || strings.Contains(policy, "localhost") {
+		t.Error("the production policy must not allow the loopback interface")
+	}
+	local := ContentSecurityPolicy(false)
+	for _, directive := range []string{"connect-src", "frame-src"} {
+		var found bool
+		for _, d := range strings.Split(local, "; ") {
+			if strings.HasPrefix(d, directive+" ") && strings.Contains(d, "http://127.0.0.1:*") && strings.Contains(d, "http://localhost:*") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("the local policy must allow the emulators in %s", directive)
+		}
+	}
+}
+
+func TestIsProduction(t *testing.T) {
+	t.Setenv("FIRESTORE_EMULATOR_HOST", "")
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "")
+	if !IsProduction(false) || IsProduction(true) {
+		t.Error("production must follow the development mode")
+	}
+	t.Setenv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8081")
+	if IsProduction(false) {
+		t.Error("a Firestore emulator is not production")
+	}
+	t.Setenv("FIRESTORE_EMULATOR_HOST", "")
+	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "127.0.0.1:9099")
+	if IsProduction(false) {
+		t.Error("an Auth emulator is not production")
 	}
 }
 
@@ -55,5 +105,8 @@ func TestSecurityHeadersMatchFirebaseHosting(t *testing.T) {
 		if got, want := hosting[key], rec.Header().Get(key); got != want {
 			t.Errorf("%s: firebase.json has %q, server sets %q", key, got, want)
 		}
+	}
+	if _, ok := hosting["Content-Security-Policy-Report-Only"]; ok {
+		t.Error("firebase.json must enforce the policy, not report it")
 	}
 }
