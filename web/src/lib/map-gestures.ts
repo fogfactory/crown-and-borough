@@ -12,6 +12,11 @@ export const DRAG_THRESHOLD = 4
 export const ZOOM_BUTTON_FACTOR = 1.4
 export const WHEEL_ZOOM_FACTOR = 1.15
 
+/** Whether a click or key press asks to fill the active order field (Ctrl or Cmd). */
+export function isPickModifier(event: { ctrlKey: boolean; metaKey: boolean }): boolean {
+  return event.ctrlKey || event.metaKey
+}
+
 export function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
 }
