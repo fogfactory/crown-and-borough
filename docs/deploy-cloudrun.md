@@ -708,7 +708,16 @@ tag URL:
 - `/healthz/ready` reports `{"status":"ready"}`;
 - `/` and a client-side route return the embedded SPA root;
 - `/api/rules` is reachable;
-- `/api/games` and `/api/auth/me` return `401` without a Firebase token.
+- `/api/games` and `/api/auth/me` return `401` without a Firebase token;
+- `/` carries the security headers (`X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`,
+  `Strict-Transport-Security` and `Content-Security-Policy-Report-Only`).
+
+The Go server sets them for every response it serves (HSTS only outside
+`ONLINE_DEV_MODE`) and `firebase.json` sets the same ones for Hosting. A unit
+test fails if the two copies differ. The Content Security Policy stays
+report-only until its violations have been reviewed in the browser console;
+there is no reporting endpoint yet.
 
 The Hosting smoke job performs the same checks against
 `PUBLIC_HOSTING_URL`, proving that the static frontend, Cloud Run rewrites, and
