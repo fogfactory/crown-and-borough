@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IconTrophy } from '@tabler/icons-react'
 
 import { GameLayout } from '@/components/GameLayout'
@@ -7,6 +7,7 @@ import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { ownTerritoriesFrame } from '@/lib/map-frame'
 import { useMapLinkState } from '@/lib/use-map-link-state'
+import { useOrderPicker } from '@/lib/use-order-picker'
 import { MapLinksProvider } from '@/components/MapLinks'
 import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
@@ -426,18 +427,15 @@ function AppContent() {
     }))
   }
 
-  // An open order form takes the map's clicks for its active field.
-  const orderPicker = useRef<((territory: string) => void) | null>(null)
-  // Only while the orders are on screen: a form left open behind another
-  // bookmark or tab must not swallow the map's clicks.
   const ordersShown = desktop
     ? drawerPanelOf(activePanel) === 'orders'
     : activePanel === 'orders'
-  const handleMapPick = (id: string) => {
-    if (!ordersShown || !orderPicker.current) return false
-    orderPicker.current(id)
-    return true
-  }
+  const { onPickerChange, pickOnMap, fillWithSelection } = useOrderPicker({
+    desktop,
+    ordersShown,
+    showOrders: () => setActivePanel('orders'),
+    selectedId,
+  })
   const handleTerritorySelect = (id: string | null) => {
     setSelectedId(id)
   }
@@ -497,16 +495,19 @@ function AppContent() {
           state={state}
           supply={selectedSupplyLine}
           onSelect={handleTerritorySelect}
-          onPick={handleMapPick}
+          onPick={pickOnMap}
           selectionOverlay={
             desktop && selectedTerritory
               ? (anchor, size) => (
                   <TerritoryCartouche
+                    territoryId={selectedTerritory.id}
+                    label={`${selectedTerritory.name} (${selectedTerritory.id})`}
                     anchor={anchor}
                     size={size}
                     onClose={() => setSelectedId(null)}
+                    onUseForOrder={fillWithSelection}
                   >
-                    {territoryDetails}
+                    {cartoucheDetails}
                   </TerritoryCartouche>
                 )
               : undefined
@@ -647,7 +648,8 @@ function AppContent() {
     }
   }
 
-  const territoryDetails = (
+  // The desktop cartouche carries its own close cross in its grip bar.
+  const renderTerritoryDetails = (closable: boolean) => (
     <SelectedTerritoryDetails
       state={state}
       selectedTerritory={selectedTerritory}
@@ -664,9 +666,14 @@ function AppContent() {
       transferLine={transferLine}
       transferLoading={transferLoading}
       transferError={transferError}
-      onClose={() => setSelectedId(null)}
+      onClose={closable ? () => setSelectedId(null) : undefined}
+      onUseForOrder={fillWithSelection}
     />
   )
+  // One element per page render, so that the cartouche following a pan or zoom
+  // frame does not rebuild the sheet.
+  const cartoucheDetails =
+    desktop && selectedTerritory ? renderTerritoryDetails(false) : null
 
   const playerPicker = (
     <div className="flex items-center gap-1.5">
@@ -867,15 +874,11 @@ function AppContent() {
       {view === 'game' ? (
         <main className="flex min-h-0 w-full flex-1 flex-col">
           <MapLinksProvider value={linkState.links}>
-            <OrderFormProvider
-              onPickerChange={(picker) => {
-                orderPicker.current = picker
-              }}
-            >
+            <OrderFormProvider onPickerChange={onPickerChange}>
               <GameLayout
                 map={renderMap()}
                 view={activePanel}
-                mapOverlay={detailsOnMap ? territoryDetails : undefined}
+                mapOverlay={detailsOnMap ? renderTerritoryDetails(true) : undefined}
               >
                 <GameDrawer
                   activePanel={activePanel}

@@ -70,6 +70,8 @@ interface SelectedTerritoryDetailsProps {
   transferError?: string | null
   /** Closes the cartouche (its cross). */
   onClose?: () => void
+  /** Fills the active order field with this territory; absent when none is active. */
+  onUseForOrder?: () => void
 }
 
 export function SelectedTerritoryDetails({
@@ -90,6 +92,7 @@ export function SelectedTerritoryDetails({
   transferLoading = false,
   transferError = null,
   onClose,
+  onUseForOrder,
 }: SelectedTerritoryDetailsProps) {
   const { t } = useLanguage()
 
@@ -212,6 +215,16 @@ export function SelectedTerritoryDetails({
               </span>
             )}
           </p>
+          {onUseForOrder && (
+            <button
+              type="button"
+              data-use-for-order
+              className="mt-1.5 rounded-md border border-line-strong bg-paper-100 px-2 py-1 text-xs font-medium text-ink-900 transition hover:bg-paper-200"
+              onClick={onUseForOrder}
+            >
+              {t('map.useForOrder')}
+            </button>
+          )}
         </div>
         {onClose && (
           <button

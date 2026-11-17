@@ -770,9 +770,12 @@ vers une liste demandée.
 **Précision.** Une zone de saisie qui prend le focus devient la seule cible
 de la carte : un anneau `brass-700` l'entoure et la ligne d'aide des
 formulaires l'annonce, à une place réservée pour que rien ne bouge en
-dessous. Un clic sur un territoire y écrit son code à la position du curseur,
-espacé de ses voisins, à la place du code en cours de frappe (un verbe d'une
-lettre reste) ; il ne change pas la sélection de la carte. Avec une souris, le
+dessous. Un Ctrl/Cmd+clic sur un territoire, ou le bouton « Utiliser pour
+l'ordre » de sa fiche, y écrit son code à la position du curseur, espacé de ses
+voisins, à la place du code en cours de frappe (un verbe d'une lettre reste) ;
+il ne change pas la sélection de la carte. Un simple clic sélectionne seulement
+le territoire et ouvre sa fiche ; au toucher, le bouton de la fiche est le seul
+geste. Avec une souris, le
 curseur revient dans la zone ; au toucher, le clavier du téléphone reste fermé
 au-dessus de la carte. Un formulaire déplié dans le tiroir passe avant la
 zone de saisie. Tout focus ou clic ailleurs que sur la carte et dans cette
@@ -840,8 +843,10 @@ cartes, saisie des ordres, pied collant d'envoi.
   ceux des dames sous la dame. Le code de l'ordre (`X E`, `W X`) reste dans
   l'infobulle du bouton.
 - **Réglage d'un ordre :** le bouton déplie un formulaire dans le tiroir,
-  sous la ligne du titulaire (`OrderDialog.tsx`), sans fenêtre modale. La carte reste visible : un clic sur un territoire
-  ou un noble remplit le champ actif, signalé par un anneau `brass-700`. Le
+  sous la ligne du titulaire (`OrderDialog.tsx`), sans fenêtre modale. La carte reste visible : un Ctrl/Cmd+clic sur un territoire
+  ou un noble (ou le bouton « Utiliser pour l'ordre » de la fiche du
+  territoire) remplit le champ actif, signalé par un anneau `brass-700` ; un
+  simple clic sélectionne sans remplir. Le
   formulaire montre la ligne d'ordre produite en IBM Plex Mono, avec son
   commentaire en libellés complets, puis « Annuler » et « Ajouter l'ordre ».
   Ses listes déroulantes proposent « Ravinval (RVN) », pas « RVN ».
@@ -872,8 +877,9 @@ procès, fondation ou attribution d'un fief) ferment la liste sous « Ordres de
 la maison » ; les ordres de fief vont sous le titulaire quand ils ne
 concernent que ses fiefs. Le formulaire déplié prend pour champ actif le
 premier champ qui accepte un territoire ou un noble, ou le dernier que le
-joueur a touché ; un clic sur un territoire y met ce territoire, ou le noble
-qui s'y trouve, et ne change pas la sélection de la carte. Le commentaire
+joueur a touché ; un Ctrl/Cmd+clic sur un territoire (ou le bouton « Utiliser
+pour l'ordre » de sa fiche) y met ce territoire, ou le noble qui s'y trouve, et
+ne change pas la sélection de la carte. Le commentaire
 d'une ligne écrit chaque territoire « Rochevent (RVE) ». Le formulaire garde
 le texte d'aide de l'ordre derrière son « ? ».
 
@@ -916,18 +922,31 @@ territoire par un trait d'encre ; le tiroir reste consacré aux ordres.
   pions à attributs, leurs noms au survol ou au toucher), bâtiments.
 - Le revenu s'écrit une seule fois, sous la forme « 40 R · +3 R / tour ».
 - Le cartouche se ferme par Échap, par la croix ou en sélectionnant ailleurs.
+- Une barre de poignée en tête permet de le **déplacer** par glisser-déposer ;
+  il reste dans les limites de la carte, et la barre reste visible quand la
+  fiche défile. Tant qu'il n'a pas été déplacé, il suit son territoire au zoom
+  et au pan ; une fois déplacé, il garde sa place à l'écran, et le trait d'encre
+  le relie au territoire tant que celui-ci est à l'écran.
+- Le bouton « réduire » de la barre le replie en **pastille** (poignée, nom et
+  code du territoire, bouton « Utiliser pour l'ordre » quand un champ attend un
+  territoire, bouton pour rouvrir, croix) : le territoire reste
+  sélectionné, avec sa zone et sa ligne de ravitaillement. Choisir un autre
+  territoire ramène la fiche à sa position par défaut ; elle reste réduite ou
+  ouverte comme elle l'était, à l'image du « Détails ».
+- Sur téléphone, la fiche s'ouvre en bas de l'onglet Carte, sans poignée ni
+  réduction.
 
-**Précision.** Le cartouche mesure 280 px de large au plus et se place du côté
-du territoire le plus éloigné du tiroir ; il ne cache jamais le territoire
-sélectionné. Le détail d'un noble (statut, propriétaire, dignités) s'ouvre en
-popover depuis son pion.
+**Précision.** Le cartouche mesure 280 px de large au plus (200 px réduit en
+pastille). À sa position par défaut, il se place du côté du territoire le plus
+éloigné du tiroir et ne cache jamais le territoire sélectionné ; déplacé, il
+peut le recouvrir. Le détail d'un noble (statut, propriétaire, dignités) s'ouvre
+en popover depuis son pion.
 
 **Précision.** Un « Détails » replié en pied du cartouche porte ce qui sert à
 préparer les ordres sans tenir dans une ligne : la région et son chef-lieu,
 le revenu du fief, les effets actifs, la pile d'ordres de l'armée, le
-ravitaillement (source, distance, besoins) et l'aperçu de transfert. Sur
-téléphone, la même fiche s'ouvre en bas de l'onglet Carte. Le tiroir ne
-montre pas la fiche : il reste consacré aux ordres.
+ravitaillement (source, distance, besoins) et l'aperçu de transfert. Le tiroir
+ne montre pas la fiche : il reste consacré aux ordres.
 
 ### Scores et victoire
 

@@ -429,7 +429,8 @@ const englishMessages = {
   'orders.dialogCancel': 'Cancel',
   'orders.dialogConfirm': 'Add the order',
   'orders.houseOrders': 'Orders of the house',
-  'orders.form.mapPick': 'A click on the map fills the highlighted field.',
+  'orders.form.mapPick':
+    'Ctrl/Cmd+click a territory, or use « Use for the order » on its card, to fill the highlighted field.',
   'orders.titlesTitle': 'Orders of your titles',
   'orders.titlesDescription':
     'Pope, bishop, astrologer and fief orders: each button opens a window to set the order, which is added to the sheet with a comment.',
@@ -1540,6 +1541,9 @@ const englishMessages = {
   'app.progress': '{season} {year} · turn {turn} of {total}',
   'app.progressShort': '{season} {year} · {turn}/{total}',
   'map.closeCard': 'Close the territory card',
+  'map.useForOrder': 'Use for the order',
+  'map.collapseCard': 'Collapse the territory card',
+  'map.expandCard': 'Expand the territory card',
   'map.reportEvent': 'Report event',
   'app.gameMenu': 'Game',
   'drawer.map': 'Map',
@@ -2069,7 +2073,8 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'orders.dialogCancel': 'Annuler',
   'orders.dialogConfirm': "Ajouter l'ordre",
   'orders.houseOrders': 'Ordres de la maison',
-  'orders.form.mapPick': 'Un clic sur la carte remplit le champ entouré.',
+  'orders.form.mapPick':
+    'Ctrl/Cmd+clic sur un territoire, ou « Utiliser pour l’ordre » sur sa fiche, remplit le champ entouré.',
   'orders.titlesTitle': 'Ordres de vos titres',
   'orders.titlesDescription':
     "Ordres du pape, des évêques, des astrologues et des fiefs : chaque bouton ouvre une fenêtre pour régler l'ordre, ajouté à la feuille avec un commentaire.",
@@ -3211,6 +3216,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'app.progress': '{season} {year} · tour {turn} sur {total}',
   'app.progressShort': '{season} {year} · {turn}/{total}',
   'map.closeCard': 'Fermer la fiche du territoire',
+  'map.useForOrder': 'Utiliser pour l’ordre',
+  'map.collapseCard': 'Réduire la fiche du territoire',
+  'map.expandCard': 'Rouvrir la fiche du territoire',
   'map.reportEvent': 'Événement du rapport',
   'app.gameMenu': 'Partie',
   'drawer.map': 'Carte',
