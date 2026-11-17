@@ -1719,7 +1719,9 @@ describe('MapViewer intentions overlay', () => {
       null,
       intentionsFor('HUG\nROS D BRU CHA ROS*'),
     )
-    const marks = svg.querySelectorAll('g[aria-label="Intentions overlay"] [data-intent-nobles]')
+    const marks = svg.querySelectorAll(
+      'g[aria-label="Intentions overlay"] [data-intent-nobles]',
+    )
 
     expect(marks).toHaveLength(1)
     expect(marks[0]).toHaveAttribute('data-intent-nobles', '*')
@@ -1733,7 +1735,9 @@ describe('MapViewer intentions overlay', () => {
       null,
       intentionsFor('HUG\nROS D BRU*JEA CHA'),
     )
-    const mark = svg.querySelector('g[aria-label="Intentions overlay"] [data-intent-nobles]')
+    const mark = svg.querySelector(
+      'g[aria-label="Intentions overlay"] [data-intent-nobles]',
+    )
 
     expect(mark).toHaveAttribute('data-intent-nobles', 'JEA')
     expect(mark?.textContent).toContain('JEA')
@@ -1846,7 +1850,7 @@ describe('MapViewer framing and controlled selection', () => {
 })
 
 describe('MapViewer picks', () => {
-  it('lets an open form take a click, the selected territory included', () => {
+  it('lets an open form take a Ctrl or Cmd click, the selected territory included', () => {
     const onSelect = vi.fn()
     const onPick = vi.fn(() => true)
     render(
@@ -1860,9 +1864,53 @@ describe('MapViewer picks', () => {
     )
     const territory = document.querySelector('[data-territory-id="ROS"]') as Element
 
-    fireEvent.keyDown(territory, { key: 'Enter' })
+    fireEvent.keyDown(territory, { key: 'Enter', ctrlKey: true })
+    fireEvent.keyDown(territory, { key: 'Enter', metaKey: true })
+    expect(onPick).toHaveBeenCalledTimes(2)
     expect(onPick).toHaveBeenCalledWith('ROS')
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('only selects on a plain click, leaving the open form alone', () => {
+    const onSelect = vi.fn()
+    const onPick = vi.fn(() => true)
+    render(<MapViewer map={map} state={state} onSelect={onSelect} onPick={onPick} />)
+    const territory = document.querySelector('[data-territory-id="ROS"]') as Element
+
+    fireEvent.keyDown(territory, { key: 'Enter' })
+    expect(onPick).not.toHaveBeenCalled()
+    expect(onSelect).toHaveBeenCalledWith('ROS')
+  })
+
+  it('takes a Ctrl or Cmd mouse click but not a plain one', () => {
+    const onSelect = vi.fn()
+    const onPick = vi.fn(() => true)
+    const { container } = render(
+      <MapViewer map={map} state={state} onSelect={onSelect} onPick={onPick} />,
+    )
+    const svg = container.querySelector(
+      'svg[aria-label="Territory map"]',
+    ) as SVGSVGElement
+    const territory = document.querySelector('[data-territory-id="ROS"]') as Element
+
+    fireEvent.pointerDown(territory, pointerPosition())
+    fireEvent.pointerUp(svg, pointerPosition())
+    expect(onPick).not.toHaveBeenCalled()
+    expect(onSelect).toHaveBeenCalledWith('ROS')
+
+    fireEvent.pointerDown(territory, pointerPosition())
+    fireEvent.pointerUp(svg, { ...pointerPosition(), metaKey: true })
+    expect(onPick).toHaveBeenCalledWith('ROS')
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('selects when no form takes the Ctrl click', () => {
+    const onSelect = vi.fn()
+    render(<MapViewer map={map} state={state} onSelect={onSelect} onPick={() => false} />)
+    const territory = document.querySelector('[data-territory-id="ROS"]') as Element
+
+    fireEvent.keyDown(territory, { key: 'Enter', ctrlKey: true })
+    expect(onSelect).toHaveBeenCalledWith('ROS')
   })
 })
 
