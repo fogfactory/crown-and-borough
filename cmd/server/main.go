@@ -115,7 +115,7 @@ func main() {
 	}
 	// CORS wraps the limiter so that a 429 stays readable cross-origin and
 	// preflight requests never draw from a bucket.
-	httpServer := newHTTPServer(addr, api.WithCORSMode(api.WithRateLimit(server, rateLimit), onlineDevMode))
+	httpServer := newHTTPServer(addr, api.WithSecurityHeaders(api.WithCORSMode(api.WithRateLimit(server, rateLimit), onlineDevMode), !onlineDevMode))
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}

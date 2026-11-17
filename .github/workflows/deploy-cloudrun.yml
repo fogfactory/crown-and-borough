@@ -405,6 +405,11 @@ jobs:
           [[ "$games_status" == 401 ]]
           [[ "$auth_status" == 401 ]]
 
+          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/" | tr -d '\r')"
+          for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy-Report-Only; do
+            grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header"; exit 1; }
+          done
+
   promote-cloudrun:
     name: Promote the smoke-tested revision
     needs:
@@ -516,3 +521,8 @@ jobs:
           auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url/api/auth/me")"
           [[ "$games_status" == 401 ]]
           [[ "$auth_status" == 401 ]]
+
+          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/" | tr -d '\r')"
+          for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy-Report-Only; do
+            grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header"; exit 1; }
+          done
