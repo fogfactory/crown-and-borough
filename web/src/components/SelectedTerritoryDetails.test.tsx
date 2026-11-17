@@ -201,7 +201,9 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByText(/^Castle \d/)).toBeInTheDocument()
 
     // Nobles present show as pawns; each opens its detail in a popover.
-    expect(screen.getByRole('button', { name: 'Jean de Rosemont (JEA)' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Jean de Rosemont (JEA)' }),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Robert de Rosemont (ROB)' }))
     const detail = screen.getByRole('dialog')
     expect(within(detail).getByText('Owner')).toBeInTheDocument()
@@ -214,7 +216,9 @@ describe('SelectedTerritoryDetails', () => {
     const withLink: StateData = {
       ...state,
       nobles: [{ ...state.nobles[0], commissioned: ['VIC'] }, state.nobles[1]],
-      deceased: [{ code: 'VIC', name: 'Victor', owner: 'P1', cause: 'assassination', turn: 1 }],
+      deceased: [
+        { code: 'VIC', name: 'Victor', owner: 'P1', cause: 'assassination', turn: 1 },
+      ],
     }
     const renderWith = (current: StateData) =>
       render(
@@ -314,7 +318,9 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The transfer route is reachable.',
     )
-    expect(screen.getByText(withText('Rosemont (ROS) -> Brisecote (BRU)'))).toBeInTheDocument()
+    expect(
+      screen.getByText(withText('Rosemont (ROS) -> Brisecote (BRU)')),
+    ).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Destination' }), {
       target: { value: 'ROS' },
@@ -344,7 +350,9 @@ describe('SelectedTerritoryDetails', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'The supply path is blocked by an enemy army.',
     )
-    expect(screen.queryByText(withText(/Rosemont \(ROS\) -> Brisecote/))).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(withText(/Rosemont \(ROS\) -> Brisecote/)),
+    ).not.toBeInTheDocument()
   })
 
   it('renders active effects for the selected region', () => {
@@ -494,7 +502,9 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.getByText(/City \(\+2 defense\)/)).toBeInTheDocument()
     expect(screen.getByText(withText('Barony of ROS'))).toBeInTheDocument()
-    expect(screen.getAllByText(withText('Jean de Rosemont (JEA)')).length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText(withText('Jean de Rosemont (JEA)')).length,
+    ).toBeGreaterThan(0)
   })
 
   it('shows the projected fief income next to the titulaire', () => {
@@ -597,5 +607,24 @@ describe('SelectedTerritoryDetails', () => {
 
     expect(screen.queryByText('City (+2 defense)')).not.toBeInTheDocument()
     expect(screen.getByText('Vacant')).toBeInTheDocument()
+  })
+
+  it('offers to fill the active order field only when one waits', () => {
+    const props = {
+      state,
+      selectedTerritory: map.territories[0],
+      selectedState: state.territories[0],
+      selectedSupplyLine: null,
+      sourceTerritory: undefined,
+      supplyLoading: false,
+      supplyError: null,
+    }
+    const onUseForOrder = vi.fn()
+    const { rerender } = render(<SelectedTerritoryDetails {...props} />)
+    expect(screen.queryByRole('button', { name: 'Use for the order' })).toBeNull()
+
+    rerender(<SelectedTerritoryDetails {...props} onUseForOrder={onUseForOrder} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Use for the order' }))
+    expect(onUseForOrder).toHaveBeenCalledOnce()
   })
 })

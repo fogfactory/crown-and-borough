@@ -11,6 +11,7 @@ import {
   WHEEL_ZOOM_FACTOR,
   distanceBetween,
   frameView,
+  isPickModifier,
   midpointOf,
   pinchView,
   viewportScale,
@@ -51,8 +52,11 @@ export interface MapGesturesOptions {
   bandMarginY: number
   mapWidth: number
   mapHeight: number
-  /** A press released without dragging: the territory under it, or null. */
-  onTap: (territoryId: string | null) => void
+  /**
+   * A press released without dragging: the territory under it, or null, and
+   * whether it asks to fill the active order field (Ctrl or Cmd held).
+   */
+  onTap: (territoryId: string | null, modifier: boolean) => void
 }
 
 export interface MapGestures {
@@ -256,7 +260,7 @@ export function useMapGestures({
 
     if (gesture.pointers.size === 0) {
       if (allowSelection && wasPending && !gesture.dragged) {
-        onTap(gesture.territoryId)
+        onTap(gesture.territoryId, isPickModifier(event))
       }
       gestureRef.current = null
       setIsDragging(false)

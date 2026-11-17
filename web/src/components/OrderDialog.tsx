@@ -173,6 +173,8 @@ export function OrderFormProvider({
       const element = event.target
       if (!editor || !(element instanceof Element) || onMap(element)) return
       if (element.closest('[data-order-editor]')?.getAttribute('data-order-editor') === editor.id) return
+      // The card's « Use for the order » button is how a phone fills the field.
+      if (element.closest('[data-use-for-order]')) return
       releaseEditor(editor.id)
     }
     document.addEventListener('focusin', leave)

@@ -32,6 +32,8 @@ Object.defineProperty(SVGElement.prototype, 'getBoundingClientRect', {
   }),
 })
 
+HTMLElement.prototype.setPointerCapture = () => undefined
+HTMLElement.prototype.releasePointerCapture = () => undefined
 SVGElement.prototype.setPointerCapture = () => undefined
 SVGElement.prototype.releasePointerCapture = () => undefined
 SVGElement.prototype.hasPointerCapture = () => true

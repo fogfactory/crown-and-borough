@@ -18,6 +18,7 @@ import { GameMenu } from '@/components/GameMenu'
 import { MapViewer } from '@/components/MapViewer'
 import { ownTerritoriesFrame } from '@/lib/map-frame'
 import { useMapLinkState } from '@/lib/use-map-link-state'
+import { useOrderPicker } from '@/lib/use-order-picker'
 import { MapLinksProvider } from '@/components/MapLinks'
 import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
@@ -789,18 +790,15 @@ export function GamePage() {
     setActivePanel('rules')
   }
 
-  // An open order form takes the map's clicks for its active field.
-  const orderPicker = useRef<((territory: string) => void) | null>(null)
-  // Only while the orders are on screen: a form left open behind another
-  // bookmark or tab must not swallow the map's clicks.
   const ordersShown = desktop
     ? drawerPanelOf(activePanel) === 'orders'
     : activePanel === 'orders'
-  const handleMapPick = (id: string) => {
-    if (!ordersShown || !orderPicker.current) return false
-    orderPicker.current(id)
-    return true
-  }
+  const { onPickerChange, pickOnMap, fillWithSelection } = useOrderPicker({
+    desktop,
+    ordersShown,
+    showOrders: () => setActivePanel('orders'),
+    selectedId,
+  })
   const handleTerritorySelect = (id: string | null) => {
     setSelectedId(id)
   }
@@ -867,7 +865,8 @@ export function GamePage() {
 
   // On the phone map view the details show in a card over the map instead.
   const detailsOnMap = !desktop && activePanel === 'map' && Boolean(selectedTerritory)
-  const territoryDetails = (
+  // The desktop cartouche carries its own close cross in its grip bar.
+  const renderTerritoryDetails = (closable: boolean) => (
     <SelectedTerritoryDetails
       state={state}
       selectedTerritory={selectedTerritory}
@@ -885,9 +884,14 @@ export function GamePage() {
       transferLine={transferLine}
       transferLoading={transferLoading}
       transferError={transferError}
-      onClose={() => setSelectedId(null)}
+      onClose={closable ? () => setSelectedId(null) : undefined}
+      onUseForOrder={fillWithSelection}
     />
   )
+  // One element per page render, so that the cartouche following a pan or zoom
+  // frame does not rebuild the sheet.
+  const cartoucheDetails =
+    desktop && selectedTerritory ? renderTerritoryDetails(false) : null
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -1057,30 +1061,29 @@ export function GamePage() {
       </div>
 
       <MapLinksProvider value={linkState.links}>
-        <OrderFormProvider
-          onPickerChange={(picker) => {
-            orderPicker.current = picker
-          }}
-        >
+        <OrderFormProvider onPickerChange={onPickerChange}>
           <GameLayout
             view={activePanel}
-            mapOverlay={detailsOnMap ? territoryDetails : undefined}
+            mapOverlay={detailsOnMap ? renderTerritoryDetails(true) : undefined}
             map={
               <MapViewer
                 map={map}
                 state={state}
                 supply={selectedSupplyLine}
                 onSelect={handleTerritorySelect}
-                onPick={handleMapPick}
+                onPick={pickOnMap}
                 selectionOverlay={
                   desktop && selectedTerritory
                     ? (anchor, size) => (
                         <TerritoryCartouche
+                          territoryId={selectedTerritory.id}
+                          label={`${selectedTerritory.name} (${selectedTerritory.id})`}
                           anchor={anchor}
                           size={size}
                           onClose={() => setSelectedId(null)}
+                          onUseForOrder={fillWithSelection}
                         >
-                          {territoryDetails}
+                          {cartoucheDetails}
                         </TerritoryCartouche>
                       )
                     : undefined

@@ -49,6 +49,7 @@ import {
 } from '@/lib/territory-labels'
 import { useMapBorders } from '@/lib/use-map-borders'
 import { useElementSize } from '@/lib/use-element-size'
+import { isPickModifier } from '@/lib/map-gestures'
 import { useMapGestures } from '@/lib/use-map-gestures'
 import { useRegionEffectIcons } from '@/lib/use-region-effect-icons'
 import { useRegionLayout } from '@/lib/use-region-layout'
@@ -95,9 +96,9 @@ interface MapViewerProps {
   /** Selected territory, when the page controls the selection. */
   selectedId?: string | null
   /**
-   * Offered every territory clicked before it is selected; returning true
-   * takes the click (an open order form filling its field), and the
-   * selection stays as it is.
+   * Offered each territory Ctrl/Cmd+clicked; returning true takes the click
+   * (an open order form filling its field) and leaves the selection as it is.
+   * A plain click only selects.
    */
   onPick?: (id: string) => boolean
   /** Pans and zooms onto these territories each time its key changes. */
@@ -200,8 +201,8 @@ export function MapViewer({
   const viewWidth = mapWidth + bandMarginX * 2
   const viewHeight = mapHeight + bandMarginY * 2
 
-  const selectTerritory = (id: string | null) => {
-    if (id !== null && onPick?.(id)) return
+  const selectTerritory = (id: string | null, modifier = false) => {
+    if (modifier && id !== null && onPick?.(id)) return
     const nextId = id !== null && id !== selectedId ? id : null
     setSelectedId(nextId)
     onSelect?.(nextId)
@@ -216,7 +217,7 @@ export function MapViewer({
     }
 
     event.preventDefault()
-    selectTerritory(id)
+    selectTerritory(id, isPickModifier(event))
   }
 
   const { svgRef, view, isDragging, pointerHandlers, zoomBy, frameOn } = useMapGestures({
@@ -545,7 +546,10 @@ export function MapViewer({
 
             <g aria-label={t('map.selection')} pointerEvents="none">
               {map.territories.map((territory) => {
-                if (highlighted.territories.includes(territory.id) && territory.id !== selectedId) {
+                if (
+                  highlighted.territories.includes(territory.id) &&
+                  territory.id !== selectedId
+                ) {
                   return (
                     <path
                       key={territory.id}
