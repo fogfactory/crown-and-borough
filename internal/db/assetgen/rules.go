@@ -90,8 +90,6 @@ func readRulesDocument(path string, required bool, balance *Balance) ([]byte, er
 const ruleArmyCostSizes = 5
 
 func renderRules(document []byte, balance Balance) ([]byte, error) {
-	calamityCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100, balance.SpecialOrders.CalamityWeights, calamityKinds)
-	bonusCounts := WeightedCardCounts(balance.SpecialOrders.DeckSize-(balance.SpecialOrders.DeckSize*balance.SpecialOrders.CalamityPercentage/100), balance.SpecialOrders.BonusWeights, bonusKinds)
 	values := map[string]string{
 		"territory_income":                            stringValue(balance.TerritoryIncome),
 		"village_income":                              stringValue(balance.VillageIncome),
@@ -125,24 +123,14 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		"starting_troops":                             stringValue(balance.StartingTroops),
 		"starting_outposts":                           stringValue(balance.StartingOutposts),
 		"starting_resources":                          stringValue(balance.StartingResources),
-		"special_orders.deck_size":                    stringValue(balance.SpecialOrders.DeckSize),
-		"special_orders.calamity_percentage":          stringValue(balance.SpecialOrders.CalamityPercentage),
+		"special_orders.bonus_cards_base":             stringValue(balance.SpecialOrders.BonusCardsBase),
+		"special_orders.bonus_cards_per_player":       stringValue(balance.SpecialOrders.BonusCardsPerPlayer),
+		"special_orders.calamity_cards_base":          stringValue(balance.SpecialOrders.CalamityCardsBase),
+		"special_orders.calamity_cards_per_player":    stringValue(balance.SpecialOrders.CalamityCardsPerPlayer),
+		"special_orders.slot_players_per_extra":       stringValue(balance.SpecialOrders.CalamitySlotPlayersPerExtra),
+		"special_orders.deck_rows":                    specialDeckRows(balance.SpecialOrders),
 		"special_orders.hand_limit":                   stringValue(balance.SpecialOrders.HandLimit),
 		"special_orders.draw_orders_limit":            stringValue(balance.SpecialOrders.DrawOrdersLimit),
-		"special_orders.calamity_slots.spring":        stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSpring]),
-		"special_orders.calamity_slots.summer":        stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonSummer]),
-		"special_orders.calamity_slots.autumn":        stringValue(balance.SpecialOrders.CalamitySlots[models.SeasonAutumn]),
-		"special_orders.card.plague":                  stringValue(calamityCounts[models.CardKindPlague]),
-		"special_orders.card.bad_weather":             stringValue(calamityCounts[models.CardKindBadWeather]),
-		"special_orders.card.famine":                  stringValue(calamityCounts[models.CardKindFamine]),
-		"special_orders.card.fair_weather":            stringValue(bonusCounts[models.CardKindFairWeather]),
-		"special_orders.card.abundant_harvest":        stringValue(bonusCounts[models.CardKindAbundantHarvest]),
-		"special_orders.card.revolt":                  stringValue(bonusCounts[models.CardKindRevolt]),
-		"special_orders.card.seigneurial_tax":         stringValue(bonusCounts[models.CardKindSeigneurialTax]),
-		"special_orders.card.assassination":           stringValue(bonusCounts[models.CardKindAssassination]),
-		"special_orders.card.justice":                 stringValue(bonusCounts[models.CardKindJustice]),
-		"special_orders.card.tunnel":                  stringValue(bonusCounts[models.CardKindTunnel]),
-		"special_orders.card.ambush":                  stringValue(bonusCounts[models.CardKindAmbush]),
 		"special_orders.effects.plague_army_divisor":  stringValue(balance.SpecialOrders.Effects.PlagueArmyDivisor),
 		"special_orders.effects.revolt_army_min_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMinSize),
 		"special_orders.effects.revolt_army_max_size": stringValue(balance.SpecialOrders.Effects.RevoltArmyMaxSize),
@@ -162,6 +150,26 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 		keys = append(keys, "{{"+key+"}}", value)
 	}
 	return []byte(strings.NewReplacer(keys...).Replace(string(document))), nil
+}
+
+// ruleDeckMinPlayers and ruleDeckMaxPlayers bound the table of deck sizes of
+// the player rules: the online games hold 2 to 8 players.
+const (
+	ruleDeckMinPlayers = 2
+	ruleDeckMaxPlayers = 8
+)
+
+// specialDeckRows renders, one row per number of players, the bonus cards, the
+// calamities, the deck size and the calamity slots per season of the special
+// deck, for the "{{special_orders.deck_rows}}" placeholder of the rules.
+func specialDeckRows(config SpecialOrdersBalance) string {
+	rows := make([]string, 0, ruleDeckMaxPlayers-ruleDeckMinPlayers+1)
+	for players := ruleDeckMinPlayers; players <= ruleDeckMaxPlayers; players++ {
+		rows = append(rows, fmt.Sprintf("| %d | %d | %d | %d | %d |", players,
+			config.BonusCardCount(players), config.CalamityCardCount(players), config.DeckSize(players),
+			config.CalamitySlotsFor(models.SeasonSpring, players)))
+	}
+	return strings.Join(rows, "\n")
 }
 
 func stringValue(value int) string {

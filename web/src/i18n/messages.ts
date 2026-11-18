@@ -1675,7 +1675,7 @@ const englishMessages = {
   'hand.claimHelp':
     'Claim card: name one of your nobles as heir to a claimed noble.',
   'hand.dignityHelp': 'Dignity card: confers the dignity on an eligible noble.',
-  'hand.counter': 'Deck: {deck} · Hand: {count}/{limit}',
+  'hand.counter': 'Nobles: {deck} · Events: {events} · Hand: {count}/{limit}',
   'treasury.stock': '{amount} R',
   'treasury.income': '+{amount} R / turn',
   'treasury.consumption': '−{amount} R',
@@ -3412,7 +3412,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'hand.claimHelp':
     'Carte de prétention : désigne un de tes nobles comme héritier d’un noble visé.',
   'hand.dignityHelp': 'Carte de dignité : confère la dignité à un noble éligible.',
-  'hand.counter': 'Deck : {deck} · Main : {count}/{limit}',
+  'hand.counter': 'Nobles : {deck} · Événements : {events} · Main : {count}/{limit}',
   'treasury.stock': '{amount} R',
   'treasury.income': '+{amount} R / tour',
   'treasury.consumption': '−{amount} R',

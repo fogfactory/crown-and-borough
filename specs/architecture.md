@@ -386,7 +386,7 @@ développement. La politique de divulgation est la suivante :
 - la carte et les valeurs dynamiques chiffrées restent communes ;
 - `handLimit` est la limite de main partagée (`special_orders.hand_limit`), commune à `specialHand` et `nobleHand` (cartes de noble et de dignité), et publique ;
 - `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
-- `nobleHand` contient uniquement les cartes du deck de nobles de la main du joueur courant (`id`, `kind` `noble` ou `dignity`, `code`, et selon le kind `name` et `sex` ou `dignity`) ; `nobleDeckSize` est le nombre de cartes restant dans la pioche et `nobleDiscardSize` le nombre de cartes de la défausse, publics ; l'ordre de la pioche et les mains des autres joueurs restent absents. Chaque noble de `nobles` expose ses `dignities` (par exemple `bastard`), publiques ;
+- `nobleHand` contient uniquement les cartes du deck de nobles de la main du joueur courant (`id`, `kind` `noble` ou `dignity`, `code`, et selon le kind `name` et `sex` ou `dignity`) ; `nobleDeckSize` est le nombre de cartes restant dans la pioche et `nobleDiscardSize` le nombre de cartes de la défausse, publics ; `specialDeckSize` est le nombre de cartes (bonus et calamités) restant dans la pioche du deck spécial, public lui aussi, sans ordre ni composition ; l'ordre de la pioche et les mains des autres joueurs restent absents. Chaque noble de `nobles` expose ses `dignities` (par exemple `bastard`), publiques ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
   par un noble qu'il détient comme otage, tant que la chaîne reste compatible
   avec la progression de l'armée ;

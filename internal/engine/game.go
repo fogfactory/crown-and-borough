@@ -237,7 +237,7 @@ func CreateGameFromMap(seed string, mapData mapgen.MapData, players []PlayerInit
 		state.Players = append(state.Players, player)
 	}
 
-	specialDeck, err := buildSpecialDeck(seed, balance)
+	specialDeck, err := buildSpecialDeck(seed, len(state.Players), balance)
 	if err != nil {
 		return nil, fmt.Errorf("engine: build special deck: %w", err)
 	}

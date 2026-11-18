@@ -756,6 +756,7 @@ function HandSection({
   const { t } = useLanguage()
   const hand = state.nobleHand ?? []
   const deckSize = state.nobleDeckSize ?? 0
+  const specialDeckSize = state.specialDeckSize ?? 0
   const drawn = draftHasNobleDraw(winterDraft)
   const handLimit = state.handLimit ?? DEFAULT_HAND_LIMIT
   const specialHand = state.specialHand ?? []
@@ -863,6 +864,7 @@ function HandSection({
             <span data-hand-counter>
               {t('hand.counter', {
                 deck: deckSize,
+                events: specialDeckSize,
                 count: specialCount + hand.length,
                 limit: handLimit,
               })}

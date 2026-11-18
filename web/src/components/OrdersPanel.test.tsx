@@ -578,6 +578,7 @@ describe('OrdersPanel noble deck (winter)', () => {
       },
     ],
     nobleDeckSize: 5,
+    specialDeckSize: 12,
     nobleHand: [
       { id: 'c1', kind: 'noble', code: 'ALB', name: 'Albert', sex: 'male' },
       { id: 'c2', kind: 'dignity', code: 'BAS', dignity: 'bastard' },
@@ -605,7 +606,7 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('draws a card and shows the deck size', () => {
     const onWinterChange = renderDeck('')
-    expect(screen.getByText(/^Deck : 5 · Main : 2\//)).toBeInTheDocument()
+    expect(screen.getByText(/^Nobles : 5 · Événements : 12 · Main : 2\//)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Piocher une carte de noble/ }))
     expect(onWinterChange).toHaveBeenCalledWith('T N\n')
   })
@@ -622,7 +623,7 @@ describe('OrdersPanel noble deck (winter)', () => {
       ...deckState,
       specialHand: ['fair_weather', 'fair_weather'],
     })
-    expect(screen.getByText('Deck : 5 · Main : 4/4')).toBeInTheDocument()
+    expect(screen.getByText('Nobles : 5 · Événements : 12 · Main : 4/4')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeDisabled()
@@ -631,7 +632,7 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('keeps the draw enabled while the shared hand has room', () => {
     renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather'] })
-    expect(screen.getByText('Deck : 5 · Main : 3/4')).toBeInTheDocument()
+    expect(screen.getByText('Nobles : 5 · Événements : 12 · Main : 3/4')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeEnabled()

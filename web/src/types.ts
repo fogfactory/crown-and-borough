@@ -713,6 +713,8 @@ export interface StateData {
   nobleHand?: NobleCard[]
   /** Cards left in the shared noble draw pile. */
   nobleDeckSize?: number
+  /** Cards left in the shared special draw pile (bonus cards and calamities). */
+  specialDeckSize?: number
   /** Shared hand limit (special + noble cards); the client falls back to DEFAULT_HAND_LIMIT when absent. */
   handLimit?: number
   activeRegionEffects?: ActiveRegionEffect[]

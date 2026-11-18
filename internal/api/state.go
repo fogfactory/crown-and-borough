@@ -57,6 +57,9 @@ type StateView struct {
 	NobleHand        []NobleCardView   `json:"nobleHand"`
 	NobleDeckSize    int               `json:"nobleDeckSize"`
 	NobleDiscardSize int               `json:"nobleDiscardSize"`
+	// SpecialDeckSize is the number of cards left in the draw pile of the
+	// shared special deck (bonus cards and calamities together).
+	SpecialDeckSize int `json:"specialDeckSize"`
 	// CalamityForecast lists, in winter, the next calamity cards of the draw
 	// pile that a free astrologue of the viewer reveals (specs/dames.md
 	// § Astrologue). It is private to that player.
@@ -708,6 +711,9 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 				view.SpecialHand = append(view.SpecialHand, kind)
 			}
 		}
+	}
+	if state.SpecialDeck != nil {
+		view.SpecialDeckSize = len(state.SpecialDeck.DrawPile)
 	}
 	if state.NobleDeck != nil {
 		view.NobleDeckSize = len(state.NobleDeck.DrawPile)

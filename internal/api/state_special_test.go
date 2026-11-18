@@ -27,6 +27,9 @@ func TestProjectStateForPlayerProjectsOnlyCurrentHand(t *testing.T) {
 	if len(p2.SpecialHand) != 0 {
 		t.Fatalf("P2 special hand = %#v, want empty", p2.SpecialHand)
 	}
+	if p1.SpecialDeckSize != 1 || p2.SpecialDeckSize != 1 {
+		t.Fatalf("special deck sizes = %d/%d, want the 1 card left in the draw pile", p1.SpecialDeckSize, p2.SpecialDeckSize)
+	}
 }
 
 func TestProjectStateForPlayerProjectsPendingAnnouncements(t *testing.T) {
