@@ -565,10 +565,14 @@ func reanchorPolygons(polygons [][][2]int, cfg Config) (padding, width, height i
 	return padding, maxX + deltaX + padding, maxY + deltaY + padding
 }
 
+func viewportDistance(first, second [2]int) float64 {
+	return math.Hypot(float64(second[0]-first[0]), float64(second[1]-first[1]))
+}
+
 func chainLength(points [][2]int) float64 {
 	total := 0.0
 	for i := 1; i < len(points); i++ {
-		total += math.Hypot(float64(points[i][0]-points[i-1][0]), float64(points[i][1]-points[i-1][1]))
+		total += viewportDistance(points[i-1], points[i])
 	}
 	return total
 }
@@ -602,8 +606,9 @@ func collapseShortFrontiers(
 	references [][]frontierReference,
 ) ([]frontierChain, [][]frontierReference, error) {
 	removed := make([]bool, len(chains))
+	minimum := minFrontierLength(cfg)
 	for {
-		target, shortest := -1, minFrontierLength(cfg)
+		target, shortest := -1, minimum
 		for index, chain := range chains {
 			if removed[index] || chain.owners[1] >= interiorCount {
 				continue
@@ -666,13 +671,18 @@ func collapseShortFrontiers(
 
 // sharesThirdOwner reports whether a territory other than the chain's owners
 // touches both of its junctions: collapsing would pinch that territory.
+// endsAt reports whether one end of the chain is the given junction.
+func (chain frontierChain) endsAt(point gridPoint) bool {
+	return chain.grid[0] == point || chain.grid[len(chain.grid)-1] == point
+}
+
 func sharesThirdOwner(chains []frontierChain, removed []bool, chain frontierChain, first, last gridPoint) bool {
 	atFirst := make(map[int]bool)
 	for index, other := range chains {
 		if removed[index] {
 			continue
 		}
-		if other.grid[0] == first || other.grid[len(other.grid)-1] == first {
+		if other.endsAt(first) {
 			atFirst[other.owners[0]], atFirst[other.owners[1]] = true, true
 		}
 	}
@@ -680,7 +690,7 @@ func sharesThirdOwner(chains []frontierChain, removed []bool, chain frontierChai
 		if removed[index] {
 			continue
 		}
-		if other.grid[0] != last && other.grid[len(other.grid)-1] != last {
+		if !other.endsAt(last) {
 			continue
 		}
 		for _, owner := range other.owners {

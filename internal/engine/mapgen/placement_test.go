@@ -222,9 +222,9 @@ func TestSelectStartsErrorsWithNoEligibleSite(t *testing.T) {
 	}
 }
 
-// TestPlaceSeatsSmallGraphSuccess tests that placeSeats places seats when
+// TestSeatsSmallGraphSuccess tests that eligibleSeats and greedySeats place seats when
 // enough eligible sites exist.
-func TestPlaceSeatsSmallGraphSuccess(t *testing.T) {
+func TestSeatsSmallGraphSuccess(t *testing.T) {
 	// Graph: 0-1-2-3-4-5-6-7-8-9-10 (line topology, 11 territories)
 	// Starts: {0, 5}
 	// Homes: {2, 7}
@@ -247,11 +247,11 @@ func TestPlaceSeatsSmallGraphSuccess(t *testing.T) {
 	homes := []int{2, 7}
 
 	rng := rand.New(rand.NewPCG(42, 0))
-	seats, err := placeSeats(rng, centroids, distances, starts, homes, 2)
-
-	if err != nil {
-		t.Fatalf("placeSeats returned unexpected error: %v", err)
+	eligible := eligibleSeats(distances, starts, homes)
+	if len(eligible) < 2 {
+		t.Fatalf("eligibleSeats returned %v, want at least 2 sites", eligible)
 	}
+	seats := greedySeats(rng, centroids, eligible, 2)
 	if len(seats) != 2 {
 		t.Fatalf("returned %d seats, want 2", len(seats))
 	}
@@ -273,9 +273,9 @@ func TestPlaceSeatsSmallGraphSuccess(t *testing.T) {
 	}
 }
 
-// TestPlaceSeatsInsufficientEligible tests that placeSeats returns a clear
-// error when there are fewer eligible sites than the requested seat count.
-func TestPlaceSeatsInsufficientEligible(t *testing.T) {
+// TestSeatsInsufficientEligible tests that eligibleSeats reports fewer sites
+// than the requested seat count.
+func TestSeatsInsufficientEligible(t *testing.T) {
 	// Graph: 0-1-2-3-4-5 (line topology, 6 territories)
 	// Starts: {0}
 	// Homes: {2}
@@ -298,22 +298,8 @@ func TestPlaceSeatsInsufficientEligible(t *testing.T) {
 	starts := []int{0}
 	homes := []int{2}
 
-	rng := rand.New(rand.NewPCG(42, 0))
-	seats, err := placeSeats(rng, centroids, distances, starts, homes, 3)
-
-	if err == nil {
-		t.Fatalf("placeSeats should return an error when requesting %d seats but fewer than %d sites are eligible",
-			3, 3)
-	}
-	if len(seats) != 0 {
-		t.Errorf("on error, seats should be empty; got %v", seats)
-	}
-	// Verify the error message is clear.
-	if err.Error() == "" {
-		t.Error("error message is empty")
-	}
-	if !stringContains(err.Error(), "need at least") {
-		t.Errorf("error message %q does not indicate insufficient eligible sites", err.Error())
+	if eligible := eligibleSeats(distances, starts, homes); len(eligible) >= 3 {
+		t.Fatalf("eligibleSeats = %v, want fewer than the 3 requested seats", eligible)
 	}
 }
 

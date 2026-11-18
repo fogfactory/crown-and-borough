@@ -59,7 +59,10 @@ type Territory struct {
 type MapData struct {
 	Territories []Territory     `json:"territories"`
 	Regions     []models.Region `json:"regions"`
-	Starts      []string        `json:"-"`
+	// CornerContacts lists the points where territories touch without sharing
+	// a frontier, so the map can mark them as non-adjacent.
+	CornerContacts []CornerContact `json:"cornerContacts"`
+	Starts         []string        `json:"-"`
 }
 
 // maxGenerateAttempts bounds the derived sub-seeds tried when a random draw
@@ -171,12 +174,17 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		}
 	}
 
-	seats, err := chooseSeats(
-		newRNG(seed, "seats"), territories, geometry.centroids, distances,
-		eligibleSeats(distances, starts, homeVillages), starts,
-		geometry.outline, 1.5*minFrontierLength(cfg),
-		0.075*math.Hypot(float64(cfg.Width), float64(cfg.Height)), cfg.SeatCount,
-	)
+	seats, err := chooseSeats(newRNG(seed, "seats"), seatSearch{
+		territories:   territories,
+		centroids:     geometry.centroids,
+		distances:     distances,
+		eligible:      eligibleSeats(distances, starts, homeVillages),
+		starts:        starts,
+		outline:       geometry.outline,
+		edgeMinimum:   seatOutlineFactor * minFrontierLength(cfg),
+		spreadMinimum: seatSpreadDiagonalRatio * math.Hypot(float64(cfg.Width), float64(cfg.Height)),
+		count:         cfg.SeatCount,
+	})
 	if err != nil {
 		return MapData{}, err
 	}
@@ -198,7 +206,12 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	}
 	sort.Strings(startIDs)
 
-	return MapData{Territories: territories, Regions: regions, Starts: startIDs}, nil
+	return MapData{
+		Territories:    territories,
+		Regions:        regions,
+		CornerContacts: cornerContacts(territories),
+		Starts:         startIDs,
+	}, nil
 }
 
 func validateConfig(cfg Config) error {

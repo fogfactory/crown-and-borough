@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { BorderGlyph, TerrainGlyph } from '@/components/MapDecorations'
 import { ArmyIcon, ControlShieldIcon } from '@/components/ArmsIcons'
 import { NoblePawn } from '@/components/MapHeraldry'
@@ -262,7 +264,7 @@ function LegendSection({
   defaultOpen?: boolean
   /** Render only the content: the surrounding panel already has the title. */
   bare?: boolean
-  children: React.ReactNode
+  children: ReactNode
 }) {
   if (bare) return <div className="space-y-2">{children}</div>
   return (
@@ -284,6 +286,37 @@ function LegendSection({
 export type LegendSectionId = 'display' | 'map' | 'nobles' | 'borders'
 
 export const LEGEND_SECTIONS: LegendSectionId[] = ['display', 'map', 'nobles', 'borders']
+
+/** Icon of each legend's toggle button, drawn in a 24-unit stroke box. */
+export const LEGEND_TOGGLE_ICONS: Record<LegendSectionId, ReactNode> = {
+  display: (
+    <>
+      <path d="M4 7h10" />
+      <path d="M18 7h2" />
+      <circle cx="16" cy="7" r="2" />
+      <path d="M4 17h2" />
+      <path d="M10 17h10" />
+      <circle cx="8" cy="17" r="2" />
+    </>
+  ),
+  map: (
+    <>
+      <path d="M3 19l6-11 4 7 3-4 5 8z" />
+    </>
+  ),
+  nobles: (
+    <>
+      <circle cx="12" cy="7" r="3" />
+      <path d="M6 20c0-4 3-6 6-6s6 2 6 6z" />
+    </>
+  ),
+  borders: (
+    <>
+      <path d="M3 12h2M8 12h2M13 12h2M18 12h3" />
+      <path d="M12 4v4M12 16v4" />
+    </>
+  ),
+}
 
 interface MapLegendProps {
   /** Render a single section as its own compact panel. */

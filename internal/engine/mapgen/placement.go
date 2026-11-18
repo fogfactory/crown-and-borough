@@ -1,6 +1,7 @@
 package mapgen
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand/v2"
@@ -120,6 +121,9 @@ func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []m
 	homes = make([]int, 0, count)
 	budget := startSearchBudget
 	if !backtrackStarts(startOrder, distances, homeCandidates, count, 0, &starts, &homes, usedAsStart, usedAsHome, &budget) {
+		if budget <= 0 {
+			return nil, nil, fmt.Errorf("%w placing %d starting positions", errStartSearchBudget, count)
+		}
 		return nil, nil, fmt.Errorf("mapgen: cannot place %d starting positions with home villages", count)
 	}
 	return starts, homes, nil
@@ -250,6 +254,8 @@ func homeCompatible(distances [][]int, starts, homes []int, home int) bool {
 // running out of budget fails the attempt so generation retries another draw.
 const startSearchBudget = 200_000
 
+var errStartSearchBudget = errors.New("mapgen: start search budget exhausted")
+
 const (
 	// seatCandidateTrials is the number of random seat sets scored when
 	// choosing the chefs-lieux.
@@ -257,6 +263,12 @@ const (
 	// seatMinimumSpacing keeps two chefs-lieux at least this many passable
 	// hops apart.
 	seatMinimumSpacing = 3
+	// seatOutlineFactor scales the minimum frontier length into the minimum
+	// outline contact a bishopric needs to count as touching the map edge.
+	seatOutlineFactor = 1.5
+	// seatSpreadDiagonalRatio is the minimum distance between two chefs-lieux,
+	// as a share of the map diagonal.
+	seatSpreadDiagonalRatio = 0.075
 )
 
 // eligibleSeats lists the sites that may host a chef-lieu: not a start nor a
@@ -302,21 +314,29 @@ func (s seatScore) betterThan(other seatScore) bool {
 	return s.spread > other.spread
 }
 
+// seatSearch gathers what chooseSeats needs: the territories and their
+// geometry, the sites eligible for a chef-lieu, the starts, the outline contact
+// per site, the minimum outline contact and centroid spacing, and the number of
+// chefs-lieux to place.
+type seatSearch struct {
+	territories                []Territory
+	centroids                  [][2]float64
+	distances                  [][]int
+	eligible, starts           []int
+	outline                    []float64
+	edgeMinimum, spreadMinimum float64
+	count                      int
+}
+
 // chooseSeats picks the chefs-lieux so that bishoprics are contested: it
 // scores many random seat sets by the regions they produce and keeps the one
 // where the fewest starts sit alone in their region, every region reaching
 // the map outline. The greedy farthest-point set joins the trials as a
 // fallback, so a result exists whenever one valid set does.
-func chooseSeats(
-	rng *rand.Rand,
-	territories []Territory,
-	centroids [][2]float64,
-	distances [][]int,
-	eligible, starts []int,
-	outline []float64,
-	edgeMinimum, spreadMinimum float64,
-	count int,
-) ([]int, error) {
+func chooseSeats(rng *rand.Rand, search seatSearch) ([]int, error) {
+	territories, centroids, distances := search.territories, search.centroids, search.distances
+	eligible, starts, outline := search.eligible, search.starts, search.outline
+	edgeMinimum, spreadMinimum, count := search.edgeMinimum, search.spreadMinimum, search.count
 	if count > len(eligible) {
 		return nil, fmt.Errorf("mapgen: need at least %d eligible sites for chefs-lieux, have %d", count, len(eligible))
 	}
@@ -331,10 +351,7 @@ func chooseSeats(
 
 	var best []int
 	var bestScore seatScore
-	consider := func(seats []int, fallback bool) {
-		if !fallback && minSeatSpread(centroids, seats) < spreadMinimum*spreadMinimum {
-			return
-		}
+	consider := func(seats []int, spread float64) {
 		ids := make([]models.TerritoryID, len(seats))
 		for i, seat := range seats {
 			ids[i] = models.TerritoryID(territories[seat].ID)
@@ -343,7 +360,7 @@ func chooseSeats(
 		if err != nil {
 			return
 		}
-		score := seatScore{spread: minSeatSpread(centroids, seats)}
+		score := seatScore{spread: spread}
 		for _, region := range regions {
 			touches, starting := false, 0
 			for _, id := range region.Territories {
@@ -366,7 +383,8 @@ func chooseSeats(
 		}
 	}
 
-	consider(greedySeats(rng, centroids, eligible, count), true)
+	greedy := greedySeats(rng, centroids, eligible, count)
+	consider(greedy, minSeatSpread(centroids, greedy))
 	pool := append([]int(nil), eligible...)
 	for trial := 0; trial < seatCandidateTrials; trial++ {
 		shuffle(rng, pool)
@@ -380,7 +398,9 @@ func chooseSeats(
 			}
 		}
 		if len(seats) == count {
-			consider(seats, false)
+			if spread := minSeatSpread(centroids, seats); spread >= spreadMinimum*spreadMinimum {
+				consider(seats, spread)
+			}
 		}
 	}
 	if best == nil {
@@ -421,64 +441,6 @@ func greedySeats(rng *rand.Rand, centroids [][2]float64, eligible []int, count i
 		chosen = append(chosen, bestSite)
 	}
 	return chosen
-}
-
-// placeSeats chooses count chefs-lieux among the sites left over once starts
-// and homes are placed, maximizing the minimum centroid distance between
-// them (the same greedy max-min spread previously used for every neutral
-// village). Eligible sites stay at least seatMinimumStartDistance from every
-// start and seatMinimumHomeDistance from every home village.
-func placeSeats(rng *rand.Rand, centroids [][2]float64, distances [][]int, starts, homes []int, count int) ([]int, error) {
-	n := len(centroids)
-	excluded := make([]bool, n)
-	for _, start := range starts {
-		excluded[start] = true
-	}
-	for _, home := range homes {
-		excluded[home] = true
-	}
-
-	eligible := make([]int, 0, n)
-	for site := 0; site < n; site++ {
-		if excluded[site] {
-			continue
-		}
-		if !farEnoughFrom(distances, starts, site, seatMinimumStartDistance) {
-			continue
-		}
-		if !farEnoughFrom(distances, homes, site, seatMinimumHomeDistance) {
-			continue
-		}
-		eligible = append(eligible, site)
-	}
-	if count > len(eligible) {
-		return nil, fmt.Errorf("mapgen: need at least %d eligible sites for chefs-lieux, have %d", count, len(eligible))
-	}
-
-	selected := make([]bool, n)
-	first := eligible[rng.IntN(len(eligible))]
-	selected[first] = true
-	chosen := []int{first}
-
-	for len(chosen) < count {
-		bestSite := -1
-		bestDistance := -1.0
-		for _, site := range eligible {
-			if selected[site] {
-				continue
-			}
-			nearest := squaredDistanceToChosen(centroids, site, chosen)
-			if bestSite == -1 || nearest > bestDistance ||
-				(nearest == bestDistance && site < bestSite) {
-				bestSite = site
-				bestDistance = nearest
-			}
-		}
-		selected[bestSite] = true
-		chosen = append(chosen, bestSite)
-	}
-	sort.Ints(chosen)
-	return chosen, nil
 }
 
 func farEnoughFrom(distances [][]int, from []int, site, minimum int) bool {

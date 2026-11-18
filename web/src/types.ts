@@ -451,9 +451,20 @@ export interface Fief {
   projectedIncome?: number
 }
 
+/**
+ * A vertex shared by two territories that have no frontier in common: they
+ * touch only at that point and are not adjacent.
+ */
+export interface CornerContact {
+  point: Point
+  /** Territory codes, sorted. */
+  between: [string, string]
+}
+
 export interface MapData {
   territories: Territory[]
   regions?: Region[]
+  cornerContacts?: CornerContact[]
 }
 
 export type Tincture =

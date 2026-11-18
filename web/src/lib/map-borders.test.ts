@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   computeMapBorders,
-  cornerContacts,
   impassableBorderIcons,
   impassableBorderKind,
   lowerTerritory,
@@ -87,21 +86,22 @@ describe('corner contacts', () => {
     impassable: [],
   })
 
-  it('marks a point shared by territories with no common edge', () => {
+  it('draws one icon at each corner contact the map declares', () => {
     const territories = [
       quad('AAA', 0, 0, 'plain'),
       quad('BBB', 100, 100, 'plain'),
       quad('CCC', 100, 0, 'plain'),
     ]
-    expect(cornerContacts(territories)).toHaveLength(1)
-    const icons = impassableBorderIcons([], territories, 1)
+    const icons = impassableBorderIcons([], territories, 1, [
+      { point: [100, 100], between: ['AAA', 'BBB'] },
+    ])
     expect(icons).toHaveLength(1)
     expect(icons[0].placement).toMatchObject({ x: 100, y: 100 })
   })
 
-  it('ignores a vertex where every pair shares a frontier', () => {
+  it('draws nothing without declared corner contacts', () => {
     const territories = [quad('AAA', 0, 0, 'plain'), quad('BBB', 100, 0, 'plain')]
-    expect(cornerContacts(territories)).toHaveLength(0)
+    expect(impassableBorderIcons([], territories, 1)).toHaveLength(0)
   })
 })
 

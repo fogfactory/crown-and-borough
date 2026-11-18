@@ -4,11 +4,11 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
 } from 'react'
 
 import {
   LEGEND_SECTIONS,
+  LEGEND_TOGGLE_ICONS,
   MapLegend,
   TERRAIN_LABEL_KEYS,
   type LegendSectionId,
@@ -140,36 +140,6 @@ interface MapViewerProps {
   onToggleCards?: (show: boolean) => void
   /** Deck-order drafts per player, parsed into the card overlay. */
   specialOrders?: Array<{ player: PlayerId; text: string }>
-}
-
-const LEGEND_TOGGLE_ICONS: Record<LegendSectionId, ReactNode> = {
-  display: (
-    <>
-      <path d="M4 7h10" />
-      <path d="M18 7h2" />
-      <circle cx="16" cy="7" r="2" />
-      <path d="M4 17h2" />
-      <path d="M10 17h10" />
-      <circle cx="8" cy="17" r="2" />
-    </>
-  ),
-  map: (
-    <>
-      <path d="M3 19l6-11 4 7 3-4 5 8z" />
-    </>
-  ),
-  nobles: (
-    <>
-      <circle cx="12" cy="7" r="3" />
-      <path d="M6 20c0-4 3-6 6-6s6 2 6 6z" />
-    </>
-  ),
-  borders: (
-    <>
-      <path d="M3 12h2M8 12h2M13 12h2M18 12h3" />
-      <path d="M12 4v4M12 16v4" />
-    </>
-  ),
 }
 
 export function MapViewer({

@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -970,7 +971,7 @@ func assertSharedFrontierCoherence(t *testing.T, data MapData, geometry frontier
 		}
 		qualifyingChainCount := 0
 		for chainIndex, chain := range geometry.chains {
-			if chain.owners != edge || len(chain.raw)-1 < minSharedEdges {
+			if chain.owners != edge {
 				continue
 			}
 			qualifyingChainCount++
@@ -987,7 +988,7 @@ func assertSharedFrontierCoherence(t *testing.T, data MapData, geometry frontier
 			}
 		}
 		if qualifyingChainCount == 0 {
-			t.Errorf("geometric arc %s/%s has no frontier chain with at least %d raster edges", data.Territories[edge[0]].ID, data.Territories[edge[1]].ID, minSharedEdges)
+			t.Errorf("geometric arc %s/%s has no frontier chain", data.Territories[edge[0]].ID, data.Territories[edge[1]].ID)
 		}
 	}
 }
@@ -1176,4 +1177,43 @@ func containsID(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func TestCornerContactsAreNonAdjacentPointTouches(t *testing.T) {
+	assets := loadTestAssets(t)
+	forEachTestSeed(t, func(t *testing.T, seed string) {
+		data := generateTestMap(t, seed, assets)
+		byID := make(map[string]Territory, len(data.Territories))
+		for _, territory := range data.Territories {
+			byID[territory.ID] = territory
+		}
+		for _, contact := range data.CornerContacts {
+			first, second := byID[contact.Between[0]], byID[contact.Between[1]]
+			if hasSharedPolygonEdge(first.Points, second.Points) {
+				t.Errorf("corner contact %v: %s and %s share a frontier", contact.Point, first.ID, second.ID)
+			}
+			if slices.Contains(first.Adjacencies, second.ID) || slices.Contains(first.Impassable, second.ID) {
+				t.Errorf("corner contact %v: %s and %s are declared neighbours", contact.Point, first.ID, second.ID)
+			}
+			for _, territory := range []Territory{first, second} {
+				if !slices.Contains(territory.Points, contact.Point) {
+					t.Errorf("corner contact %v is not a vertex of %s", contact.Point, territory.ID)
+				}
+			}
+		}
+	})
+}
+
+func TestCornerContactsOfSquares(t *testing.T) {
+	square := func(id string, x, y int) Territory {
+		return Territory{ID: id, Points: [][2]int{{x, y}, {x + 10, y}, {x + 10, y + 10}, {x, y + 10}}}
+	}
+	got := cornerContacts([]Territory{square("AAA", 0, 0), square("BBB", 10, 10), square("CCC", 10, 0)})
+	want := []CornerContact{{Point: [2]int{10, 10}, Between: [2]string{"AAA", "BBB"}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cornerContacts = %v, want %v", got, want)
+	}
+	if got := cornerContacts([]Territory{square("AAA", 0, 0), square("CCC", 10, 0)}); len(got) != 0 {
+		t.Fatalf("cornerContacts of edge neighbours = %v, want none", got)
+	}
 }

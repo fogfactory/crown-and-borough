@@ -2,7 +2,6 @@ package mapgen
 
 import (
 	"container/heap"
-	"crypto/sha256"
 	"fmt"
 	"slices"
 	"sort"
@@ -102,8 +101,15 @@ func regionStepCost(from, to models.TerritoryID) int {
 	if from > to {
 		from, to = to, from
 	}
-	sum := sha256.Sum256([]byte(string(from) + "|" + string(to)))
-	return 2 + int(sum[0])%3
+	// FNV-1a over both codes: cheap and allocation free, and only three
+	// noise values are needed.
+	hash := uint32(2166136261)
+	for _, text := range [...]string{string(from), "|", string(to)} {
+		for i := 0; i < len(text); i++ {
+			hash = (hash ^ uint32(text[i])) * 16777619
+		}
+	}
+	return 2 + int(hash>>16)%3
 }
 
 // generateRegions partitions territories into one region per seed, using a
