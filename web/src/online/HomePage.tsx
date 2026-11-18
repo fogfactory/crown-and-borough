@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
@@ -432,7 +432,40 @@ export function HomePage() {
 
   // Once the listener feeds the list, a failed API load no longer matters.
   const live = realtime.enabled && !realtime.loading && !realtimeFailed
-  const games = live ? realtime.games : apiGames
+
+  // The stored summary scores are only written at creation and on turn
+  // resolution, so they can lag the state; the API derives them from it. While
+  // the listener feeds the list, refresh the API copy when a game's revision
+  // changes (the first live key is already covered by the initial load) and
+  // show its scores.
+  const revisionKey = realtime.games.map((g) => `${g.id}:${g.revision}`).join(',')
+  const coveredKey = useRef<string | null>(null)
+  useEffect(() => {
+    if (!live) return
+    if (coveredKey.current === null || coveredKey.current === revisionKey) {
+      coveredKey.current = revisionKey
+      return
+    }
+    coveredKey.current = revisionKey
+    let active = true
+    void fetchGames()
+      .then((loaded) => {
+        if (active) setApiGames(loaded)
+      })
+      // Best effort: the listener data stays on screen if the refresh fails.
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [fetchGames, live, revisionKey])
+  const games = live
+    ? realtime.games.map((game) => {
+        const derived = apiGames.find((candidate) => candidate.id === game.id)
+        return derived && derived.revision >= game.revision
+          ? { ...game, scores: derived.scores }
+          : game
+      })
+    : apiGames
 
   return (
     <div className="space-y-6">
