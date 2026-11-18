@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 250" width="520" height="250" role="img" aria-label="XXX M YYY/2*HUG ZZZ+">
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#a23b2a"/>
+    </marker>
+    <g id="pawn" fill="#fff8e7">
+      <path d="M-5.5 5.6 H5.5 V7.3 Q5.5 8.5 4.3 8.5 H-4.3 Q-5.5 8.5 -5.5 7.3 Z"/>
+      <path d="M-4.1 5.6 L-2 -2.6 Q0 -3.6 2 -2.6 L4.1 5.6 Z"/>
+      <circle cy="-5.6" r="2.9"/>
+    </g>
+  </defs>
+  <rect width="520" height="250" rx="10" fill="#fff8e7"/>
+  <g fill="#efe3bd" stroke="#8a7a55" stroke-width="1.5" stroke-dasharray="4 3">
+    <rect x="20" y="55" width="170" height="130" rx="10"/>
+    <rect x="320" y="18" width="180" height="96" rx="10"/>
+    <rect x="320" y="136" width="180" height="96" rx="10"/>
+  </g>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="700" fill="#30291f">
+    <text x="32" y="78">XXX</text>
+    <text x="332" y="40">YYY</text>
+    <text x="332" y="158">ZZZ</text>
+  </g>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#30291f">
+    <text x="475" y="104" text-anchor="end">/2</text>
+    <text x="475" y="222" text-anchor="end">+</text>
+  </g>
+  <!-- the army -->
+  <circle cx="105" cy="130" r="16" fill="#30291f" stroke="#fff8e7" stroke-width="1.5"/>
+  <text x="105" y="131" text-anchor="middle" dominant-baseline="central" font-family="Georgia, serif" font-size="15" font-weight="700" fill="#fff8e7">6</text>
+  <!-- the two legs -->
+  <g stroke="#a23b2a" stroke-width="3" stroke-linecap="round" fill="none">
+    <path d="M122 124 L395 66" stroke="#fff8e7" stroke-width="6.5"/>
+    <path d="M122 136 L395 194" stroke="#fff8e7" stroke-width="6.5"/>
+    <path d="M122 124 L395 66" marker-end="url(#head)"/>
+    <path d="M122 136 L395 194" marker-end="url(#head)"/>
+  </g>
+  <g font-family="Georgia, serif" font-size="9" font-weight="800" fill="#fff8e7" text-anchor="middle">
+    <circle cx="258" cy="95" r="8" fill="#a23b2a" stroke="#fff8e7" stroke-width="1.5"/>
+    <text x="258" y="95.5" dominant-baseline="central">M</text>
+    <circle cx="258" cy="165" r="8" fill="#a23b2a" stroke="#fff8e7" stroke-width="1.5"/>
+    <text x="258" y="165.5" dominant-baseline="central">M</text>
+  </g>
+  <!-- nobles that ride the upper group -->
+  <g transform="translate(340 78)">
+    <circle r="8" fill="#a23b2a" stroke="#fff8e7" stroke-width="1.5"/>
+    <use href="#pawn" transform="scale(0.6)"/>
+  </g>
+  <text x="326" y="62" font-family="Georgia, serif" font-size="10" font-weight="700" fill="#a23b2a">HUG</text>
+  <!-- the order sheet follows the lower group -->
+  <g transform="translate(340 180)">
+    <circle r="8" fill="#a23b2a" stroke="#fff8e7" stroke-width="1.5"/>
+    <path d="M -3.4 -4.8 H 1.4 L 4.2 -2 V 4.8 H -3.4 Z" fill="#fff8e7"/>
+    <path d="M 1.4 -4.8 V -2 H 4.2 M -1.8 0.4 H 2.6 M -1.8 2.6 H 2.6" fill="none" stroke="#a23b2a" stroke-width="0.9" stroke-linejoin="round"/>
+  </g>
+</svg>

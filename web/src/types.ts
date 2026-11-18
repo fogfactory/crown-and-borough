@@ -209,12 +209,26 @@ export interface Army {
   starvingStrength?: number
 }
 
+/** What a maneuver sends to one destination, as planned by the server. */
+export interface ManeuverLeg {
+  target: string
+  troops: number
+  /** Nobles travelling with the troops. */
+  nobles?: string[]
+  /** A `*` takes nobles that are not known yet (later orders of a chain). */
+  anyNobles?: boolean
+  /** The order sheet (the chain) follows this group. */
+  carriesChain?: boolean
+}
+
 export interface Order {
   type: OrderType
   position: string
   targets?: string[]
   /** Troops per target of a maneuver (M); MANEUVER_REST stands for "+". */
   counts?: number[]
+  /** The legs of a maneuver: the origin first when troops stay, then each destination. */
+  legs?: ManeuverLeg[]
   nobleAssignments?: Record<string, string[]>
   liaison: LiaisonMode
   amount?: number

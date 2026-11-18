@@ -336,7 +336,20 @@ territoriaux.
 Un ordre de manœuvre (`type: "maneuver"`) porte, de façon optionnelle,
 `counts`, parallèle à `targets` : le nombre de troupes de chaque destination,
 `-1` désignant `+` (toutes les troupes restantes). Le champ est omis quand il
-est vide.
+est vide. Il porte aussi `legs`, le placement que le moteur calcule
+(`engine.PlanManeuver`, la même fonction que celle qui exécute l'ordre) : la
+case d'origine en premier quand des troupes y restent ou que l'ordre la nomme,
+puis chaque destination, avec `target`, `troops`, `nobles` (les codes des
+nobles qui voyagent avec le groupe) et `carriesChain` (la feuille d'ordres suit
+ce groupe). Les troupes qui restent sur l'origine forment un tronçon dont `target` est
+l'origine ; une destination qui ne reçoit aucune troupe figure avec
+`troops: 0` ; les nobles de ce groupe restent avec les troupes de l'origine,
+ou, si plus aucune troupe n'y reste, suivent le groupe qui porte la chaîne (à
+défaut, le dernier groupe qui reçoit des troupes). `carriesChain` n'est posé
+que sur un groupe qui reçoit des troupes. Seul l'ordre en cours place les
+nobles que l'ordre ne nomme pas ; pour les ordres suivants, un `*` est signalé
+par `anyNobles` et leurs troupes sont indicatives. Le placement ignore le
+mauvais temps. La carte se contente de dessiner ces tronçons.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 

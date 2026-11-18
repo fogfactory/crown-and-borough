@@ -138,6 +138,7 @@ function parseLine(line: string): Order | null {
         }
       }
       if (targets.length === 0) return null
+      // The server plans the legs; the tests that need them write them out.
       return { type, position, targets, counts, nobleAssignments, liaison }
     }
     default:

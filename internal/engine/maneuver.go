@@ -30,21 +30,14 @@ type maneuverIntent struct {
 	remaining int
 	// stayingNobles are the nobles planned to stay on the origin.
 	stayingNobles map[models.NobleID]bool
-	// defaultNobles are the nobles no destination claims. They follow the
-	// group that carries the chain.
-	defaultNobles []models.NobleID
-	// lastTarget is the destination of the last destination listed that the
-	// weather lets through: the group that carries the chain.
-	lastTarget models.TerritoryID
-	// lastEntry is the index of the entry lastTarget comes from.
-	lastEntry int
-	// The entry slices mirror the destinations of the stored order:
-	// entryBlocked marks the ones the weather removed, entryEmpty the ones
-	// that received no troops, entryRest the "+" ones.
-	entryTargets []models.TerritoryID
-	entryBlocked []bool
-	entryEmpty   []bool
-	entryRest    []bool
+	// plan is the split of the order (see PlanManeuver): its LastTarget is the
+	// group that carries the chain, its Entry* slices mirror the destinations
+	// of targets.
+	plan ManeuverPlan
+	// targets are the destinations of the stored order and blocked marks the
+	// ones the weather removed.
+	targets []models.TerritoryID
+	blocked []bool
 }
 
 func (ctx *resolutionContext) enumerateManeuver(record *orderRecord, army models.Army, sourceAffected bool) {
@@ -72,75 +65,32 @@ func (ctx *resolutionContext) enumerateManeuver(record *orderRecord, army models
 		record.invalidate("bad_weather")
 		return
 	}
-	assignments, valid := ctx.validateDisperse(record, army)
-	if !valid {
+	plan := PlanManeuver(order, army.Size, blocked, noblesCodesAt(ctx.state.Nobles, army.TerritoryID))
+	if plan.Invalid {
+		record.invalidate("invalid_maneuver_noble_assignment")
 		return
 	}
-
+	toIDs := func(codes []models.NobleCode) []models.NobleID {
+		ids := make([]models.NobleID, len(codes))
+		for index, code := range codes {
+			ids[index] = ctx.noblesByCode[code]
+		}
+		return ids
+	}
 	intent := &maneuverIntent{
 		armyID:        army.ID,
 		source:        army.TerritoryID,
+		remaining:     plan.Stay.Troops,
 		stayingNobles: make(map[models.NobleID]bool),
-		entryBlocked:  blocked,
-		entryEmpty:    make([]bool, len(order.TargetIDs)),
-		entryRest:     make([]bool, len(order.TargetIDs)),
-		entryTargets:  append([]models.TerritoryID(nil), order.TargetIDs...),
+		plan:          plan,
+		targets:       order.TargetIDs,
+		blocked:       blocked,
 	}
-	groupsByTarget := make(map[models.TerritoryID]*maneuverGroup)
-	available := army.Size
-	staying := 0
-	for index, targetID := range order.TargetIDs {
-		if blocked[index] {
-			continue
-		}
-		intent.lastTarget = targetID
-		intent.lastEntry = index
-		count := order.Counts[index]
-		if count == models.ManeuverRest {
-			intent.entryRest[index] = true
-			count = available
-		}
-		count = min(count, available)
-		available -= count
-		intent.entryEmpty[index] = count == 0
-		if targetID == army.TerritoryID {
-			staying += count
-			continue
-		}
-		group := groupsByTarget[targetID]
-		if group == nil {
-			group = &maneuverGroup{target: targetID}
-			groupsByTarget[targetID] = group
-			intent.groups = append(intent.groups, group)
-		}
-		group.size += count
+	for _, nobleID := range toIDs(plan.Stay.Nobles) {
+		intent.stayingNobles[nobleID] = true
 	}
-	intent.remaining = available + staying
-
-	// A noble leaves with the group it is assigned to, or with the group that
-	// carries the chain when no destination claims it; a noble whose group
-	// gets no troops, was dropped by the weather or is the origin group stays.
-	assigned := make(map[models.NobleID]bool)
-	for _, targetID := range sortedTerritoryMap(assignments) {
-		for _, nobleID := range assignments[targetID] {
-			assigned[nobleID] = true
-			if group := groupsByTarget[targetID]; group != nil && group.size > 0 {
-				group.nobles = append(group.nobles, nobleID)
-			} else {
-				intent.stayingNobles[nobleID] = true
-			}
-		}
-	}
-	lastGroup := groupsByTarget[intent.lastTarget]
-	for _, nobleID := range ctx.noblesAt(army.TerritoryID) {
-		if assigned[nobleID] {
-			continue
-		}
-		if lastGroup != nil && lastGroup.size > 0 {
-			intent.defaultNobles = append(intent.defaultNobles, nobleID)
-		} else {
-			intent.stayingNobles[nobleID] = true
-		}
+	for _, leg := range plan.Groups {
+		intent.groups = append(intent.groups, &maneuverGroup{target: leg.Target, size: leg.Troops, nobles: toIDs(leg.Nobles)})
 	}
 	ctx.maneuvers[army.ID] = intent
 }
@@ -393,10 +343,7 @@ func applyManeuvers(ctx *resolutionContext) error {
 				continue
 			}
 			ctx.moveNobles(group.nobles, group.target, destinationArmy)
-			if group.target == intent.lastTarget {
-				ctx.moveNobles(intent.defaultNobles, group.target, destinationArmy)
-			}
-			if follow == nil || follow.target != intent.lastTarget {
+			if follow == nil || follow.target != intent.plan.LastTarget {
 				follow = group
 			}
 		}
@@ -422,10 +369,10 @@ func applyManeuvers(ctx *resolutionContext) error {
 			groupByTarget[group.target] = group
 		}
 		delivered := func(index int) bool {
-			if intent.entryBlocked[index] || intent.entryEmpty[index] {
+			if intent.blocked[index] || intent.plan.EntryEmpty[index] {
 				return false
 			}
-			targetID := intent.entryTargets[index]
+			targetID := intent.targets[index]
 			if targetID == intent.source {
 				return true
 			}
@@ -433,19 +380,19 @@ func applyManeuvers(ctx *resolutionContext) error {
 			return group != nil && group.size > 0 && !failed[group]
 		}
 		complete := true
-		for index := range intent.entryTargets {
+		for index := range intent.targets {
 			// A "+" with no troop left to take is satisfied by definition.
-			if !delivered(index) && !(intent.entryRest[index] && intent.entryEmpty[index] && !intent.entryBlocked[index]) {
+			if !delivered(index) && !(intent.plan.EntryRest[index] && intent.plan.EntryEmpty[index] && !intent.blocked[index]) {
 				complete = false
 			}
 		}
 		lastDelivered := false
 		carrierID := models.ArmyID("")
-		if group := groupByTarget[intent.lastTarget]; group != nil {
+		if group := groupByTarget[intent.plan.LastTarget]; group != nil {
 			if !failed[group] && group.size > 0 {
 				lastDelivered, carrierID = true, resulting[group]
 			}
-		} else if intent.lastTarget == intent.source && !intent.entryEmpty[intent.lastEntry] && stay(intent) > 0 {
+		} else if intent.plan.LastTarget == intent.source && !intent.plan.EntryEmpty[intent.plan.LastEntry] && stay(intent) > 0 {
 			lastDelivered, carrierID = true, armyID
 		}
 		loop := record.order.Liaison == models.LiaisonModeLoop

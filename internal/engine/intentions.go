@@ -323,11 +323,7 @@ func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.
 			}
 			nobleID, exists := ctx.noblesByCode[nobleCode]
 			if !exists || assigned[nobleID] || !containsNobleID(coLocated, nobleID) {
-				reason := "invalid_disperse_noble_assignment"
-				if order.Type == models.OrderTypeManeuver {
-					reason = "invalid_maneuver_noble_assignment"
-				}
-				record.invalidate(reason)
+				record.invalidate("invalid_disperse_noble_assignment")
 				return nil, false
 			}
 			assigned[nobleID] = true

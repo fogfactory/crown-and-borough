@@ -864,6 +864,16 @@ ordres dans l'ordre de ta feuille.
     n'arrive pas reste avec les troupes de l'origine ; si aucune troupe n'y
     reste, il suit le groupe qui porte la chaîne (à défaut, le dernier groupe
     arrivé) : un noble ne reste jamais seul sur une case vide.
+  - *Sur la carte.* Chaque groupe est une flèche marquée `M`. Deux pastilles
+    disent ce qui l'accompagne :
+    <img src="/icons/intent-nobles.svg" width="22" alt="pion"> les nobles qui voyagent avec ce groupe (leur code est écrit à côté, `*` pour « tous les restants ») et
+    <img src="/icons/intent-chain.svg" width="22" alt="feuille"> la feuille d'ordres de la chaîne, qui suit le groupe de la dernière destination listée.
+    Les nobles que tu ne nommes pas voyagent avec cette feuille, sauf si un `*` les prend tous.
+
+    ![XXX M YYY/2*HUG ZZZ+ : 2 troupes et HUG vers YYY, le reste et la feuille d'ordres vers ZZZ](/rules/maneuver-example.svg)
+
+    Ici `XXX M YYY/2*HUG ZZZ+` envoie 2 troupes et HUG vers YYY ; les 4 autres
+    troupes et la feuille d'ordres vont vers ZZZ.
   - *Chaîne.* Elle suit le groupe de la dernière destination listée (pas
     forcément le dernier arrivé) ; si ce groupe n'arrive pas ou ne reçoit
     aucune troupe, la chaîne est abandonnée. `M` n'est pas obligatoirement le

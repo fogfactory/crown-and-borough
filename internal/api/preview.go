@@ -124,8 +124,8 @@ func previewView(state *models.GameState, balance assetgen.Balance, playerID mod
 	}
 	for _, chain := range preview.Chains {
 		orders := make([]OrderView, 0, len(chain.Orders))
-		for _, order := range chain.Orders {
-			orders = append(orders, projectOrder(order))
+		for index, order := range chain.Orders {
+			orders = append(orders, projectOrder(order, legsOf(chain.Legs, index)))
 		}
 		view.Chains = append(view.Chains, ChainPreviewView{Noble: chain.Noble, Orders: orders})
 	}

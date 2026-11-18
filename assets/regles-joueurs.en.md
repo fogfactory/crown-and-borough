@@ -854,6 +854,16 @@ the order of your sheet.
     not arrive stays with the troops on the origin; if no troop stays, it
     follows the group that carries the chain (otherwise the last group to
     arrive): a noble never stays alone on an empty territory.
+  - *On the map.* Each group is an arrow marked `M`. Two badges say what
+    travels with it:
+    <img src="/icons/intent-nobles.svg" width="22" alt="pawn"> the nobles that go with this group (their code is written beside it, `*` for "all the remaining ones") and
+    <img src="/icons/intent-chain.svg" width="22" alt="sheet"> the chain's order sheet, which follows the group of the last listed destination.
+    The nobles you do not name travel with that sheet, unless a `*` takes them all.
+
+    ![XXX M YYY/2*HUG ZZZ+: 2 troops and HUG to YYY, the rest and the order sheet to ZZZ](/rules/maneuver-example.svg)
+
+    Here `XXX M YYY/2*HUG ZZZ+` sends 2 troops and HUG to YYY; the other 4
+    troops and the order sheet go to ZZZ.
   - *Chain.* It follows the group of the last listed destination (not
     necessarily the last to arrive); if that group does not arrive or gets no
     troop, the chain is dropped. `M` need not be the last order of the chain.
