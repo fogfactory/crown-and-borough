@@ -39,7 +39,7 @@ regroupés dans [`prompts/`](prompts/) avec un nom thématique :
 
 Les décisions structurantes sont communes à toutes les sous-issues online :
 
-- plusieurs parties actives par déploiement, chacune pour deux à huit joueurs
+- plusieurs parties actives par déploiement, chacune pour deux à douze joueurs
   online ;
 - les routes conservent `/api/games/{id}` pour l'évolution multi-parties ;
 - `chain: null` signifie qu'aucune chaîne n'est active et

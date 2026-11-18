@@ -37,8 +37,7 @@ Une partie dure de 1 à 50 années (10 par défaut). Chaque année compte quatre
 tours : **printemps, été, automne** (les saisons d'action) et **hiver**.
 L'interface affiche l'année historique `1000 + année`.
 
-**Mise en place.** Une partie en ligne réunit de 2 à 8 joueurs (jusqu'à 16 en
-local). Chacun démarre avec :
+**Mise en place.** Une partie réunit de 2 à 12 joueurs. Chacun démarre avec :
 
 - une **capitale** : un château sur un territoire non montagneux, avec
   {{starting_resources}} R de stock et une armée de {{starting_troops}}

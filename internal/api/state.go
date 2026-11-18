@@ -61,8 +61,9 @@ type StateView struct {
 	// shared special deck (bonus cards and calamities together).
 	SpecialDeckSize int `json:"specialDeckSize"`
 	// SpecialDeckCards and NobleDeckCards list the whole content of each shared
-	// deck as dealt at the start, by card kind: the same for every viewer, and
-	// independent of what is left in the draw pile or in the hands.
+	// deck (draw pile, discard pile, hands, cards in play and the reserve), by card kind: the
+	// same for every viewer, and independent of where each card lies. The noble
+	// deck changes when a noble dies: its card leaves and a new one replaces it.
 	SpecialDeckCards []SpecialDeckEntryView `json:"specialDeckCards"`
 	NobleDeckCards   []NobleDeckEntryView   `json:"nobleDeckCards"`
 	// CalamityForecast lists, in winter, the next calamity cards of the draw

@@ -152,11 +152,11 @@ func renderRules(document []byte, balance Balance) ([]byte, error) {
 	return []byte(strings.NewReplacer(keys...).Replace(string(document))), nil
 }
 
-// ruleDeckMinPlayers and ruleDeckMaxPlayers bound the table of deck sizes of
-// the player rules: the online games hold 2 to 8 players.
+// The table of deck sizes of the player rules covers every player count of a
+// game.
 const (
-	ruleDeckMinPlayers = 2
-	ruleDeckMaxPlayers = 8
+	ruleDeckMinPlayers = models.MinimumGamePlayers
+	ruleDeckMaxPlayers = models.MaximumGamePlayers
 )
 
 // specialDeckRows renders, one row per number of players, the bonus cards, the

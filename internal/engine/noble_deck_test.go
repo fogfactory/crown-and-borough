@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -32,9 +33,12 @@ func startingCodes(prenoms []assetgen.Asset, count int) map[string]bool {
 	return used
 }
 
+// countKinds counts the male noble cards, the female noble cards and the
+// bastard cards that are dealt: the reserve is left out.
 func countKinds(deck *models.NobleDeck) (males, females, dignities int) {
 	for _, card := range deck.Cards {
 		switch {
+		case slices.Contains(deck.Reserve, card.ID):
 		case card.Kind == models.NobleCardKindDignity && card.Dignity == models.DignityBastard:
 			dignities++
 		case card.Kind == models.NobleCardKindDignity:
@@ -72,7 +76,7 @@ func claimsOf(deck *models.NobleDeck) int {
 
 func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 	prenoms := realPrenoms(t)
-	for players := 2; players <= 16; players++ {
+	for players := models.MinimumGamePlayers; players <= models.MaximumGamePlayers; players++ {
 		t.Run(fmt.Sprintf("%d players", players), func(t *testing.T) {
 			used := startingCodes(prenoms, 2*players)
 			deck := buildNobleDeck("deck-sizes", deckTestPlayers(players), 6, prenoms, used, 0)
@@ -97,7 +101,7 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 			if diff := males - females; diff < -1 || diff > 1 {
 				t.Errorf("males = %d, females = %d, want an even split", males, females)
 			}
-			if len(deck.DrawPile) != len(deck.Cards) || len(deck.Played) != 0 || len(deck.Discard) != 0 {
+			if len(deck.DrawPile) != len(deck.Cards)-len(deck.Reserve) || len(deck.Played) != 0 || len(deck.Discard) != 0 {
 				t.Errorf("draw pile = %d, played = %d, want the whole deck in the pile", len(deck.DrawPile), len(deck.Played))
 			}
 			codes := map[string]bool{}
@@ -125,13 +129,45 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8), 0)
 	males, females, dignities := countKinds(deck)
 	claims := claimsOf(deck)
-	if len(deck.Cards) != 49 || dignities != 8 || claims != 3 || males+females != 28 {
-		t.Errorf("deck = %d cards (%d bastards, %d claims, %d nobles), want 49 (8 bastards, 10 lady dignities, 3 claims, 28 nobles)", len(deck.Cards), dignities, claims, males+females)
+	if len(deck.Cards) != 50 || dignities != 8 || claims != 3 || males+females != 28 {
+		t.Errorf("deck = %d cards (%d bastards, %d claims, %d nobles), want 50 (8 bastards, 10 lady dignities, 3 claims, 28 nobles, 1 reserved)", len(deck.Cards), dignities, claims, males+females)
 	}
 	for _, player := range deckTestPlayers(4) {
 		if hand, exists := deck.Hands[player.ID]; !exists || len(hand) != 0 {
 			t.Errorf("hand of %s = %v, want an empty hand", player.ID, hand)
 		}
+	}
+}
+
+// One more male noble card is set aside: it is a card of the deck, never in
+// the draw pile, and its name is out of the name pool.
+func TestBuildNobleDeckSetsAsideAMaleCard(t *testing.T) {
+	prenoms := realPrenoms(t)
+	positions := map[int]bool{}
+	for players := models.MinimumGamePlayers; players <= models.MaximumGamePlayers; players++ {
+		deck := buildNobleDeck("deck-reserve", deckTestPlayers(players), 6, prenoms, startingCodes(prenoms, 2*players), 0)
+		if len(deck.Reserve) != 1 {
+			t.Fatalf("%d players: reserve = %v, want one card", players, deck.Reserve)
+		}
+		card, found := deck.Card(deck.Reserve[0])
+		if !found || card.Kind != models.NobleCardKindNoble || card.Sex != models.SexMale {
+			t.Fatalf("%d players: reserved card = %+v, want a male noble card", players, card)
+		}
+		if slices.Contains(deck.DrawPile, card.ID) || slices.ContainsFunc(deck.NamePool, func(name models.NobleName) bool { return name.Code == card.Code }) {
+			t.Errorf("%d players: reserved card %+v is dealt or its name is in the pool", players, card)
+		}
+	}
+	for index := 0; index < 30; index++ {
+		deck := buildNobleDeck(fmt.Sprintf("reserve-%d", index), deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8), 0)
+		males, _, _ := countKinds(deck)
+		position := slices.IndexFunc(deck.Cards, func(card models.NobleCard) bool { return card.ID == deck.Reserve[0] })
+		positions[position] = true
+		if position < 0 || position > males {
+			t.Fatalf("reserved card at %d, want it among the %d male cards", position, males+1)
+		}
+	}
+	if len(positions) < 3 {
+		t.Errorf("reserved card positions = %v, want them to vary with the seed", positions)
 	}
 }
 
@@ -200,8 +236,8 @@ func TestCreateGameBuildsNobleDeckWithoutStartingNames(t *testing.T) {
 		t.Error("the same seed created two different noble decks")
 	}
 	deck := first.NobleDeck
-	if deck == nil || len(deck.Cards) != 51 {
-		t.Fatalf("deck = %+v, want 51 cards", deck)
+	if deck == nil || len(deck.Cards) != 52 {
+		t.Fatalf("deck = %+v, want 52 cards", deck)
 	}
 	starting := map[string]bool{}
 	for _, noble := range first.Nobles {

@@ -36,8 +36,7 @@ A game lasts 1 to 50 years (10 by default). Each year has four turns:
 **spring, summer, autumn** (the action seasons) and **winter**. The interface
 shows the historical year `1000 + year`.
 
-**Setup.** An online game seats 2 to 8 players (up to 16 locally). Each
-player starts with:
+**Setup.** A game seats 2 to 12 players. Each player starts with:
 
 - a **capital**: a castle on a non-mountain territory, with
   {{starting_resources}} R in stock and an army of {{starting_troops}}

@@ -137,8 +137,8 @@ const (
 )
 
 const (
-	MinimumPlayers = 2
-	MaximumPlayers = 8
+	MinimumPlayers = models.MinimumGamePlayers
+	MaximumPlayers = models.MaximumGamePlayers
 )
 
 type PlayerSlot struct {

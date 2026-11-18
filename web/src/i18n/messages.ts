@@ -1710,7 +1710,7 @@ const englishMessages = {
   'deck.show': 'Show the content of the deck: {deck}',
   'deck.nobleTitle': 'Noble deck',
   'deck.eventsTitle': 'Event deck',
-  'deck.content': '{count} cards in all, as dealt at the start of the game.',
+  'deck.content': '{count} cards in the deck in all.',
   'orders.winterSummary': 'Direct investments only: no chains, no troop movement.',
   'orders.actionSummary': 'One chain per noble; an empty chain leaves the noble idle.',
   'orders.titlesSummary': 'Orders of your titles: each button opens a form.',
@@ -3459,7 +3459,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'deck.show': 'Voir le contenu du deck : {deck}',
   'deck.nobleTitle': 'Deck de nobles',
   'deck.eventsTitle': 'Deck d’événements',
-  'deck.content': '{count} cartes en tout, telles que distribuées au début de la partie.',
+  'deck.content': '{count} cartes en tout dans le deck.',
   'orders.winterSummary':
     'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
   'orders.actionSummary':

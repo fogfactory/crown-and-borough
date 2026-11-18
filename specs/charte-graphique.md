@@ -1297,5 +1297,5 @@ les cartes d'ordres.
 - **Rivières** ([cartographie.md](cartographie.md)) : le symbole de fleuve est
   prévu ; le dessin des ponts reste à définir.
 - **Niveau de détail des étiquettes :** le seuil de 10 px convient à la carte
-  à 4 joueurs ; il reste à vérifier sur une carte hotseat à 16 joueurs (près
-  de 200 territoires, voir [Étiquettes](#étiquettes)).
+  à 4 joueurs ; il reste à vérifier sur une carte à 12 joueurs (près
+  de 150 territoires, voir [Étiquettes](#étiquettes)).

@@ -378,8 +378,7 @@ Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
 
 ### Joueurs, départ et élimination
 
-Une partie accepte de 2 à 16 joueurs dans le moteur ; une partie en ligne est
-limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire distinct qui
+Une partie accepte de 2 à 12 joueurs, en ligne comme en local. Chaque joueur commence sur un territoire distinct qui
 n'est ni un village ni une montagne, et qui compte au moins deux voisins
 franchissables eux-mêmes non montagneux : cette réserve garantit à la fois que
 la garnison de départ ne meurt jamais de faim et qu'il existe assez de
