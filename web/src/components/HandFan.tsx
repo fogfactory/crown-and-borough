@@ -42,6 +42,90 @@ const FAMILY_CLASSES: Record<HandCardFamily, string> = {
 /** Fan tilt between two neighbouring cards, in degrees (desktop only). */
 const FAN_STEP = 3
 
+/** Accessible name of a card: its name, its code and, past one, its copies. */
+function cardLabel(card: Pick<FanCard, 'name' | 'code' | 'copies'>): string {
+  return `${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`
+}
+
+/** Frame of a playing card: size, rule and shadow of its family. */
+function cardFrameClass(family: HandCardFamily): string {
+  return cn(
+    'flex h-[88px] w-16 flex-col items-center justify-between rounded-sm bg-paper-50 px-1 pt-2 pb-1 text-ink-900 shadow-panel lg:h-20 lg:w-14',
+    FAMILY_CLASSES[family],
+  )
+}
+
+/** What a card shows: corner piece, pictogram, name, code and copies. */
+function CardBody({ card }: { card: Omit<FanCard, 'actions'> }) {
+  return (
+    <>
+      {card.family === 'noble' && (
+        <span aria-hidden="true" className="absolute top-0.5 left-0.5 text-[0.6rem]">
+          <NoblePawnIcon noble={{ status: 'free' }} color={NEUTRAL_ARMY_COLOR} />
+        </span>
+      )}
+      <span
+        aria-hidden="true"
+        className="flex size-6 items-center justify-center text-ink-900"
+      >
+        {card.icon}
+      </span>
+      <span
+        className={cn(
+          'line-clamp-2 text-center text-2xs leading-tight',
+          card.discarded && 'line-through',
+        )}
+      >
+        {card.name}
+      </span>
+      <span className="font-mono text-2xs text-ink-500">{card.code}</span>
+      {card.copies && card.copies > 1 ? (
+        <span
+          aria-hidden="true"
+          className="absolute -top-1.5 -right-1.5 rounded-full bg-ink-900 px-1 text-2xs text-paper-50"
+        >
+          ×{card.copies}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * A card that only shows itself, with its "?" badge: the contents of a deck
+ * (no selection, no play controls).
+ */
+export function StaticCard({
+  card,
+  onOpenRules,
+}: {
+  card: Omit<FanCard, 'actions'>
+  onOpenRules?: (section: RulesSection) => void
+}) {
+  return (
+    <div className="relative">
+      <div
+        role="img"
+        aria-label={cardLabel(card)}
+        data-deck-card={card.code}
+        data-card-family={card.family}
+        className={cardFrameClass(card.family)}
+      >
+        <CardBody card={card} />
+      </div>
+      {card.help && (
+        <HelpPopover
+          variant="card"
+          topic={card.name}
+          help={card.help.text}
+          rulesSection={card.help.section}
+          onOpenRules={onOpenRules}
+        />
+      )}
+    </div>
+  )
+}
+
 function HandCardFace({
   card,
   selected,
@@ -64,45 +148,17 @@ function HandCardFace({
       <button
         type="button"
         aria-pressed={selected}
-        aria-label={`${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`}
+        aria-label={cardLabel(card)}
         data-hand-card={card.code}
         data-card-family={card.family}
         data-discarded={card.discarded || undefined}
         className={cn(
-          'flex h-[88px] w-16 flex-col items-center justify-between rounded-sm bg-paper-50 px-1 pt-2 pb-1 text-ink-900 shadow-panel lg:h-20 lg:w-14',
-          FAMILY_CLASSES[card.family],
+          cardFrameClass(card.family),
           selected && 'ring-2 ring-brass-700 ring-offset-1 ring-offset-paper-100',
         )}
         onClick={onSelect}
       >
-        {card.family === 'noble' && (
-          <span aria-hidden="true" className="absolute top-0.5 left-0.5 text-[0.6rem]">
-            <NoblePawnIcon noble={{ status: 'free' }} color={NEUTRAL_ARMY_COLOR} />
-          </span>
-        )}
-        <span
-          aria-hidden="true"
-          className="flex size-6 items-center justify-center text-ink-900"
-        >
-          {card.icon}
-        </span>
-        <span
-          className={cn(
-            'line-clamp-2 text-center text-2xs leading-tight',
-            card.discarded && 'line-through',
-          )}
-        >
-          {card.name}
-        </span>
-        <span className="font-mono text-2xs text-ink-500">{card.code}</span>
-        {card.copies && card.copies > 1 ? (
-          <span
-            aria-hidden="true"
-            className="absolute -top-1.5 -right-1.5 rounded-full bg-ink-900 px-1 text-2xs text-paper-50"
-          >
-            ×{card.copies}
-          </span>
-        ) : null}
+        <CardBody card={card} />
       </button>
       {card.help && (
         <HelpPopover

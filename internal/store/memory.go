@@ -26,10 +26,6 @@ type MemoryStoreOptions struct {
 	ProfileStore     ProfileStore
 	InvitationStore  InvitationStore
 	StrictMembership bool
-	// MaximumPlayers overrides the online limit of MaximumPlayers per game.
-	// The local hotseat uses it to allow every player count the engine
-	// supports.
-	MaximumPlayers int
 }
 
 type MemoryStore struct {
@@ -169,7 +165,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		}
 		request.Players = blanked
 	}
-	players, err := normalizePlayers(request.Players, s.options.MaximumPlayers)
+	players, err := normalizePlayers(request.Players)
 	if err != nil {
 		return GameSnapshot{}, err
 	}
@@ -1176,11 +1172,8 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame, actor Actor) (GameSnapsho
 	return snapshot, nil
 }
 
-func normalizePlayers(players []engine.PlayerInit, maximum int) ([]engine.PlayerInit, error) {
-	if maximum == 0 {
-		maximum = MaximumPlayers
-	}
-	if len(players) < MinimumPlayers || len(players) > maximum {
+func normalizePlayers(players []engine.PlayerInit) ([]engine.PlayerInit, error) {
+	if len(players) < MinimumPlayers || len(players) > MaximumPlayers {
 		return nil, ErrInvalidPlayers
 	}
 	result := make([]engine.PlayerInit, len(players))

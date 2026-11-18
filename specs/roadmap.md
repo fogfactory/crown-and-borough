@@ -48,7 +48,7 @@ online à réaliser et à suivre par issue.
 
 ## Contraintes et décisions v1
 
-- Une partie accepte de 2 à 16 joueurs.
+- Une partie accepte de 2 à 12 joueurs.
 - La carte contient `8 x N` territoires de jeu et `(N + 1) x 4` territoires
   supplémentaires, et porte `2 x N + 1` villages neutres : `N + 1` chefs-lieux
   et un village dédié par territoire de départ.

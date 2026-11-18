@@ -263,6 +263,9 @@ export function normalizeStateData(value: unknown): StateData | null {
     specialHand: Array.isArray(state.specialHand) ? state.specialHand : [],
     nobleHand: Array.isArray(state.nobleHand) ? state.nobleHand : [],
     nobleDeckSize: numberValue(state.nobleDeckSize, 0),
+    specialDeckSize: numberValue(state.specialDeckSize, 0),
+    specialDeckCards: Array.isArray(state.specialDeckCards) ? state.specialDeckCards : [],
+    nobleDeckCards: Array.isArray(state.nobleDeckCards) ? state.nobleDeckCards : [],
     handLimit: numberValue(state.handLimit, DEFAULT_HAND_LIMIT),
     activeRegionEffects: Array.isArray(state.activeRegionEffects)
       ? state.activeRegionEffects

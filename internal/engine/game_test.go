@@ -306,7 +306,7 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 	assets := loadGameTestAssets(t)
 	balance := testBalance()
 
-	for playerCount := 2; playerCount <= 16; playerCount++ {
+	for playerCount := models.MinimumGamePlayers; playerCount <= models.MaximumGamePlayers; playerCount++ {
 		players := make([]PlayerInit, playerCount)
 		game, err := CreateGame("setup-counts", players, balance, assets)
 		if err != nil {
@@ -388,7 +388,7 @@ func TestCreateGameCountsCastlesVillagesAndStartingTerritories(t *testing.T) {
 }
 
 func TestGameMapConfigScalesViewportWithPlayers(t *testing.T) {
-	for _, playerCount := range []int{2, 4, 16} {
+	for _, playerCount := range []int{2, 4, models.MaximumGamePlayers} {
 		config := GameMapConfig(playerCount)
 		wantWidth := 1000 * playerCount / 4
 		wantHeight := 700 * playerCount / 4

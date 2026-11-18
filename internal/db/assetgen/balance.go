@@ -164,14 +164,23 @@ func (v VoteWeight) TitleVotes(t models.ReligiousTitle) int {
 }
 
 type SpecialOrdersBalance struct {
-	HandLimit          int                     `json:"hand_limit" yaml:"hand_limit"`
-	DrawOrdersLimit    int                     `json:"draw_orders_limit" yaml:"draw_orders_limit"`
-	DeckSize           int                     `json:"deck_size" yaml:"deck_size"`
-	CalamityPercentage int                     `json:"calamity_percentage" yaml:"calamity_percentage"`
-	CalamitySlots      map[models.Season]int   `json:"calamity_slots" yaml:"calamity_slots"`
-	CalamityWeights    map[models.CardKind]int `json:"calamity_weights" yaml:"calamity_weights"`
-	BonusWeights       map[models.CardKind]int `json:"bonus_weights" yaml:"bonus_weights"`
-	Effects            SpecialOrderEffects     `json:"effects" yaml:"effects"`
+	HandLimit       int `json:"hand_limit" yaml:"hand_limit"`
+	DrawOrdersLimit int `json:"draw_orders_limit" yaml:"draw_orders_limit"`
+	// BonusCardsBase plus BonusCardsPerPlayer per player is the number of
+	// bonus cards of the special deck; the calamity cards follow the same
+	// rule (see BonusCardCount and CalamityCardCount).
+	BonusCardsBase         int `json:"bonus_cards_base" yaml:"bonus_cards_base"`
+	BonusCardsPerPlayer    int `json:"bonus_cards_per_player" yaml:"bonus_cards_per_player"`
+	CalamityCardsBase      int `json:"calamity_cards_base" yaml:"calamity_cards_base"`
+	CalamityCardsPerPlayer int `json:"calamity_cards_per_player" yaml:"calamity_cards_per_player"`
+	// CalamitySlots is the base capacity per season; one more slot per season
+	// is added for every full CalamitySlotPlayersPerExtra players (the loader
+	// requires a positive value; CalamitySlotsFor tolerates zero as "none").
+	CalamitySlots               map[models.Season]int   `json:"calamity_slots" yaml:"calamity_slots"`
+	CalamitySlotPlayersPerExtra int                     `json:"calamity_slot_players_per_extra" yaml:"calamity_slot_players_per_extra"`
+	CalamityWeights             map[models.CardKind]int `json:"calamity_weights" yaml:"calamity_weights"`
+	BonusWeights                map[models.CardKind]int `json:"bonus_weights" yaml:"bonus_weights"`
+	Effects                     SpecialOrderEffects     `json:"effects" yaml:"effects"`
 }
 
 type SpecialOrderEffects struct {
@@ -275,14 +284,17 @@ type rawVictory struct {
 }
 
 type rawSpecialOrders struct {
-	HandLimit          *int                    `yaml:"hand_limit"`
-	DrawOrdersLimit    *int                    `yaml:"draw_orders_limit"`
-	DeckSize           *int                    `yaml:"deck_size"`
-	CalamityPercentage *int                    `yaml:"calamity_percentage"`
-	CalamitySlots      map[string]*int         `yaml:"calamity_slots"`
-	CalamityWeights    map[string]*int         `yaml:"calamity_weights"`
-	BonusWeights       map[string]*int         `yaml:"bonus_weights"`
-	Effects            *rawSpecialOrderEffects `yaml:"effects"`
+	HandLimit                   *int                    `yaml:"hand_limit"`
+	DrawOrdersLimit             *int                    `yaml:"draw_orders_limit"`
+	BonusCardsBase              *int                    `yaml:"bonus_cards_base"`
+	BonusCardsPerPlayer         *int                    `yaml:"bonus_cards_per_player"`
+	CalamityCardsBase           *int                    `yaml:"calamity_cards_base"`
+	CalamityCardsPerPlayer      *int                    `yaml:"calamity_cards_per_player"`
+	CalamitySlots               map[string]*int         `yaml:"calamity_slots"`
+	CalamitySlotPlayersPerExtra *int                    `yaml:"calamity_slot_players_per_extra"`
+	CalamityWeights             map[string]*int         `yaml:"calamity_weights"`
+	BonusWeights                map[string]*int         `yaml:"bonus_weights"`
+	Effects                     *rawSpecialOrderEffects `yaml:"effects"`
 }
 
 type rawSpecialOrderEffects struct {

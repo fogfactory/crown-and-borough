@@ -114,10 +114,21 @@ func TestValidateNobleDeck(t *testing.T) {
 	if err := newState().Validate(); err != nil {
 		t.Fatalf("valid deck: %v", err)
 	}
+	withReserve := newState()
+	withReserve.NobleDeck.Cards = append(withReserve.NobleDeck.Cards, models.NobleCard{ID: "K4", Kind: models.NobleCardKindNoble, Code: "GUY", Name: "Guy", Sex: models.SexMale})
+	withReserve.NobleDeck.Reserve = []models.NobleCardID{"K4"}
+	if err := withReserve.Validate(); err != nil {
+		t.Fatalf("deck with a reserved male card: %v", err)
+	}
 	tests := map[string]func(*models.GameState){
-		"card in two places": func(g *models.GameState) { g.NobleDeck.Discard = append(g.NobleDeck.Discard, "K1") },
-		"card nowhere":       func(g *models.GameState) { g.NobleDeck.Discard = nil },
-		"unknown discard":    func(g *models.GameState) { g.NobleDeck.Discard = append(g.NobleDeck.Discard, "K9") },
+		"reserved female card": func(g *models.GameState) {
+			g.NobleDeck.DrawPile = nil
+			g.NobleDeck.Reserve = []models.NobleCardID{"K1"}
+		},
+		"reserved card also in the pile": func(g *models.GameState) { g.NobleDeck.Reserve = []models.NobleCardID{"K1"} },
+		"card in two places":             func(g *models.GameState) { g.NobleDeck.Discard = append(g.NobleDeck.Discard, "K1") },
+		"card nowhere":                   func(g *models.GameState) { g.NobleDeck.Discard = nil },
+		"unknown discard":                func(g *models.GameState) { g.NobleDeck.Discard = append(g.NobleDeck.Discard, "K9") },
 		"played on unknown noble": func(g *models.GameState) {
 			g.NobleDeck.Discard = nil
 			g.NobleDeck.Played = []models.NobleCardPlay{{Card: "K3", Noble: "N9"}}

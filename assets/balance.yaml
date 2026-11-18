@@ -152,12 +152,20 @@ seed_candidates: 3
 special_orders:
   hand_limit: 6
   draw_orders_limit: 2
-  deck_size: 30
-  calamity_percentage: 30
+  # The deck grows with the table: base + per_player x players, for the bonus
+  # (event) cards and for the calamities. With 4 bonus cards in every hand, a
+  # draw of 2 cards must meet at least one calamity once in two.
+  bonus_cards_base: 6
+  bonus_cards_per_player: 6
+  calamity_cards_base: 2
+  calamity_cards_per_player: 1
+  # Calamities scheduled per season and per year: calamity_slots, plus one per
+  # full calamity_slot_players_per_extra players.
   calamity_slots:
     spring: 1
     summer: 1
     autumn: 1
+  calamity_slot_players_per_extra: 4
   calamity_weights:
     plague: 1
     bad_weather: 6

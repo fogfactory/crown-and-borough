@@ -263,7 +263,7 @@ emulators with Docker Compose, builds the frontend locally, and runs
 Authentication. Open each link in the same browser that requested it.
 
 The hotseat game is created at startup in the in-memory store with `SEED` and
-`PLAYERS` (an integer from 2 to 16, default 4). **New game** creates another
+`PLAYERS` (an integer from 2 to 12, default 4). **New game** creates another
 game through `POST /api/games`, and the browser reopens the last game it used.
 
 In the browser, choose a player and the number of game years, then enter one complete chain per available noble

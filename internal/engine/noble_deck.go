@@ -11,24 +11,23 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// bastardCardsPerPlayer is the number of bastard cards the noble deck holds
+// for each player.
+const bastardCardsPerPlayer = 2
+
 // nobleDeckSize returns the size of the noble deck and how many of its cards
-// are dignity cards (specs/succession.md § Deck de nobles): players ×
-// (noble_limit_max + 1) cards, reduced until the noble cards can all take a
-// free name, of which maleAvailable and femaleAvailable remain. Dignity
-// cards are one card in max(players-1, 4), at least one. The noble cards are
-// split evenly between the sexes; oddMale tells which sex gets the extra one
-// when their number is odd. Claim cards come on top of that size: one card in
-// twice the dignity share, at least one, never replacing a noble card, and
-// one card of each lady dignity does the same. The size
-// is zero when no noble card can be made.
+// are bastard cards (specs/succession.md § Deck de nobles): players ×
+// (noble_limit_max + 1) noble cards, reduced until they can all take a free
+// name, of which maleAvailable and femaleAvailable remain, and
+// bastardCardsPerPlayer bastard cards per player. The noble cards are split
+// evenly between the sexes; oddMale tells which sex gets the extra one when
+// their number is odd. The size counts these two kinds of cards. Claim cards
+// come on top of it: one card in 2 × max(players-1, 4) noble cards, at least
+// one; one card of each lady dignity does the same. The size is zero when no
+// noble card can be made.
 func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMale bool) (size, dignities, claims, males, females int) {
-	for size = players * (limitMax + 1); size > 0; size-- {
-		dignities = max(1, size/max(players-1, 4))
-		claims = max(1, size/(2*max(players-1, 4)))
-		nobles := size - dignities
-		if nobles <= 0 {
-			continue
-		}
+	dignities = bastardCardsPerPlayer * players
+	for nobles := players * (limitMax + 1); nobles > 0; nobles-- {
 		males, females = nobles/2, nobles/2
 		if nobles%2 == 1 {
 			if oddMale {
@@ -38,6 +37,8 @@ func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMal
 			}
 		}
 		if males <= maleAvailable && females <= femaleAvailable {
+			size = nobles + dignities
+			claims = max(1, nobles/(2*max(players-1, 4)))
 			return size, dignities, claims, males, females
 		}
 	}
@@ -47,8 +48,10 @@ func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMal
 // buildNobleDeck generates the shared noble deck deterministically from the
 // game seed. usedCodes are the codes already taken by the starting nobles; the
 // dignity card codes are reserved too. cardinalCards is the number of cardinal
-// cards added to the deck. It returns nil when no noble card
-// can be named.
+// cards added to the deck. One more male noble card is set aside in the deck's
+// reserve, never dealt, when a free male name is left: the Chevalier d'Éon
+// takes her male identity from it (see Reserve in models.NobleDeck). It returns
+// nil when no noble card can be named.
 func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms []assetgen.Asset, usedCodes map[string]bool, cardinalCards int) *models.NobleDeck {
 	rng := newNobleDeckRNG(seed)
 	oddMale := rng.IntN(2) == 0
@@ -80,20 +83,34 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 	shuffleAssets(rng, male)
 	shuffleAssets(rng, female)
 
-	cards := make([]models.NobleCard, 0, size)
-	addNobles := func(assets []assetgen.Asset, sex models.Sex) {
-		for _, asset := range assets {
-			cards = append(cards, models.NobleCard{
-				ID:   nobleCardID(len(cards) + 1),
-				Kind: models.NobleCardKindNoble,
-				Code: asset.Code,
-				Name: asset.Name,
-				Sex:  sex,
-			})
+	cards := make([]models.NobleCard, 0, size+1)
+	addNoble := func(asset assetgen.Asset, sex models.Sex) models.NobleCardID {
+		card := models.NobleCard{
+			ID:   nobleCardID(len(cards) + 1),
+			Kind: models.NobleCardKindNoble,
+			Code: asset.Code,
+			Name: asset.Name,
+			Sex:  sex,
+		}
+		cards = append(cards, card)
+		return card.ID
+	}
+	// The reserved male card sits at a random place among the male cards, so
+	// that nothing in the order of the cards tells it apart.
+	maleBlock, reserveAt := male[:males], -1
+	if len(male) > males {
+		maleBlock = male[:males+1]
+		reserveAt = rng.IntN(len(maleBlock))
+	}
+	var reserve []models.NobleCardID
+	for index, asset := range maleBlock {
+		if id := addNoble(asset, models.SexMale); index == reserveAt {
+			reserve = append(reserve, id)
 		}
 	}
-	addNobles(male[:males], models.SexMale)
-	addNobles(female[:females], models.SexFemale)
+	for _, asset := range female[:females] {
+		addNoble(asset, models.SexFemale)
+	}
 	for index := 0; index < dignities; index++ {
 		cards = append(cards, models.NobleCard{
 			ID:      nobleCardID(len(cards) + 1),
@@ -128,9 +145,11 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 			Code: models.ClaimCardCode,
 		})
 	}
-	drawPile := make([]models.NobleCardID, len(cards))
-	for index, card := range cards {
-		drawPile[index] = card.ID
+	drawPile := make([]models.NobleCardID, 0, len(cards))
+	for _, card := range cards {
+		if !slices.Contains(reserve, card.ID) {
+			drawPile = append(drawPile, card.ID)
+		}
 	}
 	for index := len(drawPile) - 1; index > 0; index-- {
 		swap := rng.IntN(index + 1)
@@ -138,6 +157,7 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 	}
 	deck := &models.NobleDeck{
 		Cards:    cards,
+		Reserve:  reserve,
 		DrawPile: drawPile,
 		Discard:  []models.NobleCardID{},
 		Hands:    make(map[models.PlayerID][]models.NobleCardID, len(players)),
@@ -145,7 +165,7 @@ func buildNobleDeck(seed string, players []models.Player, limitMax int, prenoms 
 		NamePool: []models.NobleName{},
 	}
 	// The names no card took feed the replacement cards, in a seeded order.
-	for _, asset := range male[males:] {
+	for _, asset := range male[len(maleBlock):] {
 		deck.NamePool = append(deck.NamePool, models.NobleName{Code: asset.Code, Name: asset.Name, Sex: models.SexMale})
 	}
 	for _, asset := range female[females:] {
@@ -186,6 +206,7 @@ func cloneNobleDeck(source *models.NobleDeck) *models.NobleDeck {
 		DrawPile:   cloneSlice(source.DrawPile),
 		Discard:    cloneSlice(source.Discard),
 		Played:     cloneSlice(source.Played),
+		Reserve:    cloneSlice(source.Reserve),
 		Reshuffles: source.Reshuffles,
 		NamePool:   cloneSlice(source.NamePool),
 	}
@@ -256,7 +277,9 @@ func (ctx *resolutionContext) removeDignity(noble *models.Noble, dignity models.
 // same sex, with a name no card, noble or dead noble uses, goes to the
 // discard pile (none when no name is left); the code of the dead noble stays
 // reserved. Its dignity cards go back to the discard pile. A noble without
-// played cards (a starting noble) leaves nothing behind.
+// played cards (a starting noble) leaves nothing behind. A chevalier d'Éon
+// carries two noble cards, the lady's and the male identity taken from the
+// reserve: the second one is replaced inside the reserve.
 func (ctx *resolutionContext) releaseNobleCards(noble models.Noble) {
 	deck := ctx.state.NobleDeck
 	if deck == nil {
@@ -274,14 +297,17 @@ func (ctx *resolutionContext) releaseNobleCards(noble models.Noble) {
 			continue
 		}
 		deck.Cards = slices.DeleteFunc(deck.Cards, func(candidate models.NobleCard) bool { return candidate.ID == play.Card })
-		ctx.addReplacementNobleCard(card.Sex)
+		// The male identity of a chevalier d'Éon came from the reserve: its
+		// replacement goes back there, so that the deck keeps a card set aside.
+		ctx.addReplacementNobleCard(card.Sex, noble.SecretCode != "" && card.Code == noble.Code)
 	}
 	deck.Played = kept
 }
 
 // addReplacementNobleCard puts a new noble card of the given sex, built from
-// the first free name of the pool, on the discard pile.
-func (ctx *resolutionContext) addReplacementNobleCard(sex models.Sex) {
+// the first free name of the pool, on the discard pile, or in the reserve when
+// toReserve is set.
+func (ctx *resolutionContext) addReplacementNobleCard(sex models.Sex, toReserve bool) {
 	deck := ctx.state.NobleDeck
 	for index, name := range deck.NamePool {
 		if name.Sex != sex {
@@ -290,7 +316,11 @@ func (ctx *resolutionContext) addReplacementNobleCard(sex models.Sex) {
 		deck.NamePool = slices.Delete(deck.NamePool, index, index+1)
 		card := models.NobleCard{ID: nextNobleCardID(deck), Kind: models.NobleCardKindNoble, Code: name.Code, Name: name.Name, Sex: name.Sex}
 		deck.Cards = append(deck.Cards, card)
-		deck.Discard = append(deck.Discard, card.ID)
+		if toReserve {
+			deck.Reserve = append(deck.Reserve, card.ID)
+		} else {
+			deck.Discard = append(deck.Discard, card.ID)
+		}
 		return
 	}
 }

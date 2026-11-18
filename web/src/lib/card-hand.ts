@@ -99,10 +99,10 @@ export function formatCardHand(hand: readonly CardKind[], t: Translate): string 
     .join(', ')
 }
 
-/** Playable special cards (the calamities are never played from a hand). */
-type PlayableCardKind = Exclude<CardKind, 'plague' | 'bad_weather' | 'famine'>
-
-const SPECIAL_CARD_HELP_KEYS: Record<PlayableCardKind, MessageKey> = {
+const SPECIAL_CARD_HELP_KEYS: Record<CardKind, MessageKey> = {
+  plague: 'cardHelp.plague',
+  bad_weather: 'cardHelp.bad_weather',
+  famine: 'cardHelp.famine',
   fair_weather: 'cardHelp.fair_weather',
   abundant_harvest: 'cardHelp.abundant_harvest',
   revolt: 'cardHelp.revolt',
@@ -113,12 +113,14 @@ const SPECIAL_CARD_HELP_KEYS: Record<PlayableCardKind, MessageKey> = {
   justice: 'cardHelp.justice',
 }
 
-/** Tooltip text and rules section of a special card of the hand. */
+/**
+ * Tooltip text and rules section of a special card: a bonus card of the hand,
+ * or any card of the deck contents (calamities included).
+ */
 export function specialCardHelp(kind: CardKind, t: Translate) {
-  if (CALAMITY_KINDS.includes(kind)) return undefined
   return {
-    text: t(SPECIAL_CARD_HELP_KEYS[kind as PlayableCardKind]),
-    section: 'bonus-cards' as RulesSection,
+    text: t(SPECIAL_CARD_HELP_KEYS[kind]),
+    section: (CALAMITY_KINDS.includes(kind) ? 'calamities' : 'bonus-cards') as RulesSection,
   }
 }
 

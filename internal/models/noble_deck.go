@@ -65,12 +65,18 @@ type NobleCardPlay struct {
 // the discard pile when its carrier dies or loses the dignity. A player can
 // also discard any card of their hand (D C), which then goes to the discard
 // pile unchanged.
+//
+// Reserve holds the cards set aside: male noble cards that are never dealt, not
+// even when the discard pile is shuffled back. The Chevalier d'Éon takes the
+// public male identity of her noble from one of them, so that this name is a
+// card of the deck like any other.
 type NobleDeck struct {
 	Cards      []NobleCard                `json:"cards"`
 	DrawPile   []NobleCardID              `json:"drawPile"`
 	Discard    []NobleCardID              `json:"discard"`
 	Hands      map[PlayerID][]NobleCardID `json:"hands"`
 	Played     []NobleCardPlay            `json:"played"`
+	Reserve    []NobleCardID              `json:"reserve,omitempty"`
 	Reshuffles int                        `json:"reshuffles"`
 	// NamePool holds the names no card, noble or dead noble uses yet, in the
 	// order replacement cards take them.
@@ -180,6 +186,14 @@ func validateNobleDeck(deck *NobleDeck, players map[PlayerID]bool, nobleCodes ma
 	for index, id := range deck.Discard {
 		if err := checkCard(id, fmt.Sprintf("discard index %d", index)); err != nil {
 			return err
+		}
+	}
+	for index, id := range deck.Reserve {
+		if err := checkCard(id, fmt.Sprintf("reserve index %d", index)); err != nil {
+			return err
+		}
+		if card := cards[id]; card.Kind != NobleCardKindNoble || card.Sex != SexMale {
+			return fmt.Errorf("models: noble card %q: the reserve holds male noble cards only", id)
 		}
 	}
 	livingNobles := make(map[NobleID]Noble, len(nobles))

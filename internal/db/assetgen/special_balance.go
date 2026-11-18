@@ -35,16 +35,28 @@ func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if err != nil {
 		return SpecialOrdersBalance{}, err
 	}
-	deckSize, err := requiredPositiveInt(path, "special_orders.deck_size", raw.SpecialOrders.DeckSize)
+	bonusBase, err := requiredNonNegativeInt(path, "special_orders.bonus_cards_base", raw.SpecialOrders.BonusCardsBase)
 	if err != nil {
 		return SpecialOrdersBalance{}, err
 	}
-	percentage, err := requiredNonNegativeInt(path, "special_orders.calamity_percentage", raw.SpecialOrders.CalamityPercentage)
+	bonusPerPlayer, err := requiredNonNegativeInt(path, "special_orders.bonus_cards_per_player", raw.SpecialOrders.BonusCardsPerPlayer)
 	if err != nil {
 		return SpecialOrdersBalance{}, err
 	}
-	if percentage > 100 || deckSize*percentage%100 != 0 {
-		return SpecialOrdersBalance{}, fmt.Errorf("assetgen: %s: special_orders.calamity_percentage does not produce an integer card count", path)
+	if bonusBase+bonusPerPlayer == 0 {
+		return SpecialOrdersBalance{}, fmt.Errorf("assetgen: %s: special_orders.bonus_cards_base and bonus_cards_per_player must not both be zero", path)
+	}
+	calamityBase, err := requiredNonNegativeInt(path, "special_orders.calamity_cards_base", raw.SpecialOrders.CalamityCardsBase)
+	if err != nil {
+		return SpecialOrdersBalance{}, err
+	}
+	calamityPerPlayer, err := requiredNonNegativeInt(path, "special_orders.calamity_cards_per_player", raw.SpecialOrders.CalamityCardsPerPlayer)
+	if err != nil {
+		return SpecialOrdersBalance{}, err
+	}
+	slotPlayersPerExtra, err := requiredPositiveInt(path, "special_orders.calamity_slot_players_per_extra", raw.SpecialOrders.CalamitySlotPlayersPerExtra)
+	if err != nil {
+		return SpecialOrdersBalance{}, err
 	}
 	slots, err := specialSeasonValues(path, raw.SpecialOrders.CalamitySlots, "special_orders.calamity_slots")
 	if err != nil {
@@ -81,7 +93,42 @@ func (raw rawBalance) specialOrders(path string) (SpecialOrdersBalance, error) {
 	if revoltMin > revoltMax {
 		return SpecialOrdersBalance{}, fmt.Errorf("assetgen: %s: revolt army minimum exceeds maximum", path)
 	}
-	return SpecialOrdersBalance{HandLimit: handLimit, DrawOrdersLimit: drawLimit, DeckSize: deckSize, CalamityPercentage: percentage, CalamitySlots: slots, CalamityWeights: calamityWeights, BonusWeights: bonusWeights, Effects: SpecialOrderEffects{PlagueArmyDivisor: plagueDivisor, PlagueNobleMortalityPercentage: mortality, RevoltArmyMinSize: revoltMin, RevoltArmyMaxSize: revoltMax}}, nil
+	return SpecialOrdersBalance{
+		HandLimit: handLimit, DrawOrdersLimit: drawLimit,
+		BonusCardsBase: bonusBase, BonusCardsPerPlayer: bonusPerPlayer,
+		CalamityCardsBase: calamityBase, CalamityCardsPerPlayer: calamityPerPlayer,
+		CalamitySlots: slots, CalamitySlotPlayersPerExtra: slotPlayersPerExtra,
+		CalamityWeights: calamityWeights, BonusWeights: bonusWeights,
+		Effects: SpecialOrderEffects{PlagueArmyDivisor: plagueDivisor, PlagueNobleMortalityPercentage: mortality, RevoltArmyMinSize: revoltMin, RevoltArmyMaxSize: revoltMax},
+	}, nil
+}
+
+// BonusCardCount is the number of bonus (event) cards of the special deck of a
+// game with the given number of players.
+func (s SpecialOrdersBalance) BonusCardCount(players int) int {
+	return s.BonusCardsBase + s.BonusCardsPerPlayer*players
+}
+
+// CalamityCardCount is the number of calamity cards of the special deck of a
+// game with the given number of players.
+func (s SpecialOrdersBalance) CalamityCardCount(players int) int {
+	return s.CalamityCardsBase + s.CalamityCardsPerPlayer*players
+}
+
+// DeckSize is the size of the special deck of a game with the given number of
+// players.
+func (s SpecialOrdersBalance) DeckSize(players int) int {
+	return s.BonusCardCount(players) + s.CalamityCardCount(players)
+}
+
+// CalamitySlotsFor is the number of calamities that can be scheduled in the
+// given season of a year in a game with the given number of players.
+func (s SpecialOrdersBalance) CalamitySlotsFor(season models.Season, players int) int {
+	slots := s.CalamitySlots[season]
+	if s.CalamitySlotPlayersPerExtra > 0 {
+		slots += players / s.CalamitySlotPlayersPerExtra
+	}
+	return slots
 }
 
 func specialSeasonValues(path string, values map[string]*int, name string) (map[models.Season]int, error) {
@@ -167,5 +214,35 @@ func weightedCounts(total int, weights map[models.CardKind]int, canonical []mode
 	for index := 0; index < total-allocated; index++ {
 		result[remainders[index].kind]++
 	}
+	guaranteeEveryWeightedKind(result, weights, canonical, total)
 	return result
+}
+
+// guaranteeEveryWeightedKind gives one card to each kind of positive weight
+// the rounding left without any (a small deck must still hold a plague), taking
+// it from the kind that has the most cards, the first in canonical order on a
+// tie. Nothing changes when the total is smaller than the number of such kinds.
+func guaranteeEveryWeightedKind(counts map[models.CardKind]int, weights map[models.CardKind]int, canonical []models.CardKind, total int) {
+	weighted := 0
+	for _, kind := range canonical {
+		if weights[kind] > 0 {
+			weighted++
+		}
+	}
+	if total < weighted {
+		return
+	}
+	for _, kind := range canonical {
+		if weights[kind] <= 0 || counts[kind] > 0 {
+			continue
+		}
+		donor := canonical[0]
+		for _, candidate := range canonical {
+			if counts[candidate] > counts[donor] {
+				donor = candidate
+			}
+		}
+		counts[donor]--
+		counts[kind]++
+	}
 }

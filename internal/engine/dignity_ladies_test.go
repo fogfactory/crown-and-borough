@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
@@ -81,6 +82,53 @@ func TestEonReplacesTheLadyByAMaleNobleAndKeepsHerSecret(t *testing.T) {
 		t.Error("the Éon should hold the prerogatives of a man")
 	}
 	validateTestState(t, resolution.State)
+}
+
+// The male identity of an Éon is a card of the deck that was set aside: it
+// lies on the noble like any card played on it, and the name pool is left as it
+// was.
+func TestEonTakesHerMaleIdentityFromTheReserve(t *testing.T) {
+	state := ladyState(t, models.DignityChevalierDEon)
+	state.NobleDeck.Cards = append(state.NobleDeck.Cards, models.NobleCard{ID: "K90", Kind: models.NobleCardKindNoble, Code: "GUY", Name: "Guy", Sex: models.SexMale})
+	state.NobleDeck.Reserve = []models.NobleCardID{"K90"}
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {playDignity("EON")}})
+	noble := resolution.State.Nobles[0]
+	if noble.Sex != models.SexMale || noble.Code != "GUY" || noble.Name != "Guy" || noble.SecretCode != "ELE" {
+		t.Errorf("noble = %+v, want the identity of the reserved card and the lady kept as a secret", noble)
+	}
+	deck := resolution.State.NobleDeck
+	if len(deck.Reserve) != 0 || len(deck.NamePool) != 2 {
+		t.Errorf("reserve = %v, pool = %v, want the card out of the reserve and the pool untouched", deck.Reserve, deck.NamePool)
+	}
+	if !slices.Contains(deck.Played, models.NobleCardPlay{Card: "K90", Noble: "N1"}) {
+		t.Errorf("played = %v, want the reserved card on the noble", deck.Played)
+	}
+	validateTestState(t, resolution.State)
+}
+
+// When the Éon dies, her two noble cards leave and the replacement of the
+// reserved one goes back to the reserve, never to the discard pile.
+func TestDeadEonLeavesANewCardInTheReserve(t *testing.T) {
+	state := ladyState(t, models.DignityChevalierDEon)
+	state.NobleDeck.Cards = append(state.NobleDeck.Cards, models.NobleCard{ID: "K90", Kind: models.NobleCardKindNoble, Code: "GUY", Name: "Guy", Sex: models.SexMale})
+	state.NobleDeck.Reserve = []models.NobleCardID{"K90"}
+	resolution := resolveNobleDeckWinter(t, state, map[models.PlayerID][]models.WinterOrder{"P1": {playDignity("EON")}})
+	ctx := newResolutionContext(resolution.State, testBalance())
+	ctx.releaseNobleCards(ctx.state.Nobles[0])
+	deck := ctx.state.NobleDeck
+	if len(deck.Reserve) != 1 || len(deck.Discard) != 1 {
+		t.Fatalf("reserve = %v, discard = %v, want one new card in the reserve and only the dignity card in the discard pile", deck.Reserve, deck.Discard)
+	}
+	if dignity, _ := deck.Card(deck.Discard[0]); dignity.Kind != models.NobleCardKindDignity {
+		t.Errorf("discarded card = %+v, want the dignity card", dignity)
+	}
+	card, _ := deck.Card(deck.Reserve[0])
+	if card.Sex != models.SexMale || card.Code != "GUI" {
+		t.Errorf("reserved card = %+v, want a new male card from the pool", card)
+	}
+	if _, found := deck.Card("K90"); found {
+		t.Error("the card of the dead Éon is still in the deck")
+	}
 }
 
 func TestDArcAddsForceOnTopOfCommandBonus(t *testing.T) {

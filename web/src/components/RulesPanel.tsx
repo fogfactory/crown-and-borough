@@ -11,6 +11,7 @@ export const RULE_SECTION_IDS = {
   'action-orders': 'rules-action-orders',
   'winter-orders': 'rules-winter-orders',
   'bonus-cards': 'rules-bonus-cards',
+  calamities: 'rules-calamities',
   'noble-deck': 'rules-noble-deck',
   claims: 'rules-claims',
   dignities: 'rules-dignities',

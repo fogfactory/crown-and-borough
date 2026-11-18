@@ -65,13 +65,13 @@ func TestLoadRulesRendersBalanceValuesInBothLanguages(t *testing.T) {
 			t.Fatalf("rules[%s] missing", language)
 		}
 		text := string(document)
-		for _, value := range []string{"{{special_orders.deck_size}}", "{{special_orders.hand_limit}}", "{{special_orders.card.plague}}"} {
+		for _, value := range []string{"{{special_orders.bonus_cards_base}}", "{{special_orders.deck_rows}}", "{{special_orders.hand_limit}}", "{{special_orders.slot_players_per_extra}}"} {
 			if strings.Contains(text, value) {
 				t.Errorf("rules[%s] still contains placeholder %q", language, value)
 			}
 		}
-		if !strings.Contains(text, "30") || !strings.Contains(text, "4") {
-			t.Errorf("rules[%s] does not contain rendered balance values", language)
+		if !strings.Contains(text, "| 8 | 54 | 10 | 64 | 3 |") || !strings.Contains(text, "| 2 | 18 | 4 | 22 | 1 |") {
+			t.Errorf("rules[%s] does not contain the rendered deck sizes by number of players", language)
 		}
 	}
 }

@@ -15,8 +15,7 @@ parties restaurables après redémarrage.
 Le MVP online adopte les limites suivantes :
 
 - plusieurs parties actives par déploiement ;
-- deux à huit joueurs online, tandis que le moteur conserve sa capacité de 2 à
-  16 joueurs ;
+- deux à douze joueurs, en ligne comme en local ;
 - un identifiant de partie et des routes `/api/games/{id}` sont conservés pour
   gérer plusieurs parties dès le MVP ;
 - un lien d'invitation porte un code opaque de six caractères ;
