@@ -25,8 +25,14 @@ export function useMapBorders(map: MapData): MapBordersLayout {
   const annotationScale = mapAnnotationScale(map.territories)
   const { sharedBorders } = borders
   const impassableBorderIcons = useMemo(
-    () => computeImpassableBorderIcons(sharedBorders, map.territories, annotationScale),
-    [sharedBorders, map.territories, annotationScale],
+    () =>
+      computeImpassableBorderIcons(
+        sharedBorders,
+        map.territories,
+        annotationScale,
+        map.cornerContacts,
+      ),
+    [sharedBorders, map.territories, map.cornerContacts, annotationScale],
   )
   return { ...borders, annotationScale, impassableBorderIcons }
 }

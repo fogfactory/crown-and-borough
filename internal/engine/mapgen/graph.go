@@ -36,9 +36,9 @@ func frontierRemovalChance(first, second models.Terrain) float64 {
 		return 0
 	}
 	if difficultFrontier(first, second) {
-		return 0.50
+		return 0.40
 	}
-	return 0.15
+	return 0.10
 }
 
 func difficultFrontier(first, second models.Terrain) bool {
@@ -112,8 +112,10 @@ func enforceDegreeCaps(
 
 func maxDegree(terrain models.Terrain) int {
 	switch terrain {
-	case models.TerrainMountain, models.TerrainSwamp, models.TerrainHill:
+	case models.TerrainMountain:
 		return 3
+	case models.TerrainSwamp, models.TerrainHill:
+		return 4
 	case models.TerrainPlain, models.TerrainForest:
 		return 5
 	default:
@@ -151,6 +153,10 @@ func bestDegreeCapCandidate(
 	return bestFirst, bestSecond, bestFirst >= 0
 }
 
+// maxLockPoints is the number of articulation territories a map may keep:
+// a few chokepoints are wanted, but never a graph that falls apart.
+const maxLockPoints = 2
+
 func canDowngradeArc(matrix []bool, n, first, second int) bool {
 	if !matrixHasEdge(matrix, n, first, second) {
 		return false
@@ -161,7 +167,7 @@ func canDowngradeArc(matrix []bool, n, first, second int) bool {
 	}
 	matrixClearEdge(matrix, n, first, second)
 	connected := len(componentsFromMatrix(matrix, n)) == 1
-	vertexConnected := len(articulationPoints(matrix, n)) == 0
+	vertexConnected := len(articulationPoints(matrix, n)) <= maxLockPoints
 	matrixSetEdge(matrix, n, first, second)
 	return connected && vertexConnected
 }
@@ -276,10 +282,10 @@ func validateGraph(edges [][2]int, terrain []models.Terrain, n int) error {
 	if len(components(edges, n)) != 1 {
 		return fmt.Errorf("mapgen: final graph is disconnected")
 	}
-	if articulation := articulationPoints(edgeMatrix(n, edges), n); len(articulation) > 0 {
+	if articulation := articulationPoints(edgeMatrix(n, edges), n); len(articulation) > maxLockPoints {
 		return fmt.Errorf(
-			"mapgen: final graph has articulation territory %s; all territories need two vertex-disjoint paths",
-			siteLabel(articulation[0]),
+			"mapgen: final graph has %d articulation territories (first %s), at most %d are allowed",
+			len(articulation), siteLabel(articulation[0]), maxLockPoints,
 		)
 	}
 	for index, degree := range degrees(edges, n) {

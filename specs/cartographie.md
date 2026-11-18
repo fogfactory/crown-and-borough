@@ -37,18 +37,28 @@ La carte du socle contient `8 x N` territoires de jeu et `(N + 1) x 4`
 territoires supplémentaires, et porte `2 x N + 1` villages au total : `N + 1`
 chefs-lieux et un village dédié par territoire de départ. Le placement reste
 déterministe, connexe et compatible avec les contraintes de degré et de
-terrain existantes. Le graphe franchissable est également sans point
-d'articulation : chaque paire de territoires livrés, notamment chaque paire
-de lieux-dits, reste reliée par deux chemins sans territoire intermédiaire
-commun. La génération retient une probabilité de 50 % pour la suppression des
-frontières difficiles (montagne/montagne et montagne/marécage), sans accepter
-une suppression qui introduirait un point d'articulation.
+terrain existantes. Le graphe franchissable compte au plus deux points
+d'articulation (des verrous) ; hors d'eux, chaque paire de territoires
+livrés, notamment chaque paire de lieux-dits, reste reliée par deux chemins
+sans territoire intermédiaire commun. La génération retient une probabilité de
+40 % pour la suppression des frontières difficiles (montagne/montagne et
+montagne/marécage) et de 10 % pour les autres frontières non plain/plain, sans
+accepter une suppression qui dépasserait deux points d'articulation. Le degré
+franchissable maximal est de 3 en montagne, 4 en marécage et colline, 5 en
+plaine et forêt.
+
+Une frontière visible mesure au moins 24 px sur la carte de référence ; un
+contact plus court est réduit à un point, sans frontière commune, et publié
+dans `cornerContacts` pour que la carte y pose une icône de non-adjacence.
 
 Un chef-lieu et un village dédié sont des infrastructures identiques en jeu ;
 seul le chef-lieu identifie la seed d'une région dans `regions[].seed`. Les
-chefs-lieux sont placés par un algorithme de propagation maximin sur la
-distance des centroïdes parmi les sites restés éligibles, pour maximiser leur
-étalement sur la carte.
+chefs-lieux sont choisis parmi les sites restés éligibles en comparant de
+nombreux placements : chaque évêché doit toucher le bord de la carte sur une
+longueur suffisante, puis le moins possible de joueurs occupent seuls leur
+évêché, puis l'écart minimal entre chefs-lieux est maximal. La croissance des
+évêchés utilise un coût de franchissement bruité mais stable, pour que leurs
+frontières s'imbriquent.
 
 Les lacs et la mer sont conservés comme possibilités de conception, mais ne font
 pas partie du périmètre minimal des rivières et des ponts.

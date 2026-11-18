@@ -350,7 +350,8 @@ func TestDevGamesAPITracksPrivateChainProjection(t *testing.T) {
 			t.Fatalf("decode %s state: %v", viewer, err)
 		}
 		for _, territory := range view.Territories {
-			if territory.Army != nil && territory.Army.Owner == "P1" {
+			// The noble's own territory: other P1 armies (outposts) carry no chain.
+			if territory.ID == noble.LocationID && territory.Army != nil && territory.Army.Owner == "P1" {
 				return territory.Army.Chain
 			}
 		}

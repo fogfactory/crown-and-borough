@@ -7,7 +7,9 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -190,8 +192,7 @@ func TestAllArcsGeometric(t *testing.T) {
 	assets := loadTestAssets(t)
 	forEachTestSeed(t, func(t *testing.T, seed string) {
 		data := generateTestMap(t, seed, assets)
-		_, grid := generateTestRaster(seed, testConfig)
-		want := extractAdjacency(grid, testConfig.SiteCount)
+		want := extractTestFrontiers(t, seed, testConfig).edges
 		got := collectDTOArcs(t, data)
 		if !reflect.DeepEqual(got.union, want) {
 			t.Errorf("DTO arc union = %v, want raster adjacency %v", got.union, want)
@@ -212,11 +213,11 @@ func TestFrontierRemovalChance(t *testing.T) {
 		first, second models.Terrain
 		want          float64
 	}{
-		{name: "mountain-mountain", first: models.TerrainMountain, second: models.TerrainMountain, want: 0.50},
-		{name: "mountain-swamp", first: models.TerrainMountain, second: models.TerrainSwamp, want: 0.50},
-		{name: "swamp-mountain", first: models.TerrainSwamp, second: models.TerrainMountain, want: 0.50},
+		{name: "mountain-mountain", first: models.TerrainMountain, second: models.TerrainMountain, want: 0.40},
+		{name: "mountain-swamp", first: models.TerrainMountain, second: models.TerrainSwamp, want: 0.40},
+		{name: "swamp-mountain", first: models.TerrainSwamp, second: models.TerrainMountain, want: 0.40},
 		{name: "plain-plain", first: models.TerrainPlain, second: models.TerrainPlain, want: 0},
-		{name: "plain-forest", first: models.TerrainPlain, second: models.TerrainForest, want: 0.15},
+		{name: "plain-forest", first: models.TerrainPlain, second: models.TerrainForest, want: 0.10},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -233,8 +234,14 @@ func TestGeneratedGraphsHaveTwoVertexDisjointPaths(t *testing.T) {
 		data := generateTestMap(t, seed, assets)
 		arcs := collectDTOArcs(t, data).passable
 		matrix := edgeMatrix(len(data.Territories), arcs)
-		if articulation := articulationPoints(matrix, len(data.Territories)); len(articulation) > 0 {
-			t.Fatalf("generated graph has articulation territories %v", articulation)
+		articulation := articulationPoints(matrix, len(data.Territories))
+		if len(articulation) > maxLockPoints {
+			t.Fatalf("generated graph has articulation territories %v, want at most %d", articulation, maxLockPoints)
+		}
+		if len(articulation) > 0 {
+			// Locks are deliberate chokepoints: pairs they separate have a
+			// single route by design.
+			return
 		}
 
 		// A connected graph without articulation points is biconnected. By
@@ -250,19 +257,28 @@ func TestGeneratedGraphsHaveTwoVertexDisjointPaths(t *testing.T) {
 	})
 }
 
-func TestValidateGraphRejectsArticulation(t *testing.T) {
-	terrain := make([]models.Terrain, 5)
-	for index := range terrain {
-		terrain[index] = models.TerrainPlain
+func TestValidateGraphLimitsArticulation(t *testing.T) {
+	plain := func(n int) []models.Terrain {
+		terrain := make([]models.Terrain, n)
+		for index := range terrain {
+			terrain[index] = models.TerrainPlain
+		}
+		return terrain
 	}
-	// Two cycles share site 0, which is an articulation point despite every
-	// territory meeting the local minimum degree.
-	edges := [][2]int{
+	// Two cycles share site 0: one chokepoint is a deliberate lock.
+	oneLock := [][2]int{{0, 1}, {1, 2}, {0, 2}, {0, 3}, {3, 4}, {0, 4}}
+	if err := validateGraph(oneLock, plain(5), 5); err != nil {
+		t.Fatalf("validateGraph rejected a single chokepoint: %v", err)
+	}
+	// A chain of four triangles has three articulation points, above the limit.
+	tooMany := [][2]int{
 		{0, 1}, {1, 2}, {0, 2},
-		{0, 3}, {3, 4}, {0, 4},
+		{2, 3}, {3, 4}, {2, 4},
+		{4, 5}, {5, 6}, {4, 6},
+		{6, 7}, {7, 8}, {6, 8},
 	}
-	if err := validateGraph(edges, terrain, len(terrain)); err == nil {
-		t.Fatal("validateGraph accepted a graph with an articulation point")
+	if err := validateGraph(tooMany, plain(9), 9); err == nil {
+		t.Fatal("validateGraph accepted three articulation points")
 	} else if !strings.Contains(err.Error(), "articulation") {
 		t.Fatalf("validateGraph error = %q, want an articulation diagnostic", err)
 	}
@@ -734,8 +750,27 @@ func generateTestRaster(seed string, cfg Config) ([]point, []int) {
 	return sites, assignRaster(sites, cfg)
 }
 
+// acceptedAttemptSeed returns the seed of the generation attempt that
+// Generate keeps for seed, since earlier attempts may have been rejected.
+func acceptedAttemptSeed(t *testing.T, seed string, cfg Config) string {
+	t.Helper()
+	key := fmt.Sprintf("%s|%+v", seed, cfg)
+	if used, ok := acceptedAttemptSeeds.Load(key); ok {
+		return used.(string)
+	}
+	_, used, err := generateWithAttempts(seed, loadTestAssets(t), cfg)
+	if err != nil {
+		t.Fatalf("Generate(%q): %v", seed, err)
+	}
+	acceptedAttemptSeeds.Store(key, used)
+	return used
+}
+
+var acceptedAttemptSeeds sync.Map
+
 func extractTestFrontiers(t *testing.T, seed string, cfg Config) frontierGeometry {
 	t.Helper()
+	seed = acceptedAttemptSeed(t, seed, cfg)
 	sites, grid := generateTestRaster(seed, cfg)
 	geometry, err := extractInteriorFrontiers(grid, len(sites), cfg.SiteCount, cfg, seed)
 	if err != nil {
@@ -936,7 +971,7 @@ func assertSharedFrontierCoherence(t *testing.T, data MapData, geometry frontier
 		}
 		qualifyingChainCount := 0
 		for chainIndex, chain := range geometry.chains {
-			if chain.owners != edge || len(chain.raw)-1 < minSharedEdges {
+			if chain.owners != edge {
 				continue
 			}
 			qualifyingChainCount++
@@ -953,7 +988,7 @@ func assertSharedFrontierCoherence(t *testing.T, data MapData, geometry frontier
 			}
 		}
 		if qualifyingChainCount == 0 {
-			t.Errorf("geometric arc %s/%s has no frontier chain with at least %d raster edges", data.Territories[edge[0]].ID, data.Territories[edge[1]].ID, minSharedEdges)
+			t.Errorf("geometric arc %s/%s has no frontier chain", data.Territories[edge[0]].ID, data.Territories[edge[1]].ID)
 		}
 	}
 }
@@ -1142,4 +1177,88 @@ func containsID(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func TestCornerContactsAreNonAdjacentPointTouches(t *testing.T) {
+	assets := loadTestAssets(t)
+	forEachTestSeed(t, func(t *testing.T, seed string) {
+		data := generateTestMap(t, seed, assets)
+		byID := make(map[string]Territory, len(data.Territories))
+		for _, territory := range data.Territories {
+			byID[territory.ID] = territory
+		}
+		for _, contact := range data.CornerContacts {
+			first, second := byID[contact.Between[0]], byID[contact.Between[1]]
+			if hasSharedPolygonEdge(first.Points, second.Points) {
+				t.Errorf("corner contact %v: %s and %s share a frontier", contact.Point, first.ID, second.ID)
+			}
+			if slices.Contains(first.Adjacencies, second.ID) || slices.Contains(first.Impassable, second.ID) {
+				t.Errorf("corner contact %v: %s and %s are declared neighbours", contact.Point, first.ID, second.ID)
+			}
+			for _, territory := range []Territory{first, second} {
+				if !slices.Contains(territory.Points, contact.Point) {
+					t.Errorf("corner contact %v is not a vertex of %s", contact.Point, territory.ID)
+				}
+			}
+		}
+	})
+}
+
+func TestCornerContactsOfSquares(t *testing.T) {
+	square := func(id string, x, y int) Territory {
+		return Territory{ID: id, Points: [][2]int{{x, y}, {x + 10, y}, {x + 10, y + 10}, {x, y + 10}}}
+	}
+	got := cornerContacts([]Territory{square("AAA", 0, 0), square("BBB", 10, 10), square("CCC", 10, 0)})
+	want := []CornerContact{{Point: [2]int{10, 10}, Between: [2]string{"AAA", "BBB"}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cornerContacts = %v, want %v", got, want)
+	}
+	if got := cornerContacts([]Territory{square("AAA", 0, 0), square("CCC", 10, 0)}); len(got) != 0 {
+		t.Fatalf("cornerContacts of edge neighbours = %v, want none", got)
+	}
+}
+
+// minimumStartShare is the smallest acceptable share of the map for the
+// least-served start, as a fraction of an equal split. Fair placements observed
+// over thirty seeds stayed above 0.76; 0.65 leaves a margin.
+const minimumStartShare = 0.65
+
+// siteGraph returns the passable edges of the generated map by site index,
+// and the site index of each territory code.
+func siteGraph(data MapData) (edges [][2]int, index map[string]int) {
+	index = make(map[string]int, len(data.Territories))
+	for site, territory := range data.Territories {
+		index[territory.ID] = site
+	}
+	for site, territory := range data.Territories {
+		for _, adjacent := range territory.Adjacencies {
+			if site < index[adjacent] {
+				edges = append(edges, [2]int{site, index[adjacent]})
+			}
+		}
+	}
+	return edges, index
+}
+
+// TestStartsShareTheMapFairly checks that no start is squeezed: each start is
+// at least as close as any rival to a fair fraction of the territories.
+func TestStartsShareTheMapFairly(t *testing.T) {
+	assets := loadTestAssets(t)
+	for _, players := range []int{3, 4, 5} {
+		cfg := playerTestConfig(players)
+		cfg.Width, cfg.Height = 1000*players/4, 700*players/4
+		forEachTestSeed(t, func(t *testing.T, seed string) {
+			data := generateMap(t, seed, assets, cfg)
+			edges, index := siteGraph(data)
+			starts := make([]int, len(data.Starts))
+			for i, start := range data.Starts {
+				starts[i] = index[start]
+			}
+			smallest, _ := startShareRange(siteDistances(edges, len(data.Territories)), starts)
+			fair := float64(len(data.Territories)) / float64(players)
+			if ratio := smallest / fair; ratio < minimumStartShare {
+				t.Errorf("%d players: smallest start share is %.2f of the fair share, want at least %.2f", players, ratio, minimumStartShare)
+			}
+		})
+	}
 }

@@ -1,7 +1,12 @@
 import { borderIconPlacements, type IconPlacement } from '@/lib/chaotic-icons'
-import { edgeKey, meanTerritoryArea, polygonEdges } from '@/lib/map-svg-geometry'
+import {
+  centroid,
+  edgeKey,
+  meanTerritoryArea,
+  polygonEdges,
+} from '@/lib/map-svg-geometry'
 import { polygonContains } from '@/lib/region-geometry'
-import type { MapData, Point, Terrain, Territory } from '@/types'
+import type { CornerContact, MapData, Point, Terrain, Territory } from '@/types'
 
 const REFERENCE_MAP_PLAYERS = 4
 const REFERENCE_MAP_WIDTH = 1000
@@ -196,6 +201,7 @@ export function impassableBorderIcons(
   sharedBorders: SharedBorder[],
   territories: Territory[],
   annotationScale: number,
+  cornerContacts: CornerContact[] | null = [],
 ): ImpassableBorderIcon[] {
   const territoriesById = new Map(
     territories.map((territory) => [territory.id, territory]),
@@ -237,6 +243,26 @@ export function impassableBorderIcons(
         kind,
         placement: { ...placement, rotation },
       })
+    })
+  }
+  // A point contact has no frontier to string icons along: one icon marks
+  // it as non-adjacent, in the series of the terrains that meet there.
+  for (const { point, between } of cornerContacts ?? []) {
+    const first = territoriesById.get(between[0])
+    const second = territoriesById.get(between[1])
+    if (!first || !second) continue
+    const kind = impassableBorderKind(first.terrain, second.terrain)
+    let rotation = 0
+    if (kind === 'cliff') {
+      const lower = lowerTerritory(first, second)
+      const center = centroid(lower.points)
+      rotation = Math.atan2(center[1] - point[1], center[0] - point[0]) - Math.PI / 2
+    }
+    const size = 18 * annotationScale
+    items.push({
+      key: `corner-${point[0]}-${point[1]}`,
+      kind,
+      placement: { x: point[0], y: point[1], size, rotation },
     })
   }
   // Depth-sort by canvas position: icons lower on the map paint over the

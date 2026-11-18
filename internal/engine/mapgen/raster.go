@@ -2,8 +2,6 @@ package mapgen
 
 import "math"
 
-const minSharedEdges = 3
-
 type gridPoint struct {
 	x int
 	y int
@@ -290,47 +288,6 @@ func polygonCentroid(points [][2]int) [2]float64 {
 		y += float64(point[1])
 	}
 	return [2]float64{x / float64(len(points)), y / float64(len(points))}
-}
-
-// extractAdjacency reports sorted interior-site pairs that share at least
-// minSharedEdges grid edges. The threshold removes point-only contacts at
-// raster junctions; frame-site contacts deliberately do not become map arcs.
-func extractAdjacency(grid []int, interiorCount int) [][2]int {
-	if len(grid) != gridW*gridH || interiorCount == 0 {
-		return nil
-	}
-	shared := make(map[[2]int]int)
-	for y := 0; y < gridH; y++ {
-		for x := 0; x < gridW; x++ {
-			owner := grid[y*gridW+x]
-			if x+1 < gridW {
-				addInteriorSharedEdge(shared, owner, grid[y*gridW+x+1], interiorCount)
-			}
-			if y+1 < gridH {
-				addInteriorSharedEdge(shared, owner, grid[(y+1)*gridW+x], interiorCount)
-			}
-		}
-	}
-
-	edges := make([][2]int, 0)
-	for first := 0; first < interiorCount; first++ {
-		for second := first + 1; second < interiorCount; second++ {
-			if shared[[2]int{first, second}] >= minSharedEdges {
-				edges = append(edges, [2]int{first, second})
-			}
-		}
-	}
-	return edges
-}
-
-func addInteriorSharedEdge(shared map[[2]int]int, first, second, interiorCount int) {
-	if first == second || first < 0 || second < 0 || first >= interiorCount || second >= interiorCount {
-		return
-	}
-	if first > second {
-		first, second = second, first
-	}
-	shared[[2]int{first, second}]++
 }
 
 func squaredDistance(firstX, firstY, secondX, secondY float64) float64 {
