@@ -200,7 +200,7 @@ func prune(value any, drop map[string]bool) any {
 
 var stateNoise = map[string]bool{
 	"arms": true, "color": true, "projectedMillIncome": true, "yearCount": true,
-	"nobleDeckSize": true, "nobleDiscardSize": true, "handLimit": true, "revision": true,
+	"nobleDeckSize": true, "nobleDiscardSize": true, "specialDeckSize": true, "specialDeckCards": true, "nobleDeckCards": true, "handLimit": true, "revision": true,
 }
 
 func compactJSON(value any, drop map[string]bool, limit int) string {

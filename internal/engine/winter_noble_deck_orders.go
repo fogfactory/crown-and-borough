@@ -96,11 +96,13 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 		return
 	}
 	poolIndex := -1
+	fromReserve := resolution.hasReservedMaleCard()
 	if effect.ChangesSexToMale {
-		poolIndex = resolution.firstFreeMaleName()
-		if poolIndex < 0 {
-			resolution.rejectWinterOrder(playerID, winterOrder, "no_free_name")
-			return
+		if !fromReserve {
+			if poolIndex = resolution.firstFreeMaleName(); poolIndex < 0 {
+				resolution.rejectWinterOrder(playerID, winterOrder, "no_free_name")
+				return
+			}
 		}
 	}
 	resolution.consumeNobleCard(playerID, handIndex, noble.ID)
@@ -109,11 +111,9 @@ func (order dignityOrder) Apply(ctx *ExecutionContext) {
 		noble.AbbeyRegion = winterOrder.TerritoryID
 	}
 	if effect.ChangesSexToMale {
-		// Silent: a new male noble, drawn from the unused names, replaces the
-		// lady in public; her identity stays known to her owner only.
-		deck := resolution.state.NobleDeck
-		identity := deck.NamePool[poolIndex]
-		deck.NamePool = slices.Delete(deck.NamePool, poolIndex, poolIndex+1)
+		// Silent: a new male noble replaces the lady in public; her identity
+		// stays known to her owner only.
+		identity := resolution.takeMaleIdentity(fromReserve, poolIndex, noble.ID)
 		noble.SecretCode, noble.SecretName, noble.SecretSex = noble.Code, noble.Name, noble.Sex
 		delete(resolution.noblesByCode, winterOrder.NobleCode)
 		noble.Code, noble.Name, noble.Sex = identity.Code, identity.Name, models.SexMale
@@ -208,6 +208,28 @@ func (ctx *resolutionContext) isRegionSeed(territoryID models.TerritoryID) bool 
 		}
 	}
 	return false
+}
+
+// hasReservedMaleCard reports whether the deck has a male noble card set aside.
+func (ctx *resolutionContext) hasReservedMaleCard() bool {
+	return ctx.state.NobleDeck != nil && len(ctx.state.NobleDeck.Reserve) > 0
+}
+
+// takeMaleIdentity returns the identity of the male noble that replaces a lady
+// who receives the Chevalier d'Éon: the first card of the reserve, which then
+// lies on the noble like any card played on it, or else, without one, the name
+// at poolIndex of the name pool.
+func (ctx *resolutionContext) takeMaleIdentity(fromReserve bool, poolIndex int, nobleID models.NobleID) models.NobleName {
+	deck := ctx.state.NobleDeck
+	if fromReserve {
+		card, _ := deck.Card(deck.Reserve[0])
+		deck.Reserve = deck.Reserve[1:]
+		deck.Played = append(deck.Played, models.NobleCardPlay{Card: card.ID, Noble: nobleID})
+		return models.NobleName{Code: card.Code, Name: card.Name, Sex: models.SexMale}
+	}
+	identity := deck.NamePool[poolIndex]
+	deck.NamePool = slices.Delete(deck.NamePool, poolIndex, poolIndex+1)
+	return identity
 }
 
 // firstFreeMaleName returns the index in the name pool of the first unused

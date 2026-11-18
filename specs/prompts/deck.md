@@ -160,8 +160,10 @@ calamites et les tests existants du socle.
      special_orders:
        hand_limit: 4
        draw_orders_limit: 2
-       deck_size: 30
-       calamity_percentage: 30
+       bonus_cards_base: 6
+       bonus_cards_per_player: 6
+       calamity_cards_base: 2
+       calamity_cards_per_player: 1
        calamity_slots:
          spring: 1
          summer: 1
@@ -190,9 +192,9 @@ calamites et les tests existants du socle.
    - Ne pas declarer `calamities_per_year`. La capacite est lue dans les trois
      slots de saison. Le loader doit exiger les saisons spring, summer et
      winter, et refuser autumn dans cette section.
-   - Utiliser un pourcentage entier et verifier que la taille de deck permet de
-     calculer un nombre entier de calamites. Refuser une configuration dont le
-     produit `deck_size * calamity_percentage` n'est pas entier en pourcentage.
+   - La taille du deck suit le nombre de joueurs : cartes bonus et calamites
+     valent chacune `base + per_player * joueurs`
+     (`bonus_cards_*`, `calamity_cards_*`).
    - Calculer les quantites par kind a partir des poids relatifs. Si une
      repartition entiere necessite un arrondi, employer une methode deterministe
      de plus grands restes et departager les restes par ordre canonique des

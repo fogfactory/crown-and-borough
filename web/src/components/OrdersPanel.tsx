@@ -27,6 +27,7 @@ import { richTranslate } from '@/lib/rich-text'
 import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardHelp, nobleCardName, shortCode, specialCardHelp } from '@/lib/card-hand'
 import { isSettlement } from '@/lib/supply'
 import { CardPictogram } from '@/components/CardPictogram'
+import { DeckContents, type DeckCard } from '@/components/DeckContents'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import {
@@ -722,6 +723,28 @@ function SpecialCardActions({
   )
 }
 
+/** What a special card shows, in the hand and in the deck popover alike. */
+function specialCardFace(kind: CardKind, t: Translate) {
+  return {
+    family: 'special' as const,
+    name: formatCardName(kind, t),
+    code: shortCode(kind),
+    icon: <CardPictogram kind={kind} />,
+    help: specialCardHelp(kind, t),
+  }
+}
+
+/** What a card of the noble deck shows, in the hand and in the deck popover alike. */
+function nobleCardFace(card: NobleCard, t: Translate) {
+  return {
+    family: card.kind === 'dignity' ? ('dignity' as const) : ('noble' as const),
+    name: nobleCardName(card, t),
+    code: card.code,
+    icon: <CardPictogram kind={card.kind} />,
+    help: nobleCardHelp(card, t),
+  }
+}
+
 /**
  * The hand of cards (charte-graphique.md § Poste de commandement): special,
  * noble, claim and dignity cards as a fan; a picked card shows its play and
@@ -756,6 +779,7 @@ function HandSection({
   const { t } = useLanguage()
   const hand = state.nobleHand ?? []
   const deckSize = state.nobleDeckSize ?? 0
+  const specialDeckSize = state.specialDeckSize ?? 0
   const drawn = draftHasNobleDraw(winterDraft)
   const handLimit = state.handLimit ?? DEFAULT_HAND_LIMIT
   const specialHand = state.specialHand ?? []
@@ -765,7 +789,26 @@ function HandSection({
     specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
   const lines = draftLines(winterDraft)
-  const nobleName = (card: NobleCard) => nobleCardName(card, t)
+  // The deck contents never change with a draft keystroke: build them once per
+  // state and language, not on every render.
+  const specialDeckCards = useMemo<DeckCard[]>(
+    () =>
+      (state.specialDeckCards ?? []).map(({ kind, count }) => ({
+        key: `deck:special:${kind}`,
+        ...specialCardFace(kind, t),
+        copies: count,
+      })),
+    [state.specialDeckCards, t],
+  )
+  const nobleDeckCards = useMemo<DeckCard[]>(
+    () =>
+      (state.nobleDeckCards ?? []).map((entry) => ({
+        key: `deck:noble:${entry.kind}:${entry.code}`,
+        ...nobleCardFace({ ...entry, id: entry.code }, t),
+        copies: entry.count,
+      })),
+    [state.nobleDeckCards, t],
+  )
 
   const cards: FanCard[] = [
     ...specialKinds.map((kind): FanCard => {
@@ -774,12 +817,8 @@ function HandSection({
       const discarded = draftDiscardCount(lines, code)
       return {
         key: `special:${kind}`,
-        family: 'special',
-        name: formatCardName(kind, t),
-        code,
-        icon: <CardPictogram kind={kind} />,
+        ...specialCardFace(kind, t),
         copies,
-        help: specialCardHelp(kind, t),
         discarded: discarded > 0 && discarded >= copies,
         actions: (
           <SpecialCardActions
@@ -801,11 +840,7 @@ function HandSection({
     ...hand.map(
       (card): FanCard => ({
         key: `noble:${card.id}`,
-        family: card.kind === 'dignity' ? 'dignity' : 'noble',
-        name: nobleName(card),
-        code: card.code,
-        help: nobleCardHelp(card, t),
-        icon: <CardPictogram kind={card.kind} />,
+        ...nobleCardFace(card, t),
         discarded: draftDiscardCount(lines, card.code) > 0,
         actions: (
           <NobleCardActions
@@ -860,12 +895,22 @@ function HandSection({
         label={t('orders.hand')}
         footer={
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
-            <span data-hand-counter>
-              {t('hand.counter', {
-                deck: deckSize,
-                count: specialCount + hand.length,
-                limit: handLimit,
-              })}
+            <span data-hand-counter className="flex flex-wrap items-center gap-x-1.5">
+              <DeckContents
+                counter={t('deck.nobles', { count: deckSize })}
+                title={t('deck.nobleTitle')}
+                cards={nobleDeckCards}
+                onOpenRules={onOpenRules}
+              />
+              <span aria-hidden="true">·</span>
+              <DeckContents
+                counter={t('deck.events', { count: specialDeckSize })}
+                title={t('deck.eventsTitle')}
+                cards={specialDeckCards}
+                onOpenRules={onOpenRules}
+              />
+              <span aria-hidden="true">·</span>
+              <span>{t('deck.hand', { count: specialCount + hand.length, limit: handLimit })}</span>
             </span>
             {!cardsOnly && (
               <Button

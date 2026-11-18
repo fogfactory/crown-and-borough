@@ -237,10 +237,11 @@ func (ctx *resolutionContext) programCalamity(cardID models.SpecialCardID, kind 
 	augury := ctx.state.Auguries[year]
 	if augury.Year == 0 {
 		augury.Year = year
+		players := len(ctx.state.Players)
 		augury.Capacities = map[models.Season]int{
-			models.SeasonSpring: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonSpring],
-			models.SeasonSummer: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonSummer],
-			models.SeasonAutumn: ctx.balance.SpecialOrders.CalamitySlots[models.SeasonAutumn],
+			models.SeasonSpring: ctx.balance.SpecialOrders.CalamitySlotsFor(models.SeasonSpring, players),
+			models.SeasonSummer: ctx.balance.SpecialOrders.CalamitySlotsFor(models.SeasonSummer, players),
+			models.SeasonAutumn: ctx.balance.SpecialOrders.CalamitySlotsFor(models.SeasonAutumn, players),
 		}
 		augury.Calamities = []models.Calamity{}
 	}

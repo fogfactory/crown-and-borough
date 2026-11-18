@@ -36,8 +36,7 @@ A game lasts 1 to 50 years (10 by default). Each year has four turns:
 **spring, summer, autumn** (the action seasons) and **winter**. The interface
 shows the historical year `1000 + year`.
 
-**Setup.** An online game seats 2 to 8 players (up to 16 locally). Each
-player starts with:
+**Setup.** A game seats 2 to 12 players. Each player starts with:
 
 - a **capital**: a castle on a non-mountain territory, with
   {{starting_resources}} R in stock and an army of {{starting_troops}}
@@ -552,18 +551,33 @@ field, without a noble. They resolve before army orders. In winter, your hand
 refills by itself, up to {{special_orders.draw_orders_limit}} cards per
 winter across all decks.
 
-The deck holds {{special_orders.deck_size}} cards.
+The deck grows with the table: it holds
+{{special_orders.bonus_cards_base}} + {{special_orders.bonus_cards_per_player}} × players
+bonus cards and {{special_orders.calamity_cards_base}} +
+{{special_orders.calamity_cards_per_player}} × players calamities.
+
+| Players | Bonus cards | Calamities | Deck | Calamities per season (max) |
+|---|---|---|---|---|
+{{special_orders.deck_rows}}
+
+Bonus cards held in hand are out of the draw pile: the deck is sized so that
+bonus cards always remain to draw. The number of calamities that can be
+scheduled per season rises by one every
+{{special_orders.slot_players_per_extra}} players. Every type of card appears at
+least once in the deck, even at a small table.
+
+<a id="rules-calamities"></a>
 
 ### Calamities
 
 | | Calamity | Effect on its region |
 |---|---|---|
-| <img src="/icons/reaper-scythe.svg" width="22" alt=""> | Plague ({{special_orders.card.plague}}) | Divides armies by {{special_orders.effects.plague_army_divisor}} and can kill nobles. |
-| <img src="/icons/raining.svg" width="22" alt=""> | Bad weather ({{special_orders.card.bad_weather}}) | Blocks moves leaving or entering the region (except hold and defensive support); mills produce nothing. |
-| <img src="/icons/desert-skull.svg" width="22" alt=""> | Bad harvest ({{special_orders.card.famine}}) | Removes terrain rations and territory income. |
+| <img src="/icons/reaper-scythe.svg" width="22" alt=""> | Plague | Divides armies by {{special_orders.effects.plague_army_divisor}} and can kill nobles. |
+| <img src="/icons/raining.svg" width="22" alt=""> | Bad weather | Blocks moves leaving or entering the region (except hold and defensive support); mills produce nothing. |
+| <img src="/icons/desert-skull.svg" width="22" alt=""> | Bad harvest | Removes terrain rations and territory income. |
 
-A drawn calamity is scheduled for the following year, at most one per
-season. It is announced as soon as it is drawn, and the **spring omen**
+A drawn calamity is scheduled for the following year, within the slots of
+each season (see the table above). It is announced as soon as it is drawn, and the **spring omen**
 reveals the season and region of every calamity of the year.
 
 <a id="rules-bonus-cards"></a>
@@ -572,14 +586,14 @@ reveals the season and region of every calamity of the year.
 
 | | Card | Order | Effect |
 |---|---|---|---|
-| <img src="/icons/sun.svg" width="22" alt=""> | Fair weather ({{special_orders.card.fair_weather}}) | `P FW XXX` | Cancels bad weather; otherwise doubles the region's mill output. |
-| <img src="/icons/wheat.svg" width="22" alt=""> | Abundant harvest ({{special_orders.card.abundant_harvest}}) | `P AH XXX` | Cancels a bad harvest; otherwise doubles the region's rations and income. |
-| <img src="/icons/uprising.svg" width="22" alt=""> | Revolt ({{special_orders.card.revolt}}) | `P RV TER` | Raises rebels, or turns a famished army (see below). |
-| | Tax ({{special_orders.card.seigneurial_tax}}) | `P TX …` / `P DI …` | Seigneurial tax, royal tax or tithe. |
-| | Tunnel ({{special_orders.card.tunnel}}) | `P SO …` | Frees a noble, or lets an attack ignore walls. |
-| | Ambush ({{special_orders.card.ambush}}) | `P EM AAA BBB` | If the attack wins, captures a noble of the beaten army. |
-| | Assassination ({{special_orders.card.assassination}}) | `P AS HHH NNN` | Kills `NNN`, in secret. Also playable in winter. |
-| | Justice ({{special_orders.card.justice}}) | `P JU HHH` | Executes `HHH` if they commissioned an assassination. Also playable in winter. |
+| <img src="/icons/sun.svg" width="22" alt=""> | Fair weather | `P FW XXX` | Cancels bad weather; otherwise doubles the region's mill output. |
+| <img src="/icons/wheat.svg" width="22" alt=""> | Abundant harvest | `P AH XXX` | Cancels a bad harvest; otherwise doubles the region's rations and income. |
+| <img src="/icons/uprising.svg" width="22" alt=""> | Revolt | `P RV TER` | Raises rebels, or turns a famished army (see below). |
+| | Tax | `P TX …` / `P DI …` | Seigneurial tax, royal tax or tithe. |
+| | Tunnel | `P SO …` | Frees a noble, or lets an attack ignore walls. |
+| | Ambush | `P EM AAA BBB` | If the attack wins, captures a noble of the beaten army. |
+| | Assassination | `P AS HHH NNN` | Kills `NNN`, in secret. Also playable in winter. |
+| | Justice | `P JU HHH` | Executes `HHH` if they commissioned an assassination. Also playable in winter. |
 
 For Fair weather and Abundant harvest, `XXX` is the region's seed village.
 The bonus applies only once per region and per season.

@@ -1588,7 +1588,7 @@ const englishMessages = {
   'error.api.not_incognito': 'House names can only be changed in an incognito game.',
   'error.api.game_not_playable': 'This game is finished or your house is eliminated.',
   'error.api.invalid_game_request': 'Invalid game settings.',
-  'error.api.invalid_players': 'The number of players must be between 2 and 8.',
+  'error.api.invalid_players': 'The number of players must be between 2 and 12.',
   'error.api.invalid_years': 'The number of years must be between 1 and 50.',
   'error.api.invalid_invitation': 'This invitation is invalid or no longer active.',
   'error.api.invalid_join_request': 'Invalid request to join the game.',
@@ -1675,7 +1675,6 @@ const englishMessages = {
   'hand.claimHelp':
     'Claim card: name one of your nobles as heir to a claimed noble.',
   'hand.dignityHelp': 'Dignity card: confers the dignity on an eligible noble.',
-  'hand.counter': 'Deck: {deck} · Hand: {count}/{limit}',
   'treasury.stock': '{amount} R',
   'treasury.income': '+{amount} R / turn',
   'treasury.consumption': '−{amount} R',
@@ -1699,6 +1698,19 @@ const englishMessages = {
     'Kills a noble in secret. Playable in winter too.',
   'cardHelp.justice':
     'Executes a noble who commissioned an assassination. Playable in winter too.',
+  'cardHelp.plague':
+    'Calamity: divides the armies of its region and can kill nobles.',
+  'cardHelp.bad_weather':
+    'Calamity: blocks the movements into and out of its region and stops its mills.',
+  'cardHelp.famine':
+    'Calamity: removes the terrain rations and the territorial income of its region.',
+  'deck.nobles': 'Nobles: {count}',
+  'deck.events': 'Events: {count}',
+  'deck.hand': 'Hand: {count}/{limit}',
+  'deck.show': 'Show the content of the deck: {deck}',
+  'deck.nobleTitle': 'Noble deck',
+  'deck.eventsTitle': 'Event deck',
+  'deck.content': '{count} cards in the deck in all.',
   'orders.winterSummary': 'Direct investments only: no chains, no troop movement.',
   'orders.actionSummary': 'One chain per noble; an empty chain leaves the noble idle.',
   'orders.titlesSummary': 'Orders of your titles: each button opens a form.',
@@ -3325,7 +3337,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'error.api.not_incognito': 'Le nom de maison ne se change que dans une partie incognito.',
   'error.api.game_not_playable': 'Cette partie est terminée ou votre maison est éliminée.',
   'error.api.invalid_game_request': 'Paramètres de partie invalides.',
-  'error.api.invalid_players': 'Le nombre de joueurs doit être compris entre 2 et 8.',
+  'error.api.invalid_players': 'Le nombre de joueurs doit être compris entre 2 et 12.',
   'error.api.invalid_years': 'Le nombre d’années doit être compris entre 1 et 50.',
   'error.api.invalid_invitation': 'Cette invitation est invalide ou n’est plus active.',
   'error.api.invalid_join_request': 'Demande pour rejoindre la partie invalide.',
@@ -3412,7 +3424,6 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'hand.claimHelp':
     'Carte de prétention : désigne un de tes nobles comme héritier d’un noble visé.',
   'hand.dignityHelp': 'Carte de dignité : confère la dignité à un noble éligible.',
-  'hand.counter': 'Deck : {deck} · Main : {count}/{limit}',
   'treasury.stock': '{amount} R',
   'treasury.income': '+{amount} R / tour',
   'treasury.consumption': '−{amount} R',
@@ -3436,6 +3447,19 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Tue un noble en secret. Jouable aussi en hiver.',
   'cardHelp.justice':
     'Exécute un noble qui a commandité un assassinat. Jouable aussi en hiver.',
+  'cardHelp.plague':
+    'Calamité : divise les armées de sa région et peut tuer des nobles.',
+  'cardHelp.bad_weather':
+    'Calamité : bloque les mouvements qui partent de sa région ou y entrent et arrête ses moulins.',
+  'cardHelp.famine':
+    'Calamité : supprime les rations de terrain et le revenu territorial de sa région.',
+  'deck.nobles': 'Nobles : {count}',
+  'deck.events': 'Événements : {count}',
+  'deck.hand': 'Main : {count}/{limit}',
+  'deck.show': 'Voir le contenu du deck : {deck}',
+  'deck.nobleTitle': 'Deck de nobles',
+  'deck.eventsTitle': 'Deck d’événements',
+  'deck.content': '{count} cartes en tout dans le deck.',
   'orders.winterSummary':
     'Investissements directs seulement : ni chaînes ni mouvement de troupes.',
   'orders.actionSummary':

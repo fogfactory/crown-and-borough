@@ -14,14 +14,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useLanguage } from '@/i18n/LanguageContext'
+import { PLAYER_COUNT_OPTIONS } from '@/lib/game-limits'
 import { useIsDesktop } from '@/lib/use-media-query'
-
-const MIN_PLAYERS = 2
-const MAX_PLAYERS = 16
-const PLAYER_COUNT_OPTIONS = Array.from(
-  { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
-  (_, index) => MIN_PLAYERS + index,
-)
 
 /** Game creation controls (hotseat): players, seed and years. */
 export interface GameMenuCreation {

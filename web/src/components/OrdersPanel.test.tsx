@@ -578,13 +578,27 @@ describe('OrdersPanel noble deck (winter)', () => {
       },
     ],
     nobleDeckSize: 5,
+    specialDeckSize: 12,
+    specialDeckCards: [
+      { kind: 'fair_weather', count: 3 },
+      { kind: 'plague', count: 1 },
+    ],
+    nobleDeckCards: [
+      { kind: 'noble', code: 'ALB', name: 'Albert', sex: 'male', count: 1 },
+      { kind: 'claim', code: 'PRE', count: 2 },
+    ],
     nobleHand: [
       { id: 'c1', kind: 'noble', code: 'ALB', name: 'Albert', sex: 'male' },
       { id: 'c2', kind: 'dignity', code: 'BAS', dignity: 'bastard' },
     ],
   }
 
-  function renderDeck(winterDraft: string, onWinterChange = vi.fn(), s = deckState) {
+  function renderDeck(
+    winterDraft: string,
+    onWinterChange = vi.fn(),
+    s = deckState,
+    onOpenRules = vi.fn(),
+  ) {
     render(
       <LanguageProvider initialLanguage="fr">
         <OrdersPanel
@@ -596,7 +610,7 @@ describe('OrdersPanel noble deck (winter)', () => {
           onChainChange={vi.fn()}
           onWinterChange={onWinterChange}
           onSpecialChange={vi.fn()}
-          onOpenRules={vi.fn()}
+          onOpenRules={onOpenRules}
         />
       </LanguageProvider>,
     )
@@ -605,7 +619,7 @@ describe('OrdersPanel noble deck (winter)', () => {
 
   it('draws a card and shows the deck size', () => {
     const onWinterChange = renderDeck('')
-    expect(screen.getByText(/^Deck : 5 · Main : 2\//)).toBeInTheDocument()
+    expect(screen.getByText(/^Main : 2\//)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Piocher une carte de noble/ }))
     expect(onWinterChange).toHaveBeenCalledWith('T N\n')
   })
@@ -622,16 +636,55 @@ describe('OrdersPanel noble deck (winter)', () => {
       ...deckState,
       specialHand: ['fair_weather', 'fair_weather'],
     })
-    expect(screen.getByText('Deck : 5 · Main : 4/4')).toBeInTheDocument()
+    expect(screen.getByText('Nobles : 5')).toBeInTheDocument()
+    expect(screen.getByText('Événements : 12')).toBeInTheDocument()
+    expect(screen.getByText('Main : 4/4')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeDisabled()
     expect(screen.getByText(/Votre main est pleine/)).toBeInTheDocument()
   })
 
+  it('opens the whole content of a deck from its counter', () => {
+    renderDeck('')
+    fireEvent.click(screen.getByRole('button', { name: /Voir le contenu du deck : Deck d’événements/ }))
+    expect(screen.getByText(/4 cartes en tout/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Beau temps.*×3/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Peste/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Aide : Peste/ })).toBeInTheDocument()
+  })
+
+  it('keeps the count in the accessible name of a deck counter', () => {
+    renderDeck('')
+    expect(
+      screen.getByRole('button', { name: /^Nobles : 5\. Voir le contenu du deck/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^Événements : 12\. Voir le contenu du deck/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('closes the deck contents when a card help opens the rules', () => {
+    const onOpenRules = vi.fn()
+    renderDeck('', vi.fn(), deckState, onOpenRules)
+    fireEvent.click(screen.getByRole('button', { name: /Voir le contenu du deck : Deck d’événements/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aide : Peste' }))
+    fireEvent.click(screen.getByRole('button', { name: /Voir la règle/ }))
+    expect(onOpenRules).toHaveBeenCalledWith('calamities')
+    expect(screen.queryByRole('img', { name: /Peste/ })).not.toBeInTheDocument()
+  })
+
+  it('lists the noble deck with the copies of each card', () => {
+    renderDeck('')
+    fireEvent.click(screen.getByRole('button', { name: /Voir le contenu du deck : Deck de nobles/ }))
+    expect(screen.getByText(/3 cartes en tout/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Albert \(ALB\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Prétention \(PRE\) ×2/ })).toBeInTheDocument()
+  })
+
   it('keeps the draw enabled while the shared hand has room', () => {
     renderDeck('', vi.fn(), { ...deckState, specialHand: ['fair_weather'] })
-    expect(screen.getByText('Deck : 5 · Main : 3/4')).toBeInTheDocument()
+    expect(screen.getByText('Main : 3/4')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /Piocher une carte de noble/ }),
     ).toBeEnabled()

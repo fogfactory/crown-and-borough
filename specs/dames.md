@@ -281,8 +281,10 @@ Précisions retenues :
   ordres spéciaux, en hiver, à son seul joueur, et en raye une seule avec
   `V C NNN I`, une fois par hiver ; les cartes rayées vont à la défausse
   et les calamités suivantes les remplacent ;
-- l'Éon remplace la dame par un noble homme au prénom et au code tirés des
-  prénoms inutilisés ; l'identité de la dame (code, prénom, sexe) n'est connue
+- l'Éon remplace la dame par un noble homme, au prénom et au code de la carte
+  de noble mise de côté dans la réserve du deck de nobles
+  ([succession.md](succession.md#deck-de-nobles)) ; sans carte en réserve, ils
+  sont tirés des prénoms inutilisés ; l'identité de la dame (code, prénom, sexe) n'est connue
   que de son propriétaire ;
 - le geôlier d'une otage profite des bonus passifs, jamais des ordres : seul
   le propriétaire de l'Astrologue peut rayer des calamités ;

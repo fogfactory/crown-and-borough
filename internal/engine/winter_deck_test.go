@@ -326,3 +326,34 @@ func TestResolveWinterDiscardsCalamityWhenSlotsAreFull(t *testing.T) {
 		t.Fatalf("discard = %#v, want [C1]", got)
 	}
 }
+
+// The calamity slots of a season grow with the number of players: one more
+// slot per season for every calamity_slot_players_per_extra players.
+func TestResolveWinterSchedulesCalamitiesInScaledSlots(t *testing.T) {
+	balance := winterDeckBalance()
+	balance.SpecialOrders.CalamitySlotPlayersPerExtra = 2
+	state := winterDeckState()
+	state.SpecialDeck.Cards = []models.SpecialCard{
+		{ID: "C1", Kind: models.CardKindPlague}, {ID: "C2", Kind: models.CardKindPlague},
+		{ID: "C3", Kind: models.CardKindPlague}, {ID: "C4", Kind: models.CardKindPlague},
+		{ID: "C5", Kind: models.CardKindFairWeather}, {ID: "C6", Kind: models.CardKindFairWeather},
+	}
+	state.SpecialDeck.DrawPile = []models.SpecialCardID{"C1", "C2", "C3", "C4", "C5", "C6"}
+	state.SpecialDeck.Hands = map[models.PlayerID][]models.SpecialCardID{"P1": {}, "P2": {}}
+	resolution, err := ResolveWinterWithDeckOrders(state, balance, nil, nil)
+	if err != nil {
+		t.Fatalf("ResolveWinterWithDeckOrders = %v", err)
+	}
+	augury := resolution.State.Auguries[2]
+	for _, season := range []models.Season{models.SeasonSpring, models.SeasonSummer, models.SeasonAutumn} {
+		if augury.Capacities[season] != 2 {
+			t.Errorf("capacity[%s] = %d, want 2 slots for 2 players", season, augury.Capacities[season])
+		}
+	}
+	if len(augury.Calamities) != 4 {
+		t.Fatalf("augury = %#v, want the 4 calamities scheduled (3 would fit one slot per season)", augury)
+	}
+	if len(resolution.State.SpecialDeck.Discard) != 0 {
+		t.Fatalf("discard = %#v, want no calamity thrown away", resolution.State.SpecialDeck.Discard)
+	}
+}

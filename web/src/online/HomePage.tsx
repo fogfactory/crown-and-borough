@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card'
 import { ApiError, apiRequest } from '@/lib/api'
 import { errorText } from '@/lib/api-error'
+import { PLAYER_COUNT_OPTIONS } from '@/lib/game-limits'
 import { normalizeGameSummary, useGameListSubscription } from '@/lib/subscription'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { GameSummary, Season } from '@/types'
@@ -222,7 +223,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
             onChange={(event) => setPlayers(Number(event.target.value))}
             className={fieldClassName}
           >
-            {Array.from({ length: 7 }, (_, index) => index + 2).map((count) => (
+            {PLAYER_COUNT_OPTIONS.map((count) => (
               <option key={count} value={count}>
                 {count}
               </option>

@@ -10,16 +10,19 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-func buildSpecialDeck(seed string, balance assetgen.Balance) (*models.SpecialDeck, error) {
+// buildSpecialDeck builds the special deck of a game: its bonus cards and its
+// calamities grow with the number of players (see
+// assetgen.SpecialOrdersBalance.DeckSize).
+func buildSpecialDeck(seed string, players int, balance assetgen.Balance) (*models.SpecialDeck, error) {
 	config := balance.SpecialOrders
 	specialCalamityKinds, specialBonusKinds := assetgen.CalamityCardKinds(), assetgen.BonusCardKinds()
-	if config.DeckSize <= 0 {
+	deckSize := config.DeckSize(players)
+	if deckSize <= 0 {
 		return nil, nil
 	}
-	calamityCount := config.DeckSize * config.CalamityPercentage / 100
-	counts := assetgen.WeightedCardCounts(calamityCount, config.CalamityWeights, specialCalamityKinds)
-	bonusCounts := assetgen.WeightedCardCounts(config.DeckSize-calamityCount, config.BonusWeights, specialBonusKinds)
-	cards := make([]models.SpecialCard, 0, config.DeckSize)
+	counts := assetgen.WeightedCardCounts(config.CalamityCardCount(players), config.CalamityWeights, specialCalamityKinds)
+	bonusCounts := assetgen.WeightedCardCounts(config.BonusCardCount(players), config.BonusWeights, specialBonusKinds)
+	cards := make([]models.SpecialCard, 0, deckSize)
 	for _, kind := range specialCalamityKinds {
 		for index := 0; index < counts[kind]; index++ {
 			cards = append(cards, models.SpecialCard{ID: models.SpecialCardID("C" + formatCardNumber(len(cards)+1)), Kind: kind})

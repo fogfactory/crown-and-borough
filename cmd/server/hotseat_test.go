@@ -10,7 +10,6 @@ import (
 
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
-	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
@@ -37,9 +36,6 @@ func newTestServerWithStore(t *testing.T, development bool) (*http.ServeMux, *st
 		t.Fatalf("load player rules: %v", err)
 	}
 	options := store.MemoryStoreOptions{PrivacyTracker: api.TrackTurnPrivacy, StrictMembership: !development}
-	if development {
-		options.MaximumPlayers = engine.MaximumGamePlayers
-	}
 	gameStore := store.NewMemoryStoreWithOptions(balance, assets, options)
 	server := newApplicationServer(serverOptions{
 		Rules:       rules,

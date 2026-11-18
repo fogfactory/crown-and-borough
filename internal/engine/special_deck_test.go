@@ -11,8 +11,10 @@ import (
 func specialDeckTestBalance() assetgen.Balance {
 	balance := testBalance()
 	balance.SpecialOrders = assetgen.SpecialOrdersBalance{
-		DeckSize:           30,
-		CalamityPercentage: 30,
+		BonusCardsBase:         6,
+		BonusCardsPerPlayer:    6,
+		CalamityCardsBase:      2,
+		CalamityCardsPerPlayer: 1,
 		CalamityWeights: map[models.CardKind]int{
 			models.CardKindPlague:     1,
 			models.CardKindBadWeather: 6,
@@ -29,29 +31,31 @@ func specialDeckTestBalance() assetgen.Balance {
 
 func TestBuildSpecialDeckIsDeterministicAndWeighted(t *testing.T) {
 	balance := specialDeckTestBalance()
-	first, err := buildSpecialDeck("deck-seed", balance)
+	first, err := buildSpecialDeck("deck-seed", 2, balance)
 	if err != nil {
 		t.Fatalf("buildSpecialDeck = %v", err)
 	}
-	second, err := buildSpecialDeck("deck-seed", balance)
+	second, err := buildSpecialDeck("deck-seed", 2, balance)
 	if err != nil {
 		t.Fatalf("second buildSpecialDeck = %v", err)
 	}
 	if !reflect.DeepEqual(first, second) {
 		t.Fatal("same seed produced different decks")
 	}
-	if len(first.Cards) != balance.SpecialOrders.DeckSize || len(first.DrawPile) != len(first.Cards) {
-		t.Fatalf("deck sizes = %d/%d, want %d", len(first.Cards), len(first.DrawPile), balance.SpecialOrders.DeckSize)
+	if want := balance.SpecialOrders.DeckSize(2); len(first.Cards) != want || len(first.DrawPile) != len(first.Cards) {
+		t.Fatalf("deck sizes = %d/%d, want %d", len(first.Cards), len(first.DrawPile), want)
 	}
 	counts := map[models.CardKind]int{}
 	for _, card := range first.Cards {
 		counts[card.Kind]++
 	}
-	if counts[models.CardKindPlague] != 1 || counts[models.CardKindBadWeather] != 4 || counts[models.CardKindFamine] != 4 {
-		t.Fatalf("calamity counts = %#v", counts)
+	// 2 + 1 x 2 calamities, weighted 1/6/6 with at least one plague; 6 + 6 x 2
+	// bonus cards, weighted 3/3/1.
+	if counts[models.CardKindPlague] != 1 || counts[models.CardKindBadWeather] != 1 || counts[models.CardKindFamine] != 2 {
+		t.Fatalf("calamity counts = %#v, want 4 calamities: 1 plague, 1 bad weather, 2 famine", counts)
 	}
-	if counts[models.CardKindFairWeather] != 9 || counts[models.CardKindAbundantHarvest] != 9 || counts[models.CardKindRevolt] != 3 {
-		t.Fatalf("bonus counts = %#v, want fair 9, harvest 9, revolt 3", counts)
+	if counts[models.CardKindFairWeather] != 8 || counts[models.CardKindAbundantHarvest] != 8 || counts[models.CardKindRevolt] != 2 {
+		t.Fatalf("bonus counts = %#v, want fair 8, harvest 8, revolt 2", counts)
 	}
 	for index, card := range first.Cards {
 		wantID := models.SpecialCardID("C" + formatCardNumber(index+1))
@@ -68,7 +72,7 @@ func TestCreateGameInitializesSpecialDeck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateGame = %v", err)
 	}
-	if game.SpecialDeck == nil || len(game.SpecialDeck.Cards) != balance.SpecialOrders.DeckSize {
+	if game.SpecialDeck == nil || len(game.SpecialDeck.Cards) != balance.SpecialOrders.DeckSize(2) {
 		t.Fatalf("special deck = %#v", game.SpecialDeck)
 	}
 	if len(game.SpecialDeck.Hands["P1"]) != 0 || len(game.SpecialDeck.Hands["P2"]) != 0 {
@@ -121,7 +125,7 @@ func TestBuildSpecialDeckContainsEveryWeightedKind(t *testing.T) {
 		models.CardKindFairWeather: 3, models.CardKindAbundantHarvest: 3, models.CardKindRevolt: 1,
 		models.CardKindSeigneurialTax: 2, models.CardKindTunnel: 1,
 	}
-	deck, err := buildSpecialDeck("deck-seed", balance)
+	deck, err := buildSpecialDeck("deck-seed", 2, balance)
 	if err != nil {
 		t.Fatalf("buildSpecialDeck = %v", err)
 	}
@@ -130,9 +134,8 @@ func TestBuildSpecialDeckContainsEveryWeightedKind(t *testing.T) {
 		counts[card.Kind]++
 	}
 	config := balance.SpecialOrders
-	calamityCount := config.DeckSize * config.CalamityPercentage / 100
-	want := assetgen.WeightedCardCounts(calamityCount, config.CalamityWeights, assetgen.CalamityCardKinds())
-	for kind, count := range assetgen.WeightedCardCounts(config.DeckSize-calamityCount, config.BonusWeights, assetgen.BonusCardKinds()) {
+	want := assetgen.WeightedCardCounts(config.CalamityCardCount(2), config.CalamityWeights, assetgen.CalamityCardKinds())
+	for kind, count := range assetgen.WeightedCardCounts(config.BonusCardCount(2), config.BonusWeights, assetgen.BonusCardKinds()) {
 		want[kind] = count
 	}
 	for kind, count := range want {
@@ -142,5 +145,31 @@ func TestBuildSpecialDeckContainsEveryWeightedKind(t *testing.T) {
 	}
 	if counts[models.CardKindTunnel] == 0 {
 		t.Errorf("no Tunnel card in the deck: %#v", counts)
+	}
+}
+
+// The deck grows with the number of players: the bonus cards and the
+// calamities follow balance.special_orders.
+func TestBuildSpecialDeckGrowsWithPlayers(t *testing.T) {
+	balance := specialDeckTestBalance()
+	for _, players := range []int{2, 4, 8} {
+		deck, err := buildSpecialDeck("deck-seed", players, balance)
+		if err != nil {
+			t.Fatalf("buildSpecialDeck(%d players) = %v", players, err)
+		}
+		bonus, calamities := 0, 0
+		for _, card := range deck.Cards {
+			if card.Kind.IsCalamity() {
+				calamities++
+			} else {
+				bonus++
+			}
+		}
+		if bonus != 6+6*players || calamities != 2+players {
+			t.Errorf("%d players: %d bonus and %d calamities, want %d and %d", players, bonus, calamities, 6+6*players, 2+players)
+		}
+		if len(deck.DrawPile) != len(deck.Cards) {
+			t.Errorf("%d players: draw pile = %d cards, want %d", players, len(deck.DrawPile), len(deck.Cards))
+		}
 	}
 }

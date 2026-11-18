@@ -85,17 +85,23 @@ comme le deck d'ordres spéciaux. Il contient trois sortes de cartes :
   [carte de cardinal](religieux.md#nomination-et-achat-dun-cardinal) (`CAR`,
   à jouer sur un de ses évêques).
 
-**Taille.** Le deck compte `joueurs × (noble_limit_max + 1)` cartes (28 à
-4 joueurs), réduit au besoin pour que les cartes de noble puissent recevoir
-un nom encore libre (les nobles de départ en consomment aussi). Parmi elles,
-les dignités duplicables représentent une carte sur `joueurs − 1`, sans
-dépasser une carte sur quatre : `max(1, deck / max(joueurs − 1, 4))` cartes,
-arrondies à l'entier inférieur. Ce quota garantit au moins un bâtard par
-partie ; le reste du deck est constitué de cartes de noble. Les cartes de
+**Taille.** Le deck compte `joueurs × (noble_limit_max + 1)` cartes de noble
+(28 à 4 joueurs), réduit au besoin pour que chacune puisse recevoir un nom
+encore libre (les nobles de départ en consomment aussi), et `2 × joueurs`
+cartes de bâtard (8 à 4 joueurs), soit 36 cartes à 4 joueurs. Les cartes de
 prétention s'ajoutent à cette taille sans remplacer de carte de noble : une
-carte sur `2 × max(joueurs − 1, 4)` de la taille de base, au moins une (31
-cartes à 4 joueurs, dont 3 de prétention). Les cartes de cardinal, au nombre
-de `1 + ⌊joueurs / 3⌋`, s'y ajoutent de la même manière.
+carte sur `2 × max(joueurs − 1, 4)` cartes de noble, au moins une (3 à
+4 joueurs). Les cartes de cardinal, au nombre de `1 + ⌊joueurs / 3⌋`, s'y
+ajoutent de la même manière.
+
+**Carte de réserve.** Une carte de noble homme de plus, tirée au sort parmi les
+cartes d'hommes, est **mise de côté** dans la réserve du deck : elle n'est
+jamais distribuée, pas même quand la défausse est remélangée dans la pioche
+(elle manque seulement quand aucun prénom d'homme n'est libre). Elle compte
+dans le contenu du deck montré aux joueurs, comme toute autre carte. Le
+[Chevalier d'Éon](dames.md#chevalier-déon-cachée) y prend l'identité masculine
+de sa noble : la carte passe de la réserve aux cartes jouées sur cette noble, et
+sa remplaçante, à la mort de la noble, retourne dans la réserve.
 
 La **pioche** (`T N`) et la **défausse** (`D C CCC`) sont des ordres d'hiver. Les
 ordres qui **jouent** une carte (`R N`, `C N`, `D N`) se soumettent à

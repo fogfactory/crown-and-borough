@@ -24,8 +24,10 @@ son effet et les informations visibles par les autres joueurs.
 
 ## Calamités
 
-Un tirage peut déclencher une calamité. Le nombre maximal de calamités est de
-trois par année, même si plusieurs cartes sont tirées. La règle devra définir la
+Un tirage peut déclencher une calamité. Le nombre maximal de calamités par année est
+de trois à 2 ou 3 joueurs, puis augmente avec la table (une place de plus par
+saison pour chaque tranche de `special_orders.calamity_slot_players_per_extra`
+joueurs), même si plusieurs cartes sont tirées. La règle devra définir la
 pioche, le renouvellement, les défausses et la résolution déterministe des
 calamités. Les calamités se résolvent au printemps, en été et en automne ;
 aucune calamité ne se résout en hiver. L’augure du printemps révèle pour chaque

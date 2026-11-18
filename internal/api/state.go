@@ -57,6 +57,15 @@ type StateView struct {
 	NobleHand        []NobleCardView   `json:"nobleHand"`
 	NobleDeckSize    int               `json:"nobleDeckSize"`
 	NobleDiscardSize int               `json:"nobleDiscardSize"`
+	// SpecialDeckSize is the number of cards left in the draw pile of the
+	// shared special deck (bonus cards and calamities together).
+	SpecialDeckSize int `json:"specialDeckSize"`
+	// SpecialDeckCards and NobleDeckCards list the whole content of each shared
+	// deck (draw pile, discard pile, hands, cards in play and the reserve), by card kind: the
+	// same for every viewer, and independent of where each card lies. The noble
+	// deck changes when a noble dies: its card leaves and a new one replaces it.
+	SpecialDeckCards []SpecialDeckEntryView `json:"specialDeckCards"`
+	NobleDeckCards   []NobleDeckEntryView   `json:"nobleDeckCards"`
 	// CalamityForecast lists, in winter, the next calamity cards of the draw
 	// pile that a free astrologue of the viewer reveals (specs/dames.md
 	// § Astrologue). It is private to that player.
@@ -290,6 +299,61 @@ type NobleCardView struct {
 	Dignity models.Dignity       `json:"dignity,omitempty"`
 }
 
+// SpecialDeckEntryView is one kind of card of the special deck and the number
+// of its copies.
+type SpecialDeckEntryView struct {
+	Kind  models.CardKind `json:"kind"`
+	Count int             `json:"count"`
+}
+
+// NobleDeckEntryView is a distinct card of the noble deck (a noble, a
+// dignity, a claim) and the number of its copies.
+type NobleDeckEntryView struct {
+	Kind    models.NobleCardKind `json:"kind"`
+	Code    string               `json:"code"`
+	Name    string               `json:"name,omitempty"`
+	Sex     models.Sex           `json:"sex,omitempty"`
+	Dignity models.Dignity       `json:"dignity,omitempty"`
+	Count   int                  `json:"count"`
+}
+
+// specialDeckEntries counts the cards of the special deck by kind, in the order
+// of their first card.
+func specialDeckEntries(deck *models.SpecialDeck) []SpecialDeckEntryView {
+	entries := []SpecialDeckEntryView{}
+	index := map[models.CardKind]int{}
+	for _, card := range deck.Cards {
+		if at, seen := index[card.Kind]; seen {
+			entries[at].Count++
+			continue
+		}
+		index[card.Kind] = len(entries)
+		entries = append(entries, SpecialDeckEntryView{Kind: card.Kind, Count: 1})
+	}
+	return entries
+}
+
+// nobleDeckEntries groups the cards of the noble deck that read the same (same
+// kind and code), in the order of their first card.
+func nobleDeckEntries(deck *models.NobleDeck) []NobleDeckEntryView {
+	entries := []NobleDeckEntryView{}
+	type key struct {
+		kind models.NobleCardKind
+		code string
+	}
+	index := map[key]int{}
+	for _, card := range deck.Cards {
+		k := key{card.Kind, card.Code}
+		if at, seen := index[k]; seen {
+			entries[at].Count++
+			continue
+		}
+		index[k] = len(entries)
+		entries = append(entries, NobleDeckEntryView{Kind: card.Kind, Code: card.Code, Name: card.Name, Sex: card.Sex, Dignity: card.Dignity, Count: 1})
+	}
+	return entries
+}
+
 // BishopricView is a bishopric: a region of the map, named after its seed
 // commune, with its bishop (nil when vacant).
 type BishopricView struct {
@@ -433,6 +497,8 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		HandLimit:           balance.SpecialOrders.HandLimit,
 		SpecialHand:         []models.CardKind{},
 		NobleHand:           []NobleCardView{},
+		SpecialDeckCards:    []SpecialDeckEntryView{},
+		NobleDeckCards:      []NobleDeckEntryView{},
 		ActiveRegionEffects: []models.ActiveRegionEffect{},
 		Announcements:       []engine.AnnouncementReport{},
 		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
@@ -709,9 +775,14 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 			}
 		}
 	}
+	if state.SpecialDeck != nil {
+		view.SpecialDeckSize = len(state.SpecialDeck.DrawPile)
+		view.SpecialDeckCards = specialDeckEntries(state.SpecialDeck)
+	}
 	if state.NobleDeck != nil {
 		view.NobleDeckSize = len(state.NobleDeck.DrawPile)
 		view.NobleDiscardSize = len(state.NobleDeck.Discard)
+		view.NobleDeckCards = nobleDeckEntries(state.NobleDeck)
 		if viewer != nil {
 			for _, cardID := range state.NobleDeck.Hands[*viewer] {
 				if card, exists := state.NobleDeck.Card(cardID); exists {
