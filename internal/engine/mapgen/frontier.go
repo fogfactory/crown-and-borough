@@ -138,7 +138,7 @@ func extractInteriorFrontiersWithJitter(
 		}
 	}
 
-	chains, references, err := collapseShortFrontiers(seed, cfg, ratio, interiorCount, chains, references)
+	chains, references, err := collapseShortFrontiers(cfg, interiorCount, chains, references)
 	if err != nil {
 		return frontierGeometry{}, err
 	}
@@ -598,9 +598,7 @@ func frontierEdges(chains []frontierChain, interiorCount int) [][2]int {
 // junction receive the identical point, keeping shared vertices exact. The
 // shortest chain goes first because a merge can shorten its neighbours.
 func collapseShortFrontiers(
-	seed string,
 	cfg Config,
-	ratio float64,
 	interiorCount int,
 	chains []frontierChain,
 	references [][]frontierReference,

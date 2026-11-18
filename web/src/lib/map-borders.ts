@@ -201,7 +201,7 @@ export function impassableBorderIcons(
   sharedBorders: SharedBorder[],
   territories: Territory[],
   annotationScale: number,
-  cornerContacts: CornerContact[] = [],
+  cornerContacts: CornerContact[] | null = [],
 ): ImpassableBorderIcon[] {
   const territoriesById = new Map(
     territories.map((territory) => [territory.id, territory]),
@@ -247,7 +247,7 @@ export function impassableBorderIcons(
   }
   // A point contact has no frontier to string icons along: one icon marks
   // it as non-adjacent, in the series of the terrains that meet there.
-  for (const { point, between } of cornerContacts) {
+  for (const { point, between } of cornerContacts ?? []) {
     const first = territoriesById.get(between[0])
     const second = territoriesById.get(between[1])
     if (!first || !second) continue

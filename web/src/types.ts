@@ -464,7 +464,8 @@ export interface CornerContact {
 export interface MapData {
   territories: Territory[]
   regions?: Region[]
-  cornerContacts?: CornerContact[]
+  /** Absent or null on maps stored before the field existed. */
+  cornerContacts?: CornerContact[] | null
 }
 
 export type Tincture =
