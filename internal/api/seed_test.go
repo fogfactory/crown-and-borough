@@ -25,9 +25,9 @@ func TestGenerateSeedUsesReadableAssetSlugs(t *testing.T) {
 	}
 }
 
-func TestSlugAssetNameRemovesAccents(t *testing.T) {
-	if got := slugAssetName("Adélaïde"); got != "adelaide" {
-		t.Fatalf("slugAssetName = %q, want adelaide", got)
+func TestSlugRemovesAccents(t *testing.T) {
+	if got := assetgen.Slug("Adélaïde"); got != "adelaide" {
+		t.Fatalf("Slug = %q, want adelaide", got)
 	}
 }
 

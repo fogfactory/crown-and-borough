@@ -82,6 +82,7 @@ func (f fixture) player(t *testing.T, uid string, preferences store.Notification
 func turnSnapshot(status store.Status) store.GameSnapshot {
 	capital := models.InfraID("castle")
 	return store.GameSnapshot{
+		Phase:  store.PhaseStarted,
 		ID:     "g1",
 		Name:   "Les Trois Rivières",
 		Status: status,

@@ -30,6 +30,10 @@ export interface ChatMessage {
   batchId?: string
   part?: number
   parts?: number
+  /** Set on a system event: the house took a new name (`body`). */
+  kind?: 'house_renamed'
+  /** The name a renamed house carried before. */
+  previousName?: string
 }
 
 const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter']
@@ -134,6 +138,12 @@ export function normalizeChatMessage(
     body: data.body,
     createdAt,
     turn: { number: turn.number, season: turn.season as Season, year: turn.year },
+    ...(data.kind === 'house_renamed'
+      ? {
+          kind: 'house_renamed' as const,
+          previousName: typeof data.previousName === 'string' ? data.previousName : '',
+        }
+      : {}),
     ...(typeof data.batchId === 'string' && data.batchId
       ? {
           batchId: data.batchId,
@@ -273,6 +283,7 @@ export type TimelineItem =
       /** One message, or the consecutive parts of one batch. */
       messages: ChatMessage[]
     }
+  | { kind: 'event'; key: string; message: ChatMessage }
 
 /**
  * Lays messages out for display: a separator opens each turn that has
@@ -295,9 +306,15 @@ export function buildTimeline(
         current: false,
       })
     }
+    if (message.kind) {
+      items.push({ kind: 'event', key: message.id, message })
+      previous = message
+      continue
+    }
     const last = items[items.length - 1]
     if (
       previous &&
+      !previous.kind &&
       last.kind === 'message' &&
       message.batchId &&
       previous.batchId === message.batchId &&

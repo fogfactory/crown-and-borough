@@ -6,10 +6,8 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
-	"unicode"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
-	"golang.org/x/text/unicode/norm"
 )
 
 var errSeedAssetsUnavailable = errors.New("seed assets are unavailable")
@@ -28,14 +26,7 @@ func GenerateSeed(assets assetgen.Assets) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	seed := strings.Join(
-		[]string{
-			slugAssetName(assets.Prenoms[firstName].Name),
-			"de",
-			slugAssetName(assets.Communes[commune].Name),
-		},
-		"-",
-	)
+	seed := assetgen.ReadableSeed(assets, firstName, commune)
 	if strings.Trim(seed, "-") == "de" {
 		return "", errSeedAssetsUnavailable
 	}
@@ -66,27 +57,4 @@ func randomIndex(length int) (int, error) {
 		return 0, err
 	}
 	return int(value.Int64()), nil
-}
-
-func slugAssetName(value string) string {
-	value = norm.NFD.String(strings.ToLower(strings.TrimSpace(value)))
-	var builder strings.Builder
-	pendingHyphen := false
-	for _, character := range value {
-		if unicode.Is(unicode.Mn, character) {
-			continue
-		}
-		if unicode.IsLetter(character) || unicode.IsDigit(character) {
-			if pendingHyphen && builder.Len() > 0 {
-				builder.WriteByte('-')
-			}
-			builder.WriteRune(character)
-			pendingHyphen = false
-			continue
-		}
-		if builder.Len() > 0 {
-			pendingHyphen = true
-		}
-	}
-	return strings.Trim(builder.String(), "-")
 }

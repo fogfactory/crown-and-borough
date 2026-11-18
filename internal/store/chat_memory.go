@@ -91,7 +91,8 @@ func (b *MemoryChatBackend) AppendChatMessage(_ context.Context, id GameID, auth
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	sender := chatSenderKey{game: id, uid: authorUID}
-	if last, ok := b.lastSent[sender]; ok && message.CreatedAt.Sub(last) < minInterval {
+	limited := minInterval > 0
+	if last, ok := b.lastSent[sender]; limited && ok && message.CreatedAt.Sub(last) < minInterval {
 		return ChatMessage{}, ErrChatRateLimited
 	}
 	messageID, err := NewChatMessageID(message.CreatedAt)
@@ -99,7 +100,9 @@ func (b *MemoryChatBackend) AppendChatMessage(_ context.Context, id GameID, auth
 		return ChatMessage{}, err
 	}
 	message.ID = messageID
-	b.lastSent[sender] = message.CreatedAt
+	if limited {
+		b.lastSent[sender] = message.CreatedAt
+	}
 	b.messages[id] = append(b.messages[id], message)
 	return message, nil
 }

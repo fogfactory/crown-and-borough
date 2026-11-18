@@ -19,6 +19,9 @@ import (
 const (
 	// ChatPublicChannel is the channel identifier of a game's public room.
 	ChatPublicChannel = "public"
+	// ChatKindHouseRenamed marks the public event announcing that a house
+	// changed its name in an incognito game.
+	ChatKindHouseRenamed = "house_renamed"
 	// ChatMaxBodyRunes is the longest message body, counted in runes. Longer
 	// texts are split into parts by the client (see ChatMaxParts).
 	ChatMaxBodyRunes = 500
@@ -58,6 +61,12 @@ type ChatMessage struct {
 	BatchID       string          `json:"batchId,omitempty"`
 	Part          int             `json:"part,omitempty"`
 	Parts         int             `json:"parts,omitempty"`
+	// Kind is empty for a message written by a house, ChatKindHouseRenamed for
+	// a system event.
+	Kind string `json:"kind,omitempty"`
+	// PreviousName is the name a renamed house carried before; Body holds the
+	// new one.
+	PreviousName string `json:"previousName,omitempty"`
 }
 
 // ChatReadCursor records when a player last read a channel. Channel uses the
@@ -123,7 +132,9 @@ type ChatHistoryRequest struct {
 type ChatBackend interface {
 	// AppendChatMessage atomically checks the author's rate limit against
 	// minInterval and stores the message, assigning its ID. It returns
-	// ErrChatRateLimited when the author wrote less than minInterval ago.
+	// ErrChatRateLimited when the author wrote less than minInterval ago. A
+	// zero minInterval skips the check and leaves the author's rate-limit
+	// state untouched (system events).
 	// participantUIDs is set for private messages only.
 	AppendChatMessage(ctx context.Context, id GameID, authorUID string, message ChatMessage, participantUIDs []string, minInterval time.Duration) (ChatMessage, error)
 	// SetChatReadCursor moves a cursor forward; it never moves it back.
@@ -212,6 +223,31 @@ func (c *ChatService) Post(ctx context.Context, actor Actor, id GameID, request 
 		GameName:      snapshot.Name,
 		RecipientUIDs: chatRecipientUIDs(snapshot, house, channel, participants, actor.ID),
 	}, nil
+}
+
+// PostHouseRenamed stores the public event announcing that actor's house took
+// a new name. It bypasses the body validation and the rate limit of ordinary
+// messages, and notifies nobody.
+func (c *ChatService) PostHouseRenamed(ctx context.Context, actor Actor, id GameID, previousName, newName string) (ChatMessage, error) {
+	snapshot, house, err := c.houseOf(ctx, actor, id, true)
+	if err != nil {
+		return ChatMessage{}, err
+	}
+	at := c.now().UTC().Truncate(time.Microsecond)
+	message := ChatMessage{
+		Channel:       ChatPublicChannel,
+		AuthorHouseID: house,
+		Body:          newName,
+		CreatedAt:     at,
+		Turn: ChatTurn{
+			Number: snapshot.State.Turn,
+			Season: snapshot.State.Season,
+			Year:   snapshot.State.Year(),
+		},
+		Kind:         ChatKindHouseRenamed,
+		PreviousName: previousName,
+	}
+	return c.backend.AppendChatMessage(ctx, id, actor.ID, message, nil, 0)
 }
 
 // chatRecipientUIDs lists the accounts a message concerns: the other
@@ -308,8 +344,9 @@ func (c *ChatService) houseOf(ctx context.Context, actor Actor, id GameID, needS
 		}
 		return GameSnapshot{}, "", ErrNotMember
 	}
-	if needState && snapshot.State == nil {
-		return GameSnapshot{}, "", ErrUnknownGame
+	if needState && !snapshot.Started() {
+		// A game in its lobby has no turn to stamp messages with.
+		return GameSnapshot{}, "", ErrGameNotStarted
 	}
 	return snapshot, house, nil
 }
@@ -360,7 +397,7 @@ func (c *ChatService) resolveRecipient(ctx context.Context, snapshot GameSnapsho
 		return key, nil, nil
 	}
 	recipient := playerSlotForID(snapshot.Players, other)
-	if !isAssignedSlot(recipient) {
+	if !recipient.Assigned() {
 		return "", nil, ErrChatInvalidRecipient
 	}
 	if !engine.PlayerAlive(snapshot.State, other) {

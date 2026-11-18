@@ -105,6 +105,7 @@ suite('Firestore security rules', () => {
         turn: 1,
       })
       await setDoc(doc(db, 'games/game-1/canonical/current'), { state: {} })
+      await setDoc(doc(db, 'games/game-1/lobby/bob'), { uid: 'bob', seedRanking: [1, 0, 2] })
       await setDoc(doc(db, 'games/game-1/turns/1/submissions/alice'), { uid: 'alice' })
       await setDoc(doc(db, 'games/game-1/reports/1'), { turn: 1 })
       await setDoc(doc(db, 'invitations/hash'), { gameId: 'game-1' })
@@ -123,6 +124,11 @@ suite('Firestore security rules', () => {
     await assertFails(getDoc(doc(alice, 'games/game-1/views/bob')))
     await assertFails(getDoc(doc(alice, 'games/game-1/reports/bob/turns/1')))
     await assertFails(getDoc(doc(alice, 'games/game-1/canonical/current')))
+    // A seed vote stays private, even to its author: only the API reads it.
+    await assertFails(getDoc(doc(alice, 'games/game-1/lobby/bob')))
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/lobby/alice'), { uid: 'alice', seedRanking: [0] }),
+    )
   })
 
   it('serves the game list query only for the caller’s own memberships', async () => {

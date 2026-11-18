@@ -604,11 +604,11 @@ func TestNamingCollisions(t *testing.T) {
 		models.TerrainForest,
 	}
 
-	first, err := nameTerritories(newRNG("collision", "naming"), assets, terrain)
+	first, err := nameTerritories(NewRNG("collision", "naming"), assets, terrain)
 	if err != nil {
 		t.Fatalf("first naming pass: %v", err)
 	}
-	second, err := nameTerritories(newRNG("collision", "naming"), assets, terrain)
+	second, err := nameTerritories(NewRNG("collision", "naming"), assets, terrain)
 	if err != nil {
 		t.Fatalf("second naming pass: %v", err)
 	}
@@ -632,7 +632,7 @@ func TestNamingCollisions(t *testing.T) {
 	}
 
 	exhaustedTerrain := append(append([]models.Terrain(nil), terrain...), models.TerrainPlain)
-	if _, err := nameTerritories(newRNG("collision", "naming"), assets, exhaustedTerrain); err == nil {
+	if _, err := nameTerritories(NewRNG("collision", "naming"), assets, exhaustedTerrain); err == nil {
 		t.Fatal("naming with more sites than communes returned no error")
 	}
 }
@@ -746,7 +746,7 @@ func forEachTestSeed(t *testing.T, run func(t *testing.T, seed string)) {
 }
 
 func generateTestRaster(seed string, cfg Config) ([]point, []int) {
-	sites := generateSites(newRNG(seed, "sites"), cfg)
+	sites := generateSites(NewRNG(seed, "sites"), cfg)
 	return sites, assignRaster(sites, cfg)
 }
 

@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
@@ -232,6 +231,9 @@ func (s *FirestoreStore) refreshActorName(ctx context.Context, uid, displayName 
 	}
 }
 
+// refreshGamePlayerName records the new display name as the account name of
+// the member's houses. It never renames a house, and an incognito game, which
+// never recorded an account name, has none to refresh.
 func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.GameID, uid, displayName string) error {
 	s.recordTransaction()
 	err := s.client.RunTransaction(ctx, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
@@ -254,80 +256,22 @@ func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.Gam
 		if err != nil {
 			return err
 		}
-		playerID := models.PlayerID("")
-		for index := range game.Players {
-			if game.Players[index].ActorID == uid {
-				playerID = game.Players[index].ID
-				game.Players[index].Name = displayName
-			}
-		}
-		if playerID == "" {
+		if game.Incognito {
 			return nil
 		}
-		canonicalSnapshot, err := transaction.Get(canonicalRef(s.client, id))
-		s.recordReads(1)
-		if err != nil {
-			return err
-		}
-		canonical, err := decodeCanonicalDocument(canonicalSnapshot)
-		if err != nil {
-			return err
-		}
-		state := &models.GameState{}
-		if err := decodeJSONMap(canonical.State, state); err != nil {
-			return err
-		}
-		for index := range state.Players {
-			if state.Players[index].ID == playerID {
-				state.Players[index].Name = displayName
+		changed := false
+		for index := range game.Players {
+			if game.Players[index].ActorID == uid && game.Players[index].AccountName != "" && game.Players[index].AccountName != displayName {
+				game.Players[index].AccountName = displayName
+				changed = true
 			}
 		}
-		if err := state.Validate(); err != nil {
-			return err
+		if !changed {
+			return nil
 		}
-		now := s.now().UTC()
-		game.UpdatedAt = now
-		canonical.State, err = jsonMap(state)
-		if err != nil {
-			return err
-		}
-		canonical.UpdatedAt = now
-		if err := transaction.Set(gameRef(s.client, id), game); err != nil {
-			return err
-		}
-		if err := transaction.Set(canonicalRef(s.client, id), canonical); err != nil {
-			return err
-		}
-		views, err := s.viewProjections(id, game.Players, store.Revision(game.Revision), state, now)
-		if err != nil {
-			return err
-		}
-		for _, projection := range views {
-			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
-				return err
-			}
-		}
-		observerWrites := 0
-		if game.SpectatorUID != "" {
-			observer, observerErr := s.observerDocument(
-				id,
-				game.SpectatorUID,
-				store.Revision(game.Revision),
-				state,
-				now,
-				max(0, game.Turn-1),
-			)
-			if observerErr != nil {
-				return observerErr
-			}
-			if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
-				return err
-			}
-			observerWrites = 1
-		}
-		s.recordWrites(2 + len(views) + observerWrites)
-		s.recordProjectionWrites(len(views) + observerWrites)
-		return nil
+		game.UpdatedAt = s.now().UTC()
+		s.recordWrites(1)
+		return transaction.Set(gameRef(s.client, id), game)
 	})
 	return wrapTransactionResult(err)
 }

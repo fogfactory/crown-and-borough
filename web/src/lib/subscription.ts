@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getFirebaseServices } from '@/lib/firebase'
 import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
+  GameLobby,
   GameSlot,
   GameSummary,
   GameViewDocument,
@@ -127,6 +128,10 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
           player.submitted === true ||
           submittedUIDs.has(actorId ?? '') ||
           submittedPlayerIDs.has(id),
+        ...(player.nameLocked === true ? { nameLocked: true } : {}),
+        ...(stringValue(player.accountName)
+          ? { accountName: stringValue(player.accountName) }
+          : {}),
         required:
           typeof player.required === 'boolean'
             ? player.required
@@ -134,6 +139,25 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
       },
     ]
   })
+}
+
+function lobbyFromData(value: unknown): GameLobby | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const lobby = value as DocumentData
+  if (!Array.isArray(lobby.seedCandidates)) return undefined
+  return {
+    seedCandidates: lobby.seedCandidates.flatMap((candidate: unknown) => {
+      const entry = candidate as DocumentData | null
+      return entry && typeof entry.index === 'number' && typeof entry.seed === 'string'
+        ? [{ index: entry.index, seed: entry.seed }]
+        : []
+    }),
+    seedRanking: Array.isArray(lobby.seedRanking)
+      ? lobby.seedRanking.filter((index: unknown): index is number => typeof index === 'number')
+      : [],
+    houseName: stringValue(lobby.houseName),
+    awaitingCreator: lobby.awaitingCreator === true,
+  }
 }
 
 export function normalizeGameSummary(
@@ -156,6 +180,28 @@ export function normalizeGameSummary(
           )?.id,
         )
       : '')
+  const players = slotsFromData(data, currentUID)
+  const incognito = data.incognito === true
+  const seated =
+    typeof data.seated === 'number'
+      ? data.seated
+      : Array.isArray(data.players)
+        ? data.players.filter((player: unknown) => {
+            const actor = stringValue((player as DocumentData | null)?.actorId)
+            return actor !== '' && !actor.startsWith('slot:')
+          }).length
+        : 0
+  // The game has a board unless its lobby is open (`phase` on the Firestore
+  // document, `started` in the REST views).
+  const started: boolean | undefined =
+    typeof data.started === 'boolean'
+      ? data.started
+      : data.phase === 'lobby'
+        ? false
+        : data.phase === 'started'
+          ? true
+          : undefined
+  const lobby = lobbyFromData(data.lobby)
   const canInvite = data.canInvite === true || stringValue(data.ownerUid) === currentUID
   const inviteAvailable =
     typeof data.inviteAvailable === 'boolean' ? data.inviteAvailable : undefined
@@ -171,7 +217,11 @@ export function normalizeGameSummary(
     ...(data.spectator === true || stringValue(data.spectatorUid) === currentUID
       ? { spectator: true }
       : {}),
-    players: slotsFromData(data, currentUID),
+    ...(incognito ? { incognito } : {}),
+    ...(started === false || incognito ? { seated } : {}),
+    ...(started !== undefined ? { started } : {}),
+    ...(lobby ? { lobby } : {}),
+    players,
     turn: numberValue(data.turn, 1),
     season: seasonValue(data.season),
     yearCount: numberValue(data.yearCount, 10),
