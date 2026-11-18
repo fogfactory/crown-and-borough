@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 )
 
@@ -14,15 +15,35 @@ const (
 	douglasPeuckerTolerance = 3.5
 	minimumChainSegment     = 2.0
 	jitterRatio             = 0.0075
+	// referenceFrontierLength is the shortest shared frontier, in map pixels,
+	// that stays visible and traversable on the reference map (four players,
+	// 1000x700, 52 territories). A shorter contact is collapsed to a point.
+	referenceFrontierLength = 24.0
+	referenceMapArea        = 1000.0 * 700.0
+	referenceMapSites       = 52.0
 )
+
+// minFrontierLength scales the reference threshold with the mean territory
+// footprint, like the front scales its annotations, so small test maps and
+// large games keep the same proportion.
+func minFrontierLength(cfg Config) float64 {
+	meanArea := float64(cfg.Width) * float64(cfg.Height) / float64(cfg.SiteCount)
+	return referenceFrontierLength * math.Sqrt(meanArea/(referenceMapArea/referenceMapSites))
+}
 
 type frontierGeometry struct {
 	polygons  [][][2]int
 	centroids [][2]float64
 	chains    []frontierChain
-	padding   int
-	width     int
-	height    int
+	// edges lists the sorted interior pairs that still share a frontier chain
+	// once short frontiers have been collapsed: the geometric arcs of the graph.
+	edges [][2]int
+	// outline holds, per interior site, the length in map pixels of its
+	// frontier with the map's outline (the sacrificial frame sites).
+	outline []float64
+	padding int
+	width   int
+	height  int
 }
 
 type frontierChain struct {
@@ -117,6 +138,10 @@ func extractInteriorFrontiersWithJitter(
 		}
 	}
 
+	chains, references, err := collapseShortFrontiers(cfg, interiorCount, chains, references)
+	if err != nil {
+		return frontierGeometry{}, err
+	}
 	polygons, err := assembleFrontierPolygons(references, chains)
 	if err != nil {
 		return frontierGeometry{}, err
@@ -130,6 +155,8 @@ func extractInteriorFrontiersWithJitter(
 		polygons:  polygons,
 		centroids: centroids,
 		chains:    chains,
+		edges:     frontierEdges(chains, interiorCount),
+		outline:   outlineLengths(chains, interiorCount),
 		padding:   padding,
 		width:     width,
 		height:    height,
@@ -536,4 +563,152 @@ func reanchorPolygons(polygons [][][2]int, cfg Config) (padding, width, height i
 		}
 	}
 	return padding, maxX + deltaX + padding, maxY + deltaY + padding
+}
+
+func viewportDistance(first, second [2]int) float64 {
+	return math.Hypot(float64(second[0]-first[0]), float64(second[1]-first[1]))
+}
+
+func chainLength(points [][2]int) float64 {
+	total := 0.0
+	for i := 1; i < len(points); i++ {
+		total += viewportDistance(points[i-1], points[i])
+	}
+	return total
+}
+
+// frontierEdges returns the sorted interior pairs sharing at least one chain.
+func frontierEdges(chains []frontierChain, interiorCount int) [][2]int {
+	seen := make(map[[2]int]bool)
+	edges := make([][2]int, 0)
+	for _, chain := range chains {
+		if chain.owners[1] >= interiorCount || seen[chain.owners] {
+			continue
+		}
+		seen[chain.owners] = true
+		edges = append(edges, chain.owners)
+	}
+	sort.Slice(edges, func(i, j int) bool { return edgeLess(edges[i], edges[j]) })
+	return edges
+}
+
+// collapseShortFrontiers removes every interior-interior chain shorter than
+// minFrontierLength by merging its two junctions into one point, so that the
+// two territories only touch at a corner. All chains reaching the merged
+// junction receive the identical point, keeping shared vertices exact. The
+// shortest chain goes first because a merge can shorten its neighbours.
+func collapseShortFrontiers(
+	cfg Config,
+	interiorCount int,
+	chains []frontierChain,
+	references [][]frontierReference,
+) ([]frontierChain, [][]frontierReference, error) {
+	removed := make([]bool, len(chains))
+	minimum := minFrontierLength(cfg)
+	for {
+		target, shortest := -1, minimum
+		for index, chain := range chains {
+			if removed[index] || chain.owners[1] >= interiorCount {
+				continue
+			}
+			if length := chainLength(chain.points); length < shortest {
+				target, shortest = index, length
+			}
+		}
+		if target < 0 {
+			break
+		}
+		chain := chains[target]
+		first, last := chain.grid[0], chain.grid[len(chain.grid)-1]
+		if first == last {
+			return nil, nil, fmt.Errorf("mapgen: closed frontier of interior sites %d and %d is too short", chain.owners[0], chain.owners[1])
+		}
+		if sharesThirdOwner(chains, removed, chain, first, last) {
+			return nil, nil, fmt.Errorf("mapgen: short frontier of interior sites %d and %d cannot be collapsed", chain.owners[0], chain.owners[1])
+		}
+		removed[target] = true
+		anchor := chain.points[0]
+		for index := range chains {
+			if removed[index] {
+				continue
+			}
+			other := &chains[index]
+			if other.grid[0] == last {
+				other.grid[0], other.points[0] = first, anchor
+			}
+			if end := len(other.grid) - 1; other.grid[end] == last {
+				other.grid[end], other.points[end] = first, anchor
+			}
+			if other.grid[0] == other.grid[len(other.grid)-1] && other.raw[0] != other.raw[len(other.raw)-1] {
+				return nil, nil, fmt.Errorf("mapgen: collapsing a short frontier pinches the frontier of sites %d and %d", other.owners[0], other.owners[1])
+			}
+		}
+	}
+
+	remap := make([]int, len(chains))
+	kept := make([]frontierChain, 0, len(chains))
+	for index, chain := range chains {
+		if removed[index] {
+			remap[index] = -1
+			continue
+		}
+		remap[index] = len(kept)
+		kept = append(kept, chain)
+	}
+	newReferences := make([][]frontierReference, len(references))
+	for owner, ownerReferences := range references {
+		for _, reference := range ownerReferences {
+			if remap[reference.chain] < 0 {
+				continue
+			}
+			newReferences[owner] = append(newReferences[owner], frontierReference{chain: remap[reference.chain], reverse: reference.reverse})
+		}
+	}
+	return kept, newReferences, nil
+}
+
+// sharesThirdOwner reports whether a territory other than the chain's owners
+// touches both of its junctions: collapsing would pinch that territory.
+// endsAt reports whether one end of the chain is the given junction.
+func (chain frontierChain) endsAt(point gridPoint) bool {
+	return chain.grid[0] == point || chain.grid[len(chain.grid)-1] == point
+}
+
+func sharesThirdOwner(chains []frontierChain, removed []bool, chain frontierChain, first, last gridPoint) bool {
+	atFirst := make(map[int]bool)
+	for index, other := range chains {
+		if removed[index] {
+			continue
+		}
+		if other.endsAt(first) {
+			atFirst[other.owners[0]], atFirst[other.owners[1]] = true, true
+		}
+	}
+	for index, other := range chains {
+		if removed[index] {
+			continue
+		}
+		if !other.endsAt(last) {
+			continue
+		}
+		for _, owner := range other.owners {
+			if owner != chain.owners[0] && owner != chain.owners[1] && atFirst[owner] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// outlineLengths sums, per interior site, the length of its chains that border
+// the frame, that is the map outline.
+func outlineLengths(chains []frontierChain, interiorCount int) []float64 {
+	lengths := make([]float64, interiorCount)
+	for _, chain := range chains {
+		if chain.owners[1] < interiorCount {
+			continue
+		}
+		lengths[chain.owners[0]] += chainLength(chain.points)
+	}
+	return lengths
 }

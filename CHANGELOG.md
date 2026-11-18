@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.6.0](https://github.com/fogfactory/crown-and-borough/compare/v1.5.0...v1.6.0) (2026-11-18)
+
+
+### Features
+
+* **mapgen:** contested bishoprics, up to two chokepoints and a denser graph ([06197a3](https://github.com/fogfactory/crown-and-borough/commit/06197a3c477b2b5a5aea32eaded6eaa5b2241b9d))
+* **web:** mark corner contacts and split the map legend into separate panels ([e32b99b](https://github.com/fogfactory/crown-and-borough/commit/e32b99b05482d882dff6d85a158dd7143fe696c0))
+
+
+### Bug Fixes
+
+* **mapgen:** accept null corner contacts and align the cartography spec ([c7af972](https://github.com/fogfactory/crown-and-borough/commit/c7af9720f8f9e942fceb1aa1798a42a1da2b8bcb))
+* **mapgen:** collapse frontiers shorter than 24px so every visible border is declared ([5538889](https://github.com/fogfactory/crown-and-borough/commit/55388893ffd36d412f2da4fd8f4bb90c5f1b374a))
+* **mapgen:** explained frontiers, contested bishoprics and separate map legends ([daab071](https://github.com/fogfactory/crown-and-borough/commit/daab0717d44319ecd3809f814467cb6f1699757b))
+* **mapgen:** place starts so that no player is squeezed or cornered ([68a276d](https://github.com/fogfactory/crown-and-borough/commit/68a276df837c655d9431a6b2af8830a37d17f1d6))
+
+
+### Refactoring
+
+* **mapgen:** serve corner contacts from the server and tidy seat placement ([e71f412](https://github.com/fogfactory/crown-and-borough/commit/e71f4127e37387ba37204ecfa147f2a5caaaa750))
+* **mapgen:** tidy start fairness code and test the share measure ([967c24b](https://github.com/fogfactory/crown-and-borough/commit/967c24b18d05459db1d18ca03c6618861fe302d4))
+
 ## [1.5.0](https://github.com/fogfactory/crown-and-borough/compare/v1.4.0...v1.5.0) (2026-11-18)
 
 

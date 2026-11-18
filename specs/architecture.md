@@ -151,11 +151,17 @@ La carte est statique pour une partie et commune à tous les clients :
       "seed": "ROS",
       "territories": ["ROS", "BOI"]
     }
+  ],
+  "cornerContacts": [
+    { "point": [100, 80], "between": ["BOI", "FOU"] }
   ]
 }
 ```
 
 - `regions[].name` est le nom de l'évêché : la commune de son chef-lieu ;
+- `cornerContacts` liste les sommets où deux territoires se touchent sans
+  frontière commune (aucune arête partagée, ni adjacence ni frontière
+  infranchissable) : la carte y pose une icône de non-adjacence ;
 - `points` décrit le polygone SVG ;
 - `adjacencies` contient les frontières géométriques franchissables ;
 - `impassable` contient les frontières géométriques infranchissables ;

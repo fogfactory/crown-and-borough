@@ -93,6 +93,25 @@ func (q *regionQueue) Pop() any {
 	return value
 }
 
+// regionStepCost is the cost of growing a region across one frontier: a base
+// cost of two plus a stable 0 to 2 noise drawn from the two territory codes.
+// The noise makes the growth uneven, so bishopric borders interlock like
+// puzzle pieces instead of tracing the straight bisectors of hop distance.
+func regionStepCost(from, to models.TerritoryID) int {
+	if from > to {
+		from, to = to, from
+	}
+	// FNV-1a over both codes: cheap and allocation free, and only three
+	// noise values are needed.
+	hash := uint32(2166136261)
+	for _, text := range [...]string{string(from), "|", string(to)} {
+		for i := 0; i < len(text); i++ {
+			hash = (hash ^ uint32(text[i])) * 16777619
+		}
+	}
+	return 2 + int(hash>>16)%3
+}
+
 // generateRegions partitions territories into one region per seed, using a
 // BFS multi-source shortest-path assignment. seeds are the chefs-lieux
 // territory IDs; a home village never seeds its own region, so the region
@@ -131,7 +150,7 @@ func generateRegions(territories []Territory, seeds []models.TerritoryID) ([]mod
 		}
 		for _, adjacent := range byID[item.territory].Adjacencies {
 			neighbor := models.TerritoryID(adjacent)
-			candidate := regionQueueItem{territory: neighbor, seed: item.seed, distance: item.distance + 1}
+			candidate := regionQueueItem{territory: neighbor, seed: item.seed, distance: item.distance + regionStepCost(item.territory, neighbor)}
 			previous, assigned := best[neighbor]
 			if assigned && (previous.distance < candidate.distance || (previous.distance == candidate.distance && previous.seed <= candidate.seed)) {
 				continue
