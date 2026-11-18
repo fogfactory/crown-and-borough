@@ -1556,7 +1556,7 @@ const englishMessages = {
   'error.api.invalid_orders': 'Invalid orders.',
   'error.api.invalid_orders_request': 'Invalid orders.',
   'error.api.client_outdated':
-    'A new version of the game is available: reload the page to submit your orders. Your draft is kept in the form.',
+    'A new version of the game is available: reload the page to submit your orders. Your unsent draft will be lost: copy it before reloading.',
   'error.api.invalid_simulation': 'Invalid simulation.',
   'error.api.invalid_simulation_request': 'Invalid simulation.',
   'app.progress': '{season} {year} · turn {turn} of {total}',
@@ -3252,7 +3252,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'error.api.invalid_orders': 'Ordres invalides.',
   'error.api.invalid_orders_request': 'Ordres invalides.',
   'error.api.client_outdated':
-    'Une nouvelle version du jeu est disponible : recharge la page pour envoyer tes ordres. Ton brouillon reste dans le formulaire.',
+    'Une nouvelle version du jeu est disponible : recharge la page pour envoyer tes ordres. Le brouillon non envoyé sera perdu : copie-le avant de recharger.',
   'error.api.invalid_simulation': 'Simulation invalide.',
   'error.api.invalid_simulation_request': 'Simulation invalide.',
   'app.progress': '{season} {year} · tour {turn} sur {total}',

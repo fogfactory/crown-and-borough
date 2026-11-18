@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { MapData, StateData, SupplyLine, TransferLine } from '@/types'
 
@@ -177,11 +177,7 @@ function renderGame(language: 'en' | 'fr' = 'en') {
   )
 }
 
-// Unmount flushes pending drafts after afterEach: clear before each test too.
-beforeEach(() => window.localStorage.clear())
-
 afterEach(() => {
-  window.localStorage.clear()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
   authMocks.getIdToken.mockClear()
@@ -348,38 +344,6 @@ describe('GamePage submission rehydration and divergence', () => {
     expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Restore from server' }))
     expect(textarea).toHaveValue('R 1 ROS JEA')
-  })
-
-  it('restores the unsent drafts of this turn after a reload', async () => {
-    window.localStorage.setItem(
-      'cb.drafts.GAME1.P1',
-      JSON.stringify({ turn: 1, chains: {}, winter: '', special: 'P RA ROS' }),
-    )
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((input: RequestInfo | URL) => {
-        const url = String(input)
-        if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
-        if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
-        if (url.endsWith('/api/games/GAME1/state')) {
-          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
-        }
-        if (url.endsWith('/api/games/GAME1/my-submission')) {
-          return Promise.resolve(
-            jsonResponse({ turn: 1, season: 'spring', submitted: false, chains: [] }),
-          )
-        }
-        if (url.includes('/orders/preview')) {
-          return Promise.resolve(jsonResponse({ errors: [], chains: [], winter: [] }))
-        }
-        throw new Error(`unexpected request: ${url}`)
-      }),
-    )
-
-    renderGame()
-
-    const textarea = await screen.findByLabelText('Special card orders')
-    await waitFor(() => expect(textarea).toHaveValue('P RA ROS'))
   })
 
   it('rehydrates the saved special orders outside winter and shows divergence', async () => {
