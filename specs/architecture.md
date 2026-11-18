@@ -565,7 +565,7 @@ chat répondent `409 game_not_started`.
   clients par les règles (le document de partie est lisible par tous les
   membres, un vote ne doit pas l'être). Les vues exposent `lobby` (`seedCandidates` `[{index, seed}]`,
   `seedRanking`, `houseName`) au seul appelant, tant que le salon est ouvert.
-- **Candidates.** `store.SeedCandidates(gameID, n, assets)` : seeds lisibles `prenom-de-commune` (comme celui proposé par défaut à la création), tirés de `sha256(gameID|candidate|i)` dans les prénoms et communes des assets, distincts entre eux (repli sur `hex(sha256(…))` si les assets n'ont aucun nom).
+- **Candidates.** `store.SeedCandidates(gameID, n, assets)` : seeds lisibles `prenom-de-commune` (comme celui proposé par défaut à la création), tirés de `mapgen.NewRNG(gameID, "candidate-"+i)` dans les prénoms et communes des assets (`assetgen.ReadableSeed`), distincts entre eux.
   `n` = `seed_candidates` de `balance.yaml` (3 par défaut, 8 au plus).
   Une graine imposée à la création (`seed` non vide) supprime les candidates.
 - **Démarrage.** Au join du dernier slot, `store.PlanStart` (mémoire : sous le

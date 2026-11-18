@@ -17,7 +17,6 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/api"
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
-	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 	"github.com/fogfactory/crown-and-borough/internal/turn"
@@ -105,7 +104,7 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		if !invitation.Active {
 			return store.ErrInvitationInactive
 		}
-		if game.inLobby() {
+		if game.Phase == store.PhaseLobby {
 			result, err := s.joinLobby(transaction, actor, game, options)
 			lobbyJoin = &result
 			return err
@@ -212,7 +211,7 @@ type lobbyJoinResult struct {
 func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, actor store.Actor, game gameDocument, options store.JoinOptions) (lobbyJoinResult, error) {
 	actorID := strings.TrimSpace(actor.ID)
 	id := game.ID
-	step, err := store.PlanJoin(playerSlots(game.Players), actorID, options, game.HouseNames, s.balance.SeedCandidateCount())
+	step, err := store.PlanJoin(playerSlots(game.Players), actorID, options, store.OtherHouseNames(game.HouseNames, ""), s.balance.SeedCandidateCount())
 	if err != nil {
 		return lobbyJoinResult{}, err
 	}
@@ -478,7 +477,7 @@ func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id 
 			return store.ErrNotMember
 		}
 		playerID = member
-		if game.inLobby() {
+		if game.Phase == store.PhaseLobby {
 			// In the lobby the name is only recorded, for the start.
 			pending, err := store.ValidatePendingHouseName(name, store.OtherHouseNames(game.HouseNames, uid))
 			if err != nil {
@@ -726,7 +725,7 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 		if !member && !membershipForActor(game, actor) {
 			return store.ErrNotMember
 		}
-		if game.inLobby() {
+		if game.Phase == store.PhaseLobby {
 			return store.ErrGameNotStarted
 		}
 		if game.Status == store.StatusFinished {
@@ -995,7 +994,7 @@ func (s *FirestoreStore) Restore(ctx context.Context) ([]store.GameSnapshot, err
 		if err != nil {
 			return nil, err
 		}
-		if game.inLobby() {
+		if game.Phase == store.PhaseLobby {
 			snapshot, err := s.lobbySnapshot(operationContext, store.Actor{}, game)
 			if err != nil {
 				return nil, fmt.Errorf("restore %s: %w", game.ID, err)
@@ -1122,7 +1121,7 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		if !member {
 			return store.ErrNotMember
 		}
-		if game.inLobby() {
+		if game.Phase == store.PhaseLobby {
 			return store.ErrGameNotStarted
 		}
 		if game.Status == store.StatusFinished {
@@ -1262,7 +1261,7 @@ func (s *FirestoreStore) SetSeedVote(ctx context.Context, actor store.Actor, id 
 		if _, member := playerIDForActor(game, actor); !member {
 			return store.ErrNotMember
 		}
-		if !game.inLobby() {
+		if game.Phase != store.PhaseLobby {
 			return store.ErrGameStarted
 		}
 		if err := store.ValidateSeedRanking(ranking, s.balance.SeedCandidateCount()); err != nil {
@@ -1310,10 +1309,10 @@ func (s *FirestoreStore) JoinPreview(ctx context.Context, actor store.Actor, id 
 		Players:   len(game.Players),
 		Seated:    assignedDocumentPlayerCount(game.Players),
 		Incognito: game.Incognito,
-		Started:   !game.inLobby(),
+		Started:   game.Phase != store.PhaseLobby,
 		Member:    member,
 	}
-	if game.inLobby() && game.FixedSeed == "" {
+	if game.Phase == store.PhaseLobby && game.FixedSeed == "" {
 		preview.SeedCandidates = store.SeedCandidates(id, s.balance.SeedCandidateCount(), s.assets)
 	}
 	return preview, nil
@@ -1321,6 +1320,6 @@ func (s *FirestoreStore) JoinPreview(ctx context.Context, actor store.Actor, id 
 
 // SeedCandidateMap generates the map of candidate seed index for a game of the
 // given player count.
-func (s *FirestoreStore) SeedCandidateMap(id store.GameID, players, index int) (mapgen.MapData, error) {
+func (s *FirestoreStore) SeedCandidateMap(id store.GameID, players, index int) (store.CandidateMap, error) {
 	return store.GenerateCandidateMap(id, index, players, s.balance, s.assets)
 }

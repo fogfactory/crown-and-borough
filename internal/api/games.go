@@ -14,7 +14,6 @@ import (
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
-	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -705,7 +704,7 @@ func (h *GamesHandler) seedCandidateMap(w http.ResponseWriter, r *http.Request, 
 		h.writeStoreError(w, err)
 		return
 	}
-	entry, err := h.candidateMaps.get(string(id)+"#"+strconv.Itoa(index), func() (mapgen.MapData, error) {
+	entry, err := h.candidateMaps.get(string(id)+"#"+strconv.Itoa(index), func() (store.CandidateMap, error) {
 		return lobby.SeedCandidateMap(id, preview.Players, index)
 	})
 	if err != nil {

@@ -260,6 +260,9 @@ func TestSeedCandidateMapRevealsOnlyTheMap(t *testing.T) {
 	if err != nil || len(mapData.Territories) == 0 {
 		t.Fatalf("candidate map = %d territories, %v", len(mapData.Territories), err)
 	}
+	if len(mapData.Castles) != 3 || !slices.IsSorted(mapData.Castles) {
+		t.Fatalf("castles = %v, want the 3 sorted start castles", mapData.Castles)
+	}
 	if _, err := gameStore.SeedCandidateMap(created.ID, 3, 3); !errors.Is(err, ErrInvalidCandidate) {
 		t.Fatalf("unknown candidate = %v", err)
 	}
@@ -356,7 +359,7 @@ func TestInviteCodeOpensThePreviewAndTheCandidateMapsToNonMembers(t *testing.T) 
 
 func TestPlanJoinSeatsTheFirstFreeSlotAndValidatesTheEntry(t *testing.T) {
 	slots := []PlayerSlot{{ID: "P1", ActorID: "alice"}, {ID: "P2"}, {ID: "P3"}}
-	names := map[string]string{"alice": "House Stark"}
+	names := []string{"House Stark"}
 
 	step, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "  House Tyrell ", SeedRanking: []int{2, 0, 1}}, names, 3)
 	if err != nil || step.Seat != 1 || step.Final || step.Slots[1].ActorID != "bob" || slots[1].ActorID != "" {
@@ -387,7 +390,7 @@ func TestPlanJoinSeatsTheFirstFreeSlotAndValidatesTheEntry(t *testing.T) {
 
 func TestPhaseTracksTheLobby(t *testing.T) {
 	gameStore, created, code := newLobbyGame(t, CreateRequest{})
-	if !created.InLobby() || created.Started() {
+	if created.Started() {
 		t.Fatalf("created phase = %q", created.Phase)
 	}
 	ctx := context.Background()

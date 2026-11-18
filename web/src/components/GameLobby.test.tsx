@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { GameLobby, rankingOrder } from '@/components/GameLobby'
+import { GameLobby, orderCandidates } from '@/components/GameLobby'
 import { MapPreview } from '@/components/MapPreview'
 import { LanguageProvider } from '@/i18n/LanguageContext'
-import type { GameLobby as LobbyData, MapData } from '@/types'
+import type { GameLobby as LobbyData, CandidateMapData } from '@/types'
 
 const square = (x: number, y: number): Array<[number, number]> => [
   [x, y],
@@ -13,7 +13,7 @@ const square = (x: number, y: number): Array<[number, number]> => [
   [x, y + 10],
 ]
 
-const candidateMap: MapData = {
+const candidateMap: CandidateMapData = {
   territories: [
     { id: 'AAA', name: 'A', terrain: 'plain', village: false, points: square(0, 0), adjacencies: ['BBB'], impassable: [] },
     { id: 'BBB', name: 'B', terrain: 'forest', village: true, points: square(10, 0), adjacencies: ['AAA', 'CCC'], impassable: [] },
@@ -23,6 +23,7 @@ const candidateMap: MapData = {
     { id: 'R1', seed: 'AAA', territories: ['AAA', 'BBB'] },
     { id: 'R2', seed: 'CCC', territories: ['CCC'] },
   ],
+  starts: [],
 }
 
 const fetchMock = vi.fn()
@@ -54,25 +55,21 @@ function renderLobby(overrides: Partial<LobbyData> = {}, onVote = vi.fn().mockRe
 }
 
 describe('MapPreview', () => {
-  it('draws every territory and the frontiers of the regions only', () => {
+  it('draws every territory with its terrain, tinted by region and bordered by region', () => {
     const { container } = render(<MapPreview map={candidateMap} label="Preview" />)
     expect(screen.getByRole('img', { name: 'Preview' })).toBeInTheDocument()
     expect(container.querySelectorAll('[data-preview-territory]')).toHaveLength(3)
-    // One border path per region, one ring each: the frontier between AAA and
-    // BBB is inside region R1 and is not drawn.
-    const rings = (id: string) =>
-      (container.querySelector(`path[data-preview-region="${id}"]`)?.getAttribute('d') ?? '').match(/M /g)
-    expect(rings('R1')).toHaveLength(1)
-    expect(rings('R2')).toHaveLength(1)
-    // Nothing but the shape: no text, no marker.
+    expect(container.querySelectorAll('[data-preview-terrain]')).toHaveLength(3)
+    expect(container.querySelectorAll('path[data-preview-region]')).toHaveLength(2)
+    // No text: names stay off the preview.
     expect(container.querySelector('text')).toBeNull()
   })
 })
 
-describe('rankingOrder', () => {
+describe('orderCandidates', () => {
   it('puts the saved ranking first, then the unranked candidates', () => {
-    expect(rankingOrder({ ...lobby, seedRanking: [2] })).toEqual([2, 0, 1])
-    expect(rankingOrder(lobby)).toEqual([0, 1, 2])
+    expect(orderCandidates(lobby.seedCandidates, [2])).toEqual([2, 0, 1])
+    expect(orderCandidates(lobby.seedCandidates, lobby.seedRanking)).toEqual([0, 1, 2])
   })
 })
 

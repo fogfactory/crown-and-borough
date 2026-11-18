@@ -3,8 +3,6 @@ package store
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"slices"
 	"strconv"
@@ -43,33 +41,19 @@ type LobbyView struct {
 // SeedCandidates derives the seeds put to the vote from the game id, so every
 // instance and every member sees the same ones. Like the seed the creation
 // form used to propose, a seed reads "first-name-de-commune", from the names
-// and communes of the game assets, and is distinct from the other candidates.
+// and communes of the game assets (which must not be empty), and is distinct
+// from the other candidates.
 func SeedCandidates(id GameID, count int, assets assetgen.Assets) []string {
-	if len(assets.Prenoms) == 0 || len(assets.Communes) == 0 {
-		return hashedSeedCandidates(id, count)
-	}
 	seeds := make([]string, 0, count)
 	seen := make(map[string]bool, count)
 	for index := 0; len(seeds) < count; index++ {
-		digest := sha256.Sum256([]byte(string(id) + "|candidate|" + strconv.Itoa(index)))
-		first := binary.BigEndian.Uint32(digest[0:4]) % uint32(len(assets.Prenoms))
-		commune := binary.BigEndian.Uint32(digest[4:8]) % uint32(len(assets.Communes))
-		seed := assetgen.Slug(assets.Prenoms[first].Name) + "-de-" + assetgen.Slug(assets.Communes[commune].Name)
+		rng := mapgen.NewRNG(string(id), "candidate-"+strconv.Itoa(index))
+		seed := assetgen.ReadableSeed(assets, rng.IntN(len(assets.Prenoms)), rng.IntN(len(assets.Communes)))
 		if seen[seed] {
 			continue
 		}
 		seen[seed] = true
 		seeds = append(seeds, seed)
-	}
-	return seeds
-}
-
-// hashedSeedCandidates is the fallback when the assets carry no names.
-func hashedSeedCandidates(id GameID, count int) []string {
-	seeds := make([]string, count)
-	for index := range seeds {
-		digest := sha256.Sum256([]byte(string(id) + "|candidate|" + strconv.Itoa(index)))
-		seeds[index] = hex.EncodeToString(digest[:5])
 	}
 	return seeds
 }
@@ -176,28 +160,25 @@ func PlanStart(in StartInput) (StartPlan, error) {
 		SeatIncognitoPlayers(seed, slots)
 	}
 
-	// Each house has its candidate names in order of preference. Every house's
-	// entered name is claimed before any fallback, so a fallback never takes a
-	// name another member asked for; a name already claimed is skipped.
-	candidates := make([][]string, len(slots))
-	for index, slot := range slots {
-		candidates[index] = []string{in.Entries[slot.ActorID].HouseName}
-		if !in.Incognito {
-			candidates[index] = append(candidates[index], in.DisplayNames[slot.ActorID], slot.Name)
-		}
-	}
+	// A house takes the first of its candidate names not claimed yet. Every
+	// house's entered name is claimed before any fallback, so a fallback never
+	// takes a name another member asked for.
 	taken := make(map[string]bool, len(slots))
 	names := make([]string, len(slots))
-	for pass := range 2 {
-		for index, list := range candidates {
-			entered, fallbacks := list[:1], list[1:]
-			for _, name := range [][]string{entered, fallbacks}[pass] {
-				key := strings.ToLower(name)
-				if names[index] == "" && name != "" && !taken[key] {
-					names[index] = name
-					taken[key] = true
-				}
-			}
+	claim := func(index int, name string) {
+		key := strings.ToLower(name)
+		if names[index] == "" && name != "" && !taken[key] {
+			names[index] = name
+			taken[key] = true
+		}
+	}
+	for index, slot := range slots {
+		claim(index, in.Entries[slot.ActorID].HouseName)
+	}
+	if !in.Incognito {
+		for index, slot := range slots {
+			claim(index, in.DisplayNames[slot.ActorID])
+			claim(index, slot.Name)
 		}
 	}
 	inits := make([]engine.PlayerInit, len(slots))
@@ -290,16 +271,15 @@ type JoinStep struct {
 
 // PlanJoin validates a lobby join, the same for every store: the first free
 // slot goes to actorID, and what they prepared (house name, seed ranking) is
-// checked against the pending names of the other members (pendingNames, by
-// member uid) and the number of seed candidates.
-func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNames map[string]string, candidateCount int) (JoinStep, error) {
+// checked against the pending names of the other members (pendingNames) and the number of seed candidates.
+func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNames []string, candidateCount int) (JoinStep, error) {
 	seat := slices.IndexFunc(slots, func(player PlayerSlot) bool { return !player.Assigned() })
 	if seat < 0 {
 		return JoinStep{}, ErrGameFull
 	}
 	var entry LobbyEntry
 	if strings.TrimSpace(options.HouseName) != "" {
-		name, err := ValidatePendingHouseName(options.HouseName, OtherHouseNames(pendingNames, ""))
+		name, err := ValidatePendingHouseName(options.HouseName, pendingNames)
 		if err != nil {
 			return JoinStep{}, err
 		}
@@ -318,13 +298,27 @@ func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNa
 	return step, nil
 }
 
+// CandidateMap is the map contract plus the territories holding the start
+// castles, as a sorted set.
+type CandidateMap struct {
+	mapgen.MapData
+	Castles []string `json:"starts"`
+}
+
 // GenerateCandidateMap builds the map candidate seed index of a game would
-// have for count houses. Only the map is returned: the start placement is
-// not part of the map contract.
-func GenerateCandidateMap(id GameID, index, count int, balance assetgen.Balance, assets assetgen.Assets) (mapgen.MapData, error) {
+// have for count houses. Where each house will stand stays secret: only the
+// set of castles is published, sorted, with nothing saying which house gets
+// which start.
+func GenerateCandidateMap(id GameID, index, count int, balance assetgen.Balance, assets assetgen.Assets) (CandidateMap, error) {
 	candidates := SeedCandidates(id, balance.SeedCandidateCount(), assets)
 	if index < 0 || index >= len(candidates) {
-		return mapgen.MapData{}, ErrInvalidCandidate
+		return CandidateMap{}, ErrInvalidCandidate
 	}
-	return engine.GenerateMap(candidates[index], count, assets)
+	mapData, err := engine.GenerateMap(candidates[index], count, assets)
+	if err != nil {
+		return CandidateMap{}, err
+	}
+	castles := slices.Clone(mapData.Starts)
+	slices.Sort(castles)
+	return CandidateMap{MapData: mapData, Castles: castles}, nil
 }

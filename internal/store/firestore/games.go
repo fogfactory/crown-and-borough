@@ -65,7 +65,7 @@ func (s *FirestoreStore) CreateWithInvitation(ctx context.Context, actor store.A
 }
 
 func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.GameSnapshot, createdAt time.Time) error {
-	if snapshot.InLobby() {
+	if !snapshot.Started() {
 		// A lobby: only the game document exists until the last slot is taken.
 		if _, err := gameRef(s.client, snapshot.ID).Create(ctx, gameDocumentFromSnapshot(snapshot, createdAt, createdAt)); err != nil {
 			return err
@@ -315,7 +315,7 @@ func (s *FirestoreStore) MySubmission(ctx context.Context, actor store.Actor, id
 	if !member {
 		return store.PlayerSubmission{}, store.ErrNotMember
 	}
-	if game.inLobby() {
+	if game.Phase == store.PhaseLobby {
 		return store.PlayerSubmission{}, store.ErrGameNotStarted
 	}
 	actorID := strings.TrimSpace(actor.ID)
@@ -370,7 +370,7 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if requireMember && !member {
 		return store.GameSnapshot{}, store.ErrNotMember
 	}
-	if game.inLobby() {
+	if game.Phase == store.PhaseLobby {
 		return s.lobbySnapshot(ctx, actor, game)
 	}
 	canonicalSnapshot, err := canonicalRef(s.client, game.ID).Get(ctx)

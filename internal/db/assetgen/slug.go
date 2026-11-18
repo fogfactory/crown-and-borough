@@ -31,3 +31,9 @@ func Slug(value string) string {
 	}
 	return strings.Trim(builder.String(), "-")
 }
+
+// ReadableSeed names a seed "first-name-de-commune" from the first name and
+// the commune at the given indexes of the assets, both of which must exist.
+func ReadableSeed(assets Assets, firstIdx, communeIdx int) string {
+	return Slug(assets.Prenoms[firstIdx].Name) + "-de-" + Slug(assets.Communes[communeIdx].Name)
+}

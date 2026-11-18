@@ -449,7 +449,7 @@ func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code str
 	var step JoinStep
 	seat := slices.IndexFunc(game.players, func(player PlayerSlot) bool { return !player.Assigned() })
 	if !game.started() {
-		if step, err = PlanJoin(game.players, actorID, options, PendingHouseNames(game.lobby), s.balance.SeedCandidateCount()); err != nil {
+		if step, err = PlanJoin(game.players, actorID, options, OtherHouseNames(PendingHouseNames(game.lobby), ""), s.balance.SeedCandidateCount()); err != nil {
 			return JoinResult{}, err
 		}
 		seat = step.Seat
@@ -655,7 +655,7 @@ func (s *MemoryStore) SetSeedVote(ctx context.Context, actor Actor, id GameID, r
 
 // SeedCandidateMap generates the map of candidate seed index for a game of
 // the given player count.
-func (s *MemoryStore) SeedCandidateMap(id GameID, players, index int) (mapgen.MapData, error) {
+func (s *MemoryStore) SeedCandidateMap(id GameID, players, index int) (CandidateMap, error) {
 	return GenerateCandidateMap(id, index, players, s.balance, s.assets)
 }
 

@@ -5,23 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"sort"
 	"sync"
 
-	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
+	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
 // candidateMapCacheSize bounds the cached candidate maps; the oldest one is
 // evicted when full, since a lobby is short-lived and regeneration is only
 // slow.
 const candidateMapCacheSize = 128
-
-// candidatePreview is the map contract plus the territories holding the
-// start castles.
-type candidatePreview struct {
-	mapgen.MapData
-	Castles []string `json:"starts"`
-}
 
 // candidateMap is a generated candidate map, kept as the JSON it is served as
 // with the ETag of that body.
@@ -57,7 +49,7 @@ func newCandidateMapCache() *candidateMapCache {
 
 // get returns the map of key, generating it with generate when it is neither
 // cached nor being generated. A failed generation is not cached.
-func (c *candidateMapCache) get(key string, generate func() (mapgen.MapData, error)) (candidateMap, error) {
+func (c *candidateMapCache) get(key string, generate func() (store.CandidateMap, error)) (candidateMap, error) {
 	c.mu.Lock()
 	if data, ok := c.items[key]; ok {
 		c.mu.Unlock()
@@ -98,16 +90,12 @@ func (c *candidateMapCache) putLocked(key string, data candidateMap) {
 
 // encodeCandidateMap generates a map and marshals it once, for every request
 // that follows.
-func encodeCandidateMap(generate func() (mapgen.MapData, error)) (candidateMap, error) {
+func encodeCandidateMap(generate func() (store.CandidateMap, error)) (candidateMap, error) {
 	data, err := generate()
 	if err != nil {
 		return candidateMap{}, err
 	}
-	// The preview shows where the castles stand, as a sorted set: nothing says
-	// which house gets which start, so the draw stays secret.
-	starts := append([]string(nil), data.Starts...)
-	sort.Strings(starts)
-	body, err := json.Marshal(candidatePreview{MapData: data, Castles: starts})
+	body, err := json.Marshal(data)
 	if err != nil {
 		return candidateMap{}, err
 	}

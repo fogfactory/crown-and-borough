@@ -179,11 +179,6 @@ type invitationDocument struct {
 	Active        bool         `firestore:"active"`
 }
 
-// inLobby reports whether the game still waits for players to take its slots.
-func (game gameDocument) inLobby() bool {
-	return game.Phase == store.PhaseLobby
-}
-
 func gameRef(client *cloudfirestore.Client, id store.GameID) *cloudfirestore.DocumentRef {
 	return client.Collection("games").Doc(string(id))
 }

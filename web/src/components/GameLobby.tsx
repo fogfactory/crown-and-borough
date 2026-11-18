@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { apiRequest, type TokenProvider } from '@/lib/api'
 import { errorText } from '@/lib/api-error'
-import type { GameLobby as LobbyData, MapData, SeedCandidate } from '@/types'
+import type { GameLobby as LobbyData, CandidateMapData, SeedCandidate } from '@/types'
 
 /**
  * Candidate seeds in the order the player ranks them: the saved ranking first,
@@ -20,9 +20,6 @@ export function orderCandidates(candidates: SeedCandidate[], ranking: number[]):
   return [...ranked, ...indexes.filter((index) => !ranked.includes(index))]
 }
 
-export function rankingOrder(lobby: LobbyData): number[] {
-  return orderCandidates(lobby.seedCandidates, lobby.seedRanking)
-}
 
 function moved(order: number[], position: number, delta: -1 | 1): number[] {
   const target = position + delta
@@ -46,7 +43,7 @@ function CandidatePreview({
   inviteCode?: string
 }) {
   const { t } = useLanguage()
-  const [map, setMap] = useState<MapData | null>(null)
+  const [map, setMap] = useState<CandidateMapData | null>(null)
   const [failed, setFailed] = useState(false)
   const { getIdToken } = tokenProvider
 
@@ -54,7 +51,7 @@ function CandidatePreview({
     let active = true
     setMap(null)
     setFailed(false)
-    void apiRequest<MapData>(
+    void apiRequest<CandidateMapData>(
       { getIdToken },
       `/api/games/${encodeURIComponent(gameId)}/seed-candidates/${index}/map${
         inviteCode ? `?inviteCode=${encodeURIComponent(inviteCode)}` : ''
@@ -180,14 +177,14 @@ export function SeedVote({
   const { t } = useLanguage()
   const saved = lobby.seedRanking.join(',')
   const syncKey = `${saved}|${lobby.seedCandidates.map((candidate) => candidate.index).join(',')}`
-  const [order, setOrder] = useState(() => rankingOrder(lobby))
+  const [order, setOrder] = useState(() => orderCandidates(lobby.seedCandidates, lobby.seedRanking))
   const [syncedKey, setSyncedKey] = useState(syncKey)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The ranking follows the saved vote, not every render of the lobby.
   if (syncedKey !== syncKey) {
     setSyncedKey(syncKey)
-    setOrder(rankingOrder(lobby))
+    setOrder(orderCandidates(lobby.seedCandidates, lobby.seedRanking))
   }
   const dirty = order.join(',') !== saved
 

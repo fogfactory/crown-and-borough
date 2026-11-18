@@ -97,6 +97,7 @@ describe('online invitation join', () => {
         { id: 'AAA', name: 'A', terrain: 'plain', village: false, points: square(0), adjacencies: [], impassable: [] },
       ],
       regions: [{ id: 'R1', seed: 'AAA', territories: ['AAA'] }],
+      starts: [],
     }
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void init

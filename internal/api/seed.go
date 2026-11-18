@@ -26,14 +26,7 @@ func GenerateSeed(assets assetgen.Assets) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	seed := strings.Join(
-		[]string{
-			slugAssetName(assets.Prenoms[firstName].Name),
-			"de",
-			slugAssetName(assets.Communes[commune].Name),
-		},
-		"-",
-	)
+	seed := assetgen.ReadableSeed(assets, firstName, commune)
 	if strings.Trim(seed, "-") == "de" {
 		return "", errSeedAssetsUnavailable
 	}
@@ -65,5 +58,3 @@ func randomIndex(length int) (int, error) {
 	}
 	return int(value.Int64()), nil
 }
-
-func slugAssetName(value string) string { return assetgen.Slug(value) }

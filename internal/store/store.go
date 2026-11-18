@@ -321,11 +321,6 @@ func (s GameSnapshot) Started() bool {
 	return s.Phase == PhaseStarted
 }
 
-// InLobby reports whether the game still waits for players to take its slots.
-func (s GameSnapshot) InLobby() bool {
-	return s.Phase == PhaseLobby
-}
-
 // SeatIncognitoPlayers draws which member holds which house once every slot is
 // taken. The members are sorted before a seed-derived shuffle, so the outcome
 // depends on the seed and the set of members only, never on the order they
@@ -457,8 +452,9 @@ type LobbyStore interface {
 	SetSeedVote(context.Context, Actor, GameID, []int) (GameSnapshot, error)
 	// SeedCandidateMap generates the map of candidate seed index for a game
 	// of the given player count (JoinPreview.Players). It reveals nothing but
-	// the map and does not authorize: the caller already did, with JoinPreview.
-	SeedCandidateMap(id GameID, players, index int) (mapgen.MapData, error)
+	// the map and its castle set, and does not authorize: the caller already
+	// did, with JoinPreview.
+	SeedCandidateMap(id GameID, players, index int) (CandidateMap, error)
 }
 
 // RevisionedGameStore is the optimistic-concurrency extension used by the
