@@ -1218,6 +1218,28 @@ func TestCornerContactsOfSquares(t *testing.T) {
 	}
 }
 
+// minimumStartShare is the smallest acceptable share of the map for the
+// least-served start, as a fraction of an equal split. Fair placements observed
+// over thirty seeds stayed above 0.76; 0.65 leaves a margin.
+const minimumStartShare = 0.65
+
+// siteGraph returns the passable edges of the generated map by site index,
+// and the site index of each territory code.
+func siteGraph(data MapData) (edges [][2]int, index map[string]int) {
+	index = make(map[string]int, len(data.Territories))
+	for site, territory := range data.Territories {
+		index[territory.ID] = site
+	}
+	for site, territory := range data.Territories {
+		for _, adjacent := range territory.Adjacencies {
+			if site < index[adjacent] {
+				edges = append(edges, [2]int{site, index[adjacent]})
+			}
+		}
+	}
+	return edges, index
+}
+
 // TestStartsShareTheMapFairly checks that no start is squeezed: each start is
 // at least as close as any rival to a fair fraction of the territories.
 func TestStartsShareTheMapFairly(t *testing.T) {
@@ -1227,26 +1249,15 @@ func TestStartsShareTheMapFairly(t *testing.T) {
 		cfg.Width, cfg.Height = 1000*players/4, 700*players/4
 		forEachTestSeed(t, func(t *testing.T, seed string) {
 			data := generateMap(t, seed, assets, cfg)
-			index := make(map[string]int, len(data.Territories))
-			for site, territory := range data.Territories {
-				index[territory.ID] = site
-			}
-			var edges [][2]int
-			for site, territory := range data.Territories {
-				for _, adjacent := range territory.Adjacencies {
-					if site < index[adjacent] {
-						edges = append(edges, [2]int{site, index[adjacent]})
-					}
-				}
-			}
+			edges, index := siteGraph(data)
 			starts := make([]int, len(data.Starts))
 			for i, start := range data.Starts {
 				starts[i] = index[start]
 			}
 			smallest, _ := startShareRange(siteDistances(edges, len(data.Territories)), starts)
 			fair := float64(len(data.Territories)) / float64(players)
-			if ratio := smallest / fair; ratio < 0.65 {
-				t.Errorf("%d players: smallest start share is %.2f of the fair share, want at least 0.65", players, ratio)
+			if ratio := smallest / fair; ratio < minimumStartShare {
+				t.Errorf("%d players: smallest start share is %.2f of the fair share, want at least %.2f", players, ratio, minimumStartShare)
 			}
 		})
 	}

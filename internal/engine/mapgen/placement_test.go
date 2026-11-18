@@ -312,3 +312,26 @@ func stringContains(s, substr string) bool {
 	}
 	return false
 }
+
+// TestStartShareRange checks the fairness measure on a path of nine sites: a
+// start squeezed next to a rival gets a tiny share, evenly spread starts split
+// the path, and a site equally close to two starts is shared between them.
+func TestStartShareRange(t *testing.T) {
+	var edges [][2]int
+	for site := 0; site < 8; site++ {
+		edges = append(edges, [2]int{site, site + 1})
+	}
+	distances := siteDistances(edges, 9)
+
+	smallest, spread := startShareRange(distances, []int{0, 4, 8})
+	if smallest != 2.5 || spread != 1.5 {
+		t.Errorf("spread starts: smallest %v spread %v, want 2.5 and 1.5", smallest, spread)
+	}
+	squeezed, _ := startShareRange(distances, []int{0, 1, 8})
+	if squeezed != 1 {
+		t.Errorf("squeezed starts: smallest share %v, want 1", squeezed)
+	}
+	if squeezed >= smallest {
+		t.Error("a squeezed placement must rank below an even one")
+	}
+}

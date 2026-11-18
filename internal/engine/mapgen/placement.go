@@ -85,8 +85,8 @@ func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []m
 	}
 	bestShare, bestSpread := startShareRange(distances, starts)
 	for trial := 1; trial < startTrials; trial++ {
-		candidate, candidateHomes, err := searchStarts(rng, distances, edges, terrain, count, startTrialBudget)
-		if err != nil {
+		candidate, candidateHomes, trialErr := searchStarts(rng, distances, edges, terrain, count, startTrialBudget)
+		if trialErr != nil {
 			continue
 		}
 		share, spread := startShareRange(distances, candidate)
@@ -103,12 +103,13 @@ func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []m
 func startShareRange(distances [][]int, starts []int) (smallest, spread float64) {
 	shares := make([]float64, len(starts))
 	for site := range distances {
-		nearest, ties := -1, 0
+		nearest := distances[starts[0]][site]
+		for _, start := range starts[1:] {
+			nearest = min(nearest, distances[start][site])
+		}
+		ties := 0
 		for _, start := range starts {
-			switch {
-			case nearest < 0 || distances[start][site] < nearest:
-				nearest, ties = distances[start][site], 1
-			case distances[start][site] == nearest:
+			if distances[start][site] == nearest {
 				ties++
 			}
 		}
@@ -305,12 +306,15 @@ func homeCompatible(distances [][]int, starts, homes []int, home int) bool {
 // running out of budget fails the attempt so generation retries another draw.
 const startSearchBudget = 200_000
 
-// startTrials is the number of valid start placements compared for fairness.
-// The first trial gets the full budget so a placement is found whenever one
-// is reachable; the others only refine it and get a small share.
-const startTrialBudget = startSearchBudget / 10
-
-var startTrials = 24
+const (
+	// startTrials is the number of valid start placements compared for
+	// fairness; the value was picked empirically (see TestStartsShareTheMapFairly).
+	startTrials = 24
+	// startTrialBudget is the search budget of every trial after the first.
+	// The first trial gets the full startSearchBudget so a placement is found
+	// whenever one is reachable; the others only refine it.
+	startTrialBudget = startSearchBudget / 10
+)
 
 var errStartSearchBudget = errors.New("mapgen: start search budget exhausted")
 
