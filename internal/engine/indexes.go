@@ -68,6 +68,7 @@ type resolutionContext struct {
 	disperses           map[models.ArmyID]*disperseIntent
 	transfers           map[models.ArmyID]*transferIntent
 	disperseResults     map[models.ArmyID]*disperseResolution
+	maneuvers           map[models.ArmyID]*maneuverIntent
 	supports            map[models.ArmyID]*supportIntent
 	joinResults         map[models.ArmyID]*joinResolution
 	attackedTerritories map[models.TerritoryID]bool
@@ -170,6 +171,7 @@ func newResolutionContext(state *models.GameState, balance assetgen.Balance) *re
 		disperses:             make(map[models.ArmyID]*disperseIntent),
 		transfers:             make(map[models.ArmyID]*transferIntent),
 		disperseResults:       make(map[models.ArmyID]*disperseResolution),
+		maneuvers:             make(map[models.ArmyID]*maneuverIntent),
 		supports:              make(map[models.ArmyID]*supportIntent),
 		joinResults:           make(map[models.ArmyID]*joinResolution),
 		attackedTerritories:   make(map[models.TerritoryID]bool),

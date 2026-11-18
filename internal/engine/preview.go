@@ -36,6 +36,9 @@ type OrdersPreview struct {
 type ChainPreview struct {
 	Noble  models.NobleCode
 	Orders []models.Order
+	// Legs holds, per order, the legs of a maneuver (nil for other orders), as
+	// the army of the player on the first order would take them.
+	Legs [][]ManeuverLeg
 }
 
 // WinterLinePreview is one winter line: exactly one of Order, Discard or
@@ -101,7 +104,11 @@ func PreviewOrders(game *models.GameState, balance assetgen.Balance, playerID mo
 		preview.Warnings = previewChainWarnings(game, balance, playerID, input)
 		for _, submission := range input.Chains {
 			chain, _ := orders.ParseChain(submission.Text, game)
-			preview.Chains = append(preview.Chains, ChainPreview{Noble: submission.Noble, Orders: chain.Orders})
+			preview.Chains = append(preview.Chains, ChainPreview{
+				Noble:  submission.Noble,
+				Orders: chain.Orders,
+				Legs:   previewManeuverLegs(game, playerID, chain),
+			})
 		}
 		if len(input.Winter) == 0 {
 			return preview, nil
@@ -347,4 +354,14 @@ func votesForOtherPlayer(game *models.GameState, playerID models.PlayerID, code 
 		}
 	}
 	return false
+}
+
+// previewManeuverLegs plans the maneuvers of a drafted chain for the army of
+// playerID that receives it, if there is one.
+func previewManeuverLegs(game *models.GameState, playerID models.PlayerID, chain models.Chain) [][]ManeuverLeg {
+	army := orders.ReceivingArmy(game, chain)
+	if army == nil || army.OwnerID != playerID {
+		return nil
+	}
+	return PlanChainManeuvers(game, *army, chain.Orders, 0)
 }

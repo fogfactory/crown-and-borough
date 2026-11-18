@@ -203,9 +203,41 @@ type OrderView struct {
 	Type             models.OrderType                          `json:"type"`
 	Position         models.TerritoryID                        `json:"position"`
 	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+	Counts           []int                                     `json:"counts,omitempty"`
 	NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
-	Liaison          models.LiaisonMode                        `json:"liaison"`
-	Amount           int                                       `json:"amount,omitempty"`
+	// Legs is where a maneuver sends its troops, nobles and order sheet (see
+	// engine.PlanManeuver); the map only draws it.
+	Legs    []ManeuverLegView  `json:"legs,omitempty"`
+	Liaison models.LiaisonMode `json:"liaison"`
+	Amount  int                `json:"amount,omitempty"`
+}
+
+// ManeuverLegView is what one destination of a maneuver receives: the troops,
+// the codes of the nobles that travel with them (AnyNobles when a "*" takes
+// nobles that are not known yet) and whether the order sheet follows the group.
+type ManeuverLegView struct {
+	Target       models.TerritoryID `json:"target"`
+	Troops       int                `json:"troops"`
+	Nobles       []models.NobleCode `json:"nobles,omitempty"`
+	AnyNobles    bool               `json:"anyNobles,omitempty"`
+	CarriesChain bool               `json:"carriesChain,omitempty"`
+}
+
+func projectLegs(legs []engine.ManeuverLeg) []ManeuverLegView {
+	if len(legs) == 0 {
+		return nil
+	}
+	views := make([]ManeuverLegView, len(legs))
+	for index, leg := range legs {
+		views[index] = ManeuverLegView{
+			Target:       leg.Target,
+			Troops:       leg.Troops,
+			Nobles:       append([]models.NobleCode(nil), leg.Nobles...),
+			AnyNobles:    leg.AnyNobles,
+			CarriesChain: leg.CarriesChain,
+		}
+	}
+	return views
 }
 
 // InfraView contains the visible kind and level of an infrastructure.
@@ -491,11 +523,13 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 					StarvingStrength: army.StarvingStrength,
 				}
 				if chain, exists := chainsByArmyID[army.ID]; exists {
-					armyView.Chain = projectChain(chain, nobleCodesByID)
 					if viewer != nil && !viewerKnowsChain(state, *viewer, chain.ID) {
 						armyView.Chain = &ChainView{Visibility: "hidden"}
-					} else if viewer != nil {
-						armyView.Chain.Visibility = "known"
+					} else {
+						armyView.Chain = projectChain(chain, nobleCodesByID, engine.PlanChainManeuvers(state, army, chain.Orders, chain.CurrentIndex))
+						if viewer != nil {
+							armyView.Chain.Visibility = "known"
+						}
 					}
 				}
 				territoryView.Army = armyView
@@ -716,21 +750,30 @@ func viewerKnowsChain(state *models.GameState, viewer models.PlayerID, chainID m
 func projectChain(
 	chain models.Chain,
 	nobleCodesByID map[models.NobleID]models.NobleCode,
+	legs [][]engine.ManeuverLeg,
 ) *ChainView {
 	view := &ChainView{
 		Noble:        nobleCodesByID[chain.NobleID],
 		CurrentIndex: chain.CurrentIndex,
 		Orders:       make([]OrderView, 0, len(chain.Orders)),
 	}
-	for _, order := range chain.Orders {
-		view.Orders = append(view.Orders, projectOrder(order))
+	for index, order := range chain.Orders {
+		view.Orders = append(view.Orders, projectOrder(order, legsOf(legs, index)))
 	}
 	return view
 }
 
+func legsOf(legs [][]engine.ManeuverLeg, index int) []engine.ManeuverLeg {
+	if index < len(legs) {
+		return legs[index]
+	}
+	return nil
+}
+
 // projectOrder converts one parsed or installed order to its public shape.
-func projectOrder(order models.Order) OrderView {
+func projectOrder(order models.Order, legs []engine.ManeuverLeg) OrderView {
 	orderView := OrderView{
+		Legs:     projectLegs(legs),
 		Type:     order.Type,
 		Position: order.PositionID,
 		Liaison:  order.Liaison,
@@ -738,6 +781,9 @@ func projectOrder(order models.Order) OrderView {
 	}
 	if len(order.TargetIDs) != 0 {
 		orderView.Targets = append([]models.TerritoryID(nil), order.TargetIDs...)
+	}
+	if len(order.Counts) != 0 {
+		orderView.Counts = append([]int(nil), order.Counts...)
 	}
 	if len(order.NobleAssignments) != 0 {
 		orderView.NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))

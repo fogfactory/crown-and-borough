@@ -117,8 +117,10 @@ interne de la carte.
   moins une troupe, et peut tuer un noble selon la balance ; un noble tué reçoit
   supprimé de l'état et ne rapporte plus de points. Une chaîne émise pendant le
   tour est supprimée ; une chaîne historique déjà en cours continue.
-- Le mauvais temps bloque les attaques, jonctions, dispersions, pillages et
-  soutiens offensifs provenant de sa région ; le maintien et le soutien défensif
+- Le mauvais temps bloque les attaques, jonctions, dispersions, manœuvres, pillages et
+  soutiens offensifs provenant de sa région ; une manœuvre dont l'armée source
+  est dans une région touchée est invalide, et ses groupes dont la destination
+  est touchée sont retirés ; le maintien et le soutien défensif
   restent possibles. Les moulins de la région ne produisent rien.
 - La famine supprime les rations de terrain de chaque territoire de sa région
   et la production de base des châteaux et villages de la région ; les moulins

@@ -11,7 +11,7 @@ const buildIntentions = (
   drafts: Record<string, string>,
   options?: Parameters<typeof buildIntentionsFromOrders>[4],
 ) => buildIntentionsFromOrders(map, state, player, draftOrders(drafts), options)
-import type { MapData, StateData } from '@/types'
+import type { MapData, Order, StateData } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -305,6 +305,62 @@ describe('buildIntentions', () => {
     ])
     expect(segments[0].from).toEqual([...ROS_CENTROID])
     expect(segments[0].to).toEqual([...ROS_CENTROID])
+  })
+
+  it('draws the legs the server plans for a maneuver', () => {
+    const order: Order = {
+      type: 'maneuver',
+      position: 'ROS',
+      targets: ['BRU', 'CHA'],
+      counts: [1, -1],
+      liaison: 'single',
+      legs: [
+        { target: 'ROS', troops: 1, nobles: ['HUG'] },
+        { target: 'BRU', troops: 1 },
+        { target: 'CHA', troops: 2, nobles: ['JEA'], carriesChain: true },
+      ],
+    }
+    const [intention] = buildIntentionsFromOrders(map, stateWith(), 'P1', {
+      HUG: [order],
+    })
+
+    expect(intention.segments.map((segment) => segment.kind)).toEqual([
+      'loop',
+      'movement',
+      'movement',
+    ])
+    expect(intention.segments[0].nobles).toEqual(['HUG'])
+    expect(intention.segments[1]).not.toHaveProperty('nobles')
+    expect(intention.segments[2].nobles).toEqual(['JEA'])
+    expect(intention.segments[2].carriesChain).toBe(true)
+    expect(intention.segments[0].carriesChain).toBeUndefined()
+  })
+
+  it('shows a wildcard for nobles the server cannot place yet', () => {
+    const order: Order = {
+      type: 'maneuver',
+      position: 'ROS',
+      liaison: 'single',
+      legs: [{ target: 'BRU', troops: 1, anyNobles: true, carriesChain: true }],
+    }
+    const [intention] = buildIntentionsFromOrders(map, stateWith(), 'P1', {
+      HUG: [order],
+    })
+
+    expect(intention.segments[0].nobles).toEqual(['*'])
+  })
+
+  it('ignores a maneuver whose legs leave the neighbourhood', () => {
+    const order: Order = {
+      type: 'maneuver',
+      position: 'ROS',
+      liaison: 'single',
+      legs: [{ target: 'FAR', troops: 1 }],
+    }
+
+    expect(buildIntentionsFromOrders(map, stateWith(), 'P1', { HUG: [order] })).toEqual(
+      [],
+    )
   })
 
   it('numbers the following turn for a disperse draft order', () => {

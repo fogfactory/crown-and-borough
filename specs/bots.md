@@ -41,6 +41,15 @@ est la skill `.opencode/skills/crown-and-borough-league`.
 La partie reprend là où elle s'est arrêtée (`session.json`, mémoires, curseurs
 de lecture) quand la commande est relancée.
 
+## Syntaxe des ordres d'armée
+
+Les bots écrivent leurs chaînes avec la syntaxe des règles joueurs
+(`assets/regles-joueurs.md`, annexe A). Pour répartir ou déplacer pacifiquement
+une armée, ils utilisent la manœuvre `XXX M DEST [DEST …]` (`TER`, `TER/N` ou
+`TER+`) ; la jonction `J`, la dispersion `D` et le maintien `H` sont dépréciés.
+Le prompt système (`cmd/botleague/prompt.go`) et les personas doivent présenter
+`M` ; un test garde les exemples du prompt alignés sur les règles joueurs.
+
 ## Limites connues
 
 - Les modèles gratuits suivent inégalement la syntaxe des ordres : le journal

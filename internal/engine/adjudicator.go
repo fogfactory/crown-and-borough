@@ -557,6 +557,11 @@ func (adj *adjudicator) defenseStrength(defender models.Army) (int, int) {
 	ctx := adj.ctx
 	base := ctx.fortificationBonus(defender.TerritoryID)
 	size := defender.Size
+	maneuver := ctx.maneuvers[defender.ID]
+	if maneuver != nil {
+		// A maneuvering army defends with the troops it keeps on its origin.
+		size = maneuver.remaining
+	}
 	if outcome := adj.peacefulOutcome(defender.ID, adj.peaceful[defender.ID] != nil && adj.dislodged(defender.ID)); outcome.hasResidual {
 		size = outcome.residual
 	}

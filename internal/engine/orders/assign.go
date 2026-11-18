@@ -61,6 +61,7 @@ func AssignChain(game *models.GameState, chain models.Chain) error {
 	received.ID = receivedID
 	received.ArmyID = army.ID
 	received.CurrentIndex = 0
+	received.EmittedTurn = game.Turn
 	for i := range received.Orders {
 		received.Orders[i].ArmyID = army.ID
 		received.Orders[i].Line = 0
