@@ -28,6 +28,7 @@ func newChatFixture(t *testing.T) (*ChatService, *chatGames, *time.Time) {
 	t.Helper()
 	capital := models.InfraID("castle")
 	games := &chatGames{snapshot: GameSnapshot{
+		Phase:     PhaseStarted,
 		ID:        "g1",
 		CreatedBy: "host",
 		Players: []PlayerSlot{

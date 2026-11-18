@@ -67,7 +67,7 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if game.ID == "" || len(game.InviteCode) != store.InvitationCodeLength || !strings.Contains(game.InviteURL, game.InviteCode) {
 		t.Fatalf("created invitation = %#v", game)
 	}
-	if game.CurrentPlayer != "P1" || !game.CanInvite || !game.InviteAvailable {
+	if game.CurrentPlayer != "" || game.Started || game.Lobby == nil || !game.CanInvite || !game.InviteAvailable {
 		t.Fatalf("creator projection = %#v", game)
 	}
 	if strings.Contains(created.Body.String(), store.InvitationCodeHash(game.InviteCode)) {
@@ -82,6 +82,13 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	}
 	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"wrong1"}`, "bob-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("invalid invitation = %d: %s", response.Code, response.Body.String())
+	}
+	// The creator confirms their own house before the game can start.
+	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/confirm", "", "bob-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("non-member confirm = %d: %s", response.Code, response.Body.String())
+	}
+	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/confirm", "", "alice-token"); response.Code != http.StatusOK {
+		t.Fatalf("creator confirm = %d: %s", response.Code, response.Body.String())
 	}
 	joined := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"`+game.InviteCode+`"}`, "bob-token")
 	if joined.Code != http.StatusCreated || !strings.Contains(joined.Body.String(), `"joined":true`) {

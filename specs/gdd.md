@@ -404,7 +404,10 @@ dernier joueur vivant gagne la partie.
 
 ### Génération et graphe
 
-La carte est générée de manière déterministe à partir d'une seed. Elle contient
+La carte est générée de manière déterministe à partir d'une seed. En partie
+online, la seed est celle que les joueurs ont choisie par un vote dans le salon
+d'attente (compte de Borda sur trois candidates, voir `architecture.md`), et la
+carte n'est générée qu'une fois tous les joueurs arrivés. Elle contient
 `8 x joueurs` territoires de jeu et `(joueurs + 1) x 4` territoires
 supplémentaires, et porte `2 x joueurs + 1` villages neutres au total :
 `joueurs + 1` chefs-lieux et un village dédié par territoire de départ (voir

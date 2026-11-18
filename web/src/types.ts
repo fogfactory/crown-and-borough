@@ -160,6 +160,38 @@ export interface GameSlot {
    * never required even before they act). */
   required: boolean
   actorId?: string
+  /** The account behind the house; absent in incognito games. */
+  accountName?: string
+  /** The house submitted orders: an incognito game keeps its name. */
+  nameLocked?: boolean
+}
+
+/** A seed put to the vote of a lobby. */
+export interface SeedCandidate {
+  index: number
+  seed: string
+}
+
+/** What an invitation lets a future member see of a game. */
+export interface JoinPreview {
+  name: string
+  players: number
+  seated: number
+  started: boolean
+  member: boolean
+  seedCandidates: SeedCandidate[]
+}
+
+/** The caller's own part of a game whose lobby is open. */
+export interface GameLobby {
+  /** Seeds put to the vote; empty when the creator imposed the seed. */
+  seedCandidates: SeedCandidate[]
+  /** Own ranking, candidate indexes best first; empty without a vote. */
+  seedRanking: number[]
+  /** House name entered so far. */
+  houseName: string
+  /** The creator has not confirmed their own name and vote: the game waits. */
+  awaitingCreator: boolean
 }
 
 export interface GameSummary {
@@ -174,6 +206,14 @@ export interface GameSummary {
   canInvite?: boolean
   inviteAvailable?: boolean
   spectator?: boolean
+  /** Incognito game: houses carry placeholder names the players replace. */
+  incognito?: boolean
+  /** Incognito game only: every slot is taken, houses are drawn. */
+  started?: boolean
+  /** Incognito game only: how many slots are taken. */
+  seated?: number
+  /** Open lobby, as the caller sees it (REST detail only). */
+  lobby?: GameLobby
   players: GameSlot[]
   turn: number
   season: Season
@@ -467,6 +507,9 @@ export interface MapData {
   /** Absent or null on maps stored before the field existed. */
   cornerContacts?: CornerContact[] | null
 }
+
+/** A candidate map of the lobby: the territories holding the start castles, as a set. */
+export type CandidateMapData = MapData & { starts: string[] }
 
 export type Tincture =
   | 'gules'

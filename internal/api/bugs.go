@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
@@ -316,9 +317,9 @@ func bugReportID(game PlayerGameView, ref string) string {
 }
 
 func reportIDPart(value, fallback string) string {
-	slug := slugAssetName(value)
+	slug := assetgen.Slug(value)
 	if slug == "" {
-		slug = slugAssetName(fallback)
+		slug = assetgen.Slug(fallback)
 	}
 	if slug == "" {
 		slug = "unknown"
