@@ -29,6 +29,7 @@ import { RealmPanel } from '@/components/RealmPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
 import { LineageDialog } from '@/components/LineageDialog'
+import { OutOfSyncDialog } from '@/components/OutOfSyncDialog'
 import { Scoreboard } from '@/components/Scoreboard'
 import { SubmissionDots } from '@/components/SubmissionDots'
 import { Alert, alertToneClassName } from '@/components/ui/alert'
@@ -1036,6 +1037,13 @@ export function GamePage() {
         aria-hidden="true"
         data-season-rule={state.season}
         className={`h-[3px] shrink-0 ${SEASON_TINT_BG[state.season]}`}
+      />
+      <OutOfSyncDialog
+        // The spectator projection is not rewritten on every submission, so its
+        // revision legitimately trails the game document.
+        serverRevision={spectator ? undefined : summary.revision}
+        displayedRevision={view?.revision}
+        connectionLost={subscription.error !== null}
       />
       <div className="shrink-0 space-y-2 px-3 pt-2 empty:hidden sm:px-4">
         {subscription.error &&
