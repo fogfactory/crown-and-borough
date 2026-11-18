@@ -6,10 +6,8 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
-	"unicode"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
-	"golang.org/x/text/unicode/norm"
 )
 
 var errSeedAssetsUnavailable = errors.New("seed assets are unavailable")
@@ -68,25 +66,4 @@ func randomIndex(length int) (int, error) {
 	return int(value.Int64()), nil
 }
 
-func slugAssetName(value string) string {
-	value = norm.NFD.String(strings.ToLower(strings.TrimSpace(value)))
-	var builder strings.Builder
-	pendingHyphen := false
-	for _, character := range value {
-		if unicode.Is(unicode.Mn, character) {
-			continue
-		}
-		if unicode.IsLetter(character) || unicode.IsDigit(character) {
-			if pendingHyphen && builder.Len() > 0 {
-				builder.WriteByte('-')
-			}
-			builder.WriteRune(character)
-			pendingHyphen = false
-			continue
-		}
-		if builder.Len() > 0 {
-			pendingHyphen = true
-		}
-	}
-	return strings.Trim(builder.String(), "-")
-}
+func slugAssetName(value string) string { return assetgen.Slug(value) }

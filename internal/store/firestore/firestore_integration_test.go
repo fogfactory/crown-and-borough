@@ -791,7 +791,7 @@ func TestFirestoreLobbyStartsWithTheLastJoinAndCountsItsEntry(t *testing.T) {
 		t.Fatal("the last join did not start the game")
 	}
 	// Borda: candidate 1 = 2+2+1, candidate 2 = 0+... : candidate 1 wins.
-	if want := store.SeedCandidates(id, 3)[1]; last.Snapshot.Seed != want {
+	if want := store.SeedCandidates(id, 3, assets)[1]; last.Snapshot.Seed != want {
 		t.Fatalf("seed = %s, want candidate 1 %s", last.Snapshot.Seed, want)
 	}
 	if last.Player.Name != "House Arryn" {

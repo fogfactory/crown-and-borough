@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 )
 
 func TestResolveSeedBorda(t *testing.T) {
-	candidates := SeedCandidates("game", 3)
+	candidates := SeedCandidates("game", 3, seedTestAssets(t))
 	cases := []struct {
 		name     string
 		rankings [][]int
@@ -30,7 +32,7 @@ func TestResolveSeedBorda(t *testing.T) {
 }
 
 func TestResolveSeedTieBreakIsDeterministicAndOrderIndependent(t *testing.T) {
-	candidates := SeedCandidates("tie-game", 3)
+	candidates := SeedCandidates("tie-game", 3, seedTestAssets(t))
 	// Two opposed votes tie candidates 0 and 2 (3 points each).
 	votes := [][]int{{0, 1, 2}, {2, 1, 0}}
 	first := ResolveSeed("tie-game", candidates, votes)
@@ -44,8 +46,8 @@ func TestResolveSeedTieBreakIsDeterministicAndOrderIndependent(t *testing.T) {
 	// The tie is broken by the game id: other ids can pick the other candidate.
 	picks := map[string]bool{}
 	for _, id := range []GameID{"a", "b", "c", "d", "e", "f", "g", "h"} {
-		picks[ResolveSeed(id, SeedCandidates(id, 3), votes)] = true
-		if ResolveSeed(id, SeedCandidates(id, 3), votes) != ResolveSeed(id, SeedCandidates(id, 3), votes) {
+		picks[ResolveSeed(id, SeedCandidates(id, 3, seedTestAssets(t)), votes)] = true
+		if ResolveSeed(id, SeedCandidates(id, 3, seedTestAssets(t)), votes) != ResolveSeed(id, SeedCandidates(id, 3, seedTestAssets(t)), votes) {
 			t.Fatal("tie-break is not deterministic")
 		}
 	}
@@ -153,7 +155,7 @@ func TestSeedVoteDecidesTheGameSeedWhateverTheJoinOrder(t *testing.T) {
 	// bob votes after joining in the first run only, carol is a non-voter
 	// (and the last joiner in one run): candidate 2 still wins both.
 	for _, snapshot := range [...]GameSnapshot{first, second} {
-		if want := SeedCandidates(snapshot.ID, 3)[2]; snapshot.Seed != want {
+		if want := SeedCandidates(snapshot.ID, 3, seedTestAssets(t))[2]; snapshot.Seed != want {
 			t.Fatalf("seed = %s, want candidate 2 (%s)", snapshot.Seed, want)
 		}
 	}
@@ -285,7 +287,7 @@ func TestLastJoinerNameAndRankingCountBeforeTheGameStarts(t *testing.T) {
 		t.Fatal("the last join did not report the start")
 	}
 	// Borda: candidate 0 = 2+2+0, candidate 2 = 0+0+2... candidate 0 wins.
-	if want := SeedCandidates(created.ID, 3)[0]; last.Snapshot.Seed != want {
+	if want := SeedCandidates(created.ID, 3, seedTestAssets(t))[0]; last.Snapshot.Seed != want {
 		t.Fatalf("seed = %s, want candidate 0 %s", last.Snapshot.Seed, want)
 	}
 	if last.Player.Name != "House Arryn" {
@@ -302,7 +304,7 @@ func TestLastJoinerNameAndRankingCountBeforeTheGameStarts(t *testing.T) {
 		}
 	}
 	snapshot, err := gameStore2.Get(ctx, Actor{ID: "alice"}, created2.ID)
-	if err != nil || snapshot.Seed != SeedCandidates(created2.ID, 3)[1] {
+	if err != nil || snapshot.Seed != SeedCandidates(created2.ID, 3, seedTestAssets(t))[1] {
 		t.Fatalf("two voters (the last joiner among them) pick candidate 1: seed %q, %v", snapshot.Seed, err)
 	}
 }
@@ -401,5 +403,28 @@ func TestPhaseTracksTheLobby(t *testing.T) {
 	snapshot, err := gameStore.Get(ctx, Actor{ID: "alice"}, created.ID)
 	if err != nil || snapshot.Phase != PhaseStarted || snapshot.Lobby != nil {
 		t.Fatalf("started phase = %q, %v", snapshot.Phase, err)
+	}
+}
+
+func seedTestAssets(t *testing.T) assetgen.Assets {
+	t.Helper()
+	assets, err := assetgen.Load("../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	return assets
+}
+
+func TestSeedCandidatesAreReadableAndDistinct(t *testing.T) {
+	seeds := SeedCandidates("some-game", 3, seedTestAssets(t))
+	seen := map[string]bool{}
+	for _, seed := range seeds {
+		if !strings.Contains(seed, "-de-") || seen[seed] {
+			t.Fatalf("seed %q is not a readable distinct seed in %v", seed, seeds)
+		}
+		seen[seed] = true
+	}
+	if again := SeedCandidates("some-game", 3, seedTestAssets(t)); !slices.Equal(again, seeds) {
+		t.Fatalf("candidates changed between calls: %v then %v", seeds, again)
 	}
 }

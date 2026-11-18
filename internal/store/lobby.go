@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"slices"
@@ -40,8 +41,31 @@ type LobbyView struct {
 }
 
 // SeedCandidates derives the seeds put to the vote from the game id, so every
-// instance and every member sees the same ones.
-func SeedCandidates(id GameID, count int) []string {
+// instance and every member sees the same ones. Like the seed the creation
+// form used to propose, a seed reads "first-name-de-commune", from the names
+// and communes of the game assets, and is distinct from the other candidates.
+func SeedCandidates(id GameID, count int, assets assetgen.Assets) []string {
+	if len(assets.Prenoms) == 0 || len(assets.Communes) == 0 {
+		return hashedSeedCandidates(id, count)
+	}
+	seeds := make([]string, 0, count)
+	seen := make(map[string]bool, count)
+	for index := 0; len(seeds) < count; index++ {
+		digest := sha256.Sum256([]byte(string(id) + "|candidate|" + strconv.Itoa(index)))
+		first := binary.BigEndian.Uint32(digest[0:4]) % uint32(len(assets.Prenoms))
+		commune := binary.BigEndian.Uint32(digest[4:8]) % uint32(len(assets.Communes))
+		seed := assetgen.Slug(assets.Prenoms[first].Name) + "-de-" + assetgen.Slug(assets.Communes[commune].Name)
+		if seen[seed] {
+			continue
+		}
+		seen[seed] = true
+		seeds = append(seeds, seed)
+	}
+	return seeds
+}
+
+// hashedSeedCandidates is the fallback when the assets carry no names.
+func hashedSeedCandidates(id GameID, count int) []string {
 	seeds := make([]string, count)
 	for index := range seeds {
 		digest := sha256.Sum256([]byte(string(id) + "|candidate|" + strconv.Itoa(index)))
@@ -139,7 +163,7 @@ type StartPlan struct {
 // PlayerSlot.AccountName outside incognito games only.
 func PlanStart(in StartInput) (StartPlan, error) {
 	slots := append([]PlayerSlot(nil), in.Slots...)
-	seedCandidates := SeedCandidates(in.GameID, in.Balance.SeedCandidateCount())
+	seedCandidates := SeedCandidates(in.GameID, in.Balance.SeedCandidateCount(), in.Assets)
 	seed := strings.TrimSpace(in.FixedSeed)
 	if seed == "" {
 		rankings := make([][]int, 0, len(slots))
@@ -298,7 +322,7 @@ func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNa
 // have for count houses. Only the map is returned: the start placement is
 // not part of the map contract.
 func GenerateCandidateMap(id GameID, index, count int, balance assetgen.Balance, assets assetgen.Assets) (mapgen.MapData, error) {
-	candidates := SeedCandidates(id, balance.SeedCandidateCount())
+	candidates := SeedCandidates(id, balance.SeedCandidateCount(), assets)
 	if index < 0 || index >= len(candidates) {
 		return mapgen.MapData{}, ErrInvalidCandidate
 	}

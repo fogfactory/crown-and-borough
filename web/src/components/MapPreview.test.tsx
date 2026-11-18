@@ -46,6 +46,26 @@ describe('MapPreview', () => {
     expect(container.querySelector('svg')?.getAttribute('aria-label')).toBe('Candidate')
   })
 
+  it('marks the start castles, the villages and the region seats', () => {
+    const marked = {
+      territories: [
+        { ...territory('AAA', 0), village: false },
+        { ...territory('BBB', 10), village: true },
+        { ...territory('CCC', 20), village: true },
+      ],
+      regions: [
+        { id: 'R1', name: 'North', seed: 'BBB', territories: ['AAA', 'BBB'] },
+        { id: 'R2', name: 'South', seed: 'CCC', territories: ['CCC'] },
+      ],
+      starts: ['AAA', 'CCC'],
+    } as unknown as MapData
+    const { container } = render(<MapPreview map={marked} label="Candidate" />)
+    expect(container.querySelectorAll('[data-preview-castle]')).toHaveLength(2)
+    // A village that holds a castle is drawn as the castle only.
+    expect(container.querySelectorAll('[data-preview-village]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-preview-seat]')).toHaveLength(2)
+  })
+
   it('draws nothing for an empty map', () => {
     const { container } = render(
       <MapPreview map={{ territories: [], regions: [], starts: [] } as unknown as MapData} label="x" />,

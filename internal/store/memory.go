@@ -511,7 +511,7 @@ func (s *MemoryStore) JoinPreview(ctx context.Context, actor Actor, id GameID, c
 	}
 	preview.Seated = SeatedCount(game.players)
 	if !game.started() && game.fixedSeed == "" {
-		preview.SeedCandidates = SeedCandidates(id, s.balance.SeedCandidateCount())
+		preview.SeedCandidates = SeedCandidates(id, s.balance.SeedCandidateCount(), s.assets)
 	}
 	return preview, nil
 }
@@ -1118,7 +1118,7 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame, actor Actor) (GameSnapsho
 			entry := game.lobby[strings.TrimSpace(actor.ID)]
 			view := &LobbyView{SeedCandidates: []string{}, SeedRanking: append([]int{}, entry.SeedRanking...), HouseName: entry.HouseName}
 			if game.fixedSeed == "" {
-				view.SeedCandidates = SeedCandidates(game.id, s.balance.SeedCandidateCount())
+				view.SeedCandidates = SeedCandidates(game.id, s.balance.SeedCandidateCount(), s.assets)
 			}
 			snapshot.Lobby = view
 		}

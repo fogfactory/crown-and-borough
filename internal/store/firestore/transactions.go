@@ -1314,7 +1314,7 @@ func (s *FirestoreStore) JoinPreview(ctx context.Context, actor store.Actor, id 
 		Member:    member,
 	}
 	if game.inLobby() && game.FixedSeed == "" {
-		preview.SeedCandidates = store.SeedCandidates(id, s.balance.SeedCandidateCount())
+		preview.SeedCandidates = store.SeedCandidates(id, s.balance.SeedCandidateCount(), s.assets)
 	}
 	return preview, nil
 }

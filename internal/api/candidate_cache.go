@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sort"
 	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -14,6 +15,13 @@ import (
 // evicted when full, since a lobby is short-lived and regeneration is only
 // slow.
 const candidateMapCacheSize = 128
+
+// candidatePreview is the map contract plus the territories holding the
+// start castles.
+type candidatePreview struct {
+	mapgen.MapData
+	Castles []string `json:"starts"`
+}
 
 // candidateMap is a generated candidate map, kept as the JSON it is served as
 // with the ETag of that body.
@@ -95,7 +103,11 @@ func encodeCandidateMap(generate func() (mapgen.MapData, error)) (candidateMap, 
 	if err != nil {
 		return candidateMap{}, err
 	}
-	body, err := json.Marshal(data)
+	// The preview shows where the castles stand, as a sorted set: nothing says
+	// which house gets which start, so the draw stays secret.
+	starts := append([]string(nil), data.Starts...)
+	sort.Strings(starts)
+	body, err := json.Marshal(candidatePreview{MapData: data, Castles: starts})
 	if err != nil {
 		return candidateMap{}, err
 	}

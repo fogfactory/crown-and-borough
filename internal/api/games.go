@@ -712,7 +712,7 @@ func (h *GamesHandler) seedCandidateMap(w http.ResponseWriter, r *http.Request, 
 		h.writeStoreError(w, err)
 		return
 	}
-	w.Header().Set("Cache-Control", "private, max-age=3600")
+	w.Header().Set("Cache-Control", "private, no-cache")
 	w.Header().Set("ETag", entry.etag)
 	if r.Header.Get("If-None-Match") == entry.etag {
 		w.WriteHeader(http.StatusNotModified)

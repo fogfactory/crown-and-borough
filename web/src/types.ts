@@ -504,6 +504,8 @@ export interface MapData {
   regions?: Region[]
   /** Absent or null on maps stored before the field existed. */
   cornerContacts?: CornerContact[] | null
+  /** Candidate-map previews only: the territories holding the start castles, as a set. */
+  starts?: string[]
 }
 
 export type Tincture =

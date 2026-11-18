@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 
@@ -97,16 +98,18 @@ func TestLobbyHidesTheBoardAndAcceptsVotesAndNames(t *testing.T) {
 
 	// The candidate maps reveal the map only, to members only.
 	status, candidate := env.call(http.MethodGet, "/seed-candidates/1/map", "alice", "")
-	if status != http.StatusOK || len(candidate["territories"].([]any)) == 0 || candidate["starts"] != nil {
+	if status != http.StatusOK || len(candidate["territories"].([]any)) == 0 {
 		t.Fatalf("candidate map = %d", status)
 	}
-	if strings.Contains(requestGames(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "").Body.String(), `"starts"`) {
-		t.Fatal("candidate map reveals the start placement")
+	// The castles are shown as a set; the houses they go to are not.
+	starts, _ := candidate["starts"].([]any)
+	if len(starts) == 0 || !sort.SliceIsSorted(starts, func(i, j int) bool { return starts[i].(string) < starts[j].(string) }) {
+		t.Fatalf("candidate map starts = %v, want the sorted start castles", candidate["starts"])
 	}
 	// The browser may keep the map, but the authorization is checked every time.
 	first := requestGames(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "")
 	etag := first.Header().Get("ETag")
-	if etag == "" || !strings.HasPrefix(first.Header().Get("Cache-Control"), "private, max-age=") {
+	if etag == "" || !strings.Contains(first.Header().Get("Cache-Control"), "private") {
 		t.Fatalf("candidate map headers = %v", first.Header())
 	}
 	revalidated := requestGamesWithHeaders(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "", map[string]string{"If-None-Match": etag})

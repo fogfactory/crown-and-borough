@@ -444,7 +444,7 @@ func (s *FirestoreStore) buildLobbySnapshot(actor store.Actor, game gameDocument
 			HouseName:      game.HouseNames[strings.TrimSpace(actor.ID)],
 		}
 		if game.FixedSeed == "" {
-			view.SeedCandidates = store.SeedCandidates(game.ID, s.balance.SeedCandidateCount())
+			view.SeedCandidates = store.SeedCandidates(game.ID, s.balance.SeedCandidateCount(), s.assets)
 		}
 		snapshot.Lobby = view
 	}
