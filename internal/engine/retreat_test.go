@@ -619,3 +619,54 @@ func retreatForArmy(events []Event, armyID models.ArmyID) (Event, bool) {
 	}
 	return Event{}, false
 }
+
+// A retreat onto an empty territory appends to state.Armies; a later retreat
+// onto a friendly host in the same turn must still merge into the host that
+// ends up in the resolved state (#708). The armies slice is exactly full, so
+// the first append reallocates it.
+func TestResolveRetreatFriendlyArmyMergeAfterEmptyRetreatAppend(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB", "FFF"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "DDD", "EEE"),
+			territory("DDD", "DDD", "CCC"),
+			territory("EEE", "EEE", "CCC"),
+			territory("FFF", "FFF", "AAA"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 2},
+			{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 2},
+			{ID: "A4", OwnerID: "P2", TerritoryID: "DDD", Size: 3},
+			{ID: "A5", OwnerID: "P1", TerritoryID: "EEE", Size: 2},
+		},
+	)
+	state.Armies = state.Armies[:len(state.Armies):len(state.Armies)]
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	addNoble(state, "N3", "THR", "P1", "CCC")
+	addNoble(state, "N4", "FOU", "P2", "DDD")
+	addNoble(state, "N5", "FIV", "P1", "EEE")
+	setTerritoryResources(state, "EEE", 10)
+	setTerritoryResources(state, "FFF", 10)
+
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "CCC"})
+	addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "DDD", TargetIDs: []models.TerritoryID{"CCC"}})
+	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "EEE"})
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if a1 := armyByID(t, resolution.State, "A1"); a1.TerritoryID != "FFF" {
+		t.Errorf("A1 territory = %q, want FFF", a1.TerritoryID)
+	}
+	// A3 (size 2) merges 1 troop into A5 (size 2).
+	if a5 := armyByID(t, resolution.State, "A5"); a5.Size != 3 {
+		t.Errorf("A5 size = %d, want 3 (2 + 1 merged)", a5.Size)
+	}
+}
