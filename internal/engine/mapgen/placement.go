@@ -73,7 +73,59 @@ func bfsDistances(adjacency [][]int, n, start int) []int {
 	return distance
 }
 
-// selectStarts jointly chooses count starting territories and, for each, a
+// selectStarts draws several valid start placements and keeps the fairest:
+// the one that leaves the least-served start the largest share of the map,
+// measured as the territories at least as close to it as to any other start.
+// A placement that squeezes one player between two others, or packs all the
+// players on one side, leaves that player a small share and loses.
+func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []models.Terrain, count int) (starts, homes []int, err error) {
+	starts, homes, err = searchStarts(rng, distances, edges, terrain, count, startSearchBudget)
+	if err != nil {
+		return nil, nil, err
+	}
+	bestShare, bestSpread := startShareRange(distances, starts)
+	for trial := 1; trial < startTrials; trial++ {
+		candidate, candidateHomes, err := searchStarts(rng, distances, edges, terrain, count, startTrialBudget)
+		if err != nil {
+			continue
+		}
+		share, spread := startShareRange(distances, candidate)
+		if share > bestShare || (share == bestShare && spread < bestSpread) {
+			starts, homes, bestShare, bestSpread = candidate, candidateHomes, share, spread
+		}
+	}
+	return starts, homes, nil
+}
+
+// startShareRange returns the smallest start share and the gap between the
+// largest and the smallest. A site equally close to several starts is split
+// between them.
+func startShareRange(distances [][]int, starts []int) (smallest, spread float64) {
+	shares := make([]float64, len(starts))
+	for site := range distances {
+		nearest, ties := -1, 0
+		for _, start := range starts {
+			switch {
+			case nearest < 0 || distances[start][site] < nearest:
+				nearest, ties = distances[start][site], 1
+			case distances[start][site] == nearest:
+				ties++
+			}
+		}
+		for index, start := range starts {
+			if distances[start][site] == nearest {
+				shares[index] += 1 / float64(ties)
+			}
+		}
+	}
+	smallest, largest := shares[0], shares[0]
+	for _, share := range shares[1:] {
+		smallest, largest = math.Min(smallest, share), math.Max(largest, share)
+	}
+	return smallest, largest - smallest
+}
+
+// searchStarts jointly chooses count starting territories and, for each, a
 // dedicated home village at graph distance exactly homeVillageDistance. The
 // two are chosen together by backtracking over both starts and homes at
 // once: picking every start first and only then hunting for a compatible
@@ -86,7 +138,7 @@ func bfsDistances(adjacency [][]int, n, start int) []int {
 // viability (#203), so ineligible sites are filtered out of the start
 // candidate pool before the search begins. Home villages are not
 // constrained this way and are still drawn from every site.
-func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []models.Terrain, count int) (starts, homes []int, err error) {
+func searchStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []models.Terrain, count, budget int) (starts, homes []int, err error) {
 	n := len(distances)
 	if count < 1 {
 		return nil, nil, fmt.Errorf("mapgen: starting position count must be positive, got %d", count)
@@ -119,7 +171,6 @@ func selectStarts(rng *rand.Rand, distances [][]int, edges [][2]int, terrain []m
 	usedAsHome := make([]bool, n)
 	starts = make([]int, 0, count)
 	homes = make([]int, 0, count)
-	budget := startSearchBudget
 	if !backtrackStarts(startOrder, distances, homeCandidates, count, 0, &starts, &homes, usedAsStart, usedAsHome, &budget) {
 		if budget <= 0 {
 			return nil, nil, fmt.Errorf("%w placing %d starting positions", errStartSearchBudget, count)
@@ -253,6 +304,13 @@ func homeCompatible(distances [][]int, starts, homes []int, home int) bool {
 // order with no valid placement would otherwise be explored exhaustively;
 // running out of budget fails the attempt so generation retries another draw.
 const startSearchBudget = 200_000
+
+// startTrials is the number of valid start placements compared for fairness.
+// The first trial gets the full budget so a placement is found whenever one
+// is reachable; the others only refine it and get a small share.
+const startTrialBudget = startSearchBudget / 10
+
+var startTrials = 24
 
 var errStartSearchBudget = errors.New("mapgen: start search budget exhausted")
 

@@ -369,7 +369,11 @@ franchissables eux-mêmes non montagneux : cette réserve garantit à la fois qu
 la garnison de départ ne meurt jamais de faim et qu'il existe assez de
 territoires voisins viables pour y placer les avant-postes de départ. Les
 territoires de départ sont séparés d'au moins quatre étapes dans le graphe des
-frontières franchissables. Un château y est construit gratuitement et devient
+frontières franchissables. Parmi les placements valides, la génération retient le plus équitable :
+celui qui laisse au joueur le moins bien servi la plus grande part de la carte,
+mesurée en territoires au moins aussi proches de son départ que de tout autre
+(une égalité de distance partage le territoire). Aucun joueur n'est ainsi
+enclavé entre deux rivaux ni relégué dans un coin. Un château y est construit gratuitement et devient
 la capitale par défaut. Le joueur y reçoit sa garnison, ses nobles et ses
 ressources de départ selon `assets/balance.yaml` ; il reçoit en outre
 `starting_outposts` armées d'une troupe chacune, placées dès le début de la
