@@ -179,7 +179,13 @@ func PlanStart(in StartInput) (StartPlan, error) {
 	inits := make([]engine.PlayerInit, len(slots))
 	for index := range slots {
 		if names[index] == "" {
+			// The placeholder must not collide with a name a member entered
+			// (someone may have typed "P2").
 			names[index] = string(slots[index].ID)
+			for taken[strings.ToLower(names[index])] {
+				names[index] += "'"
+			}
+			taken[strings.ToLower(names[index])] = true
 		}
 		slots[index].Name = names[index]
 		slots[index].NameLocked = false

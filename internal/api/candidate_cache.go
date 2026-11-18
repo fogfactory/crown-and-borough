@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -63,15 +64,18 @@ func (c *candidateMapCache) get(key string, generate func() (mapgen.MapData, err
 	c.inflight[key] = call
 	c.mu.Unlock()
 
+	// Settle the call even if the generator panics, so waiters never hang.
+	call.err = errors.New("candidate map generation did not complete")
+	defer func() {
+		c.mu.Lock()
+		delete(c.inflight, key)
+		if call.err == nil {
+			c.putLocked(key, call.data)
+		}
+		c.mu.Unlock()
+		close(call.done)
+	}()
 	call.data, call.err = encodeCandidateMap(generate)
-
-	c.mu.Lock()
-	delete(c.inflight, key)
-	if call.err == nil {
-		c.putLocked(key, call.data)
-	}
-	c.mu.Unlock()
-	close(call.done)
 	return call.data, call.err
 }
 

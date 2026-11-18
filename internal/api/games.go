@@ -633,8 +633,8 @@ type joinPreviewView struct {
 	SeedCandidates []seedCandidateView `json:"seedCandidates"`
 }
 
-// renameHouse sets the name of the actor's house in an incognito game and
-// announces it in the public chat.
+// renameHouse sets the name of the actor's house (a pending name in the lobby,
+// a rename once started) and announces a rename in the public chat.
 func (h *GamesHandler) renameHouse(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
 	renamer, ok := h.store.(interface {
 		RenameHouse(context.Context, store.Actor, store.GameID, string) (store.RenameResult, error)
