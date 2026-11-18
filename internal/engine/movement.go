@@ -1627,6 +1627,10 @@ func executeRetreats(ctx *resolutionContext) error {
 		}
 	}
 
+	// Retreating armies are appended only after every merge: an append may
+	// reallocate ctx.state.Armies, leaving the pointers in ctx.armiesByID (and
+	// so a friendly host) aimed at the old array, where a merge would be lost.
+	var relocated []models.Army
 	for _, entry := range entries {
 		plan := plans[entry.armyID]
 		if plan.destroyReason != "" {
@@ -1675,7 +1679,7 @@ func executeRetreats(ctx *resolutionContext) error {
 
 		army := displacedArmy
 		army.TerritoryID = plan.destinationID
-		ctx.state.Armies = append(ctx.state.Armies, army)
+		relocated = append(relocated, army)
 		ctx.moveNobles(plan.dislodged.nobleIDs, plan.destinationID, army.ID)
 		ctx.events = append(ctx.events, Event{
 			Type:             EventTypeRetreat,
@@ -1688,6 +1692,7 @@ func executeRetreats(ctx *resolutionContext) error {
 			Outcome:          OutcomeSuccess,
 		})
 	}
+	ctx.state.Armies = append(ctx.state.Armies, relocated...)
 
 	if err := ctx.rebuildOccupancy(); err != nil {
 		return err
