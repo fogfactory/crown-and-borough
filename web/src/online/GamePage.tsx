@@ -56,6 +56,7 @@ import { internalYear, ownerName, totalTurns } from '@/lib/game-progress'
 import { useGameIntentions } from '@/lib/use-game-intentions'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS, SEASON_TINT_BG } from '@/lib/season'
+import { loadDrafts, saveDrafts } from '@/lib/draft-storage'
 import { useLocalStorageState } from '@/lib/storage'
 import {
   normalizeGameSummary,
@@ -397,6 +398,55 @@ export function GamePage() {
     stateTurn,
     summaryRevision,
   ])
+
+  // Drafts live in localStorage so a reload (e.g. after a new deploy) keeps them.
+  const draftsRestoredRef = useRef<string | null>(null)
+  useEffect(() => {
+    const draftsKey = `${gameId}.${playerID}`
+    if (draftsRestoredRef.current === draftsKey || !gameId || !playerID || !state) return
+    draftsRestoredRef.current = draftsKey
+    // Also empties the drafts of the previous game when the route changes.
+    const stored = loadDrafts(gameId, playerID, state.turn)
+    setChainDrafts(stored?.chains ?? {})
+    setWinterDraft(stored?.winter ?? '')
+    setSpecialDraft(stored?.special ?? '')
+  }, [gameId, playerID, state])
+
+  // Debounced: one write per pause in typing. The pending write is flushed when
+  // the page is hidden or the component unmounts, so a reload right after
+  // typing keeps the draft.
+  const draftTurn = state?.turn
+  const pendingDraftSave = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    if (
+      draftsRestoredRef.current !== `${gameId}.${playerID}` ||
+      !gameId ||
+      !playerID ||
+      draftTurn === undefined
+    ) {
+      return
+    }
+    const save = () => {
+      pendingDraftSave.current = null
+      saveDrafts(gameId, playerID, {
+        turn: draftTurn,
+        chains: chainDrafts,
+        winter: winterDraft,
+        special: specialDraft,
+      })
+    }
+    pendingDraftSave.current = save
+    const timer = window.setTimeout(save, 300)
+    return () => window.clearTimeout(timer)
+  }, [chainDrafts, draftTurn, gameId, playerID, specialDraft, winterDraft])
+  useEffect(() => {
+    const flush = () => pendingDraftSave.current?.()
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [])
 
   const serverChains = useMemo(() => {
     const result: Record<string, string> = {}
