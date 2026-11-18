@@ -212,7 +212,6 @@ func newGameStore(ctx context.Context, balance assetgen.Balance, assets assetgen
 		return store.NewMemoryStoreWithOptions(balance, assets, store.MemoryStoreOptions{
 			PrivacyTracker:   api.TrackTurnPrivacy,
 			StrictMembership: false,
-			MaximumPlayers:   engine.MaximumGamePlayers,
 		}), func() {}, nil
 	}
 	persistent, err := firestorestore.NewFromEnv(ctx, balance, assets, firestorestore.Options{

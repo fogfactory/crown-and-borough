@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 // Config describes one league: the server to play on, the game to create or
@@ -210,8 +212,8 @@ func (c *Config) normalize(baseDir string) error {
 		providers[name] = provider
 	}
 	c.Providers = providers
-	if len(c.Players) < 2 || len(c.Players) > 8 {
-		return fmt.Errorf("players: between 2 and 8 houses are required, got %d", len(c.Players))
+	if len(c.Players) < models.MinimumGamePlayers || len(c.Players) > models.MaximumGamePlayers {
+		return fmt.Errorf("players: between %d and %d houses are required, got %d", models.MinimumGamePlayers, models.MaximumGamePlayers, len(c.Players))
 	}
 	seen := map[string]bool{}
 	for index := range c.Players {

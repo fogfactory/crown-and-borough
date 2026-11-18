@@ -386,7 +386,7 @@ développement. La politique de divulgation est la suivante :
 - la carte et les valeurs dynamiques chiffrées restent communes ;
 - `handLimit` est la limite de main partagée (`special_orders.hand_limit`), commune à `specialHand` et `nobleHand` (cartes de noble et de dignité), et publique ;
 - `specialHand` contient uniquement les kinds bonus de la main du joueur courant ; la pioche, la défausse et les IDs internes restent absents ;
-- `nobleHand` contient uniquement les cartes du deck de nobles de la main du joueur courant (`id`, `kind` `noble` ou `dignity`, `code`, et selon le kind `name` et `sex` ou `dignity`) ; `nobleDeckSize` est le nombre de cartes restant dans la pioche et `nobleDiscardSize` le nombre de cartes de la défausse, publics ; l'ordre de la pioche et les mains des autres joueurs restent absents. Chaque noble de `nobles` expose ses `dignities` (par exemple `bastard`), publiques ;
+- `nobleHand` contient uniquement les cartes du deck de nobles de la main du joueur courant (`id`, `kind` `noble` ou `dignity`, `code`, et selon le kind `name` et `sex` ou `dignity`) ; `nobleDeckSize` est le nombre de cartes restant dans la pioche et `nobleDiscardSize` le nombre de cartes de la défausse, publics ; `specialDeckSize` est le nombre de cartes (bonus et calamités) restant dans la pioche du deck spécial, public lui aussi ; `specialDeckCards` (`kind`, `count`) et `nobleDeckCards` (`kind`, `code`, `name`/`sex`/`dignity`, `count`) listent le contenu complet de chaque deck (pioche, défausse, mains, cartes en jeu et réserve), identique pour tous les joueurs et indépendant de l'emplacement de chaque carte (le deck de nobles change à la mort d'un noble : sa carte sort et une nouvelle la remplace ; l'interface les affiche dans le popover ouvert par les compteurs de deck) ; l'ordre de la pioche et les mains des autres joueurs restent absents. Chaque noble de `nobles` expose ses `dignities` (par exemple `bastard`), publiques ;
 - un joueur voit le détail des chaînes qu'il a émises, ainsi que celles émises
   par un noble qu'il détient comme otage, tant que la chaîne reste compatible
   avec la progression de l'armée ;
@@ -470,7 +470,7 @@ valide dans le header Bearer. Les tokens ne sont pas stockés par l'application.
 En mode de développement (`ONLINE_DEV_MODE=true`), l'identité du joueur n'est
 pas authentifiée : l'API de parties accepte `?player=P1` ou l'en-tête
 `X-Dev-Player`, et `P1` par défaut. Le store mémoire crée au démarrage une
-partie hotseat décrite par `SEED` et `PLAYERS` (2 à 16 joueurs, 4 par défaut),
+partie hotseat décrite par `SEED` et `PLAYERS` (2 à 12 joueurs, 4 par défaut),
 dont `P1` est l'hôte : il peut forcer la résolution. Le hotseat du navigateur
 utilise uniquement cette API ; il n'existe plus de routes hotseat dédiées.
 
@@ -504,7 +504,7 @@ fournie par le navigateur. `RATE_LIMIT_REQUESTS` (120 ; `0` désactive) et
 
 ### Contrat MVP hébergé
 
-Le MVP accepte plusieurs parties, chacune avec deux à huit joueurs online.
+Le MVP accepte plusieurs parties, chacune avec deux à douze joueurs.
 L'identifiant de partie est conservé dans toutes les routes. La liste des
 parties est filtrée par l'appartenance du joueur ; il n'existe plus de conflit
 global lorsqu'une autre partie est déjà active.
@@ -517,7 +517,7 @@ global lorsqu'une autre partie est déjà active.
 | `PUT` | `/api/auth/me/notifications` | Met à jour les notifications par email du profil courant. Corps : `newTurn` (nouveau tour dans une partie du joueur), `privateMessage` (message privé reçu par sa maison), `publicMessage` (message d'une autre maison dans le salon public), `reduceWhenActive` (pas d'email si le joueur était actif au moment de l'événement ; sans effet tant qu'aucune des trois notifications n'est activée) — booléens — et `language` (`fr` ou `en`, langue des emails, choisie dans le profil ; le front enregistre celle de l'application avec le premier réglage sauvegardé) ; au moins un champ, les champs absents sont conservés ; `400` sinon. Tout est désactivé par défaut : un profil sans ces champs n'envoie aucun email. Renvoie le profil. Le contenu des emails et leurs règles d'envoi sont décrits dans [`chat.md`](chat.md) et [`online.md`](online.md). |
 | `GET` | `/api/bugs` | Authentifié. Renvoie `{ "enabled": bool }` : `false` tant que ni la GitHub App (`GITHUB_BUG_APP_*`) ni `GITHUB_BUG_TOKEN` ne sont configurés. |
 | `POST` | `/api/bugs` | Authentifié. Corps (256 Kio max) : `title` (≤ 120 car.), `description` (≤ 4000 car.), `gameId` (optionnel) et `context` (capture du navigateur : version, user agent, page, derniers appels API sans en-têtes ni corps ; aucun état de jeu). Le serveur lit lui-même la projection de `gameId` visible par le joueur (celle de `GET /api/games/{id}/state`) et la range, masquée, dans la collection Firestore privée `bugReports` (hors de `games`, lecture et écriture réservées au backend), sous un identifiant lisible `<partie>-t<tour>-<joueur>-<suffixe aléatoire>`  ; l'issue ne cite que le suffixe aléatoire `ref` (l'identifiant complet nomme la partie et le joueur), ou `Game view: unavailable` si le joueur n'est pas membre de la partie, jamais la vue elle-même. Le document est créé sans jamais écraser un rapport existant (suffixe aléatoire de 48 bits), supprimé si GitHub refuse l'issue, puis complété par `issueUrl` seul. Il porte aussi `ref`, `gameId`, `turn`, `playerId`, `uid`, `title` et `createdAt` et se retrouve dans la console par `ref` ou `issueUrl` ; il se supprime librement depuis la console. En développement sans Firestore, la collection est en mémoire. Les clés, jetons et paramètres d'URL sensibles sont masqués à toute profondeur. Crée une issue **publique** GitHub (label `bug`) au nom de la GitHub App installée sur le dépôt (JWT RS256 échangé contre un jeton d'installation d'une heure, mis en cache ; `GITHUB_BUG_TOKEN` sert de repli en local) ; le corps est tronqué sous la limite GitHub. `503 bug_reports_disabled` sans jeton, `429` au-delà de 3 signalements par 10 min et par joueur (30 par heure au total), `502` si GitHub refuse. Renvoie `201 { "url" }`. |
-| `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. Une partie online (membership strict) démarre dans un **salon d'attente**, voir ci-dessous. `incognito: true` (faux par défaut) masque les noms de compte ; `seed` non vide impose la graine (pas de vote). |
+| `POST` | `/api/games` | Crée une partie avec deux à douze slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. Une partie online (membership strict) démarre dans un **salon d'attente**, voir ci-dessous. `incognito: true` (faux par défaut) masque les noms de compte ; `seed` non vide impose la graine (pas de vote). |
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
 | `POST` | `/api/games/{id}/house-name` | Corps : `{ "name": "..." }`. Nomme la maison du joueur connecté (même normalisation que le nom affiché, 1 à 32 caractères). Dans le salon (`started: false`) le nom est seulement enregistré, sans message ; une fois la partie commencée il renomme la maison (slot et joueur de l'état, révision incrémentée, vues Firestore rafraîchies) et écrit dans le salon public un message système (`kind: "house_renamed"`, `body` = nouveau nom, `previousName`, auteur = la maison, sans limite de débit ni notification email). Le nom doit différer, sans tenir compte de la casse, de celui des autres maisons (`409 house_name_taken`) ; il se change tant que la maison n'a rien soumis (`PlayerSlot.NameLocked`, exposé en `nameLocked`, posé par la première soumission ; ensuite `409 house_name_locked`) ; `400 invalid_house_name`. Réponse : le détail de la partie et le slot `player` (vide dans le salon). |
@@ -826,14 +826,15 @@ grammaire des chaînes de nobles. Les infrastructures absentes du modèle v1 ne
 possèdent ni symbole de parser ni coût dans `balance.yaml`.
 
 Le deck de nobles est une donnée persistée de l'état de partie, `nobleDeck`
-(`cards`, `drawPile`, `discard`, `hands` par joueur, `played`, `reshuffles`,
-`namePool`), absente de la vue `state.json` hors `nobleHand`, `nobleDeckSize`
+(`cards`, `drawPile`, `discard`, `hands` par joueur, `played`, `reserve`,
+`reshuffles`, `namePool`), absente de la vue `state.json` hors `nobleHand`, `nobleDeckSize`
 et `nobleDiscardSize` ci-dessus. Il est généré à la
 création de la partie à partir de la seed, une fois les nobles de départ
-tirés : `joueurs × (noble_limit_max + 1)` cartes, réduit pour que chaque carte
-de noble reçoive un nom libre de `prenoms.csv`, réparties à parts égales entre
-les sexes, dont `max(1, taille / max(joueurs − 1, 4))` cartes de dignité
-(bâtard, code `BAS`). Une carte jouée passe dans `played`, liée au noble sur lequel elle
+tirés : `joueurs × (noble_limit_max + 1)` cartes de noble, réduit pour que chacune
+reçoive un nom libre de `prenoms.csv`, réparties à parts égales entre les
+sexes, plus `2 × joueurs` cartes de bâtard (code `BAS`), et une carte de noble
+homme de plus mise de côté dans `reserve`, jamais distribuée : le Chevalier
+d'Éon y prend l'identité masculine de sa noble. Une carte jouée passe dans `played`, liée au noble sur lequel elle
 agit (`{card, noble}`), tant que celui-ci vit. À la mort du noble, sa carte de
 noble sort de `cards` et une nouvelle carte de noble du même sexe, prise dans
 `namePool` (les prénoms que ni une carte, ni un noble, ni un noble mort
@@ -872,7 +873,7 @@ un contrat de vue distinct, pas une modification silencieuse du cœur v1.
 
 ## 10. MVP online
 
-Le déploiement online gère plusieurs parties de deux à huit joueurs.
+Le déploiement online gère plusieurs parties de deux à douze joueurs.
 L'identifiant de partie est conservé dans les routes `/api/games/{id}` et la
 liste est filtrée par membership.
 

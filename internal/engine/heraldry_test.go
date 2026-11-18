@@ -29,7 +29,7 @@ func TestSeatArmsFollowsTheCharterTable(t *testing.T) {
 
 func TestSeatArmsNeverRepeatInAHotseatGame(t *testing.T) {
 	seen := map[models.Arms]int{}
-	for index := 0; index < MaximumGamePlayers; index++ {
+	for index := 0; index < models.MaximumGamePlayers; index++ {
 		arms, _ := SeatArms(index)
 		if previous, ok := seen[arms]; ok {
 			t.Fatalf("seats %d and %d share the arms %+v", previous, index, arms)

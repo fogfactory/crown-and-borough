@@ -339,7 +339,23 @@ automne.
 La limite de main, le remplissage automatique, la taille et la composition du
 deck, ainsi que les capacités des slots de calamité, sont chargées depuis
 `assets/balance.yaml`. La génération initiale du deck est déterministe à partir
-de la seed de partie. Chaque calamité tirée est programmée sur une saison de
+de la seed de partie.
+
+Le deck grandit avec le nombre de joueurs `N` : `bonus_cards_base +
+bonus_cards_per_player × N` cartes bonus (6 + 6 N) et `calamity_cards_base +
+calamity_cards_per_player × N` calamités (2 + N), soit 22 cartes à 2 joueurs et
+64 à 8 ; chaque famille est répartie selon `bonus_weights` et
+`calamity_weights`, chaque kind de poids positif figurant au moins une fois (la
+peste existe même à 2 joueurs ; le kind le plus fourni cède la carte). Le
+calibrage tient deux invariants : avec 4 cartes bonus en main chez chaque
+joueur, un joueur qui pioche 2 cartes rencontre au moins une
+calamité une fois sur deux ; et il reste au moins 6 cartes bonus à piocher même
+quand toutes les mains sont pleines (`hand_limit` cartes chacune). Les places
+de calamité par saison valent `calamity_slots` plus une par tranche de
+`calamity_slot_players_per_extra` joueurs (4) : une par saison à 2–3 joueurs,
+deux à 4–7, trois à 8. La vue d'état expose `specialDeckSize`, le nombre de
+cartes (bonus et calamités) qui restent dans la pioche, affiché dans le
+compteur de main du panneau d'ordres avec celui du deck de nobles. Chaque calamité tirée est programmée sur une saison de
 l'année suivante tirée au hasard parmi celles dont les slots ne sont pas
 pleins. Au printemps, l'augure révèle le kind, la saison et la
 région de toutes les calamités de l'année ; les augures futures restent cachées.
@@ -362,8 +378,7 @@ Le détail des cartes est suivi dans [`ordres-speciaux.md`](ordres-speciaux.md).
 
 ### Joueurs, départ et élimination
 
-Une partie accepte de 2 à 16 joueurs dans le moteur ; une partie en ligne est
-limitée à 2 à 8 joueurs. Chaque joueur commence sur un territoire distinct qui
+Une partie accepte de 2 à 12 joueurs, en ligne comme en local. Chaque joueur commence sur un territoire distinct qui
 n'est ni un village ni une montagne, et qui compte au moins deux voisins
 franchissables eux-mêmes non montagneux : cette réserve garantit à la fois que
 la garnison de départ ne meurt jamais de faim et qu'il existe assez de

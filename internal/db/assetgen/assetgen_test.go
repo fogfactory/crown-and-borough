@@ -100,12 +100,15 @@ starting_resources: 10
 special_orders:
   hand_limit: 4
   draw_orders_limit: 2
-  deck_size: 30
-  calamity_percentage: 30
+  bonus_cards_base: 6
+  bonus_cards_per_player: 6
+  calamity_cards_base: 2
+  calamity_cards_per_player: 1
   calamity_slots:
     spring: 1
     summer: 1
     autumn: 1
+  calamity_slot_players_per_extra: 4
   calamity_weights:
     plague: 1
     bad_weather: 6

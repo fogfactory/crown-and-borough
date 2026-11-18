@@ -12,6 +12,21 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// Games hold 2 to 12 players, whichever way they are created.
+func TestMemoryStoreAcceptsTwoToTwelvePlayers(t *testing.T) {
+	gameStore := newTestStore(t)
+	for _, count := range []int{1, 2, 12, 13} {
+		_, err := gameStore.Create(context.Background(), Actor{ID: "alice"}, CreateRequest{
+			Name:    "limits",
+			Seed:    "limits",
+			Players: make([]engine.PlayerInit, count),
+		})
+		if want := count < 2 || count > 12; (err != nil) != want {
+			t.Errorf("%d players: err = %v, want an error: %v", count, err, want)
+		}
+	}
+}
+
 func TestMemoryStoreCreatesIndependentGamesAndFiltersList(t *testing.T) {
 	gameStore := newTestStore(t)
 	first, err := gameStore.Create(context.Background(), Actor{ID: "alice"}, CreateRequest{

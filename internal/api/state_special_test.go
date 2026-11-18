@@ -27,6 +27,42 @@ func TestProjectStateForPlayerProjectsOnlyCurrentHand(t *testing.T) {
 	if len(p2.SpecialHand) != 0 {
 		t.Fatalf("P2 special hand = %#v, want empty", p2.SpecialHand)
 	}
+	if p1.SpecialDeckSize != 1 || p2.SpecialDeckSize != 1 {
+		t.Fatalf("special deck sizes = %d/%d, want the 1 card left in the draw pile", p1.SpecialDeckSize, p2.SpecialDeckSize)
+	}
+}
+
+// The deck contents are the same for every viewer and do not depend on the
+// draw pile or on the hands.
+func TestProjectStateForPlayerListsWholeDeckContents(t *testing.T) {
+	state := models.NewGameState()
+	state.Players = []models.Player{{ID: "P1", Name: "One"}, {ID: "P2", Name: "Two"}}
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{
+			{ID: "C1", Kind: models.CardKindFairWeather}, {ID: "C2", Kind: models.CardKindPlague},
+			{ID: "C3", Kind: models.CardKindFairWeather},
+		},
+		DrawPile: []models.SpecialCardID{"C2"}, Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1", "C3"}},
+	}
+	state.NobleDeck = &models.NobleDeck{
+		Cards: []models.NobleCard{
+			{ID: "N1", Kind: models.NobleCardKindNoble, Code: "ALB", Name: "Albert", Sex: models.SexMale},
+			{ID: "N2", Kind: models.NobleCardKindClaim, Code: models.ClaimCardCode},
+			{ID: "N3", Kind: models.NobleCardKindClaim, Code: models.ClaimCardCode},
+		},
+		DrawPile: []models.NobleCardID{}, Hands: map[models.PlayerID][]models.NobleCardID{"P1": {"N1"}},
+	}
+	for _, viewer := range []models.PlayerID{"P1", "P2"} {
+		view := ProjectStateForPlayer(state, viewer, assetgen.Balance{})
+		if len(view.SpecialDeckCards) != 2 || view.SpecialDeckCards[0] != (SpecialDeckEntryView{Kind: models.CardKindFairWeather, Count: 2}) ||
+			view.SpecialDeckCards[1] != (SpecialDeckEntryView{Kind: models.CardKindPlague, Count: 1}) {
+			t.Errorf("%s special deck cards = %#v", viewer, view.SpecialDeckCards)
+		}
+		if len(view.NobleDeckCards) != 2 || view.NobleDeckCards[0].Name != "Albert" || view.NobleDeckCards[0].Count != 1 ||
+			view.NobleDeckCards[1].Kind != models.NobleCardKindClaim || view.NobleDeckCards[1].Count != 2 {
+			t.Errorf("%s noble deck cards = %#v", viewer, view.NobleDeckCards)
+		}
+	}
 }
 
 func TestProjectStateForPlayerProjectsPendingAnnouncements(t *testing.T) {

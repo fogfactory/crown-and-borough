@@ -37,8 +37,7 @@ Une partie dure de 1 à 50 années (10 par défaut). Chaque année compte quatre
 tours : **printemps, été, automne** (les saisons d'action) et **hiver**.
 L'interface affiche l'année historique `1000 + année`.
 
-**Mise en place.** Une partie en ligne réunit de 2 à 8 joueurs (jusqu'à 16 en
-local). Chacun démarre avec :
+**Mise en place.** Une partie réunit de 2 à 12 joueurs. Chacun démarre avec :
 
 - une **capitale** : un château sur un territoire non montagneux, avec
   {{starting_resources}} R de stock et une armée de {{starting_troops}}
@@ -557,18 +556,33 @@ Les cartes se jouent au printemps, en été ou en automne, dans le champ
 d'armée. En hiver, ta main se complète d'elle-même, jusqu'à
 {{special_orders.draw_orders_limit}} cartes par hiver tous decks confondus.
 
-Le deck compte {{special_orders.deck_size}} cartes.
+Le deck grandit avec la table : il compte
+{{special_orders.bonus_cards_base}} + {{special_orders.bonus_cards_per_player}} × joueurs
+cartes bonus et {{special_orders.calamity_cards_base}} +
+{{special_orders.calamity_cards_per_player}} × joueurs calamités.
+
+| Joueurs | Cartes bonus | Calamités | Deck | Calamités max par saison |
+|---|---|---|---|---|
+{{special_orders.deck_rows}}
+
+Les cartes bonus que les joueurs gardent en main ne sont plus dans la pioche :
+le deck est calibré pour qu'il reste toujours des cartes bonus à piocher. Le
+nombre de calamités programmables par saison augmente d'un tous les
+{{special_orders.slot_players_per_extra}} joueurs. Chaque type de carte figure au
+moins une fois dans le deck, même à petite table.
+
+<a id="rules-calamities"></a>
 
 ### Les calamités
 
 | | Calamité | Effet sur sa région |
 |---|---|---|
-| <img src="/icons/reaper-scythe.svg" width="22" alt=""> | Peste ({{special_orders.card.plague}}) | Divise les armées par {{special_orders.effects.plague_army_divisor}} et peut tuer des nobles. |
-| <img src="/icons/raining.svg" width="22" alt=""> | Mauvais temps ({{special_orders.card.bad_weather}}) | Bloque les mouvements qui partent de la région ou y entrent (sauf maintien et soutien défensif) ; les moulins ne produisent rien. |
-| <img src="/icons/desert-skull.svg" width="22" alt=""> | Mauvaise récolte ({{special_orders.card.famine}}) | Supprime les rations de terrain et le revenu territorial. |
+| <img src="/icons/reaper-scythe.svg" width="22" alt=""> | Peste | Divise les armées par {{special_orders.effects.plague_army_divisor}} et peut tuer des nobles. |
+| <img src="/icons/raining.svg" width="22" alt=""> | Mauvais temps | Bloque les mouvements qui partent de la région ou y entrent (sauf maintien et soutien défensif) ; les moulins ne produisent rien. |
+| <img src="/icons/desert-skull.svg" width="22" alt=""> | Mauvaise récolte | Supprime les rations de terrain et le revenu territorial. |
 
-Une calamité piochée est programmée pour l'année suivante, au plus une par
-saison. Elle est annoncée dès son tirage, et le **présage du printemps**
+Une calamité piochée est programmée pour l'année suivante, dans la limite des
+places de chaque saison (voir le tableau ci-dessus). Elle est annoncée dès son tirage, et le **présage du printemps**
 révèle la saison et la région de toutes les calamités de l'année.
 
 <a id="rules-bonus-cards"></a>
@@ -577,14 +591,14 @@ révèle la saison et la région de toutes les calamités de l'année.
 
 | | Carte | Ordre | Effet |
 |---|---|---|---|
-| <img src="/icons/sun.svg" width="22" alt=""> | Beau temps ({{special_orders.card.fair_weather}}) | `P BT XXX` | Annule le mauvais temps ; sinon, double la production des moulins de la région. |
-| <img src="/icons/wheat.svg" width="22" alt=""> | Bonne récolte ({{special_orders.card.abundant_harvest}}) | `P RA XXX` | Annule la mauvaise récolte ; sinon, double les rations et le revenu de la région. |
-| <img src="/icons/uprising.svg" width="22" alt=""> | Révolte ({{special_orders.card.revolt}}) | `P RE TER` | Lève des rebelles, ou retourne une armée affamée (voir ci-dessous). |
-| | Impôts ({{special_orders.card.seigneurial_tax}}) | `P TX …` / `P DI …` | Taxe seigneuriale, taxe royale ou dîme. |
-| | Souterrain ({{special_orders.card.tunnel}}) | `P SO …` | Fait évader un noble, ou fait ignorer les murailles à une attaque. |
-| | Embuscade ({{special_orders.card.ambush}}) | `P EM AAA BBB` | Si l'attaque gagne, capture un noble de l'armée vaincue. |
-| | Assassinat ({{special_orders.card.assassination}}) | `P AS HHH NNN` | Tue `NNN`, en secret. Jouable aussi en hiver. |
-| | Justice ({{special_orders.card.justice}}) | `P JU HHH` | Exécute `HHH` s'il a commandité un assassinat. Jouable aussi en hiver. |
+| <img src="/icons/sun.svg" width="22" alt=""> | Beau temps | `P BT XXX` | Annule le mauvais temps ; sinon, double la production des moulins de la région. |
+| <img src="/icons/wheat.svg" width="22" alt=""> | Bonne récolte | `P RA XXX` | Annule la mauvaise récolte ; sinon, double les rations et le revenu de la région. |
+| <img src="/icons/uprising.svg" width="22" alt=""> | Révolte | `P RE TER` | Lève des rebelles, ou retourne une armée affamée (voir ci-dessous). |
+| | Impôts | `P TX …` / `P DI …` | Taxe seigneuriale, taxe royale ou dîme. |
+| | Souterrain | `P SO …` | Fait évader un noble, ou fait ignorer les murailles à une attaque. |
+| | Embuscade | `P EM AAA BBB` | Si l'attaque gagne, capture un noble de l'armée vaincue. |
+| | Assassinat | `P AS HHH NNN` | Tue `NNN`, en secret. Jouable aussi en hiver. |
+| | Justice | `P JU HHH` | Exécute `HHH` s'il a commandité un assassinat. Jouable aussi en hiver. |
 
 Pour Beau temps et Bonne récolte, `XXX` est le chef-lieu de la région. Le
 bonus ne s'applique qu'une fois par région et par saison.
