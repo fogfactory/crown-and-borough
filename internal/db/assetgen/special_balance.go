@@ -214,5 +214,35 @@ func weightedCounts(total int, weights map[models.CardKind]int, canonical []mode
 	for index := 0; index < total-allocated; index++ {
 		result[remainders[index].kind]++
 	}
+	guaranteeEveryWeightedKind(result, weights, canonical, total)
 	return result
+}
+
+// guaranteeEveryWeightedKind gives one card to each kind of positive weight
+// the rounding left without any (a small deck must still hold a plague), taking
+// it from the kind that has the most cards, the first in canonical order on a
+// tie. Nothing changes when the total is smaller than the number of such kinds.
+func guaranteeEveryWeightedKind(counts map[models.CardKind]int, weights map[models.CardKind]int, canonical []models.CardKind, total int) {
+	weighted := 0
+	for _, kind := range canonical {
+		if weights[kind] > 0 {
+			weighted++
+		}
+	}
+	if total < weighted {
+		return
+	}
+	for _, kind := range canonical {
+		if weights[kind] <= 0 || counts[kind] > 0 {
+			continue
+		}
+		donor := canonical[0]
+		for _, candidate := range canonical {
+			if counts[candidate] > counts[donor] {
+				donor = candidate
+			}
+		}
+		counts[donor]--
+		counts[kind]++
+	}
 }

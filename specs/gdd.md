@@ -345,8 +345,10 @@ Le deck grandit avec le nombre de joueurs `N` : `bonus_cards_base +
 bonus_cards_per_player × N` cartes bonus (6 + 6 N) et `calamity_cards_base +
 calamity_cards_per_player × N` calamités (2 + N), soit 22 cartes à 2 joueurs et
 64 à 8 ; chaque famille est répartie selon `bonus_weights` et
-`calamity_weights`. Le calibrage tient deux invariants : avec 4 cartes bonus en
-main chez chaque joueur, un joueur qui pioche 2 cartes rencontre au moins une
+`calamity_weights`, chaque kind de poids positif figurant au moins une fois (la
+peste existe même à 2 joueurs ; le kind le plus fourni cède la carte). Le
+calibrage tient deux invariants : avec 4 cartes bonus en main chez chaque
+joueur, un joueur qui pioche 2 cartes rencontre au moins une
 calamité une fois sur deux ; et il reste au moins 6 cartes bonus à piocher même
 quand toutes les mains sont pleines (`hand_limit` cartes chacune). Les places
 de calamité par saison valent `calamity_slots` plus une par tranche de

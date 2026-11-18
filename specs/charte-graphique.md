@@ -858,11 +858,16 @@ cartes, saisie des ordres, pied collant d'envoi.
   `ink-900`, pion en angle), dignités (double filet). Un clic sur une carte
   ouvre « Jouer » et « Défausser », qui insèrent la ligne dans la saisie ;
   aucune croix permanente n'est affichée. Une carte défaussée ce tour est
-  grisée et barrée. Le deck et la limite de main s'écrivent sous l'éventail.
+  grisée et barrée. Le deck et la limite de main s'écrivent sous l'éventail :
+  « Nobles : 5 · Événements : 12 · Main : 2/6 ». Les deux compteurs de deck
+  sont des boutons qui ouvrent un popover montrant tout le contenu du deck en
+  petites cartes identiques à celles de la main (sans actions), avec leur
+  « ? » ; le popover se ferme quand ce « ? » envoie vers les règles.
   Chaque carte jouable porte en angle un petit « ? » (20 px) qui ouvre le même
   popover que les titres de section : une phrase d'explication et un lien
   « Voir la règle » vers la sous-section des règles qui décrit la carte
-  (deck de nobles, prétentions, dignités, cartes bonus).
+  (deck de nobles, prétentions, dignités, cartes bonus, calamités ; les
+  calamités ne se jouent pas et n'apparaissent que dans le popover d'un deck).
 - **Calamités à venir :** l'encadré est en `warning-100` et
   `warning-700`, non en rouge : une prévision n'est pas une erreur.
 - **Saisie :** une zone par noble au printemps, en été et en automne, la zone

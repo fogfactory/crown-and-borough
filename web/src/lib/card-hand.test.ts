@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { translate, type Translate } from '@/i18n/messages'
-import { formatCardHand } from '@/lib/card-hand'
+import { formatCardHand, specialCardHelp } from '@/lib/card-hand'
 
 const french: Translate = (key, values) => translate('fr', key, values)
 const english: Translate = (key, values) => translate('en', key, values)
@@ -25,5 +25,13 @@ describe('formatCardHand', () => {
     expect(formatCardHand(['revolt', 'abundant_harvest', 'fair_weather'], french)).toBe(
       'Beau temps (BT), Bonne récolte (RA), Révolte (RE)',
     )
+  })
+})
+
+describe('specialCardHelp', () => {
+  it('sends a calamity to the calamities rules and a bonus card to the bonus cards rules', () => {
+    expect(specialCardHelp('plague', french).section).toBe('calamities')
+    expect(specialCardHelp('famine', french).section).toBe('calamities')
+    expect(specialCardHelp('fair_weather', french).section).toBe('bonus-cards')
   })
 })

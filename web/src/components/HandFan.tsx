@@ -42,6 +42,11 @@ const FAMILY_CLASSES: Record<HandCardFamily, string> = {
 /** Fan tilt between two neighbouring cards, in degrees (desktop only). */
 const FAN_STEP = 3
 
+/** Accessible name of a card: its name, its code and, past one, its copies. */
+function cardLabel(card: Pick<FanCard, 'name' | 'code' | 'copies'>): string {
+  return `${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`
+}
+
 /** Frame of a playing card: size, rule and shadow of its family. */
 function cardFrameClass(family: HandCardFamily): string {
   return cn(
@@ -101,7 +106,7 @@ export function StaticCard({
     <div className="relative">
       <div
         role="img"
-        aria-label={`${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`}
+        aria-label={cardLabel(card)}
         data-deck-card={card.code}
         data-card-family={card.family}
         className={cardFrameClass(card.family)}
@@ -143,7 +148,7 @@ function HandCardFace({
       <button
         type="button"
         aria-pressed={selected}
-        aria-label={`${card.name} (${card.code})${card.copies && card.copies > 1 ? ` ×${card.copies}` : ''}`}
+        aria-label={cardLabel(card)}
         data-hand-card={card.code}
         data-card-family={card.family}
         data-discarded={card.discarded || undefined}

@@ -80,6 +80,54 @@ func TestWeightedCountsUsesLargestRemaindersInCanonicalOrder(t *testing.T) {
 	}
 }
 
+// A small deck still holds every kind of positive weight, even when the
+// rounding would give a rare kind none; the cards come from the biggest kind.
+func TestWeightedCountsKeepsEveryWeightedKind(t *testing.T) {
+	canonical := []models.CardKind{models.CardKindPlague, models.CardKindBadWeather, models.CardKindFamine}
+	weights := map[models.CardKind]int{models.CardKindPlague: 1, models.CardKindBadWeather: 6, models.CardKindFamine: 6}
+	for total := len(canonical); total <= 12; total++ {
+		counts := weightedCounts(total, weights, canonical)
+		sum := 0
+		for _, kind := range canonical {
+			if counts[kind] < 1 {
+				t.Errorf("total %d: count[%q] = %d, want at least 1", total, kind, counts[kind])
+			}
+			sum += counts[kind]
+		}
+		if sum != total {
+			t.Errorf("total %d: counts sum to %d", total, sum)
+		}
+	}
+	if counts := weightedCounts(4, weights, canonical); counts[models.CardKindPlague] != 1 || counts[models.CardKindBadWeather] != 1 || counts[models.CardKindFamine] != 2 {
+		t.Errorf("4 cards = %#v, want 1 plague, 1 bad weather, 2 famine (the first biggest kind gives)", counts)
+	}
+	// Fewer cards than kinds: nothing is forced.
+	if counts := weightedCounts(2, weights, canonical); counts[models.CardKindBadWeather]+counts[models.CardKindFamine] != 2 {
+		t.Errorf("2 cards = %#v, want no plague", counts)
+	}
+}
+
+// The rules table writes one number when the three seasons share their calamity
+// slots, and "spring / summer / autumn" when they differ.
+func TestCalamitySlotsCell(t *testing.T) {
+	config := SpecialOrdersBalance{
+		CalamitySlots: map[models.Season]int{
+			models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1,
+		},
+		CalamitySlotPlayersPerExtra: 4,
+	}
+	if got := calamitySlotsCell(config, 3); got != "1" {
+		t.Errorf("3 players = %q, want %q", got, "1")
+	}
+	if got := calamitySlotsCell(config, 4); got != "2" {
+		t.Errorf("4 players = %q, want %q", got, "2")
+	}
+	config.CalamitySlots[models.SeasonAutumn] = 2
+	if got := calamitySlotsCell(config, 4); got != "2 / 2 / 3" {
+		t.Errorf("4 players with a bigger autumn = %q, want %q", got, "2 / 2 / 3")
+	}
+}
+
 // The deck grows with the table: 6 + 6 bonus cards and 2 + 1 calamities per
 // player, and one more calamity slot per season for every 4 players.
 func TestSpecialOrdersScaleWithPlayers(t *testing.T) {

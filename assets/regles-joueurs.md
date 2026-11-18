@@ -569,7 +569,10 @@ cartes bonus et {{special_orders.calamity_cards_base}} +
 Les cartes bonus que les joueurs gardent en main ne sont plus dans la pioche :
 le deck est calibré pour qu'il reste toujours des cartes bonus à piocher. Le
 nombre de calamités programmables par saison augmente d'un tous les
-{{special_orders.slot_players_per_extra}} joueurs.
+{{special_orders.slot_players_per_extra}} joueurs. Chaque type de carte figure au
+moins une fois dans le deck, même à petite table.
+
+<a id="rules-calamities"></a>
 
 ### Les calamités
 

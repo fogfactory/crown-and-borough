@@ -593,7 +593,12 @@ describe('OrdersPanel noble deck (winter)', () => {
     ],
   }
 
-  function renderDeck(winterDraft: string, onWinterChange = vi.fn(), s = deckState) {
+  function renderDeck(
+    winterDraft: string,
+    onWinterChange = vi.fn(),
+    s = deckState,
+    onOpenRules = vi.fn(),
+  ) {
     render(
       <LanguageProvider initialLanguage="fr">
         <OrdersPanel
@@ -605,7 +610,7 @@ describe('OrdersPanel noble deck (winter)', () => {
           onChainChange={vi.fn()}
           onWinterChange={onWinterChange}
           onSpecialChange={vi.fn()}
-          onOpenRules={vi.fn()}
+          onOpenRules={onOpenRules}
         />
       </LanguageProvider>,
     )
@@ -647,6 +652,26 @@ describe('OrdersPanel noble deck (winter)', () => {
     expect(screen.getByRole('img', { name: /Beau temps.*×3/ })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Peste/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Aide : Peste/ })).toBeInTheDocument()
+  })
+
+  it('keeps the count in the accessible name of a deck counter', () => {
+    renderDeck('')
+    expect(
+      screen.getByRole('button', { name: /^Nobles : 5\. Voir le contenu du deck/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^Événements : 12\. Voir le contenu du deck/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('closes the deck contents when a card help opens the rules', () => {
+    const onOpenRules = vi.fn()
+    renderDeck('', vi.fn(), deckState, onOpenRules)
+    fireEvent.click(screen.getByRole('button', { name: /Voir le contenu du deck : Deck d’événements/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Aide : Peste' }))
+    fireEvent.click(screen.getByRole('button', { name: /Voir la règle/ }))
+    expect(onOpenRules).toHaveBeenCalledWith('calamities')
+    expect(screen.queryByRole('img', { name: /Peste/ })).not.toBeInTheDocument()
   })
 
   it('lists the noble deck with the copies of each card', () => {

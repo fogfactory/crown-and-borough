@@ -11,24 +11,23 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// bastardCardsPerPlayer is the number of bastard cards the noble deck holds
+// for each player.
+const bastardCardsPerPlayer = 2
+
 // nobleDeckSize returns the size of the noble deck and how many of its cards
-// are dignity cards (specs/succession.md § Deck de nobles): players ×
-// (noble_limit_max + 1) cards, reduced until the noble cards can all take a
-// free name, of which maleAvailable and femaleAvailable remain. Dignity
-// cards are one card in max(players-1, 4), at least one. The noble cards are
-// split evenly between the sexes; oddMale tells which sex gets the extra one
-// when their number is odd. Claim cards come on top of that size: one card in
-// twice the dignity share, at least one, never replacing a noble card, and
-// one card of each lady dignity does the same. The size
-// is zero when no noble card can be made.
+// are bastard cards (specs/succession.md § Deck de nobles): players ×
+// (noble_limit_max + 1) noble cards, reduced until they can all take a free
+// name, of which maleAvailable and femaleAvailable remain, and
+// bastardCardsPerPlayer bastard cards per player. The noble cards are split
+// evenly between the sexes; oddMale tells which sex gets the extra one when
+// their number is odd. The size counts these two kinds of cards. Claim cards
+// come on top of it: one card in 2 × max(players-1, 4) noble cards, at least
+// one; one card of each lady dignity does the same. The size is zero when no
+// noble card can be made.
 func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMale bool) (size, dignities, claims, males, females int) {
-	for size = players * (limitMax + 1); size > 0; size-- {
-		dignities = max(1, size/max(players-1, 4))
-		claims = max(1, size/(2*max(players-1, 4)))
-		nobles := size - dignities
-		if nobles <= 0 {
-			continue
-		}
+	dignities = bastardCardsPerPlayer * players
+	for nobles := players * (limitMax + 1); nobles > 0; nobles-- {
 		males, females = nobles/2, nobles/2
 		if nobles%2 == 1 {
 			if oddMale {
@@ -38,6 +37,8 @@ func nobleDeckSize(players, limitMax, maleAvailable, femaleAvailable int, oddMal
 			}
 		}
 		if males <= maleAvailable && females <= femaleAvailable {
+			size = nobles + dignities
+			claims = max(1, nobles/(2*max(players-1, 4)))
 			return size, dignities, claims, males, females
 		}
 	}

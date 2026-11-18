@@ -84,18 +84,15 @@ func TestBuildNobleDeckSizesParityAndBastards(t *testing.T) {
 			if ladies := ladyDignityCards(deck); ladies != len(models.LadyDignities) {
 				t.Errorf("lady dignity cards = %d, want %d", ladies, len(models.LadyDignities))
 			}
-			size := len(deck.Cards) - claims - ladyDignityCards(deck)
-			if want := max(1, (size)/(2*max(players-1, 4))); claims != want {
+			nobles := males + females
+			if want := max(1, nobles/(2*max(players-1, 4))); claims != want {
 				t.Errorf("claim cards = %d, want %d on top of the deck", claims, want)
 			}
-			if size > players*7 {
-				t.Errorf("size = %d, want at most %d", size, players*7)
+			if nobles > players*7 || (players <= 9 && nobles != players*7) {
+				t.Errorf("noble cards = %d, want %d (7 per player)", nobles, players*7)
 			}
-			if players <= 6 && size != players*7 {
-				t.Errorf("size = %d, want the unclamped %d", size, players*7)
-			}
-			if want := max(1, size/max(players-1, 4)); dignities != want || dignities < 1 {
-				t.Errorf("dignity cards = %d, want %d (at least one)", dignities, want)
+			if want := 2 * players; dignities != want {
+				t.Errorf("bastard cards = %d, want %d (2 per player)", dignities, want)
 			}
 			if diff := males - females; diff < -1 || diff > 1 {
 				t.Errorf("males = %d, females = %d, want an even split", males, females)
@@ -128,8 +125,8 @@ func TestBuildNobleDeckFourPlayers(t *testing.T) {
 	deck := buildNobleDeck("deck-four", deckTestPlayers(4), 6, prenoms, startingCodes(prenoms, 8), 0)
 	males, females, dignities := countKinds(deck)
 	claims := claimsOf(deck)
-	if len(deck.Cards) != 41 || dignities != 7 || claims != 3 || males+females != 21 {
-		t.Errorf("deck = %d cards (%d dignities, %d claims, %d nobles), want 41 (7 bastards, 10 lady dignities, 3, 21)", len(deck.Cards), dignities, claims, males+females)
+	if len(deck.Cards) != 49 || dignities != 8 || claims != 3 || males+females != 28 {
+		t.Errorf("deck = %d cards (%d bastards, %d claims, %d nobles), want 49 (8 bastards, 10 lady dignities, 3 claims, 28 nobles)", len(deck.Cards), dignities, claims, males+females)
 	}
 	for _, player := range deckTestPlayers(4) {
 		if hand, exists := deck.Hands[player.ID]; !exists || len(hand) != 0 {
@@ -149,8 +146,8 @@ func TestBuildNobleDeckIsDeterministicAndSeeded(t *testing.T) {
 	if reflect.DeepEqual(build("seed-a").DrawPile, build("seed-b").DrawPile) {
 		t.Error("two seeds built the same shuffled draw pile")
 	}
-	// The seed decides which sex gets the odd card: 2 players make 11 noble
-	// cards (5 players make 23 noble cards).
+	// The seed decides which sex gets the odd card: 5 players make 35 noble
+	// cards, an odd number.
 	sawMale, sawFemale := false, false
 	for index := 0; index < 20; index++ {
 		deck := buildNobleDeck(fmt.Sprintf("odd-%d", index), deckTestPlayers(5), 6, prenoms, startingCodes(prenoms, 10), 0)
@@ -203,8 +200,8 @@ func TestCreateGameBuildsNobleDeckWithoutStartingNames(t *testing.T) {
 		t.Error("the same seed created two different noble decks")
 	}
 	deck := first.NobleDeck
-	if deck == nil || len(deck.Cards) != 43 {
-		t.Fatalf("deck = %+v, want 43 cards", deck)
+	if deck == nil || len(deck.Cards) != 51 {
+		t.Fatalf("deck = %+v, want 51 cards", deck)
 	}
 	starting := map[string]bool{}
 	for _, noble := range first.Nobles {

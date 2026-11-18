@@ -723,6 +723,28 @@ function SpecialCardActions({
   )
 }
 
+/** What a special card shows, in the hand and in the deck popover alike. */
+function specialCardFace(kind: CardKind, t: Translate) {
+  return {
+    family: 'special' as const,
+    name: formatCardName(kind, t),
+    code: shortCode(kind),
+    icon: <CardPictogram kind={kind} />,
+    help: specialCardHelp(kind, t),
+  }
+}
+
+/** What a card of the noble deck shows, in the hand and in the deck popover alike. */
+function nobleCardFace(card: NobleCard, t: Translate) {
+  return {
+    family: card.kind === 'dignity' ? ('dignity' as const) : ('noble' as const),
+    name: nobleCardName(card, t),
+    code: card.code,
+    icon: <CardPictogram kind={card.kind} />,
+    help: nobleCardHelp(card, t),
+  }
+}
+
 /**
  * The hand of cards (charte-graphique.md § Poste de commandement): special,
  * noble, claim and dignity cards as a fan; a picked card shows its play and
@@ -767,30 +789,26 @@ function HandSection({
     specialCount + hand.length - draftNobleDiscardCount(winterDraft) >= handLimit
   const drawDisabled = drawn || deckSize === 0 || handFull
   const lines = draftLines(winterDraft)
-  const nobleName = (card: NobleCard) => nobleCardName(card, t)
-  const specialDeckCards: DeckCard[] = (state.specialDeckCards ?? []).map(
-    ({ kind, count }) => ({
-      key: `deck:special:${kind}`,
-      family: 'special',
-      name: formatCardName(kind, t),
-      code: shortCode(kind),
-      icon: <CardPictogram kind={kind} />,
-      copies: count,
-      help: specialCardHelp(kind, t),
-    }),
+  // The deck contents never change with a draft keystroke: build them once per
+  // state and language, not on every render.
+  const specialDeckCards = useMemo<DeckCard[]>(
+    () =>
+      (state.specialDeckCards ?? []).map(({ kind, count }) => ({
+        key: `deck:special:${kind}`,
+        ...specialCardFace(kind, t),
+        copies: count,
+      })),
+    [state.specialDeckCards, t],
   )
-  const nobleDeckCards: DeckCard[] = (state.nobleDeckCards ?? []).map((entry) => {
-    const card = { ...entry, id: entry.code }
-    return {
-      key: `deck:noble:${entry.kind}:${entry.code}`,
-      family: entry.kind === 'dignity' ? 'dignity' : 'noble',
-      name: nobleName(card),
-      code: entry.code,
-      icon: <CardPictogram kind={entry.kind} />,
-      copies: entry.count,
-      help: nobleCardHelp(card, t),
-    }
-  })
+  const nobleDeckCards = useMemo<DeckCard[]>(
+    () =>
+      (state.nobleDeckCards ?? []).map((entry) => ({
+        key: `deck:noble:${entry.kind}:${entry.code}`,
+        ...nobleCardFace({ ...entry, id: entry.code }, t),
+        copies: entry.count,
+      })),
+    [state.nobleDeckCards, t],
+  )
 
   const cards: FanCard[] = [
     ...specialKinds.map((kind): FanCard => {
@@ -799,12 +817,8 @@ function HandSection({
       const discarded = draftDiscardCount(lines, code)
       return {
         key: `special:${kind}`,
-        family: 'special',
-        name: formatCardName(kind, t),
-        code,
-        icon: <CardPictogram kind={kind} />,
+        ...specialCardFace(kind, t),
         copies,
-        help: specialCardHelp(kind, t),
         discarded: discarded > 0 && discarded >= copies,
         actions: (
           <SpecialCardActions
@@ -826,11 +840,7 @@ function HandSection({
     ...hand.map(
       (card): FanCard => ({
         key: `noble:${card.id}`,
-        family: card.kind === 'dignity' ? 'dignity' : 'noble',
-        name: nobleName(card),
-        code: card.code,
-        help: nobleCardHelp(card, t),
-        icon: <CardPictogram kind={card.kind} />,
+        ...nobleCardFace(card, t),
         discarded: draftDiscardCount(lines, card.code) > 0,
         actions: (
           <NobleCardActions
@@ -887,7 +897,6 @@ function HandSection({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
             <span data-hand-counter className="flex flex-wrap items-center gap-x-1.5">
               <DeckContents
-                deckName={t('deck.nobleTitle')}
                 counter={t('deck.nobles', { count: deckSize })}
                 title={t('deck.nobleTitle')}
                 cards={nobleDeckCards}
@@ -895,7 +904,6 @@ function HandSection({
               />
               <span aria-hidden="true">·</span>
               <DeckContents
-                deckName={t('deck.eventsTitle')}
                 counter={t('deck.events', { count: specialDeckSize })}
                 title={t('deck.eventsTitle')}
                 cards={specialDeckCards}

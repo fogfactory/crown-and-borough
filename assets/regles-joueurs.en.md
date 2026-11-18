@@ -564,7 +564,10 @@ bonus cards and {{special_orders.calamity_cards_base}} +
 Bonus cards held in hand are out of the draw pile: the deck is sized so that
 bonus cards always remain to draw. The number of calamities that can be
 scheduled per season rises by one every
-{{special_orders.slot_players_per_extra}} players.
+{{special_orders.slot_players_per_extra}} players. Every type of card appears at
+least once in the deck, even at a small table.
+
+<a id="rules-calamities"></a>
 
 ### Calamities
 

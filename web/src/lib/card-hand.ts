@@ -113,11 +113,14 @@ const SPECIAL_CARD_HELP_KEYS: Record<CardKind, MessageKey> = {
   justice: 'cardHelp.justice',
 }
 
-/** Tooltip text and rules section of a special card of the hand. */
+/**
+ * Tooltip text and rules section of a special card: a bonus card of the hand,
+ * or any card of the deck contents (calamities included).
+ */
 export function specialCardHelp(kind: CardKind, t: Translate) {
   return {
     text: t(SPECIAL_CARD_HELP_KEYS[kind]),
-    section: 'bonus-cards' as RulesSection,
+    section: (CALAMITY_KINDS.includes(kind) ? 'calamities' : 'bonus-cards') as RulesSection,
   }
 }
 

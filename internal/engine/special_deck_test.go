@@ -49,9 +49,10 @@ func TestBuildSpecialDeckIsDeterministicAndWeighted(t *testing.T) {
 	for _, card := range first.Cards {
 		counts[card.Kind]++
 	}
-	// 2 + 1 x 2 calamities, weighted 1/6/6; 6 + 6 x 2 bonus cards, weighted 3/3/1.
-	if counts[models.CardKindPlague] != 0 || counts[models.CardKindBadWeather] != 2 || counts[models.CardKindFamine] != 2 {
-		t.Fatalf("calamity counts = %#v, want 4 calamities: no plague, 2 bad weather, 2 famine", counts)
+	// 2 + 1 x 2 calamities, weighted 1/6/6 with at least one plague; 6 + 6 x 2
+	// bonus cards, weighted 3/3/1.
+	if counts[models.CardKindPlague] != 1 || counts[models.CardKindBadWeather] != 1 || counts[models.CardKindFamine] != 2 {
+		t.Fatalf("calamity counts = %#v, want 4 calamities: 1 plague, 1 bad weather, 2 famine", counts)
 	}
 	if counts[models.CardKindFairWeather] != 8 || counts[models.CardKindAbundantHarvest] != 8 || counts[models.CardKindRevolt] != 2 {
 		t.Fatalf("bonus counts = %#v, want fair 8, harvest 8, revolt 2", counts)
