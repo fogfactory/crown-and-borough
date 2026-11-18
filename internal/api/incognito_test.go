@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -9,7 +10,16 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
-func TestIncognitoGameLifecycleOverHTTP(t *testing.T) {
+// lobbyEnv is an online API with chat, as seen by the members of one game.
+type lobbyEnv struct {
+	t       *testing.T
+	handler http.Handler
+	base    string
+	game    gameDetailView
+}
+
+func newLobbyEnv(t *testing.T, body string) lobbyEnv {
+	t.Helper()
 	games, rules := newGamesTestStore(t)
 	service := store.NewChatService(games, store.NewMemoryChatBackend())
 	handler := NewGamesHandlerWithOptions(games, rules, GamesHandlerOptions{
@@ -17,52 +27,104 @@ func TestIncognitoGameLifecycleOverHTTP(t *testing.T) {
 		StrictMembership: true,
 		Chat:             service,
 	})
-	created := createGameHTTP(t, handler, "alice", `{"name":"Hidden","players":2,"incognito":true}`)
-	if !created.Incognito || created.Started || created.CurrentPlayer != "" {
-		t.Fatalf("created = incognito %v started %v house %q", created.Incognito, created.Started, created.CurrentPlayer)
+	game := createGameHTTP(t, handler, "alice", body)
+	return lobbyEnv{t: t, handler: handler, base: "/api/games/" + string(game.ID), game: game}
+}
+
+func (e lobbyEnv) call(method, path, actor, body string) (int, map[string]any) {
+	e.t.Helper()
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
 	}
-	base := "/api/games/" + string(created.ID)
-	call := func(method, path, actor, body string) (int, map[string]any) {
-		t.Helper()
-		recorder := requestGames(t, handler, method, base+path+"?player="+actor, body)
-		var decoded map[string]any
-		_ = json.Unmarshal(recorder.Body.Bytes(), &decoded)
-		return recorder.Code, decoded
+	recorder := requestGames(e.t, e.handler, method, e.base+path+separator+"player="+actor, body)
+	var decoded map[string]any
+	_ = json.Unmarshal(recorder.Body.Bytes(), &decoded)
+	return recorder.Code, decoded
+}
+
+func (e lobbyEnv) expect(method, path, actor, body string, status int, code string) {
+	e.t.Helper()
+	got, response := e.call(method, path, actor, body)
+	if got != status || (code != "" && response["error"] != code) {
+		e.t.Fatalf("%s %s as %s = %d %v, want %d %s", method, path, actor, got, response, status, code)
 	}
-	expectConflict := func(method, path, actor, body, code string) {
-		t.Helper()
-		if status, response := call(method, path, actor, body); status != http.StatusConflict || response["error"] != code {
-			t.Fatalf("%s %s = %d %v, want 409 %s", method, path, status, response, code)
-		}
+}
+
+func (e lobbyEnv) join(actor string) {
+	e.t.Helper()
+	invite := requestGames(e.t, e.handler, http.MethodGet, e.base+"/invite?player=alice", "")
+	var invitation invitationView
+	if err := json.Unmarshal(invite.Body.Bytes(), &invitation); err != nil || invitation.InviteCode == "" {
+		e.t.Fatalf("invite = %d %s", invite.Code, invite.Body.String())
+	}
+	if status, response := e.call(http.MethodPost, "/join", actor, `{"inviteCode":"`+invitation.InviteCode+`"}`); status != http.StatusCreated {
+		e.t.Fatalf("join = %d %v", status, response)
+	}
+}
+
+func TestLobbyHidesTheBoardAndAcceptsVotesAndNames(t *testing.T) {
+	env := newLobbyEnv(t, `{"name":"Hidden","players":3,"incognito":true}`)
+	if !env.game.Incognito || env.game.Started || env.game.CurrentPlayer != "" || env.game.Lobby == nil || len(env.game.Lobby.SeedCandidates) != 3 {
+		t.Fatalf("created lobby = %#v", env.game)
+	}
+	// Nothing reveals the board, and nothing can be played, in the lobby.
+	env.expect(http.MethodGet, "/state", "alice", "", http.StatusConflict, "game_not_started")
+	env.expect(http.MethodGet, "/map", "alice", "", http.StatusConflict, "game_not_started")
+	env.expect(http.MethodPost, "/orders", "alice", `{"chains":[]}`, http.StatusConflict, "game_not_started")
+	env.expect(http.MethodPost, "/resolve", "alice", "", http.StatusConflict, "game_not_started")
+	env.expect(http.MethodPost, "/messages", "alice", `{"channel":"public","body":"hi"}`, http.StatusConflict, "game_not_started")
+	if status, response := env.call(http.MethodGet, "", "alice", ""); status != http.StatusOK || response["started"] != false {
+		t.Fatalf("lobby detail = %d %v", status, response)
+	}
+	if status, response := env.call(http.MethodGet, "", "alice", ""); status != http.StatusOK || response["turn"] != float64(0) {
+		t.Fatalf("lobby calendar = %d %v", status, response)
 	}
 
-	// Nothing reveals the placement, and nothing can be played, before the
-	// last slot is taken.
-	expectConflict(http.MethodGet, "/state", "alice", "", "game_not_started")
-	expectConflict(http.MethodGet, "/map", "alice", "", "game_not_started")
-	expectConflict(http.MethodPost, "/orders", "alice", `{"chains":[]}`, "game_not_started")
-	expectConflict(http.MethodPost, "/resolve", "alice", "", "game_not_started")
-	expectConflict(http.MethodPost, "/house-name", "alice", `{"name":"House Stark"}`, "game_not_started")
-
-	status, joined := call(http.MethodPost, "/join", "bob", `{"inviteCode":"`+inviteCodeOf(t, handler, base)+`"}`)
-	if status != http.StatusCreated || joined["started"] != true || joined["incognito"] != true {
-		t.Fatalf("join = %d %v", status, joined)
+	// Votes: a permutation only, own ranking only.
+	env.expect(http.MethodPut, "/seed-vote", "alice", `{"ranking":[0,0,1]}`, http.StatusBadRequest, "invalid_seed_ranking")
+	status, voted := env.call(http.MethodPut, "/seed-vote", "alice", `{"ranking":[2,0,1]}`)
+	lobby, _ := voted["lobby"].(map[string]any)
+	if status != http.StatusOK || len(lobby["seedRanking"].([]any)) != 3 {
+		t.Fatalf("vote = %d %v", status, voted)
 	}
-	if status, _ := call(http.MethodGet, "/state", "alice", ""); status != http.StatusOK {
+	env.join("bob")
+	if _, detail := env.call(http.MethodGet, "", "bob", ""); len(detail["lobby"].(map[string]any)["seedRanking"].([]any)) != 0 {
+		t.Fatalf("bob sees another vote: %v", detail["lobby"])
+	}
+	env.expect(http.MethodPost, "/house-name", "bob", `{"name":"House Tyrell"}`, http.StatusOK, "")
+	env.expect(http.MethodPost, "/house-name", "alice", `{"name":"house tyrell"}`, http.StatusConflict, "house_name_taken")
+
+	// The candidate maps reveal the map only, to members only.
+	status, candidate := env.call(http.MethodGet, "/seed-candidates/1/map", "alice", "")
+	if status != http.StatusOK || len(candidate["territories"].([]any)) == 0 || candidate["starts"] != nil {
+		t.Fatalf("candidate map = %d", status)
+	}
+	if strings.Contains(requestGames(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "").Body.String(), `"starts"`) {
+		t.Fatal("candidate map reveals the start placement")
+	}
+	env.expect(http.MethodGet, "/seed-candidates/1/map", "mallory", "", http.StatusForbidden, "invalid_invitation")
+	env.expect(http.MethodGet, "/seed-candidates/9/map", "alice", "", http.StatusNotFound, "not_found")
+
+	// Lobby edits are silent: the public chat stays empty.
+	env.join("carol")
+	recorder := requestGames(t, env.handler, http.MethodGet, env.base+"/messages?channel=public&player=bob", "")
+	if strings.Contains(recorder.Body.String(), `"kind"`) {
+		t.Fatalf("lobby edits reached the chat: %s", recorder.Body.String())
+	}
+	env.expect(http.MethodPut, "/seed-vote", "alice", `{"ranking":[0,1,2]}`, http.StatusConflict, "game_started")
+	if status, _ := env.call(http.MethodGet, "/state", "alice", ""); status != http.StatusOK {
 		t.Fatalf("state once started = %d", status)
 	}
 
-	status, renamed := call(http.MethodPost, "/house-name", "alice", `{"name":"  House   Stark "}`)
+	// Once started, a rename is announced in the public chat until the first
+	// order is submitted.
+	status, renamed := env.call(http.MethodPost, "/house-name", "alice", `{"name":"  House   Stark "}`)
 	player, _ := renamed["player"].(map[string]any)
 	if status != http.StatusOK || player["name"] != "House Stark" {
 		t.Fatalf("rename = %d %v", status, renamed)
 	}
-	expectConflict(http.MethodPost, "/house-name", "bob", `{"name":"house stark"}`, "house_name_taken")
-	if status, response := call(http.MethodPost, "/house-name", "bob", `{"name":""}`); status != http.StatusBadRequest || response["error"] != "invalid_house_name" {
-		t.Fatalf("empty name = %d %v", status, response)
-	}
-
-	recorder := requestGames(t, handler, http.MethodGet, base+"/messages?channel=public&player=bob", "")
+	recorder = requestGames(t, env.handler, http.MethodGet, env.base+"/messages?channel=public&player=bob", "")
 	var history struct {
 		Messages []store.ChatMessage `json:"messages"`
 	}
@@ -75,30 +137,69 @@ func TestIncognitoGameLifecycleOverHTTP(t *testing.T) {
 	if strings.Contains(recorder.Body.String(), "alice") {
 		t.Fatalf("history leaks the account: %s", recorder.Body.String())
 	}
-
-	if status, _ := call(http.MethodPost, "/orders", "alice", `{"chains":[]}`); status != http.StatusOK {
-		t.Fatalf("submit = %d", status)
-	}
-	expectConflict(http.MethodPost, "/house-name", "alice", `{"name":"House Lannister"}`, "house_name_locked")
+	env.expect(http.MethodPost, "/orders", "alice", `{"chains":[]}`, http.StatusOK, "")
+	env.expect(http.MethodPost, "/house-name", "alice", `{"name":"House Lannister"}`, http.StatusConflict, "house_name_locked")
 }
 
-func TestHouseNameRouteRefusesOrdinaryGames(t *testing.T) {
+func TestOrdinaryOnlineGameHasALobbyToo(t *testing.T) {
+	env := newLobbyEnv(t, `{"players":2}`)
+	if env.game.Incognito || env.game.Started || env.game.Lobby == nil {
+		t.Fatalf("ordinary lobby = %#v", env.game)
+	}
+	env.expect(http.MethodGet, "/map", "alice", "", http.StatusConflict, "game_not_started")
+	env.join("bob")
+	status, detail := env.call(http.MethodGet, "", "bob", "")
+	if status != http.StatusOK || detail["started"] != true || detail["lobby"] != nil {
+		t.Fatalf("started detail = %d %v", status, detail)
+	}
+	env.expect(http.MethodPost, "/house-name", "bob", `{"name":"House Stark"}`, http.StatusOK, "")
+}
+
+type turnNotifier struct{ started []store.GameID }
+
+func (n *turnNotifier) TurnStarted(_ context.Context, snapshot store.GameSnapshot) {
+	n.started = append(n.started, snapshot.ID)
+}
+
+func (n *turnNotifier) MessagePosted(context.Context, store.ChatPostResult) {}
+
+func TestJoinCarriesTheLobbyEntryAndNotifiesWhenItStartsTheGame(t *testing.T) {
 	games, rules := newGamesTestStore(t)
-	handler := NewGamesHandlerWithOptions(games, rules, GamesHandlerOptions{Actor: DevActorResolver("alice")})
-	created := createGameHTTP(t, handler, "alice", `{"players":2}`)
-	recorder := requestGames(t, handler, http.MethodPost, "/api/games/"+string(created.ID)+"/house-name?player=alice", `{"name":"House Stark"}`)
-	if recorder.Code != http.StatusConflict || !strings.Contains(recorder.Body.String(), `"not_incognito"`) {
-		t.Fatalf("rename = %d %s", recorder.Code, recorder.Body.String())
-	}
-}
-
-// inviteCodeOf asks for a fresh invitation code of the game as its creator.
-func inviteCodeOf(t *testing.T, handler http.Handler, base string) string {
-	t.Helper()
-	recorder := requestGames(t, handler, http.MethodGet, base+"/invite?player=alice", "")
+	notifier := &turnNotifier{}
+	handler := NewGamesHandlerWithOptions(games, rules, GamesHandlerOptions{
+		Actor:            DevActorResolver("alice"),
+		StrictMembership: true,
+		Notifier:         notifier,
+	})
+	game := createGameHTTP(t, handler, "alice", `{"players":2}`)
+	env := lobbyEnv{t: t, handler: handler, base: "/api/games/" + string(game.ID), game: game}
+	invite := requestGames(t, handler, http.MethodGet, env.base+"/invite?player=alice", "")
 	var invitation invitationView
-	if err := json.Unmarshal(recorder.Body.Bytes(), &invitation); err != nil || invitation.InviteCode == "" {
-		t.Fatalf("invite = %d %s", recorder.Code, recorder.Body.String())
+	if err := json.Unmarshal(invite.Body.Bytes(), &invitation); err != nil {
+		t.Fatal(err)
 	}
-	return invitation.InviteCode
+
+	// Someone holding the code, not yet a member, previews the lobby and a map.
+	status, preview := env.call(http.MethodGet, "/join-preview?inviteCode="+invitation.InviteCode, "bob", "")
+	if status != http.StatusOK || preview["member"] != false || len(preview["seedCandidates"].([]any)) != 3 {
+		t.Fatalf("preview = %d %v", status, preview)
+	}
+	if status, _ := env.call(http.MethodGet, "/seed-candidates/0/map?inviteCode="+invitation.InviteCode, "bob", ""); status != http.StatusOK {
+		t.Fatalf("map by invitation = %d", status)
+	}
+	env.expect(http.MethodGet, "/join-preview?inviteCode=WRONG1", "bob", "", http.StatusForbidden, "invalid_invitation")
+	env.expect(http.MethodGet, "/seed-candidates/0/map", "bob", "", http.StatusForbidden, "invalid_invitation")
+	if len(notifier.started) != 0 {
+		t.Fatal("notified before the game started")
+	}
+
+	env.expect(http.MethodPost, "/join", "bob", `{"inviteCode":"`+invitation.InviteCode+`","seedRanking":[0,0,1]}`, http.StatusBadRequest, "invalid_seed_ranking")
+	status, joined := env.call(http.MethodPost, "/join", "bob", `{"inviteCode":"`+invitation.InviteCode+`","houseName":"House Tyrell","seedRanking":[2,1,0]}`)
+	player, _ := joined["player"].(map[string]any)
+	if status != http.StatusCreated || joined["started"] != true || player["name"] != "House Tyrell" {
+		t.Fatalf("join = %d %v", status, joined)
+	}
+	if len(notifier.started) != 1 || notifier.started[0] != game.ID {
+		t.Fatalf("turn notifications = %v, want one for the game", notifier.started)
+	}
 }

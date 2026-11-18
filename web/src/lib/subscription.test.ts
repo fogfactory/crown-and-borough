@@ -142,10 +142,11 @@ describe('Firestore game subscriptions', () => {
     })
   })
 
-  it('reports an incognito game as waiting until every slot is taken', () => {
+  it('reports a game as waiting while its lobby is open', () => {
     const data = {
       id: 'game-1',
       incognito: true,
+      lobby: true,
       players: [
         { id: 'P1', name: 'P1', color: '#a84632', actorId: 'alice-uid' },
         { id: 'P2', name: 'P2', color: '#2d5f9e', actorId: 'slot:P2', nameLocked: true },
@@ -156,13 +157,49 @@ describe('Firestore game subscriptions', () => {
       started: false,
       seated: 1,
     })
-    const full = normalizeGameSummary(
-      { ...data, players: [data.players[0], { ...data.players[1], actorId: 'bob-uid' }] },
+    const started = normalizeGameSummary(
+      {
+        ...data,
+        lobby: false,
+        players: [
+          { ...data.players[0], accountName: 'Alice' },
+          { ...data.players[1], actorId: 'bob-uid' },
+        ],
+      },
       'game-1',
     )
-    expect(full).toMatchObject({ started: true, seated: 2 })
-    expect(full.players[1]).toMatchObject({ nameLocked: true })
-    expect(normalizeGameSummary({ id: 'g', players: [] }, 'g').incognito).toBeUndefined()
+    expect(started).toMatchObject({ started: true, seated: 2 })
+    expect(started.players[1]).toMatchObject({ nameLocked: true })
+    expect(started.players[0]).toMatchObject({ accountName: 'Alice' })
+    expect(normalizeGameSummary({ id: 'g', players: [] }, 'g').started).toBeUndefined()
+  })
+
+  it('reads the REST lobby of the caller', () => {
+    const summary = normalizeGameSummary(
+      {
+        id: 'game-1',
+        started: false,
+        seated: 1,
+        lobby: {
+          seedCandidates: [
+            { index: 0, seed: 'aa' },
+            { index: 1, seed: 'bb' },
+          ],
+          seedRanking: [1, 0],
+          houseName: 'House Stark',
+        },
+        players: [],
+      },
+      'game-1',
+    )
+    expect(summary.lobby).toEqual({
+      seedCandidates: [
+        { index: 0, seed: 'aa' },
+        { index: 1, seed: 'bb' },
+      ],
+      seedRanking: [1, 0],
+      houseName: 'House Stark',
+    })
   })
 
   it('marks a player absent from requiredUids as having nothing to submit', () => {

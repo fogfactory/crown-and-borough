@@ -400,9 +400,9 @@ func TestDevelopmentResolverKeepsLegacySlotAccessWhenStrictSlotsAreEnabled(t *te
 		StrictMembership: true,
 	})
 	created := createGameHTTP(t, handler, "P1", `{"name":"dev game","players":2}`)
-	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(created.ID)+"/state?player=P2", "")
+	response := requestGames(t, handler, http.MethodGet, "/api/games/"+string(created.ID)+"?player=P2", "")
 	if response.Code != http.StatusOK {
-		t.Fatalf("development P2 state = %d: %s", response.Code, response.Body.String())
+		t.Fatalf("development P2 game = %d: %s", response.Code, response.Body.String())
 	}
 }
 

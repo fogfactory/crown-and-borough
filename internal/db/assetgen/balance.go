@@ -38,10 +38,30 @@ type Balance struct {
 	StartingTroops          int                    `json:"starting_troops" yaml:"starting_troops"`
 	StartingOutposts        int                    `json:"starting_outposts" yaml:"starting_outposts"`
 	StartingResources       int                    `json:"starting_resources" yaml:"starting_resources"`
-	SpecialOrders           SpecialOrdersBalance   `json:"special_orders" yaml:"special_orders"`
-	Religion                ReligionBalance        `json:"religion" yaml:"religion"`
-	Royal                   RoyalBalance           `json:"royal" yaml:"royal"`
-	FirstNames              []Asset                `json:"-" yaml:"-"`
+	// SeedCandidates is how many candidate seeds an online game's lobby
+	// offers to the vote (optional in balance.yaml, DefaultSeedCandidates).
+	SeedCandidates int                  `json:"seed_candidates" yaml:"seed_candidates"`
+	SpecialOrders  SpecialOrdersBalance `json:"special_orders" yaml:"special_orders"`
+	Religion       ReligionBalance      `json:"religion" yaml:"religion"`
+	Royal          RoyalBalance         `json:"royal" yaml:"royal"`
+	FirstNames     []Asset              `json:"-" yaml:"-"`
+}
+
+const (
+	// DefaultSeedCandidates is the number of candidate seeds of a lobby when
+	// balance.yaml does not set seed_candidates.
+	DefaultSeedCandidates = 3
+	// MaxSeedCandidates bounds seed_candidates.
+	MaxSeedCandidates = 8
+)
+
+// SeedCandidateCount is the number of candidate seeds a lobby offers; a zero
+// Balance (tests) gets the default.
+func (b Balance) SeedCandidateCount() int {
+	if b.SeedCandidates < 1 {
+		return DefaultSeedCandidates
+	}
+	return b.SeedCandidates
 }
 
 // VictoryBalance derives the title-score supremacy thresholds from the board
@@ -199,6 +219,7 @@ type rawBalance struct {
 	StartingTroops          *int              `yaml:"starting_troops"`
 	StartingOutposts        *int              `yaml:"starting_outposts"`
 	StartingResources       *int              `yaml:"starting_resources"`
+	SeedCandidates          *int              `yaml:"seed_candidates"`
 	SpecialOrders           *rawSpecialOrders `yaml:"special_orders"`
 	Religion                *rawReligion      `yaml:"religion"`
 	Royal                   *rawRoyal         `yaml:"royal"`
@@ -404,6 +425,13 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 	if err != nil {
 		return Balance{}, err
 	}
+	seedCandidates := DefaultSeedCandidates
+	if raw.SeedCandidates != nil {
+		seedCandidates = *raw.SeedCandidates
+		if seedCandidates < 1 || seedCandidates > MaxSeedCandidates {
+			return Balance{}, fmt.Errorf("assetgen: %s: value %q must be between 1 and %d", path, "seed_candidates", MaxSeedCandidates)
+		}
+	}
 	specialOrders, err := raw.specialOrders(path)
 	if err != nil {
 		return Balance{}, err
@@ -473,6 +501,7 @@ func (raw rawBalance) balance(path string) (Balance, error) {
 		StartingTroops:          startingTroops,
 		StartingOutposts:        startingOutposts,
 		StartingResources:       startingResources,
+		SeedCandidates:          seedCandidates,
 		SpecialOrders:           specialOrders,
 		Religion:                religion,
 		Royal:                   royal,

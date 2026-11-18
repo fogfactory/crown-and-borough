@@ -704,24 +704,44 @@ It exists in online games only: it is absent in hotseat.
 
 ---
 
-## 11. Incognito games
+## 11. Lobby, map vote and house names
+
+An online game starts in a **lobby**. It has no map and no houses while a seat
+is still free: the lobby shows how many players have arrived ("2/4 players
+joined"), and the game starts when the last seat is taken.
+
+- **The map vote.** Each player is shown candidate maps (three), drawn for the
+  number of players of the game, and can **rank** them by preference. When the
+  game starts, the votes are counted: the best-ranked map earns the most
+  points (the last rank earns none), and the map with the most points becomes
+  the map of the game. A tie is settled by a draw fixed by the game id; if
+  nobody voted, the first candidate wins. A player who ranks nothing does not
+  vote. Your ranking stays private, and you can change it until the game
+  starts. If the creator imposes a seed, there is no vote.
+- **Before you join.** On the invitation screen you see the candidate maps and can already rank them and choose the name of your house: these choices count even if you are the last to arrive. You do not vote if you leave the maps in the order shown.
+- **Your house name.** You choose the family name of your house in the lobby.
+  It is free until your house submits its first orders in the game, including
+  after the game has started, then it is locked. Without a chosen name, your
+  house takes the name of your profile (or its placeholder name `P1`, `P2`,
+  and so on in an incognito game). It must differ from every other house's
+  name, and every player sees it: a change made once the game has started is
+  announced in the public chat room.
+- **Your account.** The name of your profile is distinct from the name of your
+  house: changing it renames no house. It is shown beside your house name in
+  the list of players.
+- **The houses.** When the game starts, the map is generated from the chosen
+  seed and each house receives its starting territory.
+
+### Incognito games
 
 The creator of an online game can make it **incognito**.
 
-- **No account names.** Houses carry a placeholder name (`P1`, `P2`, and so
-  on); the name of your profile never appears in the game, and changing it
-  does not affect your incognito games.
-- **The game waits for every player.** While a seat is still free, the map,
-  the placement of the houses and orders are unavailable: the game only shows
-  how many seats are taken. When the last seat is taken, the houses are drawn
-  at random among the players; the order in which players arrived does not
-  influence the draw.
-- **Your house, your name.** Once the game has started, you choose the name
-  of your house (1 to 32 characters), ideally according to the territory it
-  holds. The name is free until your house submits its first orders in the
-  game, then it is locked. It must differ from every other house's name in the
-  game, and every player sees it: each change is announced in the public chat
-  room.
+- **No account names.** The name of your profile never appears in the game:
+  only house names are visible.
+- **Houses are drawn at random.** When the game starts, the players are
+  spread at random over the houses; the order in which players arrived does
+  not influence the draw. A house without a chosen name carries its
+  placeholder name (`P1`, `P2`, and so on).
 
 ---
 

@@ -84,7 +84,7 @@ func TestIncognitoGameWaitsForEverySlot(t *testing.T) {
 	}
 }
 
-func TestOrdinaryGameStillCopiesProfileNames(t *testing.T) {
+func TestOrdinaryGameShowsTheAccountNameBesideTheHouseName(t *testing.T) {
 	gameStore := newTestStore(t)
 	ctx := context.Background()
 	if _, err := gameStore.EnsureProfile(ctx, Actor{ID: "bob"}); err != nil {
@@ -107,11 +107,23 @@ func TestOrdinaryGameStillCopiesProfileNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if joined.Player.Name != "Bob Account" || joined.Snapshot.Incognito {
-		t.Fatalf("ordinary game player = %q incognito %v", joined.Player.Name, joined.Snapshot.Incognito)
+	if joined.Player.Name != "Bob Account" || joined.Player.AccountName != "Bob Account" || joined.Snapshot.Incognito {
+		t.Fatalf("ordinary game player = %#v", joined.Player)
 	}
-	if _, err := gameStore.RenameHouse(ctx, Actor{ID: "bob"}, created.ID, "Bobbins"); !errors.Is(err, ErrNotIncognito) {
-		t.Fatalf("rename in an ordinary game = %v, want ErrNotIncognito", err)
+	// The house name is its own: renaming the profile moves the account name only.
+	if _, err := gameStore.RenameHouse(ctx, Actor{ID: "bob"}, created.ID, "Bobbins"); err != nil {
+		t.Fatalf("rename in an ordinary game: %v", err)
+	}
+	if _, err := gameStore.UpdateProfile(ctx, "bob", "Robert Account"); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := gameStore.Get(ctx, Actor{ID: "bob"}, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slot := playerSlotForID(snapshot.Players, joined.Player.ID)
+	if slot.Name != "Bobbins" || slot.AccountName != "Robert Account" {
+		t.Fatalf("slot after profile rename = %#v", slot)
 	}
 }
 
@@ -208,8 +220,8 @@ func seatsAfterJoins(t *testing.T, guests []string) map[string]string {
 			t.Fatalf("join %s: %v", guest, err)
 		}
 		last := index == len(guests)-1
-		if result.Snapshot.PlacementHidden() == last {
-			t.Fatalf("placement hidden after join %d = %v", index+1, !last)
+		if result.Snapshot.Started() != last {
+			t.Fatalf("started after join %d = %v", index+1, !last)
 		}
 		_, stateErr := gameStore.State(ctx, Actor{ID: guest}, created.ID)
 		_, mapErr := gameStore.Map(ctx, Actor{ID: guest}, created.ID)

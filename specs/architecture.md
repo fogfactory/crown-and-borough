@@ -517,12 +517,15 @@ global lorsqu'une autre partie est déjà active.
 | `PUT` | `/api/auth/me/notifications` | Met à jour les notifications par email du profil courant. Corps : `newTurn` (nouveau tour dans une partie du joueur), `privateMessage` (message privé reçu par sa maison), `publicMessage` (message d'une autre maison dans le salon public), `reduceWhenActive` (pas d'email si le joueur était actif au moment de l'événement ; sans effet tant qu'aucune des trois notifications n'est activée) — booléens — et `language` (`fr` ou `en`, langue des emails, choisie dans le profil ; le front enregistre celle de l'application avec le premier réglage sauvegardé) ; au moins un champ, les champs absents sont conservés ; `400` sinon. Tout est désactivé par défaut : un profil sans ces champs n'envoie aucun email. Renvoie le profil. Le contenu des emails et leurs règles d'envoi sont décrits dans [`chat.md`](chat.md) et [`online.md`](online.md). |
 | `GET` | `/api/bugs` | Authentifié. Renvoie `{ "enabled": bool }` : `false` tant que ni la GitHub App (`GITHUB_BUG_APP_*`) ni `GITHUB_BUG_TOKEN` ne sont configurés. |
 | `POST` | `/api/bugs` | Authentifié. Corps (256 Kio max) : `title` (≤ 120 car.), `description` (≤ 4000 car.), `gameId` (optionnel) et `context` (capture du navigateur : version, user agent, page, derniers appels API sans en-têtes ni corps ; aucun état de jeu). Le serveur lit lui-même la projection de `gameId` visible par le joueur (celle de `GET /api/games/{id}/state`) et la range, masquée, dans la collection Firestore privée `bugReports` (hors de `games`, lecture et écriture réservées au backend), sous un identifiant lisible `<partie>-t<tour>-<joueur>-<suffixe aléatoire>`  ; l'issue ne cite que le suffixe aléatoire `ref` (l'identifiant complet nomme la partie et le joueur), ou `Game view: unavailable` si le joueur n'est pas membre de la partie, jamais la vue elle-même. Le document est créé sans jamais écraser un rapport existant (suffixe aléatoire de 48 bits), supprimé si GitHub refuse l'issue, puis complété par `issueUrl` seul. Il porte aussi `ref`, `gameId`, `turn`, `playerId`, `uid`, `title` et `createdAt` et se retrouve dans la console par `ref` ou `issueUrl` ; il se supprime librement depuis la console. En développement sans Firestore, la collection est en mémoire. Les clés, jetons et paramètres d'URL sensibles sont masqués à toute profondeur. Crée une issue **publique** GitHub (label `bug`) au nom de la GitHub App installée sur le dépôt (JWT RS256 échangé contre un jeton d'installation d'une heure, mis en cache ; `GITHUB_BUG_TOKEN` sert de repli en local) ; le corps est tronqué sous la limite GitHub. `503 bug_reports_disabled` sans jeton, `429` au-delà de 3 signalements par 10 min et par joueur (30 par heure au total), `502` si GitHub refuse. Renvoie `201 { "url" }`. |
-| `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. Avec `incognito: true` (faux par défaut), la partie est incognito (voir `POST /api/games/{id}/house-name`). |
+| `POST` | `/api/games` | Crée une partie avec deux à huit slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. Une partie online (membership strict) démarre dans un **salon d'attente**, voir ci-dessous. `incognito: true` (faux par défaut) masque les noms de compte ; `seed` non vide impose la graine (pas de vote). |
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
-| `POST` | `/api/games/{id}/house-name` | Corps : `{ "name": "..." }`. Nomme la maison du joueur connecté dans une partie incognito. Une partie incognito (`incognito` dans les vues liste, détail et dans `GameSnapshot`, persisté en mémoire et dans Firestore) n'utilise jamais le nom de profil : les slots portent les noms provisoires du moteur (`P1`…), la mise à jour du profil ne les touche pas, et `POST /api/games` n'y copie pas le nom du créateur. Tant qu'un slot est libre (`started: false` ; `seated` compte les slots pris), `state`, `map`, `supply`, `orders`, `resolve` et le renommage répondent `409 game_not_started`, les vues ne portent ni `currentPlayer` ni scores, et Firestore ne publie ni vue joueur ni vue observateur. Au moment où le dernier slot est pris, les membres (triés) sont mélangés sur les slots par un tirage dérivé de la graine : le résultat ne dépend pas de l'ordre d'arrivée. Le nom (même normalisation que le nom affiché, 1 à 32 caractères) doit différer, sans tenir compte de la casse, de celui des autres maisons (`409 house_name_taken`) ; il se change tant que la maison n'a rien soumis (`PlayerSlot.NameLocked`, exposé en `nameLocked`, posé par la première soumission ; ensuite `409 house_name_locked`) ; `409 not_incognito` hors partie incognito ; `400 invalid_house_name`. Met à jour le slot et le joueur de l'état, incrémente la révision, rafraîchit les vues Firestore, puis écrit dans le salon public un message système (`kind: "house_renamed"`, `body` = nouveau nom, `previousName`, auteur = la maison, sans limite de débit ni notification email). Réponse : le détail de la partie et le slot `player`. |
+| `POST` | `/api/games/{id}/house-name` | Corps : `{ "name": "..." }`. Nomme la maison du joueur connecté (même normalisation que le nom affiché, 1 à 32 caractères). Dans le salon (`started: false`) le nom est seulement enregistré, sans message ; une fois la partie commencée il renomme la maison (slot et joueur de l'état, révision incrémentée, vues Firestore rafraîchies) et écrit dans le salon public un message système (`kind: "house_renamed"`, `body` = nouveau nom, `previousName`, auteur = la maison, sans limite de débit ni notification email). Le nom doit différer, sans tenir compte de la casse, de celui des autres maisons (`409 house_name_taken`) ; il se change tant que la maison n'a rien soumis (`PlayerSlot.NameLocked`, exposé en `nameLocked`, posé par la première soumission ; ensuite `409 house_name_locked`) ; `400 invalid_house_name`. Réponse : le détail de la partie et le slot `player` (vide dans le salon). |
+| `PUT` | `/api/games/{id}/seed-vote` | Corps : `{ "ranking": [2, 0, 1] }`, les indices des graines candidates, de la préférée à la moins aimée ; une permutation des candidates (`400 invalid_seed_ranking`) ou une liste vide qui retire le vote. Réservé aux membres, tant que le salon est ouvert (`409 game_started` ensuite). Réponse : le détail de la partie, dont `lobby.seedRanking` (le classement du seul appelant). |
+| `GET` | `/api/games/{id}/seed-candidates/{index}/map[?inviteCode=…]` | Membres, ou porteur d'un code d'invitation actif de la partie (`403 invalid_invitation` sinon). `map.json` de la graine candidate `index`, générée pour le nombre de joueurs de la partie (`engine.GenerateMap`), mis en cache par (partie, indice) ; ne révèle que la carte, jamais le placement des maisons (`Starts` n'est pas sérialisé). `404` pour un indice inconnu. |
 | `GET` | `/api/games/{id}/invite` | Renvoie le lien d'invitation au créateur uniquement. |
-| `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. |
+| `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. Corps : `inviteCode` et, facultatifs, `houseName` et `seedRanking` (mêmes validations que `POST /house-name` et `PUT /seed-vote` en salon : `409 house_name_taken`, `400 invalid_house_name` / `invalid_seed_ranking`). Ils sont appliqués dans la même transaction (mémoire : même verrou) **avant** le plan de démarrage : le dernier arrivant vote et nomme sa maison comme les autres. Une entrée invalide fait échouer le join sans prendre le slot. Ignorés si l'appelant est déjà membre. Quand ce join prend le dernier slot (`JoinResult.Started`), la réponse est écrite et vidée puis la notification « nouveau tour » est envoyée (`Notifier.TurnStarted`). `store.InvitationGameStore.JoinWith` porte ces options ; `Join` est `JoinWith` sans options. |
+| `GET` | `/api/games/{id}/join-preview?inviteCode=…` | Membre, ou porteur d'un code d'invitation actif de cette partie (sinon `403 invalid_invitation`) : `name`, `players`, `seated`, `incognito`, `started`, `member` et `seedCandidates` (`[{index, seed}]`, vide si la partie a démarré ou si la graine est imposée). De quoi préparer un nom et un vote avant de rejoindre ; rien d'autre de la partie. |
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&special=…` | Calcule la ligne ou la zone de ravitaillement demandée, après les calamités de la saison (peste, famine, mauvais temps) et les cartes du brouillon `special` du joueur connecté (Beau temps, Bonne récolte ; la Révolte est ignorée pour ne pas révéler son tirage). La ligne détaille `terrainProduction`, `famineRations` et `bonusRations`. |
@@ -539,6 +542,50 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté, ou complet pour l'hôte observateur. |
 | `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |
+
+### Salon d'attente, graine et noms (parties online)
+
+Une partie en membership strict (online) n'a ni état, ni carte, ni graine, ni
+vue joueur avant que son dernier slot soit pris ; le mode local (hotseat, slots
+non stricts) construit tout à la création. `GameSnapshot.State == nil` marque
+le salon (`started: false` dans les vues liste et détail ; `seated` compte les
+slots pris ; `turn` vaut 0 et `scores` est absent). Dans le salon, `state`,
+`map`, `supply`, `orders`, `resolve`, `my-submission`, `submitted-orders` et le
+chat répondent `409 game_not_started`.
+
+- **Données du salon.** Le créateur et chaque joueur peuvent préparer une
+  entrée (`LobbyEntry` : nom de maison en attente, classement des graines),
+  stockée par membre : en mémoire dans le jeu, en Firestore dans
+  `games/{id}/lobby/{uid}`, collection fermée aux clients par les règles (le
+  document de partie est lisible par tous les membres, un vote ne doit pas
+  l'être). Les vues exposent `lobby` (`seedCandidates` `[{index, seed}]`,
+  `seedRanking`, `houseName`) au seul appelant, tant que le salon est ouvert.
+- **Candidates.** `store.SeedCandidates(gameID, n)` : `hex(sha256(gameID|candidate|i))`
+  tronqué, `n` = `seed_candidates` de `balance.yaml` (3 par défaut, 8 au plus).
+  Une graine imposée à la création (`seed` non vide) supprime les candidates.
+- **Démarrage.** Au join du dernier slot, `store.PlanStart` (mémoire : sous le
+  verrou de la partie ; Firestore : dans la transaction du join) : (1) résout la
+  graine par un compte de Borda (rang r sur n : n−1−r points ; abstentions
+  ignorées ; égalité départagée par `sha256(gameID|tiebreak|i)` ; aucun vote →
+  candidate 0) ; (2) dans une partie incognito, répartit les membres sur les
+  slots par un mélange dérivé de la graine (`SeatIncognitoPlayers`, indépendant
+  de l'ordre d'arrivée) ; sinon chacun garde son slot ; (3) nomme les maisons ;
+  (4) génère la carte et l'état. Firestore écrit alors, dans cette même
+  transaction, le document de partie (`lobby` retiré), le document canonique, la
+  carte, les vues joueur et la vue observateur : rien de tout cela n'existe avant.
+- **Nom de maison et nom de compte.** Deux notions distinctes. `PlayerSlot.Name`
+  (et `players[].name` de l'état) est le **nom de maison** : celui du lobby si le
+  membre en a saisi un, sinon le nom du profil (partie non incognito), sinon le
+  nom du slot donné à la création, sinon le provisoire `P1`… ; un nom déjà pris
+  est ignoré. `PlayerSlot.AccountName` (`playerDocument.accountName`,
+  `PlayerSlotView.accountName`) est le **nom affiché du compte**, enregistré au
+  démarrage hors partie incognito uniquement : jamais écrit, ni dans le jeu ni dans
+  le document Firestore lisible par les membres, d'une partie incognito.
+  `PUT /api/auth/me` ne met à jour que `AccountName` (parties non incognito) et ne
+  renomme jamais une maison. Les parties créées avant ces champs n'ont pas
+  d'`AccountName` : elles s'affichent comme avant, leur nom de maison reste celui
+  qui avait été copié du profil, et les champs `lobby`, `incognito`, `nameLocked`
+  absents valent faux (aucune migration).
 
 Les erreurs utilisent au minimum la forme `{ "error": "code", "message":
 "..." }`. Les erreurs de validation peuvent ajouter `details` sans changer les

@@ -160,8 +160,20 @@ export interface GameSlot {
    * never required even before they act). */
   required: boolean
   actorId?: string
+  /** The account behind the house; absent in incognito games. */
+  accountName?: string
   /** The house submitted orders: an incognito game keeps its name. */
   nameLocked?: boolean
+}
+
+/** The caller's own part of a game whose lobby is open. */
+export interface GameLobby {
+  /** Seeds put to the vote; empty when the creator imposed the seed. */
+  seedCandidates: Array<{ index: number; seed: string }>
+  /** Own ranking, candidate indexes best first; empty without a vote. */
+  seedRanking: number[]
+  /** House name entered so far. */
+  houseName: string
 }
 
 export interface GameSummary {
@@ -182,6 +194,8 @@ export interface GameSummary {
   started?: boolean
   /** Incognito game only: how many slots are taken. */
   seated?: number
+  /** Open lobby, as the caller sees it (REST detail only). */
+  lobby?: GameLobby
   players: GameSlot[]
   turn: number
   season: Season

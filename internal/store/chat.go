@@ -345,7 +345,8 @@ func (c *ChatService) houseOf(ctx context.Context, actor Actor, id GameID, needS
 		return GameSnapshot{}, "", ErrNotMember
 	}
 	if needState && snapshot.State == nil {
-		return GameSnapshot{}, "", ErrUnknownGame
+		// A game in its lobby has no turn to stamp messages with.
+		return GameSnapshot{}, "", ErrGameNotStarted
 	}
 	return snapshot, house, nil
 }

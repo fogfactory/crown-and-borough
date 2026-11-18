@@ -115,8 +115,9 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 			continue
 		}
 		foundRenamedPlayer = true
-		if player.Name != "Robert" {
-			t.Fatalf("creator view player P2 name after profile update = %q, want Robert", player.Name)
+		// The house name is its own: a profile update moves the account name only.
+		if player.Name != "Bob" {
+			t.Fatalf("creator view player P2 name after profile update = %q, want Bob", player.Name)
 		}
 	}
 	if !foundRenamedPlayer {
@@ -126,8 +127,8 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read renamed game: %v", err)
 	}
-	if updated.Players[1].Name != "Robert" || updated.State.Players[1].Name != "Robert" {
-		t.Fatalf("renamed Bob = slot %q/state %q, want Robert", updated.Players[1].Name, updated.State.Players[1].Name)
+	if updated.Players[1].Name != "Bob" || updated.State.Players[1].Name != "Bob" || updated.Players[1].AccountName != "Robert" {
+		t.Fatalf("renamed Bob = slot %q/state %q/account %q, want house Bob, account Robert", updated.Players[1].Name, updated.State.Players[1].Name, updated.Players[1].AccountName)
 	}
 	aliceGames, err := first.List(ctx, store.Actor{ID: "alice"})
 	if err != nil {
@@ -223,7 +224,7 @@ func TestFirestoreStoreResolvesIntoWinter(t *testing.T) {
 	defer client.Close()
 	s := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true})
 	alice := store.Actor{ID: "winter-alice"}
-	created, err := s.Create(ctx, alice, store.CreateRequest{
+	created, err := startedGame(ctx, s, alice, store.CreateRequest{
 		Name:    "Winter game",
 		Seed:    "firestore-winter",
 		Players: []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}},
@@ -290,7 +291,7 @@ func TestFirestoreStoreReleasesTheClaimWhenTheCommitFails(t *testing.T) {
 	// A lease far longer than the test: only an explicit release frees the game.
 	s := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true, LeaseTimeout: time.Hour})
 	alice := store.Actor{ID: "commit-alice"}
-	created, err := s.Create(ctx, alice, store.CreateRequest{
+	created, err := startedGame(ctx, s, alice, store.CreateRequest{
 		Name:    "Failed commit",
 		Seed:    "firestore-failed-commit",
 		Players: []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}},
@@ -372,7 +373,7 @@ func TestFirestoreStoreConcurrentResolutionClaimsOneOperation(t *testing.T) {
 	}
 	defer client.Close()
 	gameStore := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true})
-	created, err := gameStore.Create(ctx, store.Actor{ID: "alice"}, store.CreateRequest{
+	created, err := startedGame(ctx, gameStore, store.Actor{ID: "alice"}, store.CreateRequest{
 		Name:    "Concurrent resolution",
 		Seed:    "firestore-concurrent-resolution",
 		Players: []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}},
@@ -440,7 +441,7 @@ func TestFirestoreStoreRestoreReclaimsExpiredResolutionLease(t *testing.T) {
 	}
 	defer client.Close()
 	gameStore := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true})
-	created, err := gameStore.Create(ctx, store.Actor{ID: "alice"}, store.CreateRequest{
+	created, err := startedGame(ctx, gameStore, store.Actor{ID: "alice"}, store.CreateRequest{
 		Name:    "Recoverable claim",
 		Seed:    "firestore-recoverable-claim",
 		Players: []engine.PlayerInit{{Name: "Alice"}, {Name: "Bob"}},
@@ -639,6 +640,28 @@ func TestFirestoreStoreJoinRejectsAnActiveResolutionClaim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
+	// A game that predates lobbies is started yet may have a free slot: start
+	// this one, then free Bob's slot as such a game would have it.
+	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code); err != nil {
+		t.Fatalf("join game: %v", err)
+	}
+	gameSnapshot, err := gameRef(client, created.Snapshot.ID).Get(ctx)
+	if err != nil {
+		t.Fatalf("read game: %v", err)
+	}
+	game, err := decodeGameDocument(gameSnapshot)
+	if err != nil {
+		t.Fatalf("decode game: %v", err)
+	}
+	for index := range game.Players {
+		if game.Players[index].ActorID == "bob" {
+			game.Players[index].ActorID = ""
+		}
+	}
+	game.MemberUIDs = []string{"alice"}
+	if _, err := gameRef(client, created.Snapshot.ID).Set(ctx, game); err != nil {
+		t.Fatalf("free Bob's slot: %v", err)
+	}
 	canonicalSnapshot, err := canonicalRef(client, created.Snapshot.ID).Get(ctx)
 	if err != nil {
 		t.Fatalf("read canonical: %v", err)
@@ -657,11 +680,109 @@ func TestFirestoreStoreJoinRejectsAnActiveResolutionClaim(t *testing.T) {
 	if _, err := canonicalRef(client, created.Snapshot.ID).Set(ctx, canonical); err != nil {
 		t.Fatalf("seed active claim: %v", err)
 	}
-	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code); !errors.Is(err, store.ErrRevisionConflict) {
+	if _, err := gameStore.Join(ctx, store.Actor{ID: "carol"}, created.Snapshot.ID, created.Invitation.Code); !errors.Is(err, store.ErrRevisionConflict) {
 		t.Fatalf("join during claim error = %v, want revision conflict", err)
 	}
 	canonical.Resolution = nil
 	if _, err := canonicalRef(client, created.Snapshot.ID).Set(ctx, canonical); err != nil {
 		t.Fatalf("clear active claim: %v", err)
+	}
+}
+
+// startedGame creates a two-player online game for creator and has Bob join
+// it: an online game has no board before its last slot is taken.
+func startedGame(ctx context.Context, s *FirestoreStore, creator store.Actor, request store.CreateRequest) (store.GameSnapshot, error) {
+	created, err := s.CreateWithInvitation(ctx, creator, request)
+	if err != nil {
+		return store.GameSnapshot{}, err
+	}
+	joined, err := s.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code)
+	if err != nil {
+		return store.GameSnapshot{}, err
+	}
+	return joined.Snapshot, nil
+}
+
+func TestFirestoreLobbyStartsWithTheLastJoinAndCountsItsEntry(t *testing.T) {
+	if os.Getenv("FIRESTORE_EMULATOR_HOST") == "" {
+		t.Skip("FIRESTORE_EMULATOR_HOST is not configured")
+	}
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		projectID = "crown-and-borough-integration"
+	}
+	assets, err := assetgen.Load("../../../assets")
+	if err != nil {
+		t.Fatalf("load assets: %v", err)
+	}
+	balance, err := assetgen.LoadBalance("../../../assets")
+	if err != nil {
+		t.Fatalf("load balance: %v", err)
+	}
+	ctx := context.Background()
+	client, err := cloudfirestore.NewClient(ctx, projectID)
+	if err != nil {
+		t.Fatalf("create emulator client: %v", err)
+	}
+	defer client.Close()
+	gameStore := NewWithClient(balance, assets, Options{Client: client, StrictMembership: true})
+	alice, bob, carol := store.Actor{ID: "lobby-alice"}, store.Actor{ID: "lobby-bob"}, store.Actor{ID: "lobby-carol"}
+	created, err := gameStore.CreateWithInvitation(ctx, alice, store.CreateRequest{
+		Name:    "Lobby game",
+		Players: []engine.PlayerInit{{}, {}, {}},
+	})
+	if err != nil {
+		t.Fatalf("create game: %v", err)
+	}
+	id := created.Snapshot.ID
+	defer func() {
+		if err := gameStore.deleteGame(ctx, id); err != nil {
+			t.Errorf("delete game subtree: %v", err)
+		}
+	}()
+	// A lobby holds the game document alone: no canonical state, no view.
+	if _, err := canonicalRef(client, id).Get(ctx); !isCode(err, codes.NotFound) {
+		t.Fatalf("canonical before start = %v, want not found", err)
+	}
+	if _, err := gameStore.State(ctx, alice, id); !errors.Is(err, store.ErrGameNotStarted) {
+		t.Fatalf("state in the lobby = %v, want ErrGameNotStarted", err)
+	}
+	if _, err := gameStore.SetSeedVote(ctx, alice, id, []int{1, 0, 2}); err != nil {
+		t.Fatalf("vote: %v", err)
+	}
+	if _, err := gameStore.RenameHouse(ctx, alice, id, "House Stark"); err != nil {
+		t.Fatalf("lobby name: %v", err)
+	}
+	// The vote sits in a backend-only document, never on the game document.
+	if _, err := gameStore.JoinWith(ctx, bob, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{1, 2, 0}, HouseName: "House Tyrell"}); err != nil {
+		t.Fatalf("join bob: %v", err)
+	}
+	if _, err := gameStore.JoinWith(ctx, bob, id, created.Invitation.Code, store.JoinOptions{HouseName: "house stark"}); err != nil {
+		t.Fatalf("an existing member joining again must be idempotent: %v", err)
+	}
+	last, err := gameStore.JoinWith(ctx, carol, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
+	if err != nil {
+		t.Fatalf("join carol: %v", err)
+	}
+	if !last.Started || !last.Snapshot.Started() {
+		t.Fatal("the last join did not start the game")
+	}
+	// Borda: candidate 1 = 2+2+1, candidate 2 = 0+... : candidate 1 wins.
+	if want := store.SeedCandidates(id, 3)[1]; last.Snapshot.Seed != want {
+		t.Fatalf("seed = %s, want candidate 1 %s", last.Snapshot.Seed, want)
+	}
+	if last.Player.Name != "House Arryn" {
+		t.Fatalf("carol's house = %q", last.Player.Name)
+	}
+	if _, err := canonicalRef(client, id).Get(ctx); err != nil {
+		t.Fatalf("canonical after start: %v", err)
+	}
+	for _, actor := range []store.Actor{alice, bob, carol} {
+		if _, err := viewRef(client, id, actor.ID).Get(ctx); err != nil {
+			t.Fatalf("view of %s after start: %v", actor.ID, err)
+		}
+	}
+	if _, err := gameStore.SetSeedVote(ctx, alice, id, []int{0, 1, 2}); !errors.Is(err, store.ErrGameStarted) {
+		t.Fatalf("vote after start = %v, want ErrGameStarted", err)
 	}
 }

@@ -149,6 +149,10 @@ type PlayerSlot struct {
 	Name    string          `json:"name"`
 	Color   string          `json:"color"`
 	ActorID string          `json:"actorId,omitempty"`
+	// AccountName is the display name of the member's account, recorded
+	// outside incognito games only (and absent from games that predate it).
+	// Name is the house name, a separate concept.
+	AccountName string `json:"accountName,omitempty"`
 	// NameLocked is set by the house's first order submission: from then on an
 	// incognito game no longer lets the house change its name.
 	NameLocked bool `json:"nameLocked,omitempty"`
@@ -197,6 +201,11 @@ type GameSnapshot struct {
 	CreatedBy    string                                    `json:"createdBy,omitempty"`
 	SpectatorUID string                                    `json:"spectatorUid,omitempty"`
 	Incognito    bool                                      `json:"incognito,omitempty"`
+	// Lobby is the caller's own part of a game whose lobby is still open; nil
+	// once the game has started.
+	Lobby *LobbyView `json:"-"`
+	// FixedSeed is the seed the creator imposed on a lobby, if any.
+	FixedSeed string `json:"-"`
 }
 
 type SubmitResult struct {
@@ -214,6 +223,34 @@ type JoinResult struct {
 	Snapshot GameSnapshot
 	Player   PlayerSlot
 	Joined   bool
+	// Started is true when this very join took the last slot and so started
+	// the game.
+	Started bool
+}
+
+// JoinOptions is what a joiner prepares for the lobby along with the join,
+// applied before the game can start: the last joiner's name and vote count
+// like everyone else's. Empty fields are left out; the validation is the
+// lobby routes'.
+type JoinOptions struct {
+	HouseName   string
+	SeedRanking []int
+}
+
+// JoinPreview is what someone holding a valid invitation (or a member) may see
+// of a game before joining it: enough to prepare a house name and a vote.
+type JoinPreview struct {
+	ID        GameID
+	Name      string
+	Players   int
+	Seated    int
+	Incognito bool
+	Started   bool
+	// Member is true when the caller already holds a slot.
+	Member bool
+	// SeedCandidates is empty once the game started or when the creator
+	// imposed the seed.
+	SeedCandidates []string
 }
 
 // RenameResult is the outcome of InvitationGameStore.RenameHouse.
@@ -257,16 +294,11 @@ func SlotsFilled(players []PlayerSlot) bool {
 	return true
 }
 
-// Started reports whether every player slot is taken. An incognito game
-// accepts orders only once it has started.
+// Started reports whether the game has a board: an online game builds its
+// map and state when its last slot is taken, and until then (its lobby) it
+// has neither.
 func (s GameSnapshot) Started() bool {
-	return SlotsFilled(s.Players)
-}
-
-// PlacementHidden reports whether the starting placement of the houses must
-// stay secret: an incognito game draws it when its last slot is taken.
-func (s GameSnapshot) PlacementHidden() bool {
-	return s.Incognito && !s.Started()
+	return s.State != nil
 }
 
 // SeatIncognitoPlayers draws which member holds which house once every slot is
@@ -286,18 +318,11 @@ func SeatIncognitoPlayers(seed string, players []PlayerSlot) {
 	}
 }
 
-// ValidateHouseRename applies the rules of a house rename to the slot of
-// playerID: the game must be incognito, the house must not have submitted
-// orders yet, and the normalized name must differ from every other house's.
-// It returns the normalized name.
-func ValidateHouseRename(incognito bool, players []PlayerSlot, playerID models.PlayerID, name string) (string, error) {
-	if !incognito {
-		return "", ErrNotIncognito
-	}
-	if !SlotsFilled(players) {
-		// The houses are drawn once every slot is taken.
-		return "", ErrGameNotStarted
-	}
+// ValidateHouseRename applies the rules of a house rename in a started game to
+// the slot of playerID: the house must not have submitted orders yet, and the
+// normalized name must differ from every other house's. It returns the
+// normalized name.
+func ValidateHouseRename(players []PlayerSlot, playerID models.PlayerID, name string) (string, error) {
 	normalized, err := NormalizeDisplayName(name)
 	if err != nil {
 		return "", err
@@ -386,8 +411,23 @@ type InvitationGameStore interface {
 	MembershipStore
 	Join(context.Context, Actor, GameID, string) (JoinResult, error)
 	CreateInvitation(context.Context, Actor, GameID) (InvitationSecret, error)
-	// RenameHouse sets the name of the actor's house in an incognito game.
+	// JoinWith is Join with the lobby entry (house name, seed ranking) the
+	// joiner prepared, validated and applied before the start plan is drawn.
+	JoinWith(context.Context, Actor, GameID, string, JoinOptions) (JoinResult, error)
+	// JoinPreview describes a game to a member or to the holder of its
+	// invitation code (the last argument); anyone else gets
+	// ErrInvalidInvitation.
+	JoinPreview(context.Context, Actor, GameID, string) (JoinPreview, error)
+	// RenameHouse names the actor's house; in the lobby it only records the
+	// name the house takes when the game starts.
 	RenameHouse(context.Context, Actor, GameID, string) (RenameResult, error)
+	// SetSeedVote records the actor's ranking of the candidate seeds while
+	// the lobby is open; an empty ranking withdraws the vote.
+	SetSeedVote(context.Context, Actor, GameID, []int) (GameSnapshot, error)
+	// SeedCandidateMap generates the map of one candidate seed for the game's
+	// player count; it reveals nothing but the map. It is open to a member
+	// and to the holder of the invitation code (the fourth argument).
+	SeedCandidateMap(context.Context, Actor, GameID, string, int) (mapgen.MapData, error)
 }
 
 // RevisionedGameStore is the optimistic-concurrency extension used by the
@@ -418,8 +458,10 @@ var (
 	ErrInvitationInactive   = errors.New("store: invitation is inactive")
 	ErrSpectator            = errors.New("store: spectator host cannot join a player slot")
 	ErrInvalidYears         = errors.New("store: year count must be between one and fifty")
-	ErrGameNotStarted       = errors.New("store: incognito game is waiting for players")
-	ErrNotIncognito         = errors.New("store: house names can only be changed in an incognito game")
+	ErrGameNotStarted       = errors.New("store: the game waits for every player to join")
+	ErrInvalidSeedRanking   = errors.New("store: a seed ranking is a permutation of the candidate indexes")
+	ErrGameStarted          = errors.New("store: the game has started")
+	ErrInvalidCandidate     = errors.New("store: unknown seed candidate")
 	ErrNameLocked           = errors.New("store: house name is locked once orders were submitted")
 	ErrHouseNameTaken       = errors.New("store: house name is already taken in this game")
 )

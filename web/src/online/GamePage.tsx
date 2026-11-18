@@ -23,6 +23,7 @@ import { MapLinksProvider } from '@/components/MapLinks'
 import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { TerritoryCartouche } from '@/components/TerritoryCartouche'
+import { GameLobby } from '@/components/GameLobby'
 import { HouseNameForm } from '@/components/HouseNameForm'
 import { TreasuryBar } from '@/components/TreasuryBar'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
@@ -199,6 +200,9 @@ function Lobby({
                 />
                 <span className="min-w-0 flex-1 truncate">
                   {player.name || t('online.emptySlot')}
+                  {player.accountName && player.accountName !== player.name && (
+                    <span className="text-ink-500"> ({player.accountName})</span>
+                  )}
                 </span>
                 {(player.actorId === uid || player.id === currentPlayer) && (
                   <span className="shrink-0 label-caps text-2xs font-bold text-brass-700">
@@ -372,7 +376,9 @@ export function GamePage() {
   )
   const playerID = currentSlot?.id ?? null
   const spectator = summary?.spectator === true
-  const waitingForMap = Boolean(summary?.incognito && !map && !loadError)
+  const waitingForMap = Boolean(
+    summary && summary.started !== undefined && !map && !loadError,
+  )
 
   // An incognito game that has not loaded its map is waiting for its last
   // player: poll until the game has started, then load it.
@@ -832,13 +838,28 @@ export function GamePage() {
 
   const renameHouse = async (name: string) => {
     if (!gameId) return
-    await apiRequest<unknown>(
+    const detail = await apiRequest<Record<string, unknown>>(
       { getIdToken },
       `/api/games/${encodeURIComponent(gameId)}/house-name`,
       { method: 'POST', body: JSON.stringify({ name }) },
     )
+    if (detail.started === false && user) {
+      // In the lobby the name is only recorded: the summary carries it back.
+      setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
+      return
+    }
     // Names live in the state and the summary: reload both.
     setReloadKey((key) => key + 1)
+  }
+
+  const voteForSeed = async (ranking: number[]) => {
+    if (!gameId || !user) return
+    const detail = await apiRequest<Record<string, unknown>>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/seed-vote`,
+      { method: 'PUT', body: JSON.stringify({ ranking }) },
+    )
+    setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
   }
 
   const openRules = (section: RulesSection) => {
@@ -911,9 +932,12 @@ export function GamePage() {
     )
   }
 
-  if (summary && summary.incognito && !summary.started && (!map || !state)) {
+  if (summary && summary.started === false && (!map || !state)) {
+    // The lobby only knows the REST view of the caller's own entry: the
+    // Firestore summary does not carry it.
+    const lobby = summaryFromAPI?.lobby
     return (
-      <div className="mx-auto max-w-xl space-y-4 py-8">
+      <div className="mx-auto max-w-5xl space-y-4 py-8">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-sm font-semibold text-brass-700"
@@ -950,6 +974,16 @@ export function GamePage() {
             </p>
             <p className="mt-1 break-all text-xs text-ink-500">{invitation.inviteUrl}</p>
           </Alert>
+        )}
+        {lobby && gameId && !spectator && (
+          <GameLobby
+            gameId={gameId}
+            tokenProvider={tokenProvider}
+            lobby={lobby}
+            houseName={lobby.houseName}
+            onRename={renameHouse}
+            onVote={voteForSeed}
+          />
         )}
         {actionError && <Alert role="alert">{actionError}</Alert>}
       </div>
@@ -1249,9 +1283,7 @@ export function GamePage() {
               panels={{
                 orders: (
                   <>
-                    {summary.incognito &&
-                      summary.started &&
-                      currentSlot &&
+                    {currentSlot &&
                       !currentSlot.nameLocked &&
                       !spectator &&
                       summary.status !== 'finished' && (

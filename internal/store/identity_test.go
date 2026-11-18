@@ -175,7 +175,7 @@ func TestMemoryStoreConcurrentJoinsClaimTheLastSlotOnce(t *testing.T) {
 	}
 }
 
-func TestMemoryStorePropagatesProfileRenamesToGameViews(t *testing.T) {
+func TestMemoryStoreProfileRenamesMoveTheAccountNameOnly(t *testing.T) {
 	gameStore := newTestStore(t)
 	ctx := context.Background()
 	if _, err := gameStore.EnsureProfile(ctx, Actor{ID: "alice", Email: "alice@example.com"}); err != nil {
@@ -191,6 +191,13 @@ func TestMemoryStorePropagatesProfileRenamesToGameViews(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
+	secret, err := gameStore.CreateInvitation(ctx, Actor{ID: "alice"}, created.ID)
+	if err != nil {
+		t.Fatalf("invite: %v", err)
+	}
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code); err != nil {
+		t.Fatalf("join: %v", err)
+	}
 	if _, err := gameStore.UpdateProfile(ctx, "alice", "Alicia"); err != nil {
 		t.Fatalf("rename profile: %v", err)
 	}
@@ -198,8 +205,9 @@ func TestMemoryStorePropagatesProfileRenamesToGameViews(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get game: %v", err)
 	}
-	if snapshot.Players[0].Name != "Alicia" || snapshot.State.Players[0].Name != "Alicia" {
-		t.Fatalf("renamed player = slot %q/state %q", snapshot.Players[0].Name, snapshot.State.Players[0].Name)
+	slot := snapshot.Players[0]
+	if slot.Name != "Alice" || slot.AccountName != "Alicia" || snapshot.State.Players[0].Name != "Alice" {
+		t.Fatalf("slot = %#v, state name %q", slot, snapshot.State.Players[0].Name)
 	}
 }
 

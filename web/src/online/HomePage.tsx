@@ -36,8 +36,6 @@ const seasonLabels: Record<Season, string> = {
   winter: 'Winter',
 }
 
-const fallbackSeed = 'adelaide-de-beaufort'
-
 function internalYear(turn: number, finished = false, yearCount = 10): number {
   const year = Math.floor((turn - 1) / 4) + 1
   return finished && turn > yearCount * 4 ? yearCount : year
@@ -152,27 +150,15 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
   const { getIdToken } = useAuth()
   const { t } = useLanguage()
   const [name, setName] = useState('')
-  const [seed, setSeed] = useState(fallbackSeed)
+  // Empty: the players vote for the seed in the lobby. A seed typed here
+  // imposes it, with no vote.
+  const [seed, setSeed] = useState('')
   const [players, setPlayers] = useState(4)
   const [spectate, setSpectate] = useState(false)
   const [incognito, setIncognito] = useState(false)
   const [years, setYears] = useState(10)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let active = true
-    void apiRequest<{ seed?: string }>({ getIdToken }, '/api/seed')
-      .then((response) => {
-        if (active && typeof response.seed === 'string' && response.seed.trim() !== '') {
-          setSeed(response.seed)
-        }
-      })
-      .catch(() => undefined)
-    return () => {
-      active = false
-    }
-  }, [getIdToken])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

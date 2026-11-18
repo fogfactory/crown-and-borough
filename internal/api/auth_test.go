@@ -67,7 +67,7 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if game.ID == "" || len(game.InviteCode) != store.InvitationCodeLength || !strings.Contains(game.InviteURL, game.InviteCode) {
 		t.Fatalf("created invitation = %#v", game)
 	}
-	if game.CurrentPlayer != "P1" || !game.CanInvite || !game.InviteAvailable {
+	if game.CurrentPlayer != "" || game.Started || game.Lobby == nil || !game.CanInvite || !game.InviteAvailable {
 		t.Fatalf("creator projection = %#v", game)
 	}
 	if strings.Contains(created.Body.String(), store.InvitationCodeHash(game.InviteCode)) {

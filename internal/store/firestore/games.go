@@ -65,6 +65,14 @@ func (s *FirestoreStore) CreateWithInvitation(ctx context.Context, actor store.A
 }
 
 func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.GameSnapshot, createdAt time.Time) error {
+	if snapshot.State == nil {
+		// A lobby: only the game document exists until the last slot is taken.
+		if _, err := gameRef(s.client, snapshot.ID).Create(ctx, gameDocumentFromSnapshot(snapshot, createdAt, createdAt)); err != nil {
+			return err
+		}
+		s.recordWrites(1)
+		return nil
+	}
 	state, err := jsonMap(snapshot.State)
 	if err != nil {
 		return err
@@ -88,19 +96,14 @@ func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.Ga
 	batch := s.client.Batch()
 	batch.Set(gameRef(s.client, snapshot.ID), game)
 	batch.Set(canonicalRef(s.client, snapshot.ID), canonical)
-	// An incognito game publishes no view until every slot is taken: a view
-	// shows the starting territory of its house.
-	var views []viewProjection
-	if !snapshot.PlacementHidden() {
-		views, err = s.viewProjections(snapshot.ID, game.Players, snapshot.Revision, snapshot.State, createdAt)
-		if err != nil {
-			return err
-		}
+	views, err := s.viewProjections(snapshot.ID, game.Players, snapshot.Revision, snapshot.State, createdAt)
+	if err != nil {
+		return err
 	}
 	for _, projection := range views {
 		batch.Set(viewRef(s.client, snapshot.ID, projection.actorID), projection.document)
 	}
-	if snapshot.SpectatorUID != "" && !snapshot.PlacementHidden() {
+	if snapshot.SpectatorUID != "" {
 		observer, observerErr := s.observerDocument(
 			snapshot.ID,
 			snapshot.SpectatorUID,
@@ -119,7 +122,7 @@ func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.Ga
 		return err
 	}
 	observerWrites := 0
-	if snapshot.SpectatorUID != "" && !snapshot.PlacementHidden() {
+	if snapshot.SpectatorUID != "" {
 		observerWrites = 1
 	}
 	s.recordWrites(2 + len(views) + observerWrites)
@@ -138,7 +141,7 @@ func (s *FirestoreStore) State(ctx context.Context, actor store.Actor, id store.
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
-	if snapshot.PlacementHidden() {
+	if !snapshot.Started() {
 		return store.GameSnapshot{}, store.ErrGameNotStarted
 	}
 	return snapshot, nil
@@ -312,6 +315,9 @@ func (s *FirestoreStore) MySubmission(ctx context.Context, actor store.Actor, id
 	if !member {
 		return store.PlayerSubmission{}, store.ErrNotMember
 	}
+	if game.Lobby {
+		return store.PlayerSubmission{}, store.ErrGameNotStarted
+	}
 	actorID := strings.TrimSpace(actor.ID)
 	submissionSnapshot, err := submissionCollection(s.client, id, game.Turn).Doc(actorID).Get(operationContext)
 	s.recordReads(1)
@@ -364,6 +370,9 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if requireMember && !member {
 		return store.GameSnapshot{}, store.ErrNotMember
 	}
+	if game.Lobby {
+		return s.lobbySnapshot(ctx, actor, game)
+	}
 	canonicalSnapshot, err := canonicalRef(s.client, game.ID).Get(ctx)
 	s.recordReads(1)
 	if err != nil {
@@ -402,6 +411,54 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 		return store.GameSnapshot{}, err
 	}
 	return gameSnapshot(s.balance, game, state, mapData, submissions, reports), nil
+}
+
+// lobbySnapshot is the snapshot of a game whose lobby is open: its slots and
+// the caller's own lobby entry, without state, map or seed.
+func (s *FirestoreStore) lobbySnapshot(ctx context.Context, actor store.Actor, game gameDocument) (store.GameSnapshot, error) {
+	if game.YearCount == 0 {
+		game.YearCount = models.DefaultGameYears
+	}
+	snapshot := store.GameSnapshot{
+		ID:           game.ID,
+		Name:         game.Name,
+		YearCount:    game.YearCount,
+		Status:       game.Status,
+		Players:      playerSlots(game.Players),
+		Revision:     store.Revision(game.Revision),
+		CreatedBy:    game.OwnerUID,
+		SpectatorUID: game.SpectatorUID,
+		Incognito:    game.Incognito,
+		FixedSeed:    game.FixedSeed,
+	}
+	if _, member := playerIDForActor(game, actor); member {
+		entry, err := s.readLobbyEntry(ctx, game.ID, strings.TrimSpace(actor.ID))
+		if err != nil {
+			return store.GameSnapshot{}, err
+		}
+		view := &store.LobbyView{SeedCandidates: []string{}, SeedRanking: append([]int{}, entry.SeedRanking...), HouseName: entry.HouseName}
+		if game.FixedSeed == "" {
+			view.SeedCandidates = store.SeedCandidates(game.ID, s.balance.SeedCandidateCount())
+		}
+		snapshot.Lobby = view
+	}
+	return snapshot, nil
+}
+
+func (s *FirestoreStore) readLobbyEntry(ctx context.Context, id store.GameID, uid string) (lobbyDocument, error) {
+	document, err := lobbyRef(s.client, id, uid).Get(ctx)
+	s.recordReads(1)
+	if isCode(err, codes.NotFound) {
+		return lobbyDocument{}, nil
+	}
+	if err != nil {
+		return lobbyDocument{}, wrapOperation("read lobby entry", err)
+	}
+	var entry lobbyDocument
+	if err := document.DataTo(&entry); err != nil {
+		return lobbyDocument{}, fmt.Errorf("decode lobby entry: %w", err)
+	}
+	return entry, nil
 }
 
 func (s *FirestoreStore) readSubmissions(ctx context.Context, id store.GameID, turn int) (map[models.PlayerID]engine.OrdersInput, error) {
@@ -541,7 +598,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 	players := make([]playerDocument, len(snapshot.Players))
 	memberUIDs := make([]string, 0, len(snapshot.Players))
 	for index, player := range snapshot.Players {
-		players[index] = playerDocument{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID, NameLocked: player.NameLocked}
+		players[index] = playerDocument{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID, AccountName: player.AccountName, NameLocked: player.NameLocked}
 		if store.IsAssignedActor(player.ActorID) {
 			memberUIDs = append(memberUIDs, player.ActorID)
 		}
@@ -552,6 +609,13 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 	winner := ""
 	if snapshot.Winner != nil {
 		winner = string(*snapshot.Winner)
+	}
+	turn, season := 0, models.Season("")
+	submittedUIDs, requiredUIDs := []string{}, []string{}
+	if snapshot.State != nil {
+		turn, season = snapshot.State.Turn, snapshot.State.Season
+		submittedUIDs = sortedSubmittedUIDs(snapshot.Submissions, snapshot.Players)
+		requiredUIDs = sortedRequiredUIDs(snapshot.State, snapshot.Players)
 	}
 	return gameDocument{
 		SchemaVersion: schemaVersion,
@@ -564,13 +628,15 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		Incognito:     snapshot.Incognito,
 		Players:       players,
 		Status:        snapshot.Status,
-		Turn:          snapshot.State.Turn,
-		Season:        snapshot.State.Season,
+		Turn:          turn,
+		Season:        season,
 		YearCount:     snapshot.YearCount,
 		Scores:        scoreDocuments(snapshot.Scores),
 		WinnerUID:     winner,
-		SubmittedUIDs: sortedSubmittedUIDs(snapshot.Submissions, snapshot.Players),
-		RequiredUIDs:  sortedRequiredUIDs(snapshot.State, snapshot.Players),
+		SubmittedUIDs: submittedUIDs,
+		RequiredUIDs:  requiredUIDs,
+		Lobby:         snapshot.State == nil,
+		FixedSeed:     snapshot.FixedSeed,
 		Revision:      int64(snapshot.Revision),
 		CreatedAt:     createdAt,
 		UpdatedAt:     updatedAt,
@@ -648,7 +714,7 @@ func sortedRequiredUIDs(state *models.GameState, players []store.PlayerSlot) []s
 func playerSlots(documents []playerDocument) []store.PlayerSlot {
 	players := make([]store.PlayerSlot, len(documents))
 	for index, player := range documents {
-		players[index] = store.PlayerSlot{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID, NameLocked: player.NameLocked}
+		players[index] = store.PlayerSlot{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID, AccountName: player.AccountName, NameLocked: player.NameLocked}
 	}
 	return players
 }
@@ -714,6 +780,9 @@ func (s *FirestoreStore) deleteGame(ctx context.Context, id store.GameID) error 
 		return err
 	}
 	if err := collect(root.Collection("observer").Documents(operationContext)); err != nil {
+		return err
+	}
+	if err := collect(lobbyCollection(s.client, id).Documents(operationContext)); err != nil {
 		return err
 	}
 	if err := collect(reportCollection(s.client, id).Documents(operationContext)); err != nil {
