@@ -36,7 +36,7 @@ func TestTerrainSingletonAllowed(t *testing.T) {
 		{x: 20, y: 20},
 	}
 
-	terrain := assignTerrains(newRNG("singleton", "terrain"), sites)
+	terrain := assignTerrains(NewRNG("singleton", "terrain"), sites)
 	counts := make(map[models.Terrain]int, len(allTerrains))
 	for _, value := range terrain {
 		counts[value]++

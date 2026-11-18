@@ -103,6 +103,20 @@ func TestLobbyHidesTheBoardAndAcceptsVotesAndNames(t *testing.T) {
 	if strings.Contains(requestGames(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "").Body.String(), `"starts"`) {
 		t.Fatal("candidate map reveals the start placement")
 	}
+	// The browser may keep the map, but the authorization is checked every time.
+	first := requestGames(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "")
+	etag := first.Header().Get("ETag")
+	if etag == "" || !strings.HasPrefix(first.Header().Get("Cache-Control"), "private, max-age=") {
+		t.Fatalf("candidate map headers = %v", first.Header())
+	}
+	revalidated := requestGamesWithHeaders(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=alice", "", map[string]string{"If-None-Match": etag})
+	if revalidated.Code != http.StatusNotModified || revalidated.Body.Len() != 0 {
+		t.Fatalf("revalidation = %d %q", revalidated.Code, revalidated.Body.String())
+	}
+	stranger := requestGamesWithHeaders(t, env.handler, http.MethodGet, env.base+"/seed-candidates/1/map?player=mallory", "", map[string]string{"If-None-Match": etag})
+	if stranger.Code != http.StatusForbidden {
+		t.Fatalf("a stranger holding the ETag got %d", stranger.Code)
+	}
 	env.expect(http.MethodGet, "/seed-candidates/1/map", "mallory", "", http.StatusForbidden, "invalid_invitation")
 	env.expect(http.MethodGet, "/seed-candidates/9/map", "alice", "", http.StatusNotFound, "not_found")
 

@@ -72,7 +72,8 @@ func ValidateSeedRanking(ranking []int, count int) error {
 // ResolveSeed counts the votes with a Borda count: a candidate ranked r-th of
 // n earns n-1-r points. A tie is broken by a hash of the game id, the same
 // whoever voted; with no vote at all the first candidate wins. The result does
-// not depend on the order of rankings.
+// not depend on the order of rankings. Rankings were validated when recorded;
+// one of the wrong length (a withdrawn vote included) is skipped.
 func ResolveSeed(id GameID, candidates []string, rankings [][]int) string {
 	if len(candidates) == 0 {
 		return ""
@@ -80,7 +81,7 @@ func ResolveSeed(id GameID, candidates []string, rankings [][]int) string {
 	points := make([]int, len(candidates))
 	voted := false
 	for _, ranking := range rankings {
-		if ValidateSeedRanking(ranking, len(candidates)) != nil || len(ranking) == 0 {
+		if len(ranking) != len(candidates) {
 			continue
 		}
 		voted = true
@@ -138,36 +139,41 @@ type StartPlan struct {
 // PlayerSlot.AccountName outside incognito games only.
 func PlanStart(in StartInput) (StartPlan, error) {
 	slots := append([]PlayerSlot(nil), in.Slots...)
-	count := in.Balance.SeedCandidateCount()
-	candidates := SeedCandidates(in.GameID, count)
+	seedCandidates := SeedCandidates(in.GameID, in.Balance.SeedCandidateCount())
 	seed := strings.TrimSpace(in.FixedSeed)
 	if seed == "" {
 		rankings := make([][]int, 0, len(slots))
 		for _, slot := range slots {
 			rankings = append(rankings, in.Entries[slot.ActorID].SeedRanking)
 		}
-		seed = ResolveSeed(in.GameID, candidates, rankings)
+		seed = ResolveSeed(in.GameID, seedCandidates, rankings)
 	}
 	if in.Incognito {
 		SeatIncognitoPlayers(seed, slots)
 	}
 
-	taken := make(map[string]bool, len(slots))
-	names := make([]string, len(slots))
-	claim := func(index int, name string) {
-		key := strings.ToLower(name)
-		if names[index] == "" && name != "" && !taken[key] {
-			names[index] = name
-			taken[key] = true
+	// Each house has its candidate names in order of preference. Every house's
+	// entered name is claimed before any fallback, so a fallback never takes a
+	// name another member asked for; a name already claimed is skipped.
+	candidates := make([][]string, len(slots))
+	for index, slot := range slots {
+		candidates[index] = []string{in.Entries[slot.ActorID].HouseName}
+		if !in.Incognito {
+			candidates[index] = append(candidates[index], in.DisplayNames[slot.ActorID], slot.Name)
 		}
 	}
-	for index, slot := range slots {
-		claim(index, in.Entries[slot.ActorID].HouseName)
-	}
-	for index := range slots {
-		if !in.Incognito {
-			claim(index, in.DisplayNames[slots[index].ActorID])
-			claim(index, slots[index].Name)
+	taken := make(map[string]bool, len(slots))
+	names := make([]string, len(slots))
+	for pass := range 2 {
+		for index, list := range candidates {
+			entered, fallbacks := list[:1], list[1:]
+			for _, name := range [][]string{entered, fallbacks}[pass] {
+				key := strings.ToLower(name)
+				if names[index] == "" && name != "" && !taken[key] {
+					names[index] = name
+					taken[key] = true
+				}
+			}
 		}
 	}
 	inits := make([]engine.PlayerInit, len(slots))
@@ -213,16 +219,73 @@ func nameTaken(name string, others []string) bool {
 	return slices.ContainsFunc(others, func(other string) bool { return strings.EqualFold(other, name) })
 }
 
-// OtherHouseNames lists the pending house names entered by the members other
-// than exceptUID (pass "" to keep every member).
-func OtherHouseNames(entries map[string]LobbyEntry, exceptUID string) []string {
-	var names []string
+// OtherHouseNames lists the pending house names (by member uid) entered by the
+// members other than exceptUID (pass "" to keep every member).
+func OtherHouseNames(names map[string]string, exceptUID string) []string {
+	var others []string
+	for uid, name := range names {
+		if uid != exceptUID && name != "" {
+			others = append(others, name)
+		}
+	}
+	return others
+}
+
+// PendingHouseNames extracts the pending house names of lobby entries by uid.
+func PendingHouseNames(entries map[string]LobbyEntry) map[string]string {
+	names := make(map[string]string, len(entries))
 	for uid, entry := range entries {
-		if uid != exceptUID && entry.HouseName != "" {
-			names = append(names, entry.HouseName)
+		if entry.HouseName != "" {
+			names[uid] = entry.HouseName
 		}
 	}
 	return names
+}
+
+// JoinStep is a lobby join once validated: what the join changes, before any
+// store writes it.
+type JoinStep struct {
+	// Slots are the lobby slots with the joiner seated.
+	Slots []PlayerSlot
+	// Seat is the index of the slot the joiner took.
+	Seat int
+	// Entry is the joiner's validated lobby entry; nil when they prepared
+	// nothing.
+	Entry *LobbyEntry
+	// Final is true when the join takes the last free slot, so the game starts:
+	// the store then gathers the lobby entries and display names, and calls
+	// PlanStart.
+	Final bool
+}
+
+// PlanJoin validates a lobby join, the same for every store: the first free
+// slot goes to actorID, and what they prepared (house name, seed ranking) is
+// checked against the pending names of the other members (pendingNames, by
+// member uid) and the number of seed candidates.
+func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNames map[string]string, candidateCount int) (JoinStep, error) {
+	seat := slices.IndexFunc(slots, func(player PlayerSlot) bool { return !player.Assigned() })
+	if seat < 0 {
+		return JoinStep{}, ErrGameFull
+	}
+	var entry LobbyEntry
+	if strings.TrimSpace(options.HouseName) != "" {
+		name, err := ValidatePendingHouseName(options.HouseName, OtherHouseNames(pendingNames, ""))
+		if err != nil {
+			return JoinStep{}, err
+		}
+		entry.HouseName = name
+	}
+	if err := ValidateSeedRanking(options.SeedRanking, candidateCount); err != nil {
+		return JoinStep{}, err
+	}
+	entry.SeedRanking = append([]int(nil), options.SeedRanking...)
+	step := JoinStep{Slots: append([]PlayerSlot(nil), slots...), Seat: seat}
+	step.Slots[seat].ActorID = actorID
+	step.Final = SlotsFilled(step.Slots)
+	if entry.HouseName != "" || len(entry.SeedRanking) > 0 {
+		step.Entry = &entry
+	}
+	return step, nil
 }
 
 // GenerateCandidateMap builds the map candidate seed index of a game would

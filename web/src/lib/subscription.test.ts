@@ -146,7 +146,7 @@ describe('Firestore game subscriptions', () => {
     const data = {
       id: 'game-1',
       incognito: true,
-      lobby: true,
+      phase: 'lobby',
       players: [
         { id: 'P1', name: 'P1', color: '#a84632', actorId: 'alice-uid' },
         { id: 'P2', name: 'P2', color: '#2d5f9e', actorId: 'slot:P2', nameLocked: true },
@@ -160,7 +160,7 @@ describe('Firestore game subscriptions', () => {
     const started = normalizeGameSummary(
       {
         ...data,
-        lobby: false,
+        phase: 'started',
         players: [
           { ...data.players[0], accountName: 'Alice' },
           { ...data.players[1], actorId: 'bob-uid' },

@@ -65,7 +65,7 @@ func (s *FirestoreStore) CreateWithInvitation(ctx context.Context, actor store.A
 }
 
 func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.GameSnapshot, createdAt time.Time) error {
-	if snapshot.State == nil {
+	if snapshot.InLobby() {
 		// A lobby: only the game document exists until the last slot is taken.
 		if _, err := gameRef(s.client, snapshot.ID).Create(ctx, gameDocumentFromSnapshot(snapshot, createdAt, createdAt)); err != nil {
 			return err
@@ -315,7 +315,7 @@ func (s *FirestoreStore) MySubmission(ctx context.Context, actor store.Actor, id
 	if !member {
 		return store.PlayerSubmission{}, store.ErrNotMember
 	}
-	if game.Lobby {
+	if game.inLobby() {
 		return store.PlayerSubmission{}, store.ErrGameNotStarted
 	}
 	actorID := strings.TrimSpace(actor.ID)
@@ -370,7 +370,7 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if requireMember && !member {
 		return store.GameSnapshot{}, store.ErrNotMember
 	}
-	if game.Lobby {
+	if game.inLobby() {
 		return s.lobbySnapshot(ctx, actor, game)
 	}
 	canonicalSnapshot, err := canonicalRef(s.client, game.ID).Get(ctx)
@@ -388,12 +388,6 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	state := &models.GameState{}
 	if err := decodeJSONMap(canonical.State, state); err != nil {
 		return store.GameSnapshot{}, fmt.Errorf("decode state for %s: %w", game.ID, err)
-	}
-	if game.YearCount == 0 {
-		game.YearCount = models.DefaultGameYears
-	}
-	if state.YearCount == 0 {
-		state.YearCount = game.YearCount
 	}
 	if err := state.Validate(); err != nil {
 		return store.GameSnapshot{}, fmt.Errorf("%w: state for %s: %v", ErrInconsistentGame, game.ID, err)
@@ -414,16 +408,28 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 }
 
 // lobbySnapshot is the snapshot of a game whose lobby is open: its slots and
-// the caller's own lobby entry, without state, map or seed.
+// the caller's own lobby entry, without state, map or seed. The house name is on
+// the game document; only a vote, which is private, takes a read of its own.
 func (s *FirestoreStore) lobbySnapshot(ctx context.Context, actor store.Actor, game gameDocument) (store.GameSnapshot, error) {
-	if game.YearCount == 0 {
-		game.YearCount = models.DefaultGameYears
+	var ranking []int
+	if _, member := playerIDForActor(game, actor); member && game.FixedSeed == "" {
+		document, err := lobbyRef(s.client, game.ID, strings.TrimSpace(actor.ID)).Get(ctx)
+		s.recordReads(1)
+		if ranking, err = decodeSeedRanking(document, err); err != nil {
+			return store.GameSnapshot{}, err
+		}
 	}
+	return s.buildLobbySnapshot(actor, game, ranking), nil
+}
+
+// buildLobbySnapshot is lobbySnapshot once the caller's ranking is known.
+func (s *FirestoreStore) buildLobbySnapshot(actor store.Actor, game gameDocument, ranking []int) store.GameSnapshot {
 	snapshot := store.GameSnapshot{
 		ID:           game.ID,
 		Name:         game.Name,
 		YearCount:    game.YearCount,
 		Status:       game.Status,
+		Phase:        store.PhaseLobby,
 		Players:      playerSlots(game.Players),
 		Revision:     store.Revision(game.Revision),
 		CreatedBy:    game.OwnerUID,
@@ -432,33 +438,33 @@ func (s *FirestoreStore) lobbySnapshot(ctx context.Context, actor store.Actor, g
 		FixedSeed:    game.FixedSeed,
 	}
 	if _, member := playerIDForActor(game, actor); member {
-		entry, err := s.readLobbyEntry(ctx, game.ID, strings.TrimSpace(actor.ID))
-		if err != nil {
-			return store.GameSnapshot{}, err
+		view := &store.LobbyView{
+			SeedCandidates: []string{},
+			SeedRanking:    append([]int{}, ranking...),
+			HouseName:      game.HouseNames[strings.TrimSpace(actor.ID)],
 		}
-		view := &store.LobbyView{SeedCandidates: []string{}, SeedRanking: append([]int{}, entry.SeedRanking...), HouseName: entry.HouseName}
 		if game.FixedSeed == "" {
 			view.SeedCandidates = store.SeedCandidates(game.ID, s.balance.SeedCandidateCount())
 		}
 		snapshot.Lobby = view
 	}
-	return snapshot, nil
+	return snapshot
 }
 
-func (s *FirestoreStore) readLobbyEntry(ctx context.Context, id store.GameID, uid string) (lobbyDocument, error) {
-	document, err := lobbyRef(s.client, id, uid).Get(ctx)
-	s.recordReads(1)
+// decodeSeedRanking reads the ranking of a lobby document fetched with err; a
+// missing document is an empty ranking.
+func decodeSeedRanking(document *cloudfirestore.DocumentSnapshot, err error) ([]int, error) {
 	if isCode(err, codes.NotFound) {
-		return lobbyDocument{}, nil
+		return nil, nil
 	}
 	if err != nil {
-		return lobbyDocument{}, wrapOperation("read lobby entry", err)
+		return nil, wrapOperation("read lobby entry", err)
 	}
 	var entry lobbyDocument
 	if err := document.DataTo(&entry); err != nil {
-		return lobbyDocument{}, fmt.Errorf("decode lobby entry: %w", err)
+		return nil, fmt.Errorf("decode lobby entry: %w", err)
 	}
-	return entry, nil
+	return entry.SeedRanking, nil
 }
 
 func (s *FirestoreStore) readSubmissions(ctx context.Context, id store.GameID, turn int) (map[models.PlayerID]engine.OrdersInput, error) {
@@ -612,7 +618,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 	}
 	turn, season := 0, models.Season("")
 	submittedUIDs, requiredUIDs := []string{}, []string{}
-	if snapshot.State != nil {
+	if snapshot.Started() {
 		turn, season = snapshot.State.Turn, snapshot.State.Season
 		submittedUIDs = sortedSubmittedUIDs(snapshot.Submissions, snapshot.Players)
 		requiredUIDs = sortedRequiredUIDs(snapshot.State, snapshot.Players)
@@ -635,7 +641,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		WinnerUID:     winner,
 		SubmittedUIDs: submittedUIDs,
 		RequiredUIDs:  requiredUIDs,
-		Lobby:         snapshot.State == nil,
+		Phase:         snapshot.Phase,
 		FixedSeed:     snapshot.FixedSeed,
 		Revision:      int64(snapshot.Revision),
 		CreatedAt:     createdAt,
@@ -650,16 +656,13 @@ func gameSnapshot(balance assetgen.Balance, document gameDocument, state *models
 		value := models.PlayerID(document.WinnerUID)
 		winner = &value
 	}
-	yearCount := document.YearCount
-	if yearCount == 0 {
-		yearCount = state.YearCount
-	}
 	return store.GameSnapshot{
 		ID:        document.ID,
 		Name:      document.Name,
 		Seed:      document.Seed,
-		YearCount: yearCount,
+		YearCount: document.YearCount,
 		Status:    document.Status,
+		Phase:     document.Phase,
 		Winner:    winner,
 		// Derived from the state, never read from the stored copy, which can
 		// predate later changes (e.g. titles granted since).

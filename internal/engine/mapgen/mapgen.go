@@ -113,7 +113,7 @@ func attemptSeed(seed string, attempt int) string {
 }
 
 func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, error) {
-	sites := generateSites(newRNG(seed, "sites"), cfg)
+	sites := generateSites(NewRNG(seed, "sites"), cfg)
 	grid := assignRaster(sites, cfg)
 	if !rasterHasEveryRegion(grid, cfg.SiteCount) {
 		return MapData{}, fmt.Errorf("mapgen: raster left at least one interior site without a region")
@@ -128,8 +128,8 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	}
 
 	geometricEdges := geometry.edges
-	terrain := assignTerrains(newRNG(seed, "terrain"), sites[:cfg.SiteCount])
-	passableEdges, impassableEdges := pruneFrontiers(newRNG(seed, "frontiers"), geometricEdges, terrain)
+	terrain := assignTerrains(NewRNG(seed, "terrain"), sites[:cfg.SiteCount])
+	passableEdges, impassableEdges := pruneFrontiers(NewRNG(seed, "frontiers"), geometricEdges, terrain)
 	passableEdges, impassableEdges, err = enforceDegreeCaps(passableEdges, impassableEdges, terrain, geometry.centroids)
 	if err != nil {
 		return MapData{}, err
@@ -139,12 +139,12 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	}
 
 	distances := siteDistances(passableEdges, cfg.SiteCount)
-	starts, homeVillages, err := selectStarts(newRNG(seed, "starts"), distances, passableEdges, terrain, cfg.StartCount)
+	starts, homeVillages, err := selectStarts(NewRNG(seed, "starts"), distances, passableEdges, terrain, cfg.StartCount)
 	if err != nil {
 		return MapData{}, err
 	}
 
-	names, err := nameTerritories(newRNG(seed, "naming"), assets, terrain)
+	names, err := nameTerritories(NewRNG(seed, "naming"), assets, terrain)
 	if err != nil {
 		return MapData{}, err
 	}
@@ -174,7 +174,7 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		}
 	}
 
-	seats, err := chooseSeats(newRNG(seed, "seats"), seatSearch{
+	seats, err := chooseSeats(NewRNG(seed, "seats"), seatSearch{
 		territories:   territories,
 		centroids:     geometry.centroids,
 		distances:     distances,

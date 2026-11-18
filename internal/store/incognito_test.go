@@ -45,7 +45,7 @@ func TestIncognitoGameKeepsPlaceholderNames(t *testing.T) {
 	if !created.Incognito || created.Started() {
 		t.Fatalf("created incognito/started = %v/%v, want true/false", created.Incognito, created.Started())
 	}
-	joined, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code)
+	joined, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{})
 	if err != nil {
 		t.Fatalf("join: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestIncognitoGameWaitsForEverySlot(t *testing.T) {
 	if _, err := gameStore.Resolve(ctx, Actor{ID: "alice"}, created.ID); !errors.Is(err, ErrGameNotStarted) {
 		t.Fatalf("resolve before start = %v, want ErrGameNotStarted", err)
 	}
-	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{}); err != nil {
 		t.Fatalf("join: %v", err)
 	}
 	if _, err := gameStore.Submit(ctx, Actor{ID: "alice"}, created.ID, SubmitRequest{}); err != nil {
@@ -103,7 +103,7 @@ func TestOrdinaryGameShowsTheAccountNameBesideTheHouseName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	joined, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code)
+	joined, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code, JoinOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestRenameHouseRules(t *testing.T) {
 	gameStore, created, code := newIncognitoGame(t)
 	ctx := context.Background()
 	alice, bob := Actor{ID: "alice"}, Actor{ID: "bob"}
-	if _, err := gameStore.Join(ctx, bob, created.ID, code); err != nil {
+	if _, err := gameStore.Join(ctx, bob, created.ID, code, JoinOptions{}); err != nil {
 		t.Fatalf("join: %v", err)
 	}
 
@@ -215,7 +215,7 @@ func seatsAfterJoins(t *testing.T, guests []string) map[string]string {
 		t.Fatalf("create invitation: %v", err)
 	}
 	for index, guest := range guests {
-		result, err := gameStore.Join(ctx, Actor{ID: guest}, created.ID, secret.Code)
+		result, err := gameStore.Join(ctx, Actor{ID: guest}, created.ID, secret.Code, JoinOptions{})
 		if err != nil {
 			t.Fatalf("join %s: %v", guest, err)
 		}

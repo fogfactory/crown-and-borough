@@ -23,8 +23,7 @@ type playerDocument struct {
 	Name    string          `firestore:"name"`
 	Color   string          `firestore:"color"`
 	ActorID string          `firestore:"actorId,omitempty"`
-	// AccountName and NameLocked are absent from documents written before
-	// they existed. AccountName is never written in an incognito game.
+	// AccountName is never written in an incognito game.
 	AccountName string `firestore:"accountName,omitempty"`
 	NameLocked  bool   `firestore:"nameLocked,omitempty"`
 }
@@ -37,13 +36,16 @@ type gameDocument struct {
 	OwnerUID      string       `firestore:"ownerUid"`
 	MemberUIDs    []string     `firestore:"memberUids"`
 	SpectatorUID  string       `firestore:"spectatorUid,omitempty"`
-	// Incognito is absent (false) from games created before the mode existed.
-	Incognito bool `firestore:"incognito,omitempty"`
-	// Lobby is true until the last slot is taken: the game has no canonical
-	// document, view or map yet. Absent (false) from games that predate lobbies.
-	Lobby bool `firestore:"lobby,omitempty"`
+	Incognito     bool         `firestore:"incognito,omitempty"`
+	// Phase is store.PhaseLobby until the last slot is taken: the game has no
+	// canonical document, view or map yet.
+	Phase store.Phase `firestore:"phase"`
 	// FixedSeed is the seed the creator imposed on a lobby (no vote).
-	FixedSeed     string                           `firestore:"fixedSeed,omitempty"`
+	FixedSeed string `firestore:"fixedSeed,omitempty"`
+	// HouseNames are the house names members entered in the lobby, by member
+	// uid, so that their uniqueness is checked on this document alone. They
+	// become public with the houses when the game starts, and are dropped then.
+	HouseNames    map[string]string                `firestore:"houseNames,omitempty"`
 	Players       []playerDocument                 `firestore:"players"`
 	Status        store.Status                     `firestore:"status"`
 	Turn          int                              `firestore:"turn"`
@@ -58,14 +60,12 @@ type gameDocument struct {
 	UpdatedAt     time.Time                        `firestore:"updatedAt"`
 }
 
-// lobbyDocument holds what a member prepared in the lobby of games/{id}: their
-// house name and seed ranking. It sits in a collection of its own, readable by
-// the backend only, because the game document is readable by every member and
-// a vote must stay private.
+// lobbyDocument holds a member's seed ranking in the lobby of games/{id}. It
+// sits in a collection of its own, readable by the backend only, because the
+// game document is readable by every member and a vote must stay private.
 type lobbyDocument struct {
 	SchemaVersion int    `firestore:"schemaVersion"`
 	UID           string `firestore:"uid"`
-	HouseName     string `firestore:"houseName,omitempty"`
 	SeedRanking   []int  `firestore:"seedRanking,omitempty"`
 }
 
@@ -177,6 +177,11 @@ type invitationDocument struct {
 	CodeHash      string       `firestore:"codeHash"`
 	CreatedAt     time.Time    `firestore:"createdAt"`
 	Active        bool         `firestore:"active"`
+}
+
+// inLobby reports whether the game still waits for players to take its slots.
+func (game gameDocument) inLobby() bool {
+	return game.Phase == store.PhaseLobby
 }
 
 func gameRef(client *cloudfirestore.Client, id store.GameID) *cloudfirestore.DocumentRef {

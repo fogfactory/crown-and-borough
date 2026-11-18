@@ -96,7 +96,7 @@ func TestOnlineGameHasNoBoardUntilTheLastSlotIsTaken(t *testing.T) {
 	if created.Lobby == nil || len(created.Lobby.SeedCandidates) != 3 {
 		t.Fatalf("lobby view = %#v", created.Lobby)
 	}
-	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{}); err != nil {
 		t.Fatalf("join: %v", err)
 	}
 	for name, err := range map[string]error{
@@ -114,7 +114,7 @@ func TestOnlineGameHasNoBoardUntilTheLastSlotIsTaken(t *testing.T) {
 	if err != nil || len(listed) != 1 {
 		t.Fatalf("list = %v, %v", listed, err)
 	}
-	joined, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code)
+	joined, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code, JoinOptions{})
 	if err != nil {
 		t.Fatalf("last join: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestSeedVoteDecidesTheGameSeedWhateverTheJoinOrder(t *testing.T) {
 		var last JoinResult
 		for _, uid := range order {
 			var err error
-			if last, err = gameStore.Join(ctx, Actor{ID: uid}, created.ID, code); err != nil {
+			if last, err = gameStore.Join(ctx, Actor{ID: uid}, created.ID, code, JoinOptions{}); err != nil {
 				t.Fatalf("join: %v", err)
 			}
 			if votes[uid] != nil && !last.Snapshot.Started() {
@@ -173,7 +173,7 @@ func TestSeedVoteRules(t *testing.T) {
 	if err != nil || !slices.Equal(snapshot.Lobby.SeedRanking, []int{1, 0, 2}) {
 		t.Fatalf("vote = %v, %v", snapshot.Lobby, err)
 	}
-	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	// Other members never see this vote, and the vote may change or be withdrawn.
@@ -185,7 +185,7 @@ func TestSeedVoteRules(t *testing.T) {
 	if err != nil || len(snapshot.Lobby.SeedRanking) != 0 {
 		t.Fatalf("withdrawn vote = %v, %v", snapshot.Lobby, err)
 	}
-	if _, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code, JoinOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := gameStore.SetSeedVote(ctx, alice, created.ID, []int{0, 1, 2}); !errors.Is(err, ErrGameStarted) {
@@ -200,7 +200,7 @@ func TestFixedSeedGamesDoNotVote(t *testing.T) {
 		t.Fatalf("candidates = %v", created.Lobby.SeedCandidates)
 	}
 	for _, uid := range []string{"bob", "carol"} {
-		if _, err := gameStore.Join(ctx, Actor{ID: uid}, created.ID, code); err != nil {
+		if _, err := gameStore.Join(ctx, Actor{ID: uid}, created.ID, code, JoinOptions{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -217,7 +217,7 @@ func TestLobbyHouseNamesAreSilentAndFollowTheMemberThroughTheDraw(t *testing.T) 
 	if _, err := gameStore.RenameHouse(ctx, Actor{ID: "alice"}, created.ID, names["alice"]); err != nil {
 		t.Fatalf("lobby rename: %v", err)
 	}
-	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := gameStore.RenameHouse(ctx, Actor{ID: "bob"}, created.ID, "house stark"); !errors.Is(err, ErrHouseNameTaken) {
@@ -227,7 +227,7 @@ func TestLobbyHouseNamesAreSilentAndFollowTheMemberThroughTheDraw(t *testing.T) 
 		t.Fatal(err)
 	}
 	// carol takes the last slot without entering a name: placeholder house.
-	last, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code)
+	last, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code, JoinOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,14 +254,15 @@ func TestLobbyHouseNamesAreSilentAndFollowTheMemberThroughTheDraw(t *testing.T) 
 func TestSeedCandidateMapRevealsOnlyTheMap(t *testing.T) {
 	gameStore, created, _ := newLobbyGame(t, CreateRequest{})
 	ctx := context.Background()
-	mapData, err := gameStore.SeedCandidateMap(ctx, Actor{ID: "alice"}, created.ID, "", 1)
+	mapData, err := gameStore.SeedCandidateMap(created.ID, 3, 1)
 	if err != nil || len(mapData.Territories) == 0 {
 		t.Fatalf("candidate map = %d territories, %v", len(mapData.Territories), err)
 	}
-	if _, err := gameStore.SeedCandidateMap(ctx, Actor{ID: "alice"}, created.ID, "", 3); !errors.Is(err, ErrInvalidCandidate) {
+	if _, err := gameStore.SeedCandidateMap(created.ID, 3, 3); !errors.Is(err, ErrInvalidCandidate) {
 		t.Fatalf("unknown candidate = %v", err)
 	}
-	if _, err := gameStore.SeedCandidateMap(ctx, Actor{ID: "mallory"}, created.ID, "", 0); !errors.Is(err, ErrInvalidInvitation) {
+	// The map is not authorized by the store: JoinPreview is the gate.
+	if _, err := gameStore.JoinPreview(ctx, Actor{ID: "mallory"}, created.ID, ""); !errors.Is(err, ErrInvalidInvitation) {
 		t.Fatalf("stranger = %v", err)
 	}
 }
@@ -272,11 +273,11 @@ func TestLastJoinerNameAndRankingCountBeforeTheGameStarts(t *testing.T) {
 	if _, err := gameStore.SetSeedVote(ctx, Actor{ID: "alice"}, created.ID, []int{0, 1, 2}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := gameStore.JoinWith(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{SeedRanking: []int{0, 1, 2}, HouseName: "House Tyrell"}); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, code, JoinOptions{SeedRanking: []int{0, 1, 2}, HouseName: "House Tyrell"}); err != nil {
 		t.Fatal(err)
 	}
 	// Alice and Bob prefer candidate 0, Carol's ranking tips the count to 2.
-	last, err := gameStore.JoinWith(ctx, Actor{ID: "carol"}, created.ID, code, JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
+	last, err := gameStore.Join(ctx, Actor{ID: "carol"}, created.ID, code, JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +297,7 @@ func TestLastJoinerNameAndRankingCountBeforeTheGameStarts(t *testing.T) {
 		uid     string
 		ranking []int
 	}{{"bob", []int{1, 0, 2}}, {"carol", []int{1, 2, 0}}} {
-		if _, err := gameStore2.JoinWith(ctx, Actor{ID: vote.uid}, created2.ID, code2, JoinOptions{SeedRanking: vote.ranking}); err != nil {
+		if _, err := gameStore2.Join(ctx, Actor{ID: vote.uid}, created2.ID, code2, JoinOptions{SeedRanking: vote.ranking}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -306,17 +307,17 @@ func TestLastJoinerNameAndRankingCountBeforeTheGameStarts(t *testing.T) {
 	}
 }
 
-func TestJoinWithRejectsABadEntryWithoutTakingTheSlot(t *testing.T) {
+func TestJoinRejectsABadEntryWithoutTakingTheSlot(t *testing.T) {
 	gameStore, created, code := newLobbyGame(t, CreateRequest{})
 	ctx := context.Background()
 	if _, err := gameStore.RenameHouse(ctx, Actor{ID: "alice"}, created.ID, "House Stark"); err != nil {
 		t.Fatal(err)
 	}
 	bob := Actor{ID: "bob"}
-	if _, err := gameStore.JoinWith(ctx, bob, created.ID, code, JoinOptions{SeedRanking: []int{0, 0, 1}}); !errors.Is(err, ErrInvalidSeedRanking) {
+	if _, err := gameStore.Join(ctx, bob, created.ID, code, JoinOptions{SeedRanking: []int{0, 0, 1}}); !errors.Is(err, ErrInvalidSeedRanking) {
 		t.Fatalf("bad ranking = %v", err)
 	}
-	if _, err := gameStore.JoinWith(ctx, bob, created.ID, code, JoinOptions{HouseName: "house stark"}); !errors.Is(err, ErrHouseNameTaken) {
+	if _, err := gameStore.Join(ctx, bob, created.ID, code, JoinOptions{HouseName: "house stark"}); !errors.Is(err, ErrHouseNameTaken) {
 		t.Fatalf("taken name = %v", err)
 	}
 	preview, err := gameStore.JoinPreview(ctx, bob, created.ID, code)
@@ -339,7 +340,7 @@ func TestInviteCodeOpensThePreviewAndTheCandidateMapsToNonMembers(t *testing.T) 
 	if _, err := gameStore.JoinPreview(ctx, stranger, created.ID, ""); !errors.Is(err, ErrInvalidInvitation) {
 		t.Fatalf("no code = %v", err)
 	}
-	mapData, err := gameStore.SeedCandidateMap(ctx, stranger, created.ID, code, 2)
+	mapData, err := gameStore.SeedCandidateMap(created.ID, preview.Players, 2)
 	if err != nil || len(mapData.Territories) == 0 {
 		t.Fatalf("map by invitation = %d, %v", len(mapData.Territories), err)
 	}
@@ -348,5 +349,57 @@ func TestInviteCodeOpensThePreviewAndTheCandidateMapsToNonMembers(t *testing.T) 
 	_ = other
 	if _, err := gameStore.JoinPreview(ctx, stranger, created.ID, otherCode); !errors.Is(err, ErrInvalidInvitation) {
 		t.Fatalf("foreign code = %v", err)
+	}
+}
+
+func TestPlanJoinSeatsTheFirstFreeSlotAndValidatesTheEntry(t *testing.T) {
+	slots := []PlayerSlot{{ID: "P1", ActorID: "alice"}, {ID: "P2"}, {ID: "P3"}}
+	names := map[string]string{"alice": "House Stark"}
+
+	step, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "  House Tyrell ", SeedRanking: []int{2, 0, 1}}, names, 3)
+	if err != nil || step.Seat != 1 || step.Final || step.Slots[1].ActorID != "bob" || slots[1].ActorID != "" {
+		t.Fatalf("step = %#v, %v (input must stay untouched)", step, err)
+	}
+	if step.Entry == nil || step.Entry.HouseName != "House Tyrell" || !slices.Equal(step.Entry.SeedRanking, []int{2, 0, 1}) {
+		t.Fatalf("entry = %#v", step.Entry)
+	}
+	if _, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "house stark"}, names, 3); !errors.Is(err, ErrHouseNameTaken) {
+		t.Fatalf("taken name = %v", err)
+	}
+	if _, err := PlanJoin(slots, "bob", JoinOptions{SeedRanking: []int{0, 0, 1}}, names, 3); !errors.Is(err, ErrInvalidSeedRanking) {
+		t.Fatalf("bad ranking = %v", err)
+	}
+	if step, err := PlanJoin(slots, "bob", JoinOptions{}, names, 3); err != nil || step.Entry != nil {
+		t.Fatalf("a join with nothing prepared has no entry: %#v, %v", step, err)
+	}
+	slots[1].ActorID = "bob"
+	last, err := PlanJoin(slots, "carol", JoinOptions{}, names, 3)
+	if err != nil || !last.Final || last.Seat != 2 {
+		t.Fatalf("last = %#v, %v", last, err)
+	}
+	slots[2].ActorID = "carol"
+	if _, err := PlanJoin(slots, "dave", JoinOptions{}, names, 3); !errors.Is(err, ErrGameFull) {
+		t.Fatalf("full = %v", err)
+	}
+}
+
+func TestPhaseTracksTheLobby(t *testing.T) {
+	gameStore, created, code := newLobbyGame(t, CreateRequest{})
+	if !created.InLobby() || created.Started() {
+		t.Fatalf("created phase = %q", created.Phase)
+	}
+	ctx := context.Background()
+	for _, uid := range []string{"bob", "carol"} {
+		result, err := gameStore.Join(ctx, Actor{ID: uid}, created.ID, code, JoinOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Snapshot.Started() != result.Started {
+			t.Fatalf("%s: phase %q, started %v", uid, result.Snapshot.Phase, result.Started)
+		}
+	}
+	snapshot, err := gameStore.Get(ctx, Actor{ID: "alice"}, created.ID)
+	if err != nil || snapshot.Phase != PhaseStarted || snapshot.Lobby != nil {
+		t.Fatalf("started phase = %q, %v", snapshot.Phase, err)
 	}
 }

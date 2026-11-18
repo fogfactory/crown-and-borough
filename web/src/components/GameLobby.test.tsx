@@ -58,9 +58,12 @@ describe('MapPreview', () => {
     const { container } = render(<MapPreview map={candidateMap} label="Preview" />)
     expect(screen.getByRole('img', { name: 'Preview' })).toBeInTheDocument()
     expect(container.querySelectorAll('[data-preview-territory]')).toHaveLength(3)
-    // The frontier between AAA and BBB is inside region R1: not part of its outline.
-    expect(container.querySelectorAll('[data-preview-region="R1"] line')).toHaveLength(6)
-    expect(container.querySelectorAll('[data-preview-region="R2"] line')).toHaveLength(4)
+    // One border path per region, one ring each: the frontier between AAA and
+    // BBB is inside region R1 and is not drawn.
+    const rings = (id: string) =>
+      (container.querySelector(`path[data-preview-region="${id}"]`)?.getAttribute('d') ?? '').match(/M /g)
+    expect(rings('R1')).toHaveLength(1)
+    expect(rings('R2')).toHaveLength(1)
     // Nothing but the shape: no text, no marker.
     expect(container.querySelector('text')).toBeNull()
   })

@@ -335,7 +335,7 @@ func (h *GamesHandler) PlayerState(ctx context.Context, actor store.Actor, id st
 		PlayerID: viewerID,
 		View:     h.playerStateView(snapshot, viewerID),
 	}
-	if snapshot.State != nil {
+	if snapshot.Started() {
 		game.Turn = snapshot.State.Turn
 		for _, player := range snapshot.State.Players {
 			if player.ID == viewerID {
@@ -539,9 +539,7 @@ func toDeckSubmissions(requests []deckOrderRequest) []engine.DeckSubmission {
 }
 
 func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
-	joiner, ok := h.store.(interface {
-		JoinWith(context.Context, store.Actor, store.GameID, string, store.JoinOptions) (store.JoinResult, error)
-	})
+	joiner, ok := h.store.(store.InvitationGameStore)
 	if !ok {
 		writeAPIError(w, http.StatusInternalServerError, "join_unavailable", "game invitations are not configured")
 		return
@@ -560,7 +558,7 @@ func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.
 		writeAPIError(w, http.StatusBadRequest, "invalid_join_request", err.Error())
 		return
 	}
-	result, err := joiner.JoinWith(r.Context(), actor, id, request.InviteCode, store.JoinOptions{
+	result, err := joiner.Join(r.Context(), actor, id, request.InviteCode, store.JoinOptions{
 		HouseName:   request.HouseName,
 		SeedRanking: request.SeedRanking,
 	})
@@ -587,9 +585,7 @@ func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.
 // invitation code, before joining: what is needed to prepare a house name
 // and a vote.
 func (h *GamesHandler) joinPreview(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
-	previewer, ok := h.store.(interface {
-		JoinPreview(context.Context, store.Actor, store.GameID, string) (store.JoinPreview, error)
-	})
+	previewer, ok := h.store.(store.LobbyStore)
 	if !ok {
 		writeAPIError(w, http.StatusNotFound, "not_found", "invitations are not configured")
 		return
@@ -669,9 +665,7 @@ func (h *GamesHandler) renameHouse(w http.ResponseWriter, r *http.Request, actor
 
 // setSeedVote records the caller's ranking of the candidate seeds.
 func (h *GamesHandler) setSeedVote(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
-	voter, ok := h.store.(interface {
-		SetSeedVote(context.Context, store.Actor, store.GameID, []int) (store.GameSnapshot, error)
-	})
+	voter, ok := h.store.(store.LobbyStore)
 	if !ok {
 		writeAPIError(w, http.StatusInternalServerError, "vote_unavailable", "seed votes are not available in this mode")
 		return
@@ -690,13 +684,11 @@ func (h *GamesHandler) setSeedVote(w http.ResponseWriter, r *http.Request, actor
 }
 
 // seedCandidateMap serves the map of one candidate seed, generated for the
-// game's player count. It reveals nothing but the map, and is cached by game
-// and candidate since generation is not cheap.
+// game's player count. It reveals nothing but the map. The generation is cached
+// by game and candidate (already marshalled, with its ETag) since it is not
+// cheap; the browser may keep it too.
 func (h *GamesHandler) seedCandidateMap(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
-	previewer, ok := h.store.(interface {
-		SeedCandidateMap(context.Context, store.Actor, store.GameID, string, int) (mapgen.MapData, error)
-		JoinPreview(context.Context, store.Actor, store.GameID, string) (store.JoinPreview, error)
-	})
+	lobby, ok := h.store.(store.LobbyStore)
 	if !ok {
 		writeAPIError(w, http.StatusNotFound, "not_found", "seed candidates are not available in this mode")
 		return
@@ -707,21 +699,28 @@ func (h *GamesHandler) seedCandidateMap(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	// A member, or the holder of an invitation code, may look: checked on every
-	// call, the cache only saves the generation.
-	code := r.URL.Query().Get("inviteCode")
-	if _, err := previewer.JoinPreview(r.Context(), actor, id, code); err != nil {
+	// call (one read), the cache and the browser only save the generation.
+	preview, err := lobby.JoinPreview(r.Context(), actor, id, r.URL.Query().Get("inviteCode"))
+	if err != nil {
 		h.writeStoreError(w, err)
 		return
 	}
-	key := string(id) + "#" + strconv.Itoa(index)
-	mapData, err := h.candidateMaps.get(key, func() (mapgen.MapData, error) {
-		return previewer.SeedCandidateMap(r.Context(), actor, id, code, index)
+	entry, err := h.candidateMaps.get(string(id)+"#"+strconv.Itoa(index), func() (mapgen.MapData, error) {
+		return lobby.SeedCandidateMap(id, preview.Players, index)
 	})
 	if err != nil {
 		h.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, mapData)
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	w.Header().Set("ETag", entry.etag)
+	if r.Header.Get("If-None-Match") == entry.etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(entry.body)
 }
 
 type seedVoteRequest struct {
@@ -1165,7 +1164,7 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 // snapshotCalendar is the turn and season of a game; a game still in its
 // lobby has not begun.
 func snapshotCalendar(snapshot store.GameSnapshot) (int, models.Season) {
-	if snapshot.State == nil {
+	if !snapshot.Started() {
 		return 0, ""
 	}
 	return snapshot.State.Turn, snapshot.State.Season
@@ -1233,7 +1232,7 @@ func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) Pl
 		Name:        player.Name,
 		Color:       player.Color,
 		Submitted:   submitted,
-		Required:    snapshot.State != nil && engine.PlayerMustSubmit(snapshot.State, player.ID),
+		Required:    snapshot.Started() && engine.PlayerMustSubmit(snapshot.State, player.ID),
 		AccountName: player.AccountName,
 		NameLocked:  player.NameLocked,
 	}

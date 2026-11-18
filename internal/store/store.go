@@ -7,10 +7,7 @@ package store
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"errors"
-	"math/rand/v2"
 	"slices"
 	"strings"
 	"time"
@@ -150,7 +147,7 @@ type PlayerSlot struct {
 	Color   string          `json:"color"`
 	ActorID string          `json:"actorId,omitempty"`
 	// AccountName is the display name of the member's account, recorded
-	// outside incognito games only (and absent from games that predate it).
+	// outside incognito games only: empty means the account stays hidden.
 	// Name is the house name, a separate concept.
 	AccountName string `json:"accountName,omitempty"`
 	// NameLocked is set by the house's first order submission: from then on an
@@ -184,12 +181,24 @@ type ReportRecord struct {
 	Privacy *models.PrivacyMeta `json:"privacy,omitempty"`
 }
 
+// Phase is where a game stands in its lifecycle.
+type Phase string
+
+const (
+	// PhaseLobby is an online game whose slots are still being taken: it has no
+	// map and no state yet.
+	PhaseLobby Phase = "lobby"
+	// PhaseStarted is a game with a board, playing or finished.
+	PhaseStarted Phase = "started"
+)
+
 type GameSnapshot struct {
 	ID           GameID                                    `json:"id"`
 	Name         string                                    `json:"name"`
 	Seed         string                                    `json:"seed"`
 	YearCount    int                                       `json:"yearCount"`
 	Status       Status                                    `json:"status"`
+	Phase        Phase                                     `json:"phase"`
 	Winner       *models.PlayerID                          `json:"winner,omitempty"`
 	Scores       map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
 	Players      []PlayerSlot                              `json:"players"`
@@ -309,7 +318,12 @@ func SeatedCount(players []PlayerSlot) int {
 // map and state when its last slot is taken, and until then (its lobby) it
 // has neither.
 func (s GameSnapshot) Started() bool {
-	return s.State != nil
+	return s.Phase == PhaseStarted
+}
+
+// InLobby reports whether the game still waits for players to take its slots.
+func (s GameSnapshot) InLobby() bool {
+	return s.Phase == PhaseLobby
 }
 
 // SeatIncognitoPlayers draws which member holds which house once every slot is
@@ -322,8 +336,7 @@ func SeatIncognitoPlayers(seed string, players []PlayerSlot) {
 		actors[index] = player.ActorID
 	}
 	slices.Sort(actors)
-	digest := sha256.Sum256([]byte(seed + "|incognito-seats"))
-	rng := rand.New(rand.NewPCG(binary.BigEndian.Uint64(digest[:8]), binary.BigEndian.Uint64(digest[8:16])))
+	rng := mapgen.NewRNG(seed, "incognito-seats")
 	for index, pick := range rng.Perm(len(players)) {
 		players[index].ActorID = actors[pick]
 	}
@@ -422,25 +435,30 @@ type InvitationGameStore interface {
 	GameStore
 	ProfileStore
 	MembershipStore
-	Join(context.Context, Actor, GameID, string) (JoinResult, error)
 	CreateInvitation(context.Context, Actor, GameID) (InvitationSecret, error)
-	// JoinWith is Join with the lobby entry (house name, seed ranking) the
-	// joiner prepared, validated and applied before the start plan is drawn.
-	JoinWith(context.Context, Actor, GameID, string, JoinOptions) (JoinResult, error)
-	// JoinPreview describes a game to a member or to the holder of its
-	// invitation code (the last argument); anyone else gets
-	// ErrInvalidInvitation.
-	JoinPreview(context.Context, Actor, GameID, string) (JoinPreview, error)
+	// Join takes a slot with the invitation code (the fourth argument). The
+	// lobby entry (house name, seed ranking) the joiner prepared in options is
+	// validated and applied before the start plan is drawn.
+	Join(context.Context, Actor, GameID, string, JoinOptions) (JoinResult, error)
 	// RenameHouse names the actor's house; in the lobby it only records the
 	// name the house takes when the game starts.
 	RenameHouse(context.Context, Actor, GameID, string) (RenameResult, error)
+}
+
+// LobbyStore is the part of an online store that serves games still in their
+// lobby, discovered by the API with a type assertion like RevisionedGameStore.
+type LobbyStore interface {
+	// JoinPreview describes a game to a member or to the holder of its
+	// invitation code (the last argument); anyone else gets
+	// ErrInvalidInvitation. It is the authorization of the lobby reads.
+	JoinPreview(context.Context, Actor, GameID, string) (JoinPreview, error)
 	// SetSeedVote records the actor's ranking of the candidate seeds while
 	// the lobby is open; an empty ranking withdraws the vote.
 	SetSeedVote(context.Context, Actor, GameID, []int) (GameSnapshot, error)
-	// SeedCandidateMap generates the map of one candidate seed for the game's
-	// player count; it reveals nothing but the map. It is open to a member
-	// and to the holder of the invitation code (the fourth argument).
-	SeedCandidateMap(context.Context, Actor, GameID, string, int) (mapgen.MapData, error)
+	// SeedCandidateMap generates the map of candidate seed index for a game
+	// of the given player count (JoinPreview.Players). It reveals nothing but
+	// the map and does not authorize: the caller already did, with JoinPreview.
+	SeedCandidateMap(id GameID, players, index int) (mapgen.MapData, error)
 }
 
 // RevisionedGameStore is the optimistic-concurrency extension used by the

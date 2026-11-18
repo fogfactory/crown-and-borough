@@ -1,55 +1,28 @@
 import { useMemo } from 'react'
 
 import { HERALDIC_COLORS, MAP_INK, MAP_PAPER_FILL } from '@/lib/map-palette'
-import { boundsOf, edgeKey, pointsToPath, polygonEdges } from '@/lib/map-svg-geometry'
-import type { MapData, Point } from '@/types'
+import { boundsOf, pointsToPath } from '@/lib/map-svg-geometry'
+import { computeRegionOutlines } from '@/lib/region-geometry'
+import type { MapData } from '@/types'
 
 /** Margin around the drawing, in map units. */
 const PREVIEW_MARGIN = 12
 
 /**
- * Edges of a region's outline: the polygon edges held by one of its
- * territories only, i.e. not shared with another territory of the region.
- */
-function regionOutline(
-  territoryPoints: Point[][],
-): Array<[Point, Point]> {
-  const counts = new Map<string, number>()
-  for (const points of territoryPoints) {
-    for (const [from, to] of polygonEdges(points)) {
-      const key = edgeKey(from, to)
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-  }
-  const outline: Array<[Point, Point]> = []
-  for (const points of territoryPoints) {
-    for (const [from, to] of polygonEdges(points)) {
-      if (counts.get(edgeKey(from, to)) === 1) outline.push([from, to])
-    }
-  }
-  return outline
-}
-
-/**
  * A read-only drawing of a map: territories, tinted by region, with the
- * regions' frontiers drawn heavier than the territories'. It carries no
+ * regions' borders (their boundary rings) drawn heavier than the territories'. It carries no
  * marker, label or placement: a candidate map shows nothing but its shape.
  */
 export function MapPreview({ map, label }: { map: MapData; label: string }) {
   const drawing = useMemo(() => {
-    const byId = new Map(map.territories.map((territory) => [territory.id, territory]))
-    const regions = (map.regions ?? []).map((region, index) => {
-      const points = region.territories.flatMap((id) => {
-        const territory = byId.get(id)
-        return territory ? [territory.points] : []
-      })
-      return {
-        id: region.id,
-        color: HERALDIC_COLORS[index % HERALDIC_COLORS.length],
-        territories: region.territories,
-        outline: regionOutline(points),
-      }
-    })
+    const { outlines } = computeRegionOutlines(map.territories, map.regions ?? [])
+    const regions = (map.regions ?? []).map((region, index) => ({
+      id: region.id,
+      color: HERALDIC_COLORS[index % HERALDIC_COLORS.length],
+      territories: region.territories,
+      // Every boundary ring of the region, as one path.
+      path: (outlines.get(region.id)?.loops ?? []).map(pointsToPath).join(' '),
+    }))
     const regionOf = new Map<string, string>()
     for (const region of regions) {
       for (const id of region.territories) regionOf.set(id, region.color)
@@ -83,20 +56,15 @@ export function MapPreview({ map, label }: { map: MapData; label: string }) {
         />
       ))}
       {drawing.regions.map((region) => (
-        <g key={region.id} data-preview-region={region.id}>
-          {region.outline.map(([from, to], index) => (
-            <line
-              key={index}
-              x1={from[0]}
-              y1={from[1]}
-              x2={to[0]}
-              y2={to[1]}
-              stroke={MAP_INK}
-              strokeWidth={2.6}
-              strokeLinecap="round"
-            />
-          ))}
-        </g>
+        <path
+          key={region.id}
+          data-preview-region={region.id}
+          d={region.path}
+          fill="none"
+          stroke={MAP_INK}
+          strokeWidth={2.6}
+          strokeLinejoin="round"
+        />
       ))}
     </svg>
   )

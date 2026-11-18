@@ -232,8 +232,8 @@ func (s *FirestoreStore) refreshActorName(ctx context.Context, uid, displayName 
 }
 
 // refreshGamePlayerName records the new display name as the account name of
-// the member's houses. It never renames a house, and leaves incognito games
-// alone: their account names are never recorded.
+// the member's houses. It never renames a house, and an incognito game, which
+// never recorded an account name, has none to refresh.
 func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.GameID, uid, displayName string) error {
 	s.recordTransaction()
 	err := s.client.RunTransaction(ctx, func(tx context.Context, transaction *cloudfirestore.Transaction) error {

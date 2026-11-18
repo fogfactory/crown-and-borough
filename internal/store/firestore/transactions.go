@@ -38,14 +38,10 @@ type resolutionClaimResult struct {
 	PlayerID models.PlayerID
 }
 
-func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.GameID, code string) (store.JoinResult, error) {
-	return s.JoinWith(ctx, actor, id, code, store.JoinOptions{})
-}
-
-// JoinWith is Join with the lobby entry the joiner prepared: validated and
-// written in the same transaction, before the start plan is drawn when this
-// join takes the last slot.
-func (s *FirestoreStore) JoinWith(ctx context.Context, actor store.Actor, id store.GameID, code string, options store.JoinOptions) (store.JoinResult, error) {
+// Join takes a slot with an invitation code. In a lobby the joiner's entry
+// (house name, seed ranking) is validated and recorded in the same
+// transaction, and the join that takes the last slot starts the game.
+func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.GameID, code string, options store.JoinOptions) (store.JoinResult, error) {
 	if err := s.requireClient(); err != nil {
 		return store.JoinResult{}, err
 	}
@@ -64,10 +60,10 @@ func (s *FirestoreStore) JoinWith(ctx context.Context, actor store.Actor, id sto
 	canonicalDocumentRef := canonicalRef(s.client, id)
 	invitationDocumentRef := invitationRef(s.client, invitationHash)
 	var joinedPlayer models.PlayerID
-	var revision store.Revision
-	startedByJoin := false
+	var lobbyJoin *lobbyJoinResult
 	s.recordTransaction()
 	err := s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+		lobbyJoin = nil
 		gameSnapshot, err := transaction.Get(gameDocumentRef)
 		s.recordReads(1)
 		if status.Code(err) == codes.NotFound {
@@ -109,27 +105,19 @@ func (s *FirestoreStore) JoinWith(ctx context.Context, actor store.Actor, id sto
 		if !invitation.Active {
 			return store.ErrInvitationInactive
 		}
-		freeIndex := -1
-		for index, player := range game.Players {
-			if !store.IsAssignedActor(player.ActorID) {
-				freeIndex = index
-				break
-			}
+		if game.inLobby() {
+			result, err := s.joinLobby(transaction, actor, game, options)
+			lobbyJoin = &result
+			return err
 		}
+
+		// A started game with a free slot is a development game (see
+		// Options.StrictMembership): the slot is claimed, and the house takes the
+		// name of the account.
+		freeIndex := slices.IndexFunc(game.Players, func(player playerDocument) bool { return !store.IsAssignedActor(player.ActorID) })
 		if freeIndex < 0 {
 			return store.ErrGameFull
 		}
-		if game.Lobby {
-			joined, started, err := s.joinLobby(transaction, game, freeIndex, actorID, options)
-			if err != nil {
-				return err
-			}
-			joinedPlayer = joined
-			startedByJoin = started
-			revision = store.Revision(game.Revision + 1)
-			return nil
-		}
-
 		canonicalSnapshot, err := transaction.Get(canonicalDocumentRef)
 		s.recordReads(1)
 		if err != nil {
@@ -164,7 +152,6 @@ func (s *FirestoreStore) JoinWith(ctx context.Context, actor store.Actor, id sto
 		player := &game.Players[freeIndex]
 		player.ActorID = actorID
 		if profileName != "" {
-			// A game that predates lobbies names the house after the account.
 			player.Name = profileName
 			player.AccountName = profileName
 			for index := range state.Players {
@@ -180,52 +167,15 @@ func (s *FirestoreStore) JoinWith(ctx context.Context, actor store.Actor, id sto
 		game.UpdatedAt = s.now().UTC()
 		canonical.Revision = game.Revision
 		canonical.UpdatedAt = game.UpdatedAt
-		canonical.State, err = jsonMap(state)
-		if err != nil {
+		if canonical.State, err = jsonMap(state); err != nil {
 			return err
 		}
 		if err := state.Validate(); err != nil {
 			return err
 		}
-		revision = store.Revision(game.Revision)
-		if err := transaction.Set(gameDocumentRef, game); err != nil {
-			return err
-		}
-		if err := transaction.Set(canonicalDocumentRef, canonical); err != nil {
-			return err
-		}
-		// A join changes player metadata in the canonical state. Refresh existing
-		// views too, so connected players do not keep stale slot names.
-		views, err := s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
-		if err != nil {
-			return err
-		}
-		for _, projection := range views {
-			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
-				return err
-			}
-		}
-		observerWrites := 0
-		if game.SpectatorUID != "" {
-			observer, observerErr := s.observerDocument(
-				id,
-				game.SpectatorUID,
-				revision,
-				state,
-				game.UpdatedAt,
-				max(0, game.Turn-1),
-			)
-			if observerErr != nil {
-				return observerErr
-			}
-			if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
-				return err
-			}
-			observerWrites = 1
-		}
-		s.recordWrites(2 + len(views) + observerWrites)
-		s.recordProjectionWrites(len(views) + observerWrites)
-		return nil
+		// A join changes player metadata in the canonical state: the views are
+		// refreshed too, so connected players do not keep stale slot names.
+		return s.writeStartedProjections(transaction, game, canonical, state)
 	})
 	if errors.Is(err, errAlreadyJoined) {
 		snapshot, snapshotErr := s.Get(operationContext, actor, id)
@@ -237,137 +187,121 @@ func (s *FirestoreStore) JoinWith(ctx context.Context, actor store.Actor, id sto
 	if err != nil {
 		return store.JoinResult{}, wrapTransactionResult(err)
 	}
+	if lobbyJoin != nil {
+		return store.JoinResult{Snapshot: lobbyJoin.snapshot, Player: playerSlot(lobbyJoin.snapshot.Players, lobbyJoin.player), Joined: true, Started: lobbyJoin.started}, nil
+	}
 	snapshot, err := s.Get(operationContext, actor, id)
 	if err != nil {
 		return store.JoinResult{}, err
 	}
-	return store.JoinResult{Snapshot: snapshot, Player: playerSlot(snapshot.Players, joinedPlayer), Joined: true, Started: startedByJoin}, nil
+	return store.JoinResult{Snapshot: snapshot, Player: playerSlot(snapshot.Players, joinedPlayer), Joined: true}, nil
 }
 
-// joinLobby takes a free slot of a game whose lobby is open. The last join
-// closes the lobby: it resolves the seed from the votes, seats the members and
-// writes the map, the canonical state, the views and the observer view, all in
-// the join's transaction. It returns the house the joiner holds.
-func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, game gameDocument, freeIndex int, actorID string, options store.JoinOptions) (models.PlayerID, bool, error) {
+// lobbyJoinResult is a join into a lobby as the actor sees it, built from what
+// the transaction wrote.
+type lobbyJoinResult struct {
+	snapshot store.GameSnapshot
+	player   models.PlayerID
+	started  bool
+}
+
+// joinLobby takes a free slot of a game whose lobby is open, under the rules of
+// store.PlanJoin. The last join closes the lobby: it resolves the seed from the
+// votes, seats the members and writes the map, the canonical state, the views
+// and the observer view, all in the join's transaction.
+func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, actor store.Actor, game gameDocument, options store.JoinOptions) (lobbyJoinResult, error) {
+	actorID := strings.TrimSpace(actor.ID)
 	id := game.ID
-	player := &game.Players[freeIndex]
-	player.ActorID = actorID
+	step, err := store.PlanJoin(playerSlots(game.Players), actorID, options, game.HouseNames, s.balance.SeedCandidateCount())
+	if err != nil {
+		return lobbyJoinResult{}, err
+	}
+
+	// Every read comes before the first write. The names are on the game
+	// document; only the start needs the (private) rankings and the display names.
+	var entries map[string]store.LobbyEntry
+	var displayNames map[string]string
+	if step.Final {
+		if entries, err = s.readLobbyEntries(transaction, id); err != nil {
+			return lobbyJoinResult{}, err
+		}
+		if displayNames, err = s.loadDisplayNames(transaction, game.Incognito, step.Slots); err != nil {
+			return lobbyJoinResult{}, err
+		}
+	}
+
+	game.Players[step.Seat].ActorID = actorID
 	game.MemberUIDs = append(game.MemberUIDs, actorID)
 	game.Revision++
 	game.UpdatedAt = s.now().UTC()
-	slots := playerSlots(game.Players)
-	final := store.SlotsFilled(slots)
-	hasEntry := strings.TrimSpace(options.HouseName) != "" || len(options.SeedRanking) > 0
-
-	// Every read comes before the first write.
-	entries := make(map[string]store.LobbyEntry, len(slots))
-	if final || hasEntry {
-		documents := transaction.Documents(lobbyCollection(s.client, id))
-		for {
-			document, err := documents.Next()
-			if errors.Is(err, iterator.Done) {
-				break
+	var ranking []int
+	if step.Entry != nil {
+		ranking = step.Entry.SeedRanking
+		if step.Entry.HouseName != "" {
+			game.HouseNames = withHouseName(game.HouseNames, actorID, step.Entry.HouseName)
+		}
+		if len(ranking) > 0 {
+			if err := s.writeSeedRanking(transaction, id, actorID, ranking); err != nil {
+				return lobbyJoinResult{}, err
 			}
-			if err != nil {
-				return "", false, err
-			}
-			s.recordReads(1)
-			var entry lobbyDocument
-			if err := document.DataTo(&entry); err != nil {
-				return "", false, fmt.Errorf("decode lobby entry %s: %w", document.Ref.Path, err)
-			}
-			entries[entry.UID] = store.LobbyEntry{HouseName: entry.HouseName, SeedRanking: entry.SeedRanking}
 		}
 	}
-	var own *lobbyDocument
-	if hasEntry {
-		own = &lobbyDocument{SchemaVersion: schemaVersion, UID: actorID}
-		if strings.TrimSpace(options.HouseName) != "" {
-			name, err := store.ValidatePendingHouseName(options.HouseName, store.OtherHouseNames(entries, ""))
-			if err != nil {
-				return "", false, err
-			}
-			own.HouseName = name
-		}
-		if err := store.ValidateSeedRanking(options.SeedRanking, s.balance.SeedCandidateCount()); err != nil {
-			return "", false, err
-		}
-		own.SeedRanking = append([]int(nil), options.SeedRanking...)
-		entries[actorID] = store.LobbyEntry{HouseName: own.HouseName, SeedRanking: own.SeedRanking}
-	}
-	writeOwn := func() error {
-		if own == nil {
-			return nil
-		}
-		s.recordWrites(1)
-		return transaction.Set(lobbyRef(s.client, id, actorID), own)
-	}
-	if !final {
+	if !step.Final {
 		if err := transaction.Set(gameRef(s.client, id), game); err != nil {
-			return "", false, err
+			return lobbyJoinResult{}, err
 		}
 		s.recordWrites(1)
-		return player.ID, false, writeOwn()
+		return lobbyJoinResult{snapshot: s.buildLobbySnapshot(actor, game, ranking), player: step.Slots[step.Seat].ID}, nil
 	}
 
 	// Last slot taken.
-	displayNames := make(map[string]string, len(slots))
-	for _, slot := range slots {
-		profileSnapshot, err := transaction.Get(s.client.Collection("players").Doc(slot.ActorID))
-		s.recordReads(1)
-		if status.Code(err) == codes.NotFound {
-			continue
-		}
-		if err != nil {
-			return "", false, err
-		}
-		profile, err := decodeProfileDocument(profileSnapshot)
-		if err != nil {
-			return "", false, err
-		}
-		displayNames[slot.ActorID] = profile.DisplayName
+	if entries == nil {
+		entries = make(map[string]store.LobbyEntry)
 	}
-	yearCount := game.YearCount
-	if yearCount == 0 {
-		yearCount = models.DefaultGameYears
+	if step.Entry != nil {
+		entries[actorID] = store.LobbyEntry{SeedRanking: ranking}
+	}
+	for uid, name := range game.HouseNames {
+		entry := entries[uid]
+		entry.HouseName = name
+		entries[uid] = entry
 	}
 	plan, err := store.PlanStart(store.StartInput{
 		GameID:       id,
 		FixedSeed:    game.FixedSeed,
 		Incognito:    game.Incognito,
-		YearCount:    yearCount,
-		Slots:        slots,
+		YearCount:    game.YearCount,
+		Slots:        step.Slots,
 		Entries:      entries,
 		DisplayNames: displayNames,
 		Balance:      s.balance,
 		Assets:       s.assets,
 	})
 	if err != nil {
-		return "", false, err
+		return lobbyJoinResult{}, err
 	}
-	snapshot := store.GameSnapshot{
+	started := gameDocumentFromSnapshot(store.GameSnapshot{
 		ID:           id,
 		Name:         game.Name,
 		Seed:         plan.Seed,
 		YearCount:    plan.State.YearCount,
 		Status:       store.StatusPlaying,
+		Phase:        store.PhaseStarted,
 		Scores:       engine.ComputeScores(plan.State, s.balance),
 		Players:      plan.Slots,
-		Map:          plan.Map,
 		State:        plan.State,
 		Revision:     store.Revision(game.Revision),
 		CreatedBy:    game.OwnerUID,
 		SpectatorUID: game.SpectatorUID,
 		Incognito:    game.Incognito,
-	}
-	started := gameDocumentFromSnapshot(snapshot, game.CreatedAt, game.UpdatedAt)
+	}, game.CreatedAt, game.UpdatedAt)
 	stateMap, err := jsonMap(plan.State)
 	if err != nil {
-		return "", false, err
+		return lobbyJoinResult{}, err
 	}
 	mapJSON, err := jsonString(plan.Map)
 	if err != nil {
-		return "", false, err
+		return lobbyJoinResult{}, err
 	}
 	canonical := canonicalDocument{
 		SchemaVersion: schemaVersion,
@@ -380,44 +314,133 @@ func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, game
 		SubmittedUIDs: []string{},
 		UpdatedAt:     game.UpdatedAt,
 	}
-	revision := store.Revision(game.Revision)
-	views, err := s.viewProjections(id, started.Players, revision, plan.State, game.UpdatedAt)
-	if err != nil {
-		return "", false, err
+	if err := s.writeStartedProjections(transaction, started, canonical, plan.State); err != nil {
+		return lobbyJoinResult{}, err
 	}
-	if err := transaction.Set(gameRef(s.client, id), started); err != nil {
-		return "", false, err
+	player := step.Slots[step.Seat].ID
+	for _, slot := range plan.Slots {
+		if slot.ActorID == actorID {
+			player = slot.ID
+		}
+	}
+	snapshot := gameSnapshot(s.balance, started, plan.State, plan.Map, map[models.PlayerID]engine.OrdersInput{}, []store.ReportRecord{})
+	return lobbyJoinResult{snapshot: snapshot, player: player, started: true}, nil
+}
+
+// withHouseName returns names with uid's house name set, on a copy.
+func withHouseName(names map[string]string, uid, name string) map[string]string {
+	result := make(map[string]string, len(names)+1)
+	for key, value := range names {
+		result[key] = value
+	}
+	result[uid] = name
+	return result
+}
+
+// readLobbyEntries reads the seed rankings of every member's lobby document,
+// by uid.
+func (s *FirestoreStore) readLobbyEntries(transaction *cloudfirestore.Transaction, id store.GameID) (map[string]store.LobbyEntry, error) {
+	entries := make(map[string]store.LobbyEntry)
+	documents := transaction.Documents(lobbyCollection(s.client, id))
+	for {
+		document, err := documents.Next()
+		if errors.Is(err, iterator.Done) {
+			return entries, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		s.recordReads(1)
+		var entry lobbyDocument
+		if err := document.DataTo(&entry); err != nil {
+			return nil, fmt.Errorf("decode lobby entry %s: %w", document.Ref.Path, err)
+		}
+		entries[entry.UID] = store.LobbyEntry{SeedRanking: entry.SeedRanking}
+	}
+}
+
+// loadDisplayNames reads the account display names of the slots' members in one
+// batch. An incognito game never records them, so it reads nothing.
+func (s *FirestoreStore) loadDisplayNames(transaction *cloudfirestore.Transaction, incognito bool, slots []store.PlayerSlot) (map[string]string, error) {
+	if incognito {
+		return nil, nil
+	}
+	refs := make([]*cloudfirestore.DocumentRef, len(slots))
+	for index, slot := range slots {
+		refs[index] = s.client.Collection("players").Doc(slot.ActorID)
+	}
+	snapshots, err := transaction.GetAll(refs)
+	s.recordReads(len(refs))
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[string]string, len(slots))
+	for index, snapshot := range snapshots {
+		if !snapshot.Exists() {
+			continue
+		}
+		profile, err := decodeProfileDocument(snapshot)
+		if err != nil {
+			return nil, err
+		}
+		names[slots[index].ActorID] = profile.DisplayName
+	}
+	return names, nil
+}
+
+// writeSeedRanking records a member's seed ranking in their lobby document; an
+// empty ranking withdraws the vote.
+func (s *FirestoreStore) writeSeedRanking(transaction *cloudfirestore.Transaction, id store.GameID, uid string, ranking []int) error {
+	if ranking == nil {
+		ranking = []int{}
+	}
+	s.recordWrites(1)
+	return transaction.Set(lobbyRef(s.client, id, uid), map[string]any{
+		"schemaVersion": schemaVersion,
+		"uid":           uid,
+		"seedRanking":   ranking,
+	}, cloudfirestore.MergeAll)
+}
+
+// writeStartedProjections writes, in the transaction, everything that follows
+// a change of a started game: its summary, its canonical state, every member's
+// view and the observer's. The caller has already updated the documents.
+func (s *FirestoreStore) writeStartedProjections(transaction *cloudfirestore.Transaction, game gameDocument, canonical canonicalDocument, state *models.GameState) error {
+	id := game.ID
+	revision := store.Revision(game.Revision)
+	views, err := s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	var observer *observerDocument
+	if game.SpectatorUID != "" {
+		document, err := s.observerDocument(id, game.SpectatorUID, revision, state, game.UpdatedAt, max(0, game.Turn-1))
+		if err != nil {
+			return err
+		}
+		observer = &document
+	}
+	if err := transaction.Set(gameRef(s.client, id), game); err != nil {
+		return err
 	}
 	if err := transaction.Set(canonicalRef(s.client, id), canonical); err != nil {
-		return "", false, err
-	}
-	if err := writeOwn(); err != nil {
-		return "", false, err
+		return err
 	}
 	for _, projection := range views {
 		if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
-			return "", false, err
+			return err
 		}
 	}
 	observerWrites := 0
-	if game.SpectatorUID != "" {
-		observer, err := s.observerDocument(id, game.SpectatorUID, revision, plan.State, game.UpdatedAt, 0)
-		if err != nil {
-			return "", false, err
-		}
-		if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
-			return "", false, err
+	if observer != nil {
+		if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), *observer); err != nil {
+			return err
 		}
 		observerWrites = 1
 	}
 	s.recordWrites(2 + len(views) + observerWrites)
 	s.recordProjectionWrites(len(views) + observerWrites)
-	for _, slot := range plan.Slots {
-		if slot.ActorID == actorID {
-			return slot.ID, true, nil
-		}
-	}
-	return player.ID, true, nil
+	return nil
 }
 
 // RenameHouse names the actor's house. In the lobby it records the name the
@@ -431,10 +454,13 @@ func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id 
 	defer cancel()
 	gameDocumentRef := gameRef(s.client, id)
 	canonicalDocumentRef := canonicalRef(s.client, id)
+	uid := strings.TrimSpace(actor.ID)
 	var playerID models.PlayerID
 	var previous string
+	var lobbySnapshot *store.GameSnapshot
 	s.recordTransaction()
 	err := s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+		lobbySnapshot = nil
 		gameSnapshot, err := transaction.Get(gameDocumentRef)
 		s.recordReads(1)
 		if status.Code(err) == codes.NotFound {
@@ -452,36 +478,30 @@ func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id 
 			return store.ErrNotMember
 		}
 		playerID = member
-		if game.Lobby {
+		if game.inLobby() {
 			// In the lobby the name is only recorded, for the start.
-			entries := make(map[string]store.LobbyEntry)
-			documents := transaction.Documents(lobbyCollection(s.client, id))
-			for {
-				document, err := documents.Next()
-				if errors.Is(err, iterator.Done) {
-					break
-				}
-				if err != nil {
-					return err
-				}
-				s.recordReads(1)
-				var entry lobbyDocument
-				if err := document.DataTo(&entry); err != nil {
-					return fmt.Errorf("decode lobby entry %s: %w", document.Ref.Path, err)
-				}
-				entries[entry.UID] = store.LobbyEntry{HouseName: entry.HouseName}
-			}
-			pending, err := store.ValidatePendingHouseName(name, store.OtherHouseNames(entries, strings.TrimSpace(actor.ID)))
+			pending, err := store.ValidatePendingHouseName(name, store.OtherHouseNames(game.HouseNames, uid))
 			if err != nil {
 				return err
 			}
+			var ranking []int
+			if game.FixedSeed == "" {
+				document, err := transaction.Get(lobbyRef(s.client, id, uid))
+				s.recordReads(1)
+				if ranking, err = decodeSeedRanking(document, err); err != nil {
+					return err
+				}
+			}
 			previous = pending
+			game.HouseNames = withHouseName(game.HouseNames, uid, pending)
+			game.UpdatedAt = s.now().UTC()
+			if err := transaction.Set(gameDocumentRef, game); err != nil {
+				return err
+			}
 			s.recordWrites(1)
-			return transaction.Set(lobbyRef(s.client, id, strings.TrimSpace(actor.ID)), map[string]any{
-				"schemaVersion": schemaVersion,
-				"uid":           strings.TrimSpace(actor.ID),
-				"houseName":     pending,
-			}, cloudfirestore.MergeAll)
+			snapshot := s.buildLobbySnapshot(actor, game, ranking)
+			lobbySnapshot = &snapshot
+			return nil
 		}
 		normalized, err := store.ValidateHouseRename(playerSlots(game.Players), member, name)
 		if err != nil {
@@ -531,44 +551,17 @@ func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id 
 		game.UpdatedAt = s.now().UTC()
 		canonical.Revision = game.Revision
 		canonical.UpdatedAt = game.UpdatedAt
-		canonical.State, err = jsonMap(state)
-		if err != nil {
+		if canonical.State, err = jsonMap(state); err != nil {
 			return err
 		}
-		revision := store.Revision(game.Revision)
-		if err := transaction.Set(gameDocumentRef, game); err != nil {
-			return err
-		}
-		if err := transaction.Set(canonicalDocumentRef, canonical); err != nil {
-			return err
-		}
-		// Refresh the views too, so connected players see the new name.
-		views, err := s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
-		if err != nil {
-			return err
-		}
-		for _, projection := range views {
-			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
-				return err
-			}
-		}
-		observerWrites := 0
-		if game.SpectatorUID != "" {
-			observer, observerErr := s.observerDocument(id, game.SpectatorUID, revision, state, game.UpdatedAt, max(0, game.Turn-1))
-			if observerErr != nil {
-				return observerErr
-			}
-			if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
-				return err
-			}
-			observerWrites = 1
-		}
-		s.recordWrites(2 + len(views) + observerWrites)
-		s.recordProjectionWrites(len(views) + observerWrites)
-		return nil
+		// The views are refreshed too, so connected players see the new name.
+		return s.writeStartedProjections(transaction, game, canonical, state)
 	})
 	if err != nil {
 		return store.RenameResult{}, wrapTransactionResult(err)
+	}
+	if lobbySnapshot != nil {
+		return store.RenameResult{Snapshot: *lobbySnapshot, Player: playerSlot(lobbySnapshot.Players, playerID), PreviousName: previous}, nil
 	}
 	snapshot, err := s.Get(operationContext, actor, id)
 	if err != nil {
@@ -733,7 +726,7 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 		if !member && !membershipForActor(game, actor) {
 			return store.ErrNotMember
 		}
-		if game.Lobby {
+		if game.inLobby() {
 			return store.ErrGameNotStarted
 		}
 		if game.Status == store.StatusFinished {
@@ -1002,7 +995,7 @@ func (s *FirestoreStore) Restore(ctx context.Context) ([]store.GameSnapshot, err
 		if err != nil {
 			return nil, err
 		}
-		if game.Lobby {
+		if game.inLobby() {
 			snapshot, err := s.lobbySnapshot(operationContext, store.Actor{}, game)
 			if err != nil {
 				return nil, fmt.Errorf("restore %s: %w", game.ID, err)
@@ -1129,7 +1122,7 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		if !member {
 			return store.ErrNotMember
 		}
-		if game.Lobby {
+		if game.inLobby() {
 			return store.ErrGameNotStarted
 		}
 		if game.Status == store.StatusFinished {
@@ -1251,6 +1244,7 @@ func (s *FirestoreStore) SetSeedVote(ctx context.Context, actor store.Actor, id 
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
 	uid := strings.TrimSpace(actor.ID)
+	var snapshot store.GameSnapshot
 	s.recordTransaction()
 	err := s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
 		gameSnapshot, err := transaction.Get(gameRef(s.client, id))
@@ -1268,65 +1262,47 @@ func (s *FirestoreStore) SetSeedVote(ctx context.Context, actor store.Actor, id 
 		if _, member := playerIDForActor(game, actor); !member {
 			return store.ErrNotMember
 		}
-		if !game.Lobby {
+		if !game.inLobby() {
 			return store.ErrGameStarted
 		}
 		if err := store.ValidateSeedRanking(ranking, s.balance.SeedCandidateCount()); err != nil {
 			return err
 		}
-		stored := ranking
-		if len(stored) == 0 {
-			stored = []int{}
-		}
-		s.recordWrites(1)
-		return transaction.Set(lobbyRef(s.client, id, uid), map[string]any{
-			"schemaVersion": schemaVersion,
-			"uid":           uid,
-			"seedRanking":   stored,
-		}, cloudfirestore.MergeAll)
+		snapshot = s.buildLobbySnapshot(actor, game, ranking)
+		return s.writeSeedRanking(transaction, id, uid, ranking)
 	})
 	if err != nil {
 		return store.GameSnapshot{}, wrapTransactionResult(err)
 	}
-	return s.Get(operationContext, actor, id)
+	return snapshot, nil
 }
 
-// readGameForLobby reads the game document and authorizes the caller: a member,
-// or the holder of one of the game's live invitation codes.
-func (s *FirestoreStore) readGameForLobby(ctx context.Context, actor store.Actor, id store.GameID, code string) (gameDocument, bool, error) {
-	document, err := gameRef(s.client, id).Get(ctx)
-	s.recordReads(1)
-	if err != nil {
-		return gameDocument{}, false, mapReadError(err, store.ErrUnknownGame)
-	}
-	game, err := decodeGameDocument(document)
-	if err != nil {
-		return gameDocument{}, false, err
-	}
-	if membershipForActor(game, actor) {
-		return game, true, nil
-	}
-	invitation, err := s.LookupInvitation(ctx, code)
-	if err != nil {
-		return gameDocument{}, false, err
-	}
-	if invitation.GameID != id {
-		return gameDocument{}, false, store.ErrInvalidInvitation
-	}
-	return game, false, nil
-}
-
-// JoinPreview describes a game to a member or to the holder of its
-// invitation code.
+// JoinPreview describes a game to a member or to the holder of its invitation
+// code: the authorization of the lobby reads.
 func (s *FirestoreStore) JoinPreview(ctx context.Context, actor store.Actor, id store.GameID, code string) (store.JoinPreview, error) {
 	if err := s.requireClient(); err != nil {
 		return store.JoinPreview{}, err
 	}
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
-	game, member, err := s.readGameForLobby(operationContext, actor, id, code)
+	document, err := gameRef(s.client, id).Get(operationContext)
+	s.recordReads(1)
+	if err != nil {
+		return store.JoinPreview{}, mapReadError(err, store.ErrUnknownGame)
+	}
+	game, err := decodeGameDocument(document)
 	if err != nil {
 		return store.JoinPreview{}, err
+	}
+	member := membershipForActor(game, actor)
+	if !member {
+		invitation, err := s.LookupInvitation(operationContext, code)
+		if err != nil {
+			return store.JoinPreview{}, err
+		}
+		if invitation.GameID != id {
+			return store.JoinPreview{}, store.ErrInvalidInvitation
+		}
 	}
 	preview := store.JoinPreview{
 		ID:        id,
@@ -1334,26 +1310,17 @@ func (s *FirestoreStore) JoinPreview(ctx context.Context, actor store.Actor, id 
 		Players:   len(game.Players),
 		Seated:    assignedDocumentPlayerCount(game.Players),
 		Incognito: game.Incognito,
-		Started:   !game.Lobby,
+		Started:   !game.inLobby(),
 		Member:    member,
 	}
-	if game.Lobby && game.FixedSeed == "" {
+	if game.inLobby() && game.FixedSeed == "" {
 		preview.SeedCandidates = store.SeedCandidates(id, s.balance.SeedCandidateCount())
 	}
 	return preview, nil
 }
 
-// SeedCandidateMap generates the map of candidate seed index for the game's
-// player count.
-func (s *FirestoreStore) SeedCandidateMap(ctx context.Context, actor store.Actor, id store.GameID, code string, index int) (mapgen.MapData, error) {
-	if err := s.requireClient(); err != nil {
-		return mapgen.MapData{}, err
-	}
-	operationContext, cancel := s.operationContext(ctx)
-	defer cancel()
-	game, _, err := s.readGameForLobby(operationContext, actor, id, code)
-	if err != nil {
-		return mapgen.MapData{}, err
-	}
-	return store.GenerateCandidateMap(id, index, len(game.Players), s.balance, s.assets)
+// SeedCandidateMap generates the map of candidate seed index for a game of the
+// given player count.
+func (s *FirestoreStore) SeedCandidateMap(id store.GameID, players, index int) (mapgen.MapData, error) {
+	return store.GenerateCandidateMap(id, index, players, s.balance, s.assets)
 }

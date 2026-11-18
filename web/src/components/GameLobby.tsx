@@ -8,16 +8,20 @@ import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { apiRequest, type TokenProvider } from '@/lib/api'
 import { errorText } from '@/lib/api-error'
-import type { GameLobby as LobbyData, MapData } from '@/types'
+import type { GameLobby as LobbyData, MapData, SeedCandidate } from '@/types'
 
 /**
  * Candidate seeds in the order the player ranks them: the saved ranking first,
  * then the candidates left unranked in their own order.
  */
-export function rankingOrder(lobby: LobbyData): number[] {
-  const indexes = lobby.seedCandidates.map((candidate) => candidate.index)
-  const ranked = lobby.seedRanking.filter((index) => indexes.includes(index))
+export function orderCandidates(candidates: SeedCandidate[], ranking: number[]): number[] {
+  const indexes = candidates.map((candidate) => candidate.index)
+  const ranked = ranking.filter((index) => indexes.includes(index))
   return [...ranked, ...indexes.filter((index) => !ranked.includes(index))]
+}
+
+export function rankingOrder(lobby: LobbyData): number[] {
+  return orderCandidates(lobby.seedCandidates, lobby.seedRanking)
 }
 
 function moved(order: number[], position: number, delta: -1 | 1): number[] {
@@ -76,63 +80,33 @@ function CandidatePreview({
   return <MapPreview map={map} label={t('lobby.previewLabel', { rank })} />
 }
 
-/** The candidate maps side by side (stacked on a phone) and their ranking. */
-export function SeedVote({
+/**
+ * The candidate maps side by side (stacked on a phone), in the order given,
+ * with the buttons to reorder them. The order is the caller's: this list only
+ * reports every reordering.
+ */
+export function SeedRankingList({
   gameId,
-  lobby,
-  tokenProvider,
-  onVote,
-  inviteCode,
+  candidates,
+  order,
   onOrderChange,
+  tokenProvider,
+  inviteCode,
 }: {
   gameId: string
-  lobby: LobbyData
+  candidates: SeedCandidate[]
+  order: number[]
+  onOrderChange: (order: number[]) => void
   tokenProvider: TokenProvider
-  onVote?: (ranking: number[]) => Promise<void>
   /** Candidates and previews of a game the caller has not joined yet. */
   inviteCode?: string
-  /**
-   * The ranking is not saved on its own: every reordering is reported, and
-   * the caller sends it with the join. Leaving the order alone is an abstention.
-   */
-  onOrderChange?: (ranking: number[]) => void
 }) {
   const { t } = useLanguage()
-  const saved = lobby.seedRanking.join(',')
-  const [order, setOrder] = useState(() => rankingOrder(lobby))
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const candidateKey = lobby.seedCandidates.map((candidate) => candidate.index).join(',')
-
-  useEffect(() => {
-    setOrder(rankingOrder(lobby))
-    // The ranking follows the saved vote, not every render of the lobby.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, candidateKey])
-
-  if (lobby.seedCandidates.length === 0) {
+  if (candidates.length === 0) {
     return <Alert tone="info">{t('lobby.fixedSeed')}</Alert>
   }
   const seedOf = (index: number) =>
-    lobby.seedCandidates.find((candidate) => candidate.index === index)?.seed ?? ''
-  const dirty = order.join(',') !== saved
-
-  const reorder = (next: number[]) => {
-    setOrder(next)
-    onOrderChange?.(next)
-  }
-
-  const save = async () => {
-    setSaving(true)
-    setError(null)
-    try {
-      await onVote?.(order)
-    } catch (failure) {
-      setError(errorText(failure, t, t('error.serverUnavailable')))
-    } finally {
-      setSaving(false)
-    }
-  }
+    candidates.find((candidate) => candidate.index === index)?.seed ?? ''
 
   return (
     <section className="space-y-3" aria-labelledby="seed-vote-title">
@@ -162,7 +136,7 @@ export function SeedVote({
                 size="sm"
                 aria-label={t('lobby.moveUp', { rank: position + 1 })}
                 disabled={position === 0}
-                onClick={() => reorder(moved(order, position, -1))}
+                onClick={() => onOrderChange(moved(order, position, -1))}
               >
                 <IconArrowUp aria-hidden="true" className="size-4" />
               </Button>
@@ -172,7 +146,7 @@ export function SeedVote({
                 size="sm"
                 aria-label={t('lobby.moveDown', { rank: position + 1 })}
                 disabled={position === order.length - 1}
-                onClick={() => reorder(moved(order, position, 1))}
+                onClick={() => onOrderChange(moved(order, position, 1))}
               >
                 <IconArrowDown aria-hidden="true" className="size-4" />
               </Button>
@@ -187,9 +161,58 @@ export function SeedVote({
           </li>
         ))}
       </ol>
-      {onOrderChange ? (
-        <p className="text-sm text-ink-500">{t('lobby.abstainHint')}</p>
-      ) : (
+    </section>
+  )
+}
+
+/** The ranking of a member of the lobby, saved with a button. */
+export function SeedVote({
+  gameId,
+  lobby,
+  tokenProvider,
+  onVote,
+}: {
+  gameId: string
+  lobby: LobbyData
+  tokenProvider: TokenProvider
+  onVote: (ranking: number[]) => Promise<void>
+}) {
+  const { t } = useLanguage()
+  const saved = lobby.seedRanking.join(',')
+  const syncKey = `${saved}|${lobby.seedCandidates.map((candidate) => candidate.index).join(',')}`
+  const [order, setOrder] = useState(() => rankingOrder(lobby))
+  const [syncedKey, setSyncedKey] = useState(syncKey)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // The ranking follows the saved vote, not every render of the lobby.
+  if (syncedKey !== syncKey) {
+    setSyncedKey(syncKey)
+    setOrder(rankingOrder(lobby))
+  }
+  const dirty = order.join(',') !== saved
+
+  const save = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      await onVote(order)
+    } catch (failure) {
+      setError(errorText(failure, t, t('error.serverUnavailable')))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <SeedRankingList
+        gameId={gameId}
+        candidates={lobby.seedCandidates}
+        order={order}
+        onOrderChange={setOrder}
+        tokenProvider={tokenProvider}
+      />
+      {lobby.seedCandidates.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" disabled={saving || (!dirty && saved !== '')} onClick={() => void save()}>
             {saving ? t('lobby.savingVote') : t('lobby.saveVote')}
@@ -200,7 +223,7 @@ export function SeedVote({
         </div>
       )}
       {error && <Alert role="alert">{error}</Alert>}
-    </section>
+    </div>
   )
 }
 

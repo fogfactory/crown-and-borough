@@ -59,7 +59,7 @@ func (n *Notifier) SetClock(now func() time.Time) { n.now = now }
 // resolved. Nothing is sent once the game is finished, nor to eliminated
 // houses or the observer.
 func (n *Notifier) TurnStarted(ctx context.Context, snapshot store.GameSnapshot) {
-	if snapshot.Status != store.StatusPlaying || snapshot.State == nil {
+	if snapshot.Status != store.StatusPlaying || !snapshot.Started() {
 		return
 	}
 	var uids []string

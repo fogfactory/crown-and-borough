@@ -64,7 +64,7 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
-	if _, err := first.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code); err != nil {
+	if _, err := first.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
 	creatorViewSnapshot, err := viewRef(first.client, created.Snapshot.ID, "alice").Get(ctx)
@@ -515,7 +515,7 @@ func TestFirestoreStoreSubmissionsReplaceAndRejectStaleRevisions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
-	joined, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code)
+	joined, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{})
 	if err != nil {
 		t.Fatalf("join game: %v", err)
 	}
@@ -579,7 +579,7 @@ func TestFirestoreStoreConcurrentSubmissionsDoNotLoseOrders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
-	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code); err != nil {
+	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
 	results := make(chan error, 2)
@@ -642,7 +642,7 @@ func TestFirestoreStoreJoinRejectsAnActiveResolutionClaim(t *testing.T) {
 	}
 	// A game that predates lobbies is started yet may have a free slot: start
 	// this one, then free Bob's slot as such a game would have it.
-	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code); err != nil {
+	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
 	gameSnapshot, err := gameRef(client, created.Snapshot.ID).Get(ctx)
@@ -680,7 +680,7 @@ func TestFirestoreStoreJoinRejectsAnActiveResolutionClaim(t *testing.T) {
 	if _, err := canonicalRef(client, created.Snapshot.ID).Set(ctx, canonical); err != nil {
 		t.Fatalf("seed active claim: %v", err)
 	}
-	if _, err := gameStore.Join(ctx, store.Actor{ID: "carol"}, created.Snapshot.ID, created.Invitation.Code); !errors.Is(err, store.ErrRevisionConflict) {
+	if _, err := gameStore.Join(ctx, store.Actor{ID: "carol"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); !errors.Is(err, store.ErrRevisionConflict) {
 		t.Fatalf("join during claim error = %v, want revision conflict", err)
 	}
 	canonical.Resolution = nil
@@ -696,7 +696,7 @@ func startedGame(ctx context.Context, s *FirestoreStore, creator store.Actor, re
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
-	joined, err := s.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code)
+	joined, err := s.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{})
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
@@ -754,13 +754,36 @@ func TestFirestoreLobbyStartsWithTheLastJoinAndCountsItsEntry(t *testing.T) {
 		t.Fatalf("lobby name: %v", err)
 	}
 	// The vote sits in a backend-only document, never on the game document.
-	if _, err := gameStore.JoinWith(ctx, bob, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{1, 2, 0}, HouseName: "House Tyrell"}); err != nil {
+	if _, err := gameStore.Join(ctx, bob, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{1, 2, 0}, HouseName: "House Tyrell"}); err != nil {
 		t.Fatalf("join bob: %v", err)
 	}
-	if _, err := gameStore.JoinWith(ctx, bob, id, created.Invitation.Code, store.JoinOptions{HouseName: "house stark"}); err != nil {
+	// Pending names live on the game document (so uniqueness needs no lobby
+	// scan); the lobby documents keep rankings only.
+	lobbyGame, err := gameRef(client, id).Get(ctx)
+	if err != nil {
+		t.Fatalf("read lobby game: %v", err)
+	}
+	lobbyDoc, err := decodeGameDocument(lobbyGame)
+	if err != nil {
+		t.Fatalf("decode lobby game: %v", err)
+	}
+	if lobbyDoc.Phase != store.PhaseLobby || lobbyDoc.HouseNames["lobby-alice"] != "House Stark" || lobbyDoc.HouseNames["lobby-bob"] != "House Tyrell" {
+		t.Fatalf("lobby document = phase %q, names %v", lobbyDoc.Phase, lobbyDoc.HouseNames)
+	}
+	if _, err := gameStore.RenameHouse(ctx, bob, id, "HOUSE STARK"); !errors.Is(err, store.ErrHouseNameTaken) {
+		t.Fatalf("a name another member entered = %v, want ErrHouseNameTaken", err)
+	}
+	rawLobby, err := lobbyRef(client, id, "lobby-bob").Get(ctx)
+	if err != nil {
+		t.Fatalf("read bob lobby document: %v", err)
+	}
+	if _, hasName := rawLobby.DataAt("houseName"); hasName == nil {
+		t.Fatal("the lobby document must not hold the house name")
+	}
+	if _, err := gameStore.Join(ctx, bob, id, created.Invitation.Code, store.JoinOptions{HouseName: "house stark"}); err != nil {
 		t.Fatalf("an existing member joining again must be idempotent: %v", err)
 	}
-	last, err := gameStore.JoinWith(ctx, carol, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
+	last, err := gameStore.Join(ctx, carol, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
 	if err != nil {
 		t.Fatalf("join carol: %v", err)
 	}
@@ -776,6 +799,13 @@ func TestFirestoreLobbyStartsWithTheLastJoinAndCountsItsEntry(t *testing.T) {
 	}
 	if _, err := canonicalRef(client, id).Get(ctx); err != nil {
 		t.Fatalf("canonical after start: %v", err)
+	}
+	startedGame, err := gameRef(client, id).Get(ctx)
+	if err != nil {
+		t.Fatalf("read started game: %v", err)
+	}
+	if doc, decodeErr := decodeGameDocument(startedGame); decodeErr != nil || doc.Phase != store.PhaseStarted || len(doc.HouseNames) != 0 {
+		t.Fatalf("started document = phase %q, names %v, %v", doc.Phase, doc.HouseNames, decodeErr)
 	}
 	for _, actor := range []store.Actor{alice, bob, carol} {
 		if _, err := viewRef(client, id, actor.ID).Get(ctx); err != nil {

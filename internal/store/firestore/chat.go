@@ -14,8 +14,10 @@ import (
 )
 
 var (
-	_ store.ChatBackend = (*FirestoreStore)(nil)
-	_ store.RosterStore = (*FirestoreStore)(nil)
+	_ store.ChatBackend         = (*FirestoreStore)(nil)
+	_ store.RosterStore         = (*FirestoreStore)(nil)
+	_ store.LobbyStore          = (*FirestoreStore)(nil)
+	_ store.InvitationGameStore = (*FirestoreStore)(nil)
 )
 
 // Chat layout under games/{gameId}:
@@ -253,6 +255,6 @@ func (s *FirestoreStore) Roster(ctx context.Context, actor store.Actor, id store
 		Players:      playerSlots(game.Players),
 		CreatedBy:    game.OwnerUID,
 		SpectatorUID: game.SpectatorUID,
-		Incognito:    game.Incognito,
+		Phase:        game.Phase,
 	}, nil
 }

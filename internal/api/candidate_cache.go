@@ -1,6 +1,9 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"sync"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine/mapgen"
@@ -11,12 +14,19 @@ import (
 // slow.
 const candidateMapCacheSize = 128
 
+// candidateMap is a generated candidate map, kept as the JSON it is served as
+// with the ETag of that body.
+type candidateMap struct {
+	body []byte
+	etag string
+}
+
 // candidateMapCache keeps the generated maps of seed candidates by game and
 // candidate index, and makes concurrent requests for the same missing map
 // share one generation.
 type candidateMapCache struct {
 	mu       sync.Mutex
-	items    map[string]mapgen.MapData
+	items    map[string]candidateMap
 	order    []string // keys of items, oldest first
 	inflight map[string]*candidateMapCall
 }
@@ -25,20 +35,20 @@ type candidateMapCache struct {
 // err are set.
 type candidateMapCall struct {
 	done chan struct{}
-	data mapgen.MapData
+	data candidateMap
 	err  error
 }
 
 func newCandidateMapCache() *candidateMapCache {
 	return &candidateMapCache{
-		items:    make(map[string]mapgen.MapData),
+		items:    make(map[string]candidateMap),
 		inflight: make(map[string]*candidateMapCall),
 	}
 }
 
 // get returns the map of key, generating it with generate when it is neither
 // cached nor being generated. A failed generation is not cached.
-func (c *candidateMapCache) get(key string, generate func() (mapgen.MapData, error)) (mapgen.MapData, error) {
+func (c *candidateMapCache) get(key string, generate func() (mapgen.MapData, error)) (candidateMap, error) {
 	c.mu.Lock()
 	if data, ok := c.items[key]; ok {
 		c.mu.Unlock()
@@ -53,7 +63,7 @@ func (c *candidateMapCache) get(key string, generate func() (mapgen.MapData, err
 	c.inflight[key] = call
 	c.mu.Unlock()
 
-	call.data, call.err = generate()
+	call.data, call.err = encodeCandidateMap(generate)
 
 	c.mu.Lock()
 	delete(c.inflight, key)
@@ -65,11 +75,26 @@ func (c *candidateMapCache) get(key string, generate func() (mapgen.MapData, err
 	return call.data, call.err
 }
 
-func (c *candidateMapCache) putLocked(key string, data mapgen.MapData) {
+func (c *candidateMapCache) putLocked(key string, data candidateMap) {
 	if len(c.order) >= candidateMapCacheSize {
 		delete(c.items, c.order[0])
 		c.order = c.order[1:]
 	}
 	c.items[key] = data
 	c.order = append(c.order, key)
+}
+
+// encodeCandidateMap generates a map and marshals it once, for every request
+// that follows.
+func encodeCandidateMap(generate func() (mapgen.MapData, error)) (candidateMap, error) {
+	data, err := generate()
+	if err != nil {
+		return candidateMap{}, err
+	}
+	body, err := json.Marshal(data)
+	if err != nil {
+		return candidateMap{}, err
+	}
+	sum := sha256.Sum256(body)
+	return candidateMap{body: append(body, '\n'), etag: `"` + hex.EncodeToString(sum[:8]) + `"`}, nil
 }

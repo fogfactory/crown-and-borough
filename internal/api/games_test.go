@@ -453,6 +453,7 @@ func TestPlayerSlotViewMarksPlayersWithNothingToSubmitAsNotRequired(t *testing.T
 		},
 	}
 	snapshot := store.GameSnapshot{
+		Phase: store.PhaseStarted,
 		State: state,
 		Players: []store.PlayerSlot{
 			{ID: "P1", Name: "One"},

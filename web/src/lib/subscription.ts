@@ -190,14 +190,14 @@ export function normalizeGameSummary(
             return actor !== '' && !actor.startsWith('slot:')
           }).length
         : 0
-  // The game has a board unless its lobby is open (`lobby` on the Firestore
+  // The game has a board unless its lobby is open (`phase` on the Firestore
   // document, `started` in the REST views).
   const started: boolean | undefined =
     typeof data.started === 'boolean'
       ? data.started
-      : data.lobby === true
+      : data.phase === 'lobby'
         ? false
-        : incognito
+        : data.phase === 'started'
           ? true
           : undefined
   const lobby = lobbyFromData(data.lobby)

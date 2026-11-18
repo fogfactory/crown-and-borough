@@ -160,6 +160,24 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	return CreateGameFromMap(seed, mapData, players, yearCount, balance, assets)
 }
 
+// SeatPlayer is the house the engine seats at index for init: the ID defaults
+// to P<n>, the name to the ID and the color and arms to the seat's.
+func SeatPlayer(index int, init PlayerInit) models.Player {
+	id := init.ID
+	if id == "" {
+		id = models.PlayerID(fmt.Sprintf("P%d", index+1))
+	}
+	name := init.Name
+	if name == "" {
+		name = string(id)
+	}
+	arms, color := SeatArms(index)
+	if init.Color != "" {
+		color = init.Color
+	}
+	return models.Player{ID: id, Name: name, Color: color, Arms: &arms}
+}
+
 // CreateGameFromMap is CreateGameWithYears on a map the caller already
 // generated with GenerateMap(seed, len(players), assets).
 func CreateGameFromMap(seed string, mapData mapgen.MapData, players []PlayerInit, yearCount int, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
@@ -210,24 +228,13 @@ func CreateGameFromMap(seed string, mapData mapgen.MapData, players []PlayerInit
 
 	state.Players = make([]models.Player, 0, len(players))
 	for index, init := range players {
-		playerID := init.ID
-		if playerID == "" {
-			playerID = models.PlayerID(fmt.Sprintf("P%d", index+1))
-		}
+		player := SeatPlayer(index, init)
 		for _, existing := range state.Players {
-			if existing.ID == playerID {
-				return nil, fmt.Errorf("engine: duplicate player id %q", playerID)
+			if existing.ID == player.ID {
+				return nil, fmt.Errorf("engine: duplicate player id %q", player.ID)
 			}
 		}
-		name := init.Name
-		if name == "" {
-			name = string(playerID)
-		}
-		arms, color := SeatArms(index)
-		if init.Color != "" {
-			color = init.Color
-		}
-		state.Players = append(state.Players, models.Player{ID: playerID, Name: name, Color: color, Arms: &arms})
+		state.Players = append(state.Players, player)
 	}
 
 	specialDeck, err := buildSpecialDeck(seed, balance)

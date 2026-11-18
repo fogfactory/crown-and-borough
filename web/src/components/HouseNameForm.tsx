@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
+import { HouseNameField } from '@/components/HouseNameField'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { errorText } from '@/lib/api-error'
 
@@ -41,15 +41,10 @@ export function HouseNameForm({
       className="space-y-2 rounded-lg border border-line/70 bg-paper-100 px-3 py-3"
       onSubmit={(event) => void handleSubmit(event)}
     >
-      <label className="block space-y-1.5">
-        <span className="text-sm font-semibold text-ink-700">{t('online.houseName')}</span>
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            value={name}
-            maxLength={32}
-            onChange={(event) => setName(event.target.value)}
-          />
+      <HouseNameField
+        value={name}
+        onChange={setName}
+        action={
           <Button
             type="submit"
             variant="outline"
@@ -57,9 +52,8 @@ export function HouseNameForm({
           >
             {saving ? t('online.houseNameSaving') : t('online.houseNameSave')}
           </Button>
-        </div>
-      </label>
-      <p className="text-xs text-ink-500">{t('online.houseNameNote')}</p>
+        }
+      />
       {error && <Alert role="alert">{error}</Alert>}
     </form>
   )

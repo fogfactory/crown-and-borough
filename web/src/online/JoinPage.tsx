@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { useAuth } from '@/auth/AuthProvider'
-import { SeedVote } from '@/components/GameLobby'
+import { orderCandidates, SeedRankingList } from '@/components/GameLobby'
+import { HouseNameField } from '@/components/HouseNameField'
 import { Seal } from '@/components/Seal'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { ApiError, apiRequest } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -144,23 +144,20 @@ export function JoinPage() {
               </p>
               <p className="mt-1 text-xs text-ink-500">{t('join.prepare')}</p>
             </div>
-            <label className="block space-y-1.5">
-              <span className="text-sm font-semibold text-ink-700">{t('online.houseName')}</span>
-              <Input
-                type="text"
-                value={houseName}
-                maxLength={32}
-                onChange={(event) => setHouseName(event.target.value)}
-              />
-              <span className="block text-xs text-ink-500">{t('online.houseNameNote')}</span>
-            </label>
-            <SeedVote
+            <div className="space-y-1.5">
+              <HouseNameField value={houseName} onChange={setHouseName} />
+            </div>
+            <SeedRankingList
               gameId={gameId}
               inviteCode={inviteCode}
               tokenProvider={{ getIdToken }}
-              lobby={{ seedCandidates: preview.seedCandidates, seedRanking: [], houseName: '' }}
+              candidates={preview.seedCandidates}
+              order={orderCandidates(preview.seedCandidates, ranking)}
               onOrderChange={setRanking}
             />
+            {preview.seedCandidates.length > 0 && (
+              <p className="text-sm text-ink-500">{t('lobby.abstainHint')}</p>
+            )}
             <Button type="submit" className="w-full">
               {t('join.submit')}
             </Button>

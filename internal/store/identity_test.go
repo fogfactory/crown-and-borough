@@ -145,7 +145,7 @@ func TestMemoryStoreConcurrentJoinsClaimTheLastSlotOnce(t *testing.T) {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			_, joinErr := gameStore.Join(context.Background(), Actor{ID: uid}, created.ID, secret.Code)
+			_, joinErr := gameStore.Join(context.Background(), Actor{ID: uid}, created.ID, secret.Code, JoinOptions{})
 			errorsCh <- joinErr
 		}()
 	}
@@ -195,7 +195,7 @@ func TestMemoryStoreProfileRenamesMoveTheAccountNameOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invite: %v", err)
 	}
-	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code); err != nil {
+	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code, JoinOptions{}); err != nil {
 		t.Fatalf("join: %v", err)
 	}
 	if _, err := gameStore.UpdateProfile(ctx, "alice", "Alicia"); err != nil {

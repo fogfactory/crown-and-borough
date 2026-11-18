@@ -51,6 +51,7 @@ type memoryGame struct {
 	name             string
 	seed             string
 	status           Status
+	phase            Phase
 	winner           *models.PlayerID
 	players          []PlayerSlot
 	mapData          mapgen.MapData
@@ -71,7 +72,10 @@ type memoryGame struct {
 	joinedAt map[models.PlayerID]time.Time
 }
 
-var _ InvitationGameStore = (*MemoryStore)(nil)
+var (
+	_ InvitationGameStore = (*MemoryStore)(nil)
+	_ LobbyStore          = (*MemoryStore)(nil)
+)
 
 func NewMemoryStore(balance assetgen.Balance, assets assetgen.Assets) *MemoryStore {
 	return NewMemoryStoreWithOptions(balance, assets, MemoryStoreOptions{})
@@ -192,18 +196,23 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		state   *models.GameState
 		mapData mapgen.MapData
 		roster  []models.Player
+		phase   = PhaseStarted
 	)
 	if strictMembership {
-		roster = lobbyRoster(players)
+		phase = PhaseLobby
+		roster = make([]models.Player, len(players))
+		for index, init := range players {
+			roster[index] = engine.SeatPlayer(index, init)
+		}
 	} else {
 		if seed == "" {
 			seed = string(id)
 		}
-		state, err = engine.CreateGameWithYears(seed, players, yearCount, s.balance, s.assets)
+		mapData, err = engine.GenerateMap(seed, len(players), s.assets)
 		if err != nil {
 			return GameSnapshot{}, err
 		}
-		mapData, err = engine.GenerateMap(seed, len(players), s.assets)
+		state, err = engine.CreateGameFromMap(seed, mapData, players, yearCount, s.balance, s.assets)
 		if err != nil {
 			return GameSnapshot{}, err
 		}
@@ -248,6 +257,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		name:             name,
 		seed:             seed,
 		status:           StatusPlaying,
+		phase:            phase,
 		players:          slots,
 		mapData:          mapData,
 		state:            state,
@@ -272,25 +282,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		return GameSnapshot{}, fmt.Errorf("store: generated duplicate game id %q", id)
 	}
 	s.games[id] = game
-	return s.snapshotForLocked(game, actor)
-}
-
-// lobbyRoster gives the slots of a lobby the identity the engine will give
-// the houses: the same ids and colors, in the same order.
-func lobbyRoster(players []engine.PlayerInit) []models.Player {
-	roster := make([]models.Player, len(players))
-	for index, init := range players {
-		id := init.ID
-		if id == "" {
-			id = models.PlayerID(fmt.Sprintf("P%d", index+1))
-		}
-		_, color := engine.SeatArms(index)
-		if init.Color != "" {
-			color = init.Color
-		}
-		roster[index] = models.Player{ID: id, Name: init.Name, Color: color}
-	}
-	return roster
+	return s.snapshotLocked(game, actor)
 }
 
 func (s *MemoryStore) CreateWithInvitation(ctx context.Context, actor Actor, request CreateRequest) (GameCreation, error) {
@@ -341,11 +333,10 @@ func (s *MemoryStore) UpdateProfile(ctx context.Context, uid, displayName string
 	s.indexMu.RUnlock()
 	for _, game := range games {
 		game.mu.Lock()
-		if !game.incognito {
-			for index := range game.players {
-				if game.players[index].ActorID == uid && game.players[index].AccountName != "" {
-					game.players[index].AccountName = profile.DisplayName
-				}
+		// An incognito game never recorded an account name: nothing to refresh.
+		for index := range game.players {
+			if game.players[index].ActorID == uid && game.players[index].AccountName != "" {
+				game.players[index].AccountName = profile.DisplayName
 			}
 		}
 		game.mu.Unlock()
@@ -420,11 +411,10 @@ func (s *MemoryStore) CreateInvitation(ctx context.Context, actor Actor, id Game
 	return s.invitations.CreateInvitation(ctx, id, createdBy)
 }
 
-func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code string) (JoinResult, error) {
-	return s.JoinWith(ctx, actor, id, code, JoinOptions{})
-}
-
-func (s *MemoryStore) JoinWith(ctx context.Context, actor Actor, id GameID, code string, options JoinOptions) (JoinResult, error) {
+// Join takes the first free slot of a game with a live invitation code. In a
+// lobby the joiner's entry (house name, seed ranking) is validated and kept,
+// and the last join starts the game.
+func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code string, options JoinOptions) (JoinResult, error) {
 	if err := contextError(ctx); err != nil {
 		return JoinResult{}, err
 	}
@@ -442,84 +432,58 @@ func (s *MemoryStore) JoinWith(ctx context.Context, actor Actor, id GameID, code
 		return JoinResult{}, ErrSpectator
 	}
 	if playerID, ok := game.playerForActorLocked(actor); ok {
-		snapshot, snapshotErr := s.snapshotForLocked(game, actor)
+		snapshot, snapshotErr := s.snapshotLocked(game, actor)
 		if snapshotErr != nil {
 			return JoinResult{}, snapshotErr
 		}
 		return JoinResult{Snapshot: snapshot, Player: playerSlotForID(game.players, playerID), Joined: false}, nil
 	}
-	invitation, err := s.invitations.LookupInvitation(ctx, code)
-	if err != nil {
+	if err := s.checkInvitation(ctx, id, code); err != nil {
 		return JoinResult{}, err
-	}
-	if invitation.GameID != id {
-		return JoinResult{}, ErrInvalidInvitation
 	}
 	if game.status == StatusFinished {
 		return JoinResult{}, ErrGameFinished
 	}
-	freeIndex := slices.IndexFunc(game.players, func(player PlayerSlot) bool { return !player.Assigned() })
-	if freeIndex < 0 {
-		return JoinResult{}, ErrGameFull
-	}
-	var entry *LobbyEntry
-	if game.state == nil {
-		var err error
-		if entry, err = game.joinEntryLocked(actorID, options, s.balance.SeedCandidateCount()); err != nil {
+	// A started game with a free slot is a development game (see
+	// MemoryStoreOptions.StrictMembership): the slot is simply claimed.
+	var step JoinStep
+	seat := slices.IndexFunc(game.players, func(player PlayerSlot) bool { return !player.Assigned() })
+	if !game.started() {
+		if step, err = PlanJoin(game.players, actorID, options, PendingHouseNames(game.lobby), s.balance.SeedCandidateCount()); err != nil {
 			return JoinResult{}, err
 		}
+		seat = step.Seat
+	} else if seat < 0 {
+		return JoinResult{}, ErrGameFull
 	}
-	player := &game.players[freeIndex]
-	player.ActorID = actorID
-	if entry != nil {
-		game.lobby[actorID] = *entry
+	previous := slices.Clone(game.players)
+	game.players[seat].ActorID = actorID
+	slotID := game.players[seat].ID
+	if step.Entry != nil {
+		game.lobby[actorID] = *step.Entry
 	}
 	if game.joinedAt == nil {
 		game.joinedAt = make(map[models.PlayerID]time.Time)
 	}
-	game.joinedAt[player.ID] = time.Now().UTC()
-	started := false
-	if game.state == nil && SlotsFilled(game.players) {
+	game.joinedAt[slotID] = time.Now().UTC()
+	if step.Final {
 		if err := s.startLocked(ctx, game); err != nil {
-			player.ActorID = ""
-			delete(game.joinedAt, player.ID)
+			game.players = previous
+			delete(game.joinedAt, slotID)
 			delete(game.lobby, actorID)
 			return JoinResult{}, err
 		}
-		started = true
 	}
 	game.revision++
-	snapshot, err := s.snapshotForLocked(game, actor)
+	snapshot, err := s.snapshotLocked(game, actor)
 	if err != nil {
 		return JoinResult{}, err
 	}
-	slot := playerSlotForID(game.players, player.ID)
+	slot := playerSlotForID(game.players, slotID)
 	if playerID, ok := game.playerForActorLocked(actor); ok {
 		slot = playerSlotForID(game.players, playerID)
 	}
-	return JoinResult{Snapshot: snapshot, Player: slot, Joined: true, Started: started}, nil
-}
-
-// joinEntryLocked validates what a joiner prepared for the lobby, against the
-// names the members entered so far, and returns their entry (nil when they
-// prepared nothing).
-func (game *memoryGame) joinEntryLocked(uid string, options JoinOptions, candidates int) (*LobbyEntry, error) {
-	var entry LobbyEntry
-	if strings.TrimSpace(options.HouseName) != "" {
-		name, err := ValidatePendingHouseName(options.HouseName, OtherHouseNames(game.lobby, ""))
-		if err != nil {
-			return nil, err
-		}
-		entry.HouseName = name
-	}
-	if err := ValidateSeedRanking(options.SeedRanking, candidates); err != nil {
-		return nil, err
-	}
-	entry.SeedRanking = append([]int(nil), options.SeedRanking...)
-	if entry.HouseName == "" && len(entry.SeedRanking) == 0 {
-		return nil, nil
-	}
-	return &entry, nil
+	return JoinResult{Snapshot: snapshot, Player: slot, Joined: true, Started: step.Final}, nil
 }
 
 // JoinPreview describes a game to a member or to the holder of its
@@ -542,11 +506,11 @@ func (s *MemoryStore) JoinPreview(ctx context.Context, actor Actor, id GameID, c
 		Name:      game.name,
 		Players:   len(game.players),
 		Incognito: game.incognito,
-		Started:   game.state != nil,
+		Started:   game.started(),
 		Member:    member,
 	}
 	preview.Seated = SeatedCount(game.players)
-	if game.state == nil && game.fixedSeed == "" {
+	if !game.started() && game.fixedSeed == "" {
 		preview.SeedCandidates = SeedCandidates(id, s.balance.SeedCandidateCount())
 	}
 	return preview, nil
@@ -599,6 +563,7 @@ func (s *MemoryStore) startLocked(ctx context.Context, game *memoryGame) error {
 	game.seed = plan.Seed
 	game.state = plan.State
 	game.mapData = plan.Map
+	game.phase = PhaseStarted
 	game.lobby = nil
 	return nil
 }
@@ -620,16 +585,16 @@ func (s *MemoryStore) RenameHouse(ctx context.Context, actor Actor, id GameID, n
 	if !ok {
 		return RenameResult{}, ErrNotMember
 	}
-	if game.state == nil {
+	if !game.started() {
 		uid := strings.TrimSpace(actor.ID)
-		normalized, err := ValidatePendingHouseName(name, OtherHouseNames(game.lobby, uid))
+		normalized, err := ValidatePendingHouseName(name, OtherHouseNames(PendingHouseNames(game.lobby), uid))
 		if err != nil {
 			return RenameResult{}, err
 		}
 		entry := game.lobby[uid]
 		entry.HouseName = normalized
 		game.lobby[uid] = entry
-		snapshot, err := s.snapshotForLocked(game, actor)
+		snapshot, err := s.snapshotLocked(game, actor)
 		if err != nil {
 			return RenameResult{}, err
 		}
@@ -653,7 +618,7 @@ func (s *MemoryStore) RenameHouse(ctx context.Context, actor Actor, id GameID, n
 		}
 		game.revision++
 	}
-	snapshot, err := s.snapshotForLocked(game, actor)
+	snapshot, err := s.snapshotLocked(game, actor)
 	if err != nil {
 		return RenameResult{}, err
 	}
@@ -675,7 +640,7 @@ func (s *MemoryStore) SetSeedVote(ctx context.Context, actor Actor, id GameID, r
 	if _, ok := game.playerForActorLocked(actor); !ok {
 		return GameSnapshot{}, ErrNotMember
 	}
-	if game.state != nil {
+	if game.started() {
 		return GameSnapshot{}, ErrGameStarted
 	}
 	if err := ValidateSeedRanking(ranking, s.balance.SeedCandidateCount()); err != nil {
@@ -685,26 +650,13 @@ func (s *MemoryStore) SetSeedVote(ctx context.Context, actor Actor, id GameID, r
 	entry := game.lobby[uid]
 	entry.SeedRanking = append([]int(nil), ranking...)
 	game.lobby[uid] = entry
-	return s.snapshotForLocked(game, actor)
+	return s.snapshotLocked(game, actor)
 }
 
-// SeedCandidateMap generates the map of candidate seed index for the game's
-// player count.
-func (s *MemoryStore) SeedCandidateMap(ctx context.Context, actor Actor, id GameID, code string, index int) (mapgen.MapData, error) {
-	game, err := s.game(id)
-	if err != nil {
-		return mapgen.MapData{}, err
-	}
-	game.mu.RLock()
-	allowed := game.viewerForActorLocked(actor)
-	count := len(game.players)
-	game.mu.RUnlock()
-	if !allowed {
-		if err := s.checkInvitation(ctx, id, code); err != nil {
-			return mapgen.MapData{}, err
-		}
-	}
-	return GenerateCandidateMap(id, index, count, s.balance, s.assets)
+// SeedCandidateMap generates the map of candidate seed index for a game of
+// the given player count.
+func (s *MemoryStore) SeedCandidateMap(id GameID, players, index int) (mapgen.MapData, error) {
+	return GenerateCandidateMap(id, index, players, s.balance, s.assets)
 }
 
 func playerSlotForID(players []PlayerSlot, id models.PlayerID) PlayerSlot {
@@ -733,7 +685,7 @@ func (s *MemoryStore) List(_ context.Context, actor Actor) ([]GameSnapshot, erro
 			game.mu.RUnlock()
 			continue
 		}
-		snapshot, err := s.snapshotForLocked(game, actor)
+		snapshot, err := s.snapshotLocked(game, actor)
 		game.mu.RUnlock()
 		if err != nil {
 			return nil, err
@@ -755,7 +707,7 @@ func (s *MemoryStore) Get(_ context.Context, actor Actor, id GameID) (GameSnapsh
 	if !game.viewerForActorLocked(actor) {
 		return GameSnapshot{}, ErrNotMember
 	}
-	return s.snapshotForLocked(game, actor)
+	return s.snapshotLocked(game, actor)
 }
 
 func (s *MemoryStore) Map(_ context.Context, actor Actor, id GameID) (mapgen.MapData, error) {
@@ -768,8 +720,8 @@ func (s *MemoryStore) Map(_ context.Context, actor Actor, id GameID) (mapgen.Map
 	if !game.viewerForActorLocked(actor) {
 		return mapgen.MapData{}, ErrNotMember
 	}
-	if game.state == nil {
-		return mapgen.MapData{}, ErrGameNotStarted
+	if err := game.requireStartedLocked(); err != nil {
+		return mapgen.MapData{}, err
 	}
 	return cloneMap(game.mapData), nil
 }
@@ -797,8 +749,8 @@ func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territor
 	if !game.viewerForActorLocked(actor) {
 		return engine.SupplyLine{}, ErrNotMember
 	}
-	if game.state == nil {
-		return engine.SupplyLine{}, ErrGameNotStarted
+	if err := game.requireStartedLocked(); err != nil {
+		return engine.SupplyLine{}, err
 	}
 	playerID, _ := game.playerForActorLocked(actor)
 	return engine.FindPlayerSupply(game.state, s.balance, territoryID, playerID, special)
@@ -814,8 +766,8 @@ func (s *MemoryStore) TransferSupply(_ context.Context, actor Actor, id GameID, 
 	if !game.viewerForActorLocked(actor) {
 		return engine.TransferLine{}, ErrNotMember
 	}
-	if game.state == nil {
-		return engine.TransferLine{}, ErrGameNotStarted
+	if err := game.requireStartedLocked(); err != nil {
+		return engine.TransferLine{}, err
 	}
 	return engine.FindTransfer(game.state, s.balance, sourceID, targetID)
 }
@@ -834,10 +786,10 @@ func (s *MemoryStore) Submit(_ context.Context, actor Actor, id GameID, request 
 	if request.Force && strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
 		return SubmitResult{}, ErrNotCreator
 	}
-	if game.state == nil {
-		return SubmitResult{}, ErrGameNotStarted
+	if err := game.requireStartedLocked(); err != nil {
+		return SubmitResult{}, err
 	}
-	return s.submitLocked(game, playerID, request)
+	return s.submitLocked(game, actor, playerID, request)
 }
 
 func (s *MemoryStore) Resolve(ctx context.Context, actor Actor, id GameID) (SubmitResult, error) {
@@ -858,8 +810,8 @@ func (s *MemoryStore) ResolveAt(_ context.Context, actor Actor, id GameID, expec
 	if strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
 		return SubmitResult{}, ErrNotCreator
 	}
-	if game.state == nil {
-		return SubmitResult{}, ErrGameNotStarted
+	if err := game.requireStartedLocked(); err != nil {
+		return SubmitResult{}, err
 	}
 	if game.status == StatusFinished {
 		return SubmitResult{}, ErrGameFinished
@@ -867,7 +819,7 @@ func (s *MemoryStore) ResolveAt(_ context.Context, actor Actor, id GameID, expec
 	if expected != 0 && expected != game.revision {
 		return SubmitResult{}, ErrRevisionConflict
 	}
-	return s.resolveLocked(game, playerID, true)
+	return s.resolveLocked(game, actor, playerID, true)
 }
 
 func (s *MemoryStore) Reports(_ context.Context, actor Actor, id GameID) ([]ReportRecord, error) {
@@ -905,8 +857,8 @@ func (s *MemoryStore) MySubmission(_ context.Context, actor Actor, id GameID) (P
 	if !ok {
 		return PlayerSubmission{}, ErrNotMember
 	}
-	if game.state == nil {
-		return PlayerSubmission{}, ErrGameNotStarted
+	if err := game.requireStartedLocked(); err != nil {
+		return PlayerSubmission{}, err
 	}
 	currentTurn := game.state.Turn
 	season := game.state.Season
@@ -936,7 +888,7 @@ func (s *MemoryStore) game(id GameID) (*memoryGame, error) {
 	return game, nil
 }
 
-func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, request SubmitRequest) (SubmitResult, error) {
+func (s *MemoryStore) submitLocked(game *memoryGame, actor Actor, playerID models.PlayerID, request SubmitRequest) (SubmitResult, error) {
 	if game.status == StatusFinished {
 		return SubmitResult{}, ErrGameFinished
 	}
@@ -978,7 +930,7 @@ func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, r
 
 	submitted, remaining := game.submissionStatusLocked()
 	if request.Force || len(remaining) == 0 {
-		result, resolveErr := s.resolveLocked(game, playerID, request.Force, submitted, remaining)
+		result, resolveErr := s.resolveLocked(game, actor, playerID, request.Force, submitted, remaining)
 		if resolveErr != nil {
 			rollback()
 			return SubmitResult{}, resolveErr
@@ -990,7 +942,7 @@ func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, r
 		return SubmitResult{}, err
 	}
 	game.revision++
-	snapshot, snapshotErr := s.snapshotLocked(game)
+	snapshot, snapshotErr := s.snapshotLocked(game, actor)
 	if snapshotErr != nil {
 		game.revision--
 		rollback()
@@ -1005,7 +957,7 @@ func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, r
 	}, nil
 }
 
-func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, forced bool, status ...[]models.PlayerID) (SubmitResult, error) {
+func (s *MemoryStore) resolveLocked(game *memoryGame, actor Actor, playerID models.PlayerID, forced bool, status ...[]models.PlayerID) (SubmitResult, error) {
 	var submitted, remaining []models.PlayerID
 	if len(status) == 2 {
 		submitted, remaining = status[0], status[1]
@@ -1029,6 +981,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		name:             game.name,
 		seed:             game.seed,
 		status:           game.status,
+		phase:            game.phase,
 		winner:           clonePlayerID(game.winner),
 		players:          append([]PlayerSlot(nil), game.players...),
 		mapData:          game.mapData,
@@ -1039,10 +992,11 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, playerID models.PlayerID, 
 		createdBy:        game.createdBy,
 		spectatorUID:     game.spectatorUID,
 		strictMembership: game.strictMembership,
+		incognito:        game.incognito,
 		joinedAt:         cloneJoinedAt(game.joinedAt),
 	}
 	nextGame.updateStatusLocked(s.balance)
-	snapshot, err := s.snapshotLocked(nextGame)
+	snapshot, err := s.snapshotLocked(nextGame, actor)
 	if err != nil {
 		return SubmitResult{}, err
 	}
@@ -1075,6 +1029,20 @@ func cloneJoinedAt(source map[models.PlayerID]time.Time) map[models.PlayerID]tim
 		clone[playerID] = joinedAt
 	}
 	return clone
+}
+
+// started reports whether the game has left its lobby.
+func (game *memoryGame) started() bool {
+	return game.phase == PhaseStarted
+}
+
+// requireStartedLocked fails with ErrGameNotStarted while the game is in its
+// lobby.
+func (game *memoryGame) requireStartedLocked() error {
+	if !game.started() {
+		return ErrGameNotStarted
+	}
+	return nil
 }
 
 func (game *memoryGame) playerForActorLocked(actor Actor) (models.PlayerID, bool) {
@@ -1112,42 +1080,26 @@ func (game *memoryGame) updateStatusLocked(balance assetgen.Balance) {
 	}
 }
 
-// snapshotForLocked is snapshotLocked plus the caller's own lobby data.
-func (s *MemoryStore) snapshotForLocked(game *memoryGame, actor Actor) (GameSnapshot, error) {
-	snapshot, err := s.snapshotLocked(game)
-	if err != nil {
-		return GameSnapshot{}, err
-	}
-	if game.state == nil {
-		if _, member := game.playerForActorLocked(actor); member {
-			entry := game.lobby[strings.TrimSpace(actor.ID)]
-			view := &LobbyView{SeedCandidates: []string{}, SeedRanking: append([]int{}, entry.SeedRanking...), HouseName: entry.HouseName}
-			if game.fixedSeed == "" {
-				view.SeedCandidates = SeedCandidates(game.id, s.balance.SeedCandidateCount())
-			}
-			snapshot.Lobby = view
-		}
-	}
-	return snapshot, nil
-}
-
-func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
+// snapshotLocked is the snapshot of the game as actor sees it: the lobby of a
+// game still waiting for players carries the actor's own entry.
+func (s *MemoryStore) snapshotLocked(game *memoryGame, actor Actor) (GameSnapshot, error) {
 	state, err := cloneState(game.state)
 	if err != nil {
 		return GameSnapshot{}, err
 	}
 	var scores map[models.PlayerID]engine.ScoreBreakdown
 	yearCount := game.yearCount
-	if game.state != nil {
+	if game.started() {
 		scores = engine.ComputeScores(game.state, s.balance)
 		yearCount = game.state.YearCount
 	}
-	return GameSnapshot{
+	snapshot := GameSnapshot{
 		ID:           game.id,
 		Name:         game.name,
 		Seed:         game.seed,
 		YearCount:    yearCount,
 		Status:       game.status,
+		Phase:        game.phase,
 		Winner:       clonePlayerID(game.winner),
 		Scores:       scores,
 		Players:      append([]PlayerSlot(nil), game.players...),
@@ -1160,7 +1112,18 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 		SpectatorUID: game.spectatorUID,
 		Incognito:    game.incognito,
 		FixedSeed:    game.fixedSeed,
-	}, nil
+	}
+	if !game.started() {
+		if _, member := game.playerForActorLocked(actor); member {
+			entry := game.lobby[strings.TrimSpace(actor.ID)]
+			view := &LobbyView{SeedCandidates: []string{}, SeedRanking: append([]int{}, entry.SeedRanking...), HouseName: entry.HouseName}
+			if game.fixedSeed == "" {
+				view.SeedCandidates = SeedCandidates(game.id, s.balance.SeedCandidateCount())
+			}
+			snapshot.Lobby = view
+		}
+	}
+	return snapshot, nil
 }
 
 func normalizePlayers(players []engine.PlayerInit, maximum int) ([]engine.PlayerInit, error) {

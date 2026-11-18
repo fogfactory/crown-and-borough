@@ -522,9 +522,9 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
 | `POST` | `/api/games/{id}/house-name` | Corps : `{ "name": "..." }`. Nomme la maison du joueur connecté (même normalisation que le nom affiché, 1 à 32 caractères). Dans le salon (`started: false`) le nom est seulement enregistré, sans message ; une fois la partie commencée il renomme la maison (slot et joueur de l'état, révision incrémentée, vues Firestore rafraîchies) et écrit dans le salon public un message système (`kind: "house_renamed"`, `body` = nouveau nom, `previousName`, auteur = la maison, sans limite de débit ni notification email). Le nom doit différer, sans tenir compte de la casse, de celui des autres maisons (`409 house_name_taken`) ; il se change tant que la maison n'a rien soumis (`PlayerSlot.NameLocked`, exposé en `nameLocked`, posé par la première soumission ; ensuite `409 house_name_locked`) ; `400 invalid_house_name`. Réponse : le détail de la partie et le slot `player` (vide dans le salon). |
 | `PUT` | `/api/games/{id}/seed-vote` | Corps : `{ "ranking": [2, 0, 1] }`, les indices des graines candidates, de la préférée à la moins aimée ; une permutation des candidates (`400 invalid_seed_ranking`) ou une liste vide qui retire le vote. Réservé aux membres, tant que le salon est ouvert (`409 game_started` ensuite). Réponse : le détail de la partie, dont `lobby.seedRanking` (le classement du seul appelant). |
-| `GET` | `/api/games/{id}/seed-candidates/{index}/map[?inviteCode=…]` | Membres, ou porteur d'un code d'invitation actif de la partie (`403 invalid_invitation` sinon). `map.json` de la graine candidate `index`, générée pour le nombre de joueurs de la partie (`engine.GenerateMap`), mis en cache par (partie, indice) ; ne révèle que la carte, jamais le placement des maisons (`Starts` n'est pas sérialisé). `404` pour un indice inconnu. |
+| `GET` | `/api/games/{id}/seed-candidates/{index}/map[?inviteCode=…]` | Membres, ou porteur d'un code d'invitation actif de la partie (`403 invalid_invitation` sinon). `map.json` de la graine candidate `index`, générée pour le nombre de joueurs de la partie (`engine.GenerateMap`), mis en cache par (partie, indice), déjà sérialisé, avec `ETag` et `Cache-Control: private, max-age=3600` (l'autorisation est revérifiée à chaque appel, `304` sur `If-None-Match`) ; ne révèle que la carte, jamais le placement des maisons (`Starts` n'est pas sérialisé). `404` pour un indice inconnu. |
 | `GET` | `/api/games/{id}/invite` | Renvoie le lien d'invitation au créateur uniquement. |
-| `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. Corps : `inviteCode` et, facultatifs, `houseName` et `seedRanking` (mêmes validations que `POST /house-name` et `PUT /seed-vote` en salon : `409 house_name_taken`, `400 invalid_house_name` / `invalid_seed_ranking`). Ils sont appliqués dans la même transaction (mémoire : même verrou) **avant** le plan de démarrage : le dernier arrivant vote et nomme sa maison comme les autres. Une entrée invalide fait échouer le join sans prendre le slot. Ignorés si l'appelant est déjà membre. Quand ce join prend le dernier slot (`JoinResult.Started`), la réponse est écrite et vidée puis la notification « nouveau tour » est envoyée (`Notifier.TurnStarted`). `store.InvitationGameStore.JoinWith` porte ces options ; `Join` est `JoinWith` sans options. |
+| `POST` | `/api/games/{id}/join` | Rejoint un slot avec le code d'invitation ; l'UID Firebase courant est l'identité du membre. Corps : `inviteCode` et, facultatifs, `houseName` et `seedRanking` (mêmes validations que `POST /house-name` et `PUT /seed-vote` en salon : `409 house_name_taken`, `400 invalid_house_name` / `invalid_seed_ranking`). Ils sont appliqués dans la même transaction (mémoire : même verrou) **avant** le plan de démarrage : le dernier arrivant vote et nomme sa maison comme les autres. Une entrée invalide fait échouer le join sans prendre le slot. Ignorés si l'appelant est déjà membre. Quand ce join prend le dernier slot (`JoinResult.Started`), la réponse est écrite et vidée puis la notification « nouveau tour » est envoyée (`Notifier.TurnStarted`). `store.InvitationGameStore.Join` porte ces options (`JoinOptions{}` pour un join sans entrée). Les opérations propres au salon (`JoinPreview`, `SetSeedVote`, `SeedCandidateMap`) forment `store.LobbyStore`, que l'API découvre par assertion de type. |
 | `GET` | `/api/games/{id}/join-preview?inviteCode=…` | Membre, ou porteur d'un code d'invitation actif de cette partie (sinon `403 invalid_invitation`) : `name`, `players`, `seated`, `incognito`, `started`, `member` et `seedCandidates` (`[{index, seed}]`, vide si la partie a démarré ou si la graine est imposée). De quoi préparer un nom et un vote avant de rejoindre ; rien d'autre de la partie. |
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
@@ -553,12 +553,17 @@ slots pris ; `turn` vaut 0 et `scores` est absent). Dans le salon, `state`,
 `map`, `supply`, `orders`, `resolve`, `my-submission`, `submitted-orders` et le
 chat répondent `409 game_not_started`.
 
+- **Phase.** `GameSnapshot.Phase` (`lobby` puis `started`) est le marqueur
+  du cycle de vie ; en Firestore, `games/{id}.phase`. `Started()` / `InLobby()`
+  s'appuient dessus, jamais sur la présence de l'état.
 - **Données du salon.** Le créateur et chaque joueur peuvent préparer une
-  entrée (`LobbyEntry` : nom de maison en attente, classement des graines),
-  stockée par membre : en mémoire dans le jeu, en Firestore dans
-  `games/{id}/lobby/{uid}`, collection fermée aux clients par les règles (le
-  document de partie est lisible par tous les membres, un vote ne doit pas
-  l'être). Les vues exposent `lobby` (`seedCandidates` `[{index, seed}]`,
+  entrée (`LobbyEntry` : nom de maison en attente, classement des graines). En
+  mémoire elle est dans le jeu. En Firestore, les noms en attente sont sur le
+  document de partie (`houseNames`, par uid : leur unicité se vérifie sans lire
+  la collection du salon, et ils sont publics une fois la partie lancée) ; les
+  classements vivent dans `games/{id}/lobby/{uid}`, collection fermée aux
+  clients par les règles (le document de partie est lisible par tous les
+  membres, un vote ne doit pas l'être). Les vues exposent `lobby` (`seedCandidates` `[{index, seed}]`,
   `seedRanking`, `houseName`) au seul appelant, tant que le salon est ouvert.
 - **Candidates.** `store.SeedCandidates(gameID, n)` : `hex(sha256(gameID|candidate|i))`
   tronqué, `n` = `seed_candidates` de `balance.yaml` (3 par défaut, 8 au plus).
@@ -571,7 +576,7 @@ chat répondent `409 game_not_started`.
   slots par un mélange dérivé de la graine (`SeatIncognitoPlayers`, indépendant
   de l'ordre d'arrivée) ; sinon chacun garde son slot ; (3) nomme les maisons ;
   (4) génère la carte et l'état. Firestore écrit alors, dans cette même
-  transaction, le document de partie (`lobby` retiré), le document canonique, la
+  transaction, le document de partie (`phase: started`, `houseNames` retiré), le document canonique, la
   carte, les vues joueur et la vue observateur : rien de tout cela n'existe avant.
 - **Nom de maison et nom de compte.** Deux notions distinctes. `PlayerSlot.Name`
   (et `players[].name` de l'état) est le **nom de maison** : celui du lobby si le
@@ -582,10 +587,10 @@ chat répondent `409 game_not_started`.
   démarrage hors partie incognito uniquement : jamais écrit, ni dans le jeu ni dans
   le document Firestore lisible par les membres, d'une partie incognito.
   `PUT /api/auth/me` ne met à jour que `AccountName` (parties non incognito) et ne
-  renomme jamais une maison. Les parties créées avant ces champs n'ont pas
-  d'`AccountName` : elles s'affichent comme avant, leur nom de maison reste celui
-  qui avait été copié du profil, et les champs `lobby`, `incognito`, `nameLocked`
-  absents valent faux (aucune migration).
+  renomme jamais une maison. `AccountName` vide signifie « compte masqué » : les
+  consommateurs (propagation du profil) n'ont pas à tester le mode incognito.
+  `NameLocked` reste un champ stocké : il survit à la résolution des tours, alors
+  que les ordres soumis sont effacés à chaque résolution.
 
 Les erreurs utilisent au minimum la forme `{ "error": "code", "message":
 "..." }`. Les erreurs de validation peuvent ajouter `details` sans changer les

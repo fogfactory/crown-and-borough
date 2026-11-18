@@ -46,7 +46,7 @@ func newNotifiedChatTestEnv(t *testing.T, withChat bool, notifier Notifier) chat
 		t.Fatalf("invitation: %v", err)
 	}
 	for _, uid := range []string{"bob", "cleo"} {
-		if _, err := memory.Join(ctx, store.Actor{ID: uid}, created.ID, invitation.Code); err != nil {
+		if _, err := memory.Join(ctx, store.Actor{ID: uid}, created.ID, invitation.Code, store.JoinOptions{}); err != nil {
 			t.Fatalf("join %s: %v", uid, err)
 		}
 	}
