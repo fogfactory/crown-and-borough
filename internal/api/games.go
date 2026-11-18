@@ -568,15 +568,7 @@ func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.
 		h.writeStoreError(w, err)
 		return
 	}
-	response := gameJoinResponse{
-		gameDetailView: makeAuthenticatedGameDetailView(result.Snapshot, actor),
-		Joined:         result.Joined,
-		Player:         makePlayerSlotView(result.Player, result.Snapshot),
-	}
-	if !result.Snapshot.Started() {
-		// The houses are drawn once the last slot is taken.
-		response.Player = PlayerSlotView{}
-	}
+	response := joinResponse(result.Snapshot, actor, result.Player, result.Joined)
 	status := http.StatusOK
 	if result.Joined {
 		status = http.StatusCreated
@@ -615,12 +607,23 @@ func (h *GamesHandler) joinPreview(w http.ResponseWriter, r *http.Request, actor
 		Incognito:      preview.Incognito,
 		Started:        preview.Started,
 		Member:         preview.Member,
-		SeedCandidates: make([]seedCandidateView, len(preview.SeedCandidates)),
-	}
-	for index, seed := range preview.SeedCandidates {
-		view.SeedCandidates[index] = seedCandidateView{Index: index, Seed: seed}
+		SeedCandidates: seedCandidateViews(preview.SeedCandidates),
 	}
 	writeJSON(w, http.StatusOK, view)
+}
+
+// joinResponse is the caller's view of a game they joined or renamed a house
+// in. The houses are drawn once the last slot is taken, so a game still in its
+// lobby has no player to show.
+func joinResponse(snapshot store.GameSnapshot, actor store.Actor, player store.PlayerSlot, joined bool) gameJoinResponse {
+	response := gameJoinResponse{
+		gameDetailView: makeAuthenticatedGameDetailView(snapshot, actor),
+		Joined:         joined,
+	}
+	if snapshot.Started() {
+		response.Player = makePlayerSlotView(player, snapshot)
+	}
+	return response
 }
 
 type joinPreviewView struct {
@@ -660,14 +663,7 @@ func (h *GamesHandler) renameHouse(w http.ResponseWriter, r *http.Request, actor
 			log.Printf("chat: announce house rename: %v", chatErr)
 		}
 	}
-	response := gameJoinResponse{
-		gameDetailView: makeAuthenticatedGameDetailView(result.Snapshot, actor),
-		Joined:         false,
-		Player:         makePlayerSlotView(result.Player, result.Snapshot),
-	}
-	if !result.Snapshot.Started() {
-		response.Player = PlayerSlotView{}
-	}
+	response := joinResponse(result.Snapshot, actor, result.Player, false)
 	writeJSON(w, http.StatusOK, response)
 }
 
@@ -718,16 +714,13 @@ func (h *GamesHandler) seedCandidateMap(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	key := string(id) + "#" + strconv.Itoa(index)
-	if cached, found := h.candidateMaps.get(key); found {
-		writeJSON(w, http.StatusOK, cached)
-		return
-	}
-	mapData, err := previewer.SeedCandidateMap(r.Context(), actor, id, code, index)
+	mapData, err := h.candidateMaps.get(key, func() (mapgen.MapData, error) {
+		return previewer.SeedCandidateMap(r.Context(), actor, id, code, index)
+	})
 	if err != nil {
 		h.writeStoreError(w, err)
 		return
 	}
-	h.candidateMaps.put(key, mapData)
 	writeJSON(w, http.StatusOK, mapData)
 }
 
@@ -1142,7 +1135,7 @@ func makeGameListView(snapshot store.GameSnapshot, actor store.Actor) gameListVi
 		Revision:  snapshot.Revision,
 		Incognito: snapshot.Incognito,
 		Started:   snapshot.Started(),
-		Seated:    seatedCount(snapshot.Players),
+		Seated:    store.SeatedCount(snapshot.Players),
 		Spectator: strings.TrimSpace(snapshot.SpectatorUID) != "" &&
 			strings.TrimSpace(snapshot.SpectatorUID) == strings.TrimSpace(actor.ID),
 	}
@@ -1164,7 +1157,7 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 		Revision:  snapshot.Revision,
 		Incognito: snapshot.Incognito,
 		Started:   snapshot.Started(),
-		Seated:    seatedCount(snapshot.Players),
+		Seated:    store.SeatedCount(snapshot.Players),
 		Lobby:     makeLobbyView(snapshot),
 	}
 }
@@ -1197,14 +1190,19 @@ func makeLobbyView(snapshot store.GameSnapshot) *lobbyView {
 		return nil
 	}
 	view := &lobbyView{
-		SeedCandidates: make([]seedCandidateView, len(snapshot.Lobby.SeedCandidates)),
+		SeedCandidates: seedCandidateViews(snapshot.Lobby.SeedCandidates),
 		SeedRanking:    snapshot.Lobby.SeedRanking,
 		HouseName:      snapshot.Lobby.HouseName,
 	}
-	for index, seed := range snapshot.Lobby.SeedCandidates {
-		view.SeedCandidates[index] = seedCandidateView{Index: index, Seed: seed}
-	}
 	return view
+}
+
+func seedCandidateViews(seeds []string) []seedCandidateView {
+	views := make([]seedCandidateView, len(seeds))
+	for index, seed := range seeds {
+		views[index] = seedCandidateView{Index: index, Seed: seed}
+	}
+	return views
 }
 
 func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Actor) gameDetailView {
@@ -1215,28 +1213,9 @@ func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Ac
 	}
 	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
 		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
-	view.InviteAvailable = view.CanInvite && hasFreePlayerSlot(snapshot.Players)
+	view.InviteAvailable = view.CanInvite && !store.SlotsFilled(snapshot.Players)
 	view.Spectator = store.IsSpectator(snapshot.SpectatorUID, actor)
 	return view
-}
-
-func seatedCount(players []store.PlayerSlot) int {
-	count := 0
-	for _, player := range players {
-		if store.IsAssignedActor(strings.TrimSpace(player.ActorID)) {
-			count++
-		}
-	}
-	return count
-}
-
-func hasFreePlayerSlot(players []store.PlayerSlot) bool {
-	for _, player := range players {
-		if strings.TrimSpace(player.ActorID) == "" || strings.HasPrefix(player.ActorID, "slot:") {
-			return true
-		}
-	}
-	return false
 }
 
 func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {

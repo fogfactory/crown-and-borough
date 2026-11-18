@@ -397,7 +397,7 @@ func (c *ChatService) resolveRecipient(ctx context.Context, snapshot GameSnapsho
 		return key, nil, nil
 	}
 	recipient := playerSlotForID(snapshot.Players, other)
-	if !isAssignedSlot(recipient) {
+	if !recipient.Assigned() {
 		return "", nil, ErrChatInvalidRecipient
 	}
 	if !engine.PlayerAlive(snapshot.State, other) {

@@ -166,10 +166,26 @@ export interface GameSlot {
   nameLocked?: boolean
 }
 
+/** A seed put to the vote of a lobby. */
+export interface SeedCandidate {
+  index: number
+  seed: string
+}
+
+/** What an invitation lets a future member see of a game. */
+export interface JoinPreview {
+  name: string
+  players: number
+  seated: number
+  started: boolean
+  member: boolean
+  seedCandidates: SeedCandidate[]
+}
+
 /** The caller's own part of a game whose lobby is open. */
 export interface GameLobby {
   /** Seeds put to the vote; empty when the creator imposed the seed. */
-  seedCandidates: Array<{ index: number; seed: string }>
+  seedCandidates: SeedCandidate[]
   /** Own ranking, candidate indexes best first; empty without a vote. */
   seedRanking: number[]
   /** House name entered so far. */

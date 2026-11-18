@@ -286,12 +286,23 @@ func IsAssignedActor(actorID string) bool {
 
 // SlotsFilled reports whether every player slot is held by a member.
 func SlotsFilled(players []PlayerSlot) bool {
+	return !slices.ContainsFunc(players, func(player PlayerSlot) bool { return !player.Assigned() })
+}
+
+// Assigned reports whether a member holds the slot.
+func (p PlayerSlot) Assigned() bool {
+	return IsAssignedActor(strings.TrimSpace(p.ActorID))
+}
+
+// SeatedCount is the number of slots held by a member.
+func SeatedCount(players []PlayerSlot) int {
+	count := 0
 	for _, player := range players {
-		if !IsAssignedActor(strings.TrimSpace(player.ActorID)) {
-			return false
+		if player.Assigned() {
+			count++
 		}
 	}
-	return true
+	return count
 }
 
 // Started reports whether the game has a board: an online game builds its
@@ -327,6 +338,7 @@ func ValidateHouseRename(players []PlayerSlot, playerID models.PlayerID, name st
 	if err != nil {
 		return "", err
 	}
+	var others []string
 	for _, player := range players {
 		if player.ID == playerID {
 			if player.NameLocked && player.Name != normalized {
@@ -334,9 +346,10 @@ func ValidateHouseRename(players []PlayerSlot, playerID models.PlayerID, name st
 			}
 			continue
 		}
-		if strings.EqualFold(player.Name, normalized) {
-			return "", ErrHouseNameTaken
-		}
+		others = append(others, player.Name)
+	}
+	if nameTaken(normalized, others) {
+		return "", ErrHouseNameTaken
 	}
 	return normalized, nil
 }

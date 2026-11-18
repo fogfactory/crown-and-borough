@@ -362,7 +362,7 @@ func (s *MemoryStore) ListMemberships(_ context.Context, id GameID) ([]Membershi
 	defer game.mu.RUnlock()
 	memberships := make([]Membership, 0, len(game.players))
 	for _, player := range game.players {
-		if !isAssignedSlot(player) {
+		if !player.Assigned() {
 			continue
 		}
 		joinedAt := game.joinedAt[player.ID]
@@ -389,7 +389,7 @@ func (s *MemoryStore) ListActorMemberships(_ context.Context, uid string) ([]Mem
 			result = append(result, Membership{GameID: game.id, UID: uid, Spectator: true})
 		}
 		for _, player := range game.players {
-			if !isAssignedSlot(player) || player.ActorID != uid {
+			if !player.Assigned() || player.ActorID != uid {
 				continue
 			}
 			result = append(result, Membership{GameID: game.id, UID: uid, PlayerID: player.ID, JoinedAt: game.joinedAt[player.ID]})
@@ -409,13 +409,7 @@ func (s *MemoryStore) CreateInvitation(ctx context.Context, actor Actor, id Game
 	}
 	game.mu.RLock()
 	createdBy := game.createdBy
-	hasFreeSlot := false
-	for _, player := range game.players {
-		if !isAssignedSlot(player) {
-			hasFreeSlot = true
-			break
-		}
-	}
+	hasFreeSlot := !SlotsFilled(game.players)
 	game.mu.RUnlock()
 	if strings.TrimSpace(actor.ID) == "" || strings.TrimSpace(actor.ID) != createdBy {
 		return InvitationSecret{}, ErrNotCreator
@@ -464,13 +458,7 @@ func (s *MemoryStore) JoinWith(ctx context.Context, actor Actor, id GameID, code
 	if game.status == StatusFinished {
 		return JoinResult{}, ErrGameFinished
 	}
-	freeIndex := -1
-	for index, player := range game.players {
-		if !isAssignedSlot(player) {
-			freeIndex = index
-			break
-		}
-	}
+	freeIndex := slices.IndexFunc(game.players, func(player PlayerSlot) bool { return !player.Assigned() })
 	if freeIndex < 0 {
 		return JoinResult{}, ErrGameFull
 	}
@@ -518,13 +506,7 @@ func (s *MemoryStore) JoinWith(ctx context.Context, actor Actor, id GameID, code
 func (game *memoryGame) joinEntryLocked(uid string, options JoinOptions, candidates int) (*LobbyEntry, error) {
 	var entry LobbyEntry
 	if strings.TrimSpace(options.HouseName) != "" {
-		var others []string
-		for _, other := range game.lobby {
-			if other.HouseName != "" {
-				others = append(others, other.HouseName)
-			}
-		}
-		name, err := ValidatePendingHouseName(options.HouseName, others)
+		name, err := ValidatePendingHouseName(options.HouseName, OtherHouseNames(game.lobby, ""))
 		if err != nil {
 			return nil, err
 		}
@@ -563,11 +545,7 @@ func (s *MemoryStore) JoinPreview(ctx context.Context, actor Actor, id GameID, c
 		Started:   game.state != nil,
 		Member:    member,
 	}
-	for _, slot := range game.players {
-		if isAssignedSlot(slot) {
-			preview.Seated++
-		}
-	}
+	preview.Seated = SeatedCount(game.players)
 	if game.state == nil && game.fixedSeed == "" {
 		preview.SeedCandidates = SeedCandidates(id, s.balance.SeedCandidateCount())
 	}
@@ -644,13 +622,7 @@ func (s *MemoryStore) RenameHouse(ctx context.Context, actor Actor, id GameID, n
 	}
 	if game.state == nil {
 		uid := strings.TrimSpace(actor.ID)
-		var others []string
-		for other, entry := range game.lobby {
-			if other != uid && entry.HouseName != "" {
-				others = append(others, entry.HouseName)
-			}
-		}
-		normalized, err := ValidatePendingHouseName(name, others)
+		normalized, err := ValidatePendingHouseName(name, OtherHouseNames(game.lobby, uid))
 		if err != nil {
 			return RenameResult{}, err
 		}
@@ -736,25 +708,14 @@ func (s *MemoryStore) SeedCandidateMap(ctx context.Context, actor Actor, id Game
 }
 
 func playerSlotForID(players []PlayerSlot, id models.PlayerID) PlayerSlot {
-	for _, player := range players {
-		if player.ID == id {
-			return player
-		}
+	if index := slotIndex(players, id); index >= 0 {
+		return players[index]
 	}
 	return PlayerSlot{ID: id}
 }
 
 func slotIndex(players []PlayerSlot, id models.PlayerID) int {
-	for index, player := range players {
-		if player.ID == id {
-			return index
-		}
-	}
-	return -1
-}
-
-func isAssignedSlot(player PlayerSlot) bool {
-	return IsAssignedActor(strings.TrimSpace(player.ActorID))
+	return slices.IndexFunc(players, func(player PlayerSlot) bool { return player.ID == id })
 }
 
 func (s *MemoryStore) List(_ context.Context, actor Actor) ([]GameSnapshot, error) {

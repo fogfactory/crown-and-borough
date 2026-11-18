@@ -12,20 +12,11 @@ import { ApiError, apiRequest } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useLanguage } from '@/i18n/LanguageContext'
 import type { Translate } from '@/i18n/messages'
+import type { JoinPreview } from '@/types'
 
 interface JoinResponse {
   id?: string
   gameId?: string
-}
-
-/** What the invitation lets a future member see of the game. */
-interface JoinPreview {
-  name: string
-  players: number
-  seated: number
-  started: boolean
-  member: boolean
-  seedCandidates: Array<{ index: number; seed: string }>
 }
 
 function joinError(error: unknown, t: Translate): string {

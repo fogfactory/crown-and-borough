@@ -283,13 +283,7 @@ func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, game
 	if hasEntry {
 		own = &lobbyDocument{SchemaVersion: schemaVersion, UID: actorID}
 		if strings.TrimSpace(options.HouseName) != "" {
-			var others []string
-			for _, entry := range entries {
-				if entry.HouseName != "" {
-					others = append(others, entry.HouseName)
-				}
-			}
-			name, err := store.ValidatePendingHouseName(options.HouseName, others)
+			name, err := store.ValidatePendingHouseName(options.HouseName, store.OtherHouseNames(entries, ""))
 			if err != nil {
 				return "", false, err
 			}
@@ -460,7 +454,7 @@ func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id 
 		playerID = member
 		if game.Lobby {
 			// In the lobby the name is only recorded, for the start.
-			var others []string
+			entries := make(map[string]store.LobbyEntry)
 			documents := transaction.Documents(lobbyCollection(s.client, id))
 			for {
 				document, err := documents.Next()
@@ -475,11 +469,9 @@ func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id 
 				if err := document.DataTo(&entry); err != nil {
 					return fmt.Errorf("decode lobby entry %s: %w", document.Ref.Path, err)
 				}
-				if entry.UID != strings.TrimSpace(actor.ID) && entry.HouseName != "" {
-					others = append(others, entry.HouseName)
-				}
+				entries[entry.UID] = store.LobbyEntry{HouseName: entry.HouseName}
 			}
-			pending, err := store.ValidatePendingHouseName(name, others)
+			pending, err := store.ValidatePendingHouseName(name, store.OtherHouseNames(entries, strings.TrimSpace(actor.ID)))
 			if err != nil {
 				return err
 			}
@@ -1058,12 +1050,22 @@ func (s *FirestoreStore) Restore(ctx context.Context) ([]store.GameSnapshot, err
 	}
 }
 
+// passthroughErrors are the store errors a transaction returns as they are.
+var passthroughErrors = []error{
+	store.ErrRevisionConflict, store.ErrUnknownGame, store.ErrNotMember, store.ErrGameFull,
+	store.ErrInvalidInvitation, store.ErrInvitationInactive, store.ErrSpectator, store.ErrGameFinished,
+	store.ErrProfileNotFound, store.ErrGameNotStarted, store.ErrGameStarted, store.ErrInvalidSeedRanking,
+	store.ErrInvalidCandidate, store.ErrNameLocked, store.ErrHouseNameTaken, store.ErrInvalidDisplayName,
+}
+
 func wrapTransactionResult(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, store.ErrRevisionConflict) || errors.Is(err, store.ErrUnknownGame) || errors.Is(err, store.ErrNotMember) || errors.Is(err, store.ErrGameFull) || errors.Is(err, store.ErrInvalidInvitation) || errors.Is(err, store.ErrInvitationInactive) || errors.Is(err, store.ErrSpectator) || errors.Is(err, store.ErrGameFinished) || errors.Is(err, store.ErrProfileNotFound) || errors.Is(err, store.ErrGameNotStarted) || errors.Is(err, store.ErrGameStarted) || errors.Is(err, store.ErrInvalidSeedRanking) || errors.Is(err, store.ErrInvalidCandidate) || errors.Is(err, store.ErrNameLocked) || errors.Is(err, store.ErrHouseNameTaken) || errors.Is(err, store.ErrInvalidDisplayName) {
-		return err
+	for _, sentinel := range passthroughErrors {
+		if errors.Is(err, sentinel) {
+			return err
+		}
 	}
 	if status.Code(err) == codes.Aborted || status.Code(err) == codes.FailedPrecondition {
 		return store.ErrRevisionConflict

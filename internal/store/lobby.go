@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -183,13 +184,13 @@ func PlanStart(in StartInput) (StartPlan, error) {
 		inits[index] = engine.PlayerInit{ID: slots[index].ID, Name: names[index], Color: slots[index].Color}
 	}
 
-	state, err := engine.CreateGameWithYears(seed, inits, in.YearCount, in.Balance, in.Assets)
-	if err != nil {
-		return StartPlan{}, err
-	}
 	mapData, err := engine.GenerateMap(seed, len(inits), in.Assets)
 	if err != nil {
 		return StartPlan{}, fmt.Errorf("store: generate map: %w", err)
+	}
+	state, err := engine.CreateGameFromMap(seed, mapData, inits, in.YearCount, in.Balance, in.Assets)
+	if err != nil {
+		return StartPlan{}, err
 	}
 	return StartPlan{Seed: seed, Slots: slots, State: state, Map: mapData}, nil
 }
@@ -201,12 +202,27 @@ func ValidatePendingHouseName(name string, others []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, other := range others {
-		if strings.EqualFold(other, normalized) {
-			return "", ErrHouseNameTaken
-		}
+	if nameTaken(normalized, others) {
+		return "", ErrHouseNameTaken
 	}
 	return normalized, nil
+}
+
+// nameTaken reports whether name matches one of others, ignoring case.
+func nameTaken(name string, others []string) bool {
+	return slices.ContainsFunc(others, func(other string) bool { return strings.EqualFold(other, name) })
+}
+
+// OtherHouseNames lists the pending house names entered by the members other
+// than exceptUID (pass "" to keep every member).
+func OtherHouseNames(entries map[string]LobbyEntry, exceptUID string) []string {
+	var names []string
+	for uid, entry := range entries {
+		if uid != exceptUID && entry.HouseName != "" {
+			names = append(names, entry.HouseName)
+		}
+	}
+	return names
 }
 
 // GenerateCandidateMap builds the map candidate seed index of a game would

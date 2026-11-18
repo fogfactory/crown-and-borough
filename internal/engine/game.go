@@ -153,6 +153,19 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	if len(players) < minimumGamePlayers || len(players) > maximumGamePlayers {
 		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, len(players))
 	}
+	mapData, err := GenerateMap(seed, len(players), assets)
+	if err != nil {
+		return nil, err
+	}
+	return CreateGameFromMap(seed, mapData, players, yearCount, balance, assets)
+}
+
+// CreateGameFromMap is CreateGameWithYears on a map the caller already
+// generated with GenerateMap(seed, len(players), assets).
+func CreateGameFromMap(seed string, mapData mapgen.MapData, players []PlayerInit, yearCount int, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
+	if len(players) < minimumGamePlayers || len(players) > maximumGamePlayers {
+		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, len(players))
+	}
 	var err error
 	yearCount, err = models.NormalizeGameYears(yearCount)
 	if err != nil {
@@ -160,11 +173,6 @@ func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balan
 	}
 	if balance.StartingNobles < 0 || balance.StartingTroops < 0 || balance.StartingOutposts < 0 || balance.StartingResources < 0 {
 		return nil, fmt.Errorf("engine: starting balance values must be non-negative")
-	}
-
-	mapData, err := GenerateMap(seed, len(players), assets)
-	if err != nil {
-		return nil, err
 	}
 
 	state := models.NewGameState()
