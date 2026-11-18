@@ -198,6 +198,54 @@ describe('online home', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('shows the scores derived by the API over the stale live summary', async () => {
+    const player = { id: 'P1', name: 'Anne', color: '#fff', submitted: false, required: true }
+    realtime.current = {
+      games: [
+        {
+          id: 'game-1',
+          name: 'Northern Marches',
+          seed: '',
+          status: 'playing',
+          winner: null,
+          players: [player],
+          turn: 3,
+          season: 'spring',
+          yearCount: 10,
+          scores: { P1: { titles: 0, alliance: 0, ally: 0, total: 0 } },
+          revision: 1,
+        },
+      ],
+      enabled: true,
+      loading: false,
+      error: null,
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify([
+            {
+              id: 'game-1',
+              name: 'Northern Marches',
+              status: 'playing',
+              turn: 3,
+              season: 'spring',
+              revision: 1,
+              players: [player],
+              scores: { P1: { titles: 4, alliance: 0, ally: 0, total: 4 } },
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    )
+
+    renderHome()
+
+    expect(await screen.findByText('4')).toBeInTheDocument()
+  })
+
   it('creates a game and keeps the invitation visible without sending a player identity', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === 'POST') {
