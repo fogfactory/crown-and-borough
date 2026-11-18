@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -190,8 +191,7 @@ func TestAllArcsGeometric(t *testing.T) {
 	assets := loadTestAssets(t)
 	forEachTestSeed(t, func(t *testing.T, seed string) {
 		data := generateTestMap(t, seed, assets)
-		_, grid := generateTestRaster(seed, testConfig)
-		want := extractAdjacency(grid, testConfig.SiteCount)
+		want := extractTestFrontiers(t, seed, testConfig).edges
 		got := collectDTOArcs(t, data)
 		if !reflect.DeepEqual(got.union, want) {
 			t.Errorf("DTO arc union = %v, want raster adjacency %v", got.union, want)
@@ -734,8 +734,27 @@ func generateTestRaster(seed string, cfg Config) ([]point, []int) {
 	return sites, assignRaster(sites, cfg)
 }
 
+// acceptedAttemptSeed returns the seed of the generation attempt that
+// Generate keeps for seed, since earlier attempts may have been rejected.
+func acceptedAttemptSeed(t *testing.T, seed string, cfg Config) string {
+	t.Helper()
+	key := fmt.Sprintf("%s|%+v", seed, cfg)
+	if used, ok := acceptedAttemptSeeds.Load(key); ok {
+		return used.(string)
+	}
+	_, used, err := generateWithAttempts(seed, loadTestAssets(t), cfg)
+	if err != nil {
+		t.Fatalf("Generate(%q): %v", seed, err)
+	}
+	acceptedAttemptSeeds.Store(key, used)
+	return used
+}
+
+var acceptedAttemptSeeds sync.Map
+
 func extractTestFrontiers(t *testing.T, seed string, cfg Config) frontierGeometry {
 	t.Helper()
+	seed = acceptedAttemptSeed(t, seed, cfg)
 	sites, grid := generateTestRaster(seed, cfg)
 	geometry, err := extractInteriorFrontiers(grid, len(sites), cfg.SiteCount, cfg, seed)
 	if err != nil {

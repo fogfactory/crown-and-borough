@@ -80,15 +80,23 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
+	data, _, err := generateWithAttempts(seed, assets, cfg)
+	return data, err
+}
+
+// generateWithAttempts retries generateAttempt with derived seeds and also
+// returns the seed of the attempt that produced the map.
+func generateWithAttempts(seed string, assets assetgen.Assets, cfg Config) (MapData, string, error) {
 	var err error
 	for attempt := range maxGenerateAttempts {
 		var data MapData
-		data, err = generateAttempt(attemptSeed(seed, attempt), assets, cfg)
+		used := attemptSeed(seed, attempt)
+		data, err = generateAttempt(used, assets, cfg)
 		if err == nil {
-			return data, nil
+			return data, used, nil
 		}
 	}
-	return MapData{}, fmt.Errorf("mapgen: no valid map after %d attempts: %w", maxGenerateAttempts, err)
+	return MapData{}, "", fmt.Errorf("mapgen: no valid map after %d attempts: %w", maxGenerateAttempts, err)
 }
 
 // attemptSeed derives the seed of one generation attempt. Attempt zero keeps
@@ -115,7 +123,7 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		return MapData{}, err
 	}
 
-	geometricEdges := extractAdjacency(grid, cfg.SiteCount)
+	geometricEdges := geometry.edges
 	terrain := assignTerrains(newRNG(seed, "terrain"), sites[:cfg.SiteCount])
 	passableEdges, impassableEdges := pruneFrontiers(newRNG(seed, "frontiers"), geometricEdges, terrain)
 	passableEdges, impassableEdges, err = enforceDegreeCaps(passableEdges, impassableEdges, terrain, geometry.centroids)
