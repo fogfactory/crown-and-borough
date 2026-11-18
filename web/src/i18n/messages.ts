@@ -1450,6 +1450,11 @@ const englishMessages = {
   'online.loading': 'Loading...',
   'online.realtime': 'Live',
   'online.realtimeError': 'Live updates are paused. Reload the page to restore them.',
+  'online.outOfSync.title': 'The game is out of date',
+  'online.outOfSync.description':
+    'What you see no longer matches the server (orders, intentions or the turn may be wrong). Reload the page to catch up. Orders already sent are kept, but drafts you have not sent yet will be lost.',
+  'online.outOfSync.reload': 'Reload',
+  'online.outOfSync.later': 'Not now',
   'online.accessRevoked': 'Your access to this game is no longer available.',
   'online.networkOffline': 'Connection lost. Local drafts are preserved.',
   'online.lobby': 'Players',
@@ -3125,6 +3130,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'online.realtime': 'Temps réel',
   'online.realtimeError':
     'Les mises à jour en direct sont en pause. Rechargez la page pour les rétablir.',
+  'online.outOfSync.title': 'La partie n’est plus à jour',
+  'online.outOfSync.description':
+    'Ce que vous voyez ne correspond plus au serveur (ordres, intentions ou tour peuvent être faux). Rechargez la page pour vous resynchroniser. Les ordres déjà envoyés sont conservés, mais les brouillons non envoyés seront perdus.',
+  'online.outOfSync.reload': 'Recharger',
+  'online.outOfSync.later': 'Plus tard',
   'online.accessRevoked': 'Votre accès à cette partie n’est plus disponible.',
   'online.networkOffline': 'Connexion perdue. Vos brouillons sont conservés.',
   'online.lobby': 'Joueurs',
