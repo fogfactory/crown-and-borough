@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.5.0](https://github.com/fogfactory/crown-and-borough/compare/v1.4.0...v1.5.0) (2026-11-18)
+
+
+### Features
+
+* **engine:** add the maneuver order M ([#668](https://github.com/fogfactory/crown-and-borough/issues/668)) ([f948b5c](https://github.com/fogfactory/crown-and-borough/commit/f948b5ca796e329ff65e8f3d88c4fcc419f0a192))
+* **engine:** add the maneuver order M and deprecate H, J and D ([68d694e](https://github.com/fogfactory/crown-and-borough/commit/68d694e5e7ca2a86b0767abb9dae98908d2bc75c)), closes [#668](https://github.com/fogfactory/crown-and-borough/issues/668)
+* **map:** movable territory card and Ctrl/Cmd+click order picking ([02e0d40](https://github.com/fogfactory/crown-and-borough/commit/02e0d40fc6362de3a42cddb3121fdd7df860cd05))
+* **map:** movable territory card and Ctrl/Cmd+click order picking ([2e59f00](https://github.com/fogfactory/crown-and-borough/commit/2e59f008e8b837193d37e9fb5cb6e9fb9e3a840f))
+* **map:** plan maneuver legs on the server and draw them with the nobles and order sheet ([f18a049](https://github.com/fogfactory/crown-and-borough/commit/f18a0496b87eccbd1630b90b5fff18b96c317035)), closes [#668](https://github.com/fogfactory/crown-and-borough/issues/668)
+
+
+### Bug Fixes
+
+* **api:** add http server timeouts and in-memory rate limit ([f098f7c](https://github.com/fogfactory/crown-and-borough/commit/f098f7c019c2c07defc6404e9f84e1a0313c9524))
+* **api:** add http server timeouts and in-memory rate limit ([294cbc1](https://github.com/fogfactory/crown-and-borough/commit/294cbc17c97da057b83b1295144b55ce2f2cbafd))
+* **api:** split rate limit classes, key ipv6 by /64 and keep cors outside the limiter ([40923ba](https://github.com/fogfactory/crown-and-borough/commit/40923ba308332f785d22bdf6268e12379ddccd1a))
+* **deps:** update module google.golang.org/api to v0.316.0 ([#701](https://github.com/fogfactory/crown-and-borough/issues/701)) ([6072bc0](https://github.com/fogfactory/crown-and-borough/commit/6072bc034b4502287f08bd83a02b8df67efdd5a5))
+* **firestore:** complete the rules authorization test matrix ([5dcbe76](https://github.com/fogfactory/crown-and-borough/commit/5dcbe76ea8c369bbcf4d5736b805f47a59137684))
+* **firestore:** complete the rules authorization test matrix ([3eed837](https://github.com/fogfactory/crown-and-borough/commit/3eed837065d73843b2f0bce4caa31bbcafd5ece4)), closes [#73](https://github.com/fogfactory/crown-and-borough/issues/73)
+* **online:** invite the player to reload when the game is out of sync ([53e4ac5](https://github.com/fogfactory/crown-and-borough/commit/53e4ac512d42b8021ddda674cbbcd627e13fa948))
+* **online:** invite the player to reload when the game is out of sync ([5b59657](https://github.com/fogfactory/crown-and-borough/commit/5b596576ade80675e88b5efc28082f466b606629))
+* **security:** add http security headers and report-only csp ([cc4818b](https://github.com/fogfactory/crown-and-borough/commit/cc4818b3472f62ac5e063dd2bda0cd774a2a9fe7))
+* **security:** add http security headers and report-only csp ([6695982](https://github.com/fogfactory/crown-and-borough/commit/6695982940cb8338f415f7c3445760bf31df9eb7))
+* **security:** allow github api in csp and check headers on the spa root ([77d2351](https://github.com/fogfactory/crown-and-borough/commit/77d23512fcb9ac0a4e1033d0c3c4329861706a09))
+
+
+### Refactoring
+
+* **api:** unexport client ip helper ([c4a9d8e](https://github.com/fogfactory/crown-and-borough/commit/c4a9d8e83ae4a78750fced6ee82e99ee3607a905))
+
 ## [1.4.0](https://github.com/fogfactory/crown-and-borough/compare/v1.3.0...v1.4.0) (2026-11-16)
 
 
