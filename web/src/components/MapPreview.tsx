@@ -11,13 +11,12 @@ import type { CandidateMapData, Point } from '@/types'
 /** Margin around the drawing, in map units. */
 const PREVIEW_MARGIN = 12
 
-const CASTLE_SIZE = 22
-const VILLAGE_SIZE = 14
 const GLYPH_BOX = 512
+const GLYPH_SIZE = { castle: 22, village: 14 } as const
 // Latin cross, in a 24x24 box: the seat of a bishopric.
 const CROSS_PATH = 'M10 2h4v6h6v4h-6v10h-4V12H4V8h6z'
 const CROSS_BOX = 24
-const CROSS_SCALE = 0.8
+const CROSS_SIZE = 19.2
 const WALL_WIDTH = 2.2
 // Impassable frontiers are broken lines: a tooth every WALL_TOOTH units, WALL_AMPLITUDE off the frontier.
 const WALL_TOOTH = 7
@@ -55,27 +54,18 @@ function zigzagPath([x1, y1]: Point, [x2, y2]: Point): string {
 
 type Marker = { id: string; center: Point }
 
-function Glyph({
-  kind,
-  center,
-  size,
-  dataAttribute,
-}: {
-  kind: 'castle' | 'village'
-  center: Point
-  size: number
-  dataAttribute: Record<string, string>
-}) {
-  const scale = size / GLYPH_BOX
+function Glyph({ kind, marker }: { kind: 'castle' | 'village'; marker: Marker }) {
+  const size = GLYPH_SIZE[kind]
+  const [x, y] = marker.center
   return (
     <path
-      {...dataAttribute}
+      {...{ [`data-preview-${kind}`]: marker.id }}
       d={MARKER_GLYPHS[kind]}
       fill={MAP_INK}
       stroke={MAP_PAPER_FILL}
       strokeWidth={14}
       paintOrder="stroke"
-      transform={`translate(${center[0] - size / 2} ${center[1] - size / 2}) scale(${scale})`}
+      transform={`translate(${x - size / 2} ${y - size / 2}) scale(${size / GLYPH_BOX})`}
     />
   )
 }
@@ -90,26 +80,37 @@ function Glyph({
 export function MapPreview({ map, label }: { map: CandidateMapData; label: string }) {
   const clipPrefix = useId()
   const drawing = useMemo(() => {
-    const { outlines } = computeRegionOutlines(map.territories, map.regions ?? [])
-    const regions = (map.regions ?? []).map((region, index) => ({
-      id: region.id,
-      color: HERALDIC_COLORS[index % HERALDIC_COLORS.length],
-      territories: region.territories,
-      path: (outlines.get(region.id)?.loops ?? []).map(pointsToPath).join(' '),
-    }))
-    const regionOf = new Map<string, string>()
-    for (const region of regions) {
-      for (const id of region.territories) regionOf.set(id, region.color)
-    }
-    const bounds = boundsOf(map.territories.map((territory) => territory.points))
     const territoryById = new Map(map.territories.map((territory) => [territory.id, territory] as const))
+    const regionList = map.regions ?? []
+    const { outlines } = computeRegionOutlines(map.territories, regionList)
+    const regionOf = new Map<string, string>()
+    const regions = regionList.map((region, index) => {
+      const color = HERALDIC_COLORS[index % HERALDIC_COLORS.length]
+      for (const id of region.territories) regionOf.set(id, color)
+      return {
+        id: region.id,
+        color,
+        // The region's territories as one path, to clip its border to the region.
+        clip: region.territories.map((id) => pointsToPath(territoryById.get(id)?.points ?? [])).join(' '),
+        path: (outlines.get(region.id)?.loops ?? []).map(pointsToPath).join(' '),
+      }
+    })
+    const bounds = boundsOf(map.territories.map((territory) => territory.points))
     const centers = new Map(map.territories.map((territory) => [territory.id, centroid(territory.points)] as const))
-    const castleSet = new Set(map.starts.filter((id) => centers.has(id)))
+    // `starts` is always an array from the server; the guard keeps a bad payload from blanking the lobby.
+    const castleSet = new Set((map.starts ?? []).filter((id) => centers.has(id)))
     const villageSet = new Set(
       map.territories.filter((territory) => territory.village && !castleSet.has(territory.id)).map((territory) => territory.id),
     )
-    const seatSet = new Set((map.regions ?? []).map((region) => region.seed).filter((id) => centers.has(id)))
-    const walls = computeMapBorders(map).sharedBorders.filter((border) => !border.passable)
+    const seatSet = new Set(regionList.map((region) => region.seed).filter((id) => centers.has(id)))
+    const walls = computeMapBorders(map)
+      .sharedBorders.filter((border) => !border.passable)
+      .map((border) => ({ key: border.key, between: border.between.join('|'), d: zigzagPath(border.from, border.to) }))
+    const shapes = map.territories.map((territory) => ({
+      id: territory.id,
+      d: pointsToPath(territory.points),
+      fill: regionOf.get(territory.id) ?? MAP_PAPER_FILL,
+    }))
     const marked = (id: string) => castleSet.has(id) || villageSet.has(id)
     const topSlot = (id: string): Point => {
       const [x, y] = centers.get(id)!
@@ -123,9 +124,10 @@ export function MapPreview({ map, label }: { map: CandidateMapData; label: strin
     const terrains = map.territories.map((territory) => {
       const [x, y] = centers.get(territory.id)!
       const lowered = marked(territory.id) || seatSet.has(territory.id)
-      return { id: territory.id, terrain: territoryById.get(territory.id)!.terrain, center: [x, y + (lowered ? TERRAIN_BELOW_TOP_SLOT : 0)] as Point }
+      const center: Point = [x, y + (lowered ? TERRAIN_BELOW_TOP_SLOT : 0)]
+      return { id: territory.id, terrain: territory.terrain, center }
     })
-    return { regions, regionOf, bounds, castles: markersOf(castleSet), villages: markersOf(villageSet), seats, walls, terrains }
+    return { regions, shapes, bounds, castles: markersOf(castleSet), villages: markersOf(villageSet), seats, walls, terrains }
   }, [map])
 
   if (!drawing.bounds) return null
@@ -139,12 +141,12 @@ export function MapPreview({ map, label }: { map: CandidateMapData; label: strin
       viewBox={viewBox}
       className="h-auto w-full rounded-md border border-line bg-paper-100"
     >
-      {map.territories.map((territory) => (
+      {drawing.shapes.map(({ id, d, fill }) => (
         <path
-          key={territory.id}
-          data-preview-territory={territory.id}
-          d={pointsToPath(territory.points)}
-          fill={drawing.regionOf.get(territory.id) ?? MAP_PAPER_FILL}
+          key={id}
+          data-preview-territory={id}
+          d={d}
+          fill={fill}
           fillOpacity={0.4}
           stroke={MAP_INK}
           strokeOpacity={0.45}
@@ -155,9 +157,7 @@ export function MapPreview({ map, label }: { map: CandidateMapData; label: strin
       {drawing.regions.map((region, index) => (
         <g key={region.id}>
           <clipPath id={`${clipPrefix}-region-${index}`}>
-            {region.territories.map((id) => (
-              <path key={id} d={pointsToPath(map.territories.find((territory) => territory.id === id)?.points ?? [])} />
-            ))}
+            <path d={region.clip} />
           </clipPath>
           <path
             data-preview-region={region.id}
@@ -178,8 +178,8 @@ export function MapPreview({ map, label }: { map: CandidateMapData; label: strin
       {drawing.walls.map((wall) => (
         <path
           key={wall.key}
-          data-preview-wall={wall.between.join('|')}
-          d={zigzagPath(wall.from, wall.to)}
+          data-preview-wall={wall.between}
+          d={wall.d}
           fill="none"
           stroke={MAP_INK}
           strokeWidth={WALL_WIDTH}
@@ -187,11 +187,11 @@ export function MapPreview({ map, label }: { map: CandidateMapData; label: strin
           strokeLinecap="round"
         />
       ))}
-      {drawing.villages.map(({ id, center }) => (
-        <Glyph key={`v-${id}`} kind="village" center={center} size={VILLAGE_SIZE} dataAttribute={{ 'data-preview-village': id }} />
+      {drawing.villages.map((marker) => (
+        <Glyph key={`v-${marker.id}`} kind="village" marker={marker} />
       ))}
-      {drawing.castles.map(({ id, center }) => (
-        <Glyph key={`c-${id}`} kind="castle" center={center} size={CASTLE_SIZE} dataAttribute={{ 'data-preview-castle': id }} />
+      {drawing.castles.map((marker) => (
+        <Glyph key={`c-${marker.id}`} kind="castle" marker={marker} />
       ))}
       {drawing.seats.map(({ id, center: [x, y] }) => (
         <path
@@ -202,7 +202,7 @@ export function MapPreview({ map, label }: { map: CandidateMapData; label: strin
           stroke={MAP_INK}
           strokeWidth={1.2}
           strokeLinejoin="round"
-          transform={`translate(${x - (CROSS_BOX * CROSS_SCALE) / 2} ${y - (CROSS_BOX * CROSS_SCALE) / 2}) scale(${CROSS_SCALE})`}
+          transform={`translate(${x - CROSS_SIZE / 2} ${y - CROSS_SIZE / 2}) scale(${CROSS_SIZE / CROSS_BOX})`}
         />
       ))}
     </svg>

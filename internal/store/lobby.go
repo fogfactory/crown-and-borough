@@ -318,7 +318,8 @@ func GenerateCandidateMap(id GameID, index, count int, balance assetgen.Balance,
 	if err != nil {
 		return CandidateMap{}, err
 	}
-	castles := slices.Clone(mapData.Starts)
+	// Never nil: the JSON must carry an array, not null.
+	castles := append([]string{}, mapData.Starts...)
 	slices.Sort(castles)
 	return CandidateMap{MapData: mapData, Castles: castles}, nil
 }
