@@ -708,6 +708,47 @@ describe('OrdersPanel noble deck (winter)', () => {
     ).toEqual(['Eve (EVE)'])
   })
 
+  it('offers the cardinal card on own bishops that are not cardinals yet', () => {
+    renderDeck('', vi.fn(), {
+      ...deckState,
+      nobles: [
+        { id: 'n2', code: 'ANN', name: 'Anne', owner: 'P1', location: 'ROS', status: 'free', sex: 'female' },
+        { id: 'n3', code: 'BER', name: 'Bernard', owner: 'P1', location: 'ROS', status: 'free', sex: 'male' },
+        { id: 'n4', code: 'CLO', name: 'Clovis', owner: 'P1', location: 'ROS', status: 'free', sex: 'male' },
+        { id: 'n5', code: 'DAN', name: 'Daniel', owner: 'P2', location: 'BRU', status: 'free', sex: 'male' },
+        ...deckState.nobles,
+      ],
+      bishoprics: [
+        { region: 'r1', name: 'A', territories: [], bishop: 'BER' },
+        { region: 'r2', name: 'B', territories: [], bishop: 'CLO' },
+        { region: 'r3', name: 'C', territories: [], bishop: 'DAN' },
+      ],
+      cardinals: ['CLO'],
+      nobleHand: [{ id: 'c8', kind: 'dignity', code: 'CAR', dignity: 'cardinal' }],
+    })
+    pickHandCard('CAR')
+    fireEvent.click(screen.getByRole('button', { name: 'Jouer' }))
+    expect(
+      within(screen.getByRole('dialog'))
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Bernard (BER)'])
+  })
+
+  it('leaves out a bishop already bought as cardinal in the draft', () => {
+    renderDeck('N C BER\n', vi.fn(), {
+      ...deckState,
+      nobles: [
+        { id: 'n3', code: 'BER', name: 'Bernard', owner: 'P1', location: 'ROS', status: 'free', sex: 'male' },
+        ...deckState.nobles,
+      ],
+      bishoprics: [{ region: 'r1', name: 'A', territories: [], bishop: 'BER' }],
+      nobleHand: [{ id: 'c8', kind: 'dignity', code: 'CAR', dignity: 'cardinal' }],
+    })
+    pickHandCard('CAR')
+    expect(screen.queryByRole('button', { name: 'Jouer' })).toBeNull()
+  })
+
   it('plays a claim card with an own heir on a noble married to one of ours', () => {
     const onWinterChange = renderDeck('', vi.fn(), {
       ...deckState,

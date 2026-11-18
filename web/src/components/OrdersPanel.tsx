@@ -111,6 +111,32 @@ function canReceiveDignity(noble: Noble, dignity: Dignity): boolean {
   return !noble.spouse || !MARRIAGE_EXCLUDED_DIGNITIES.includes(dignity)
 }
 
+// The cardinal card goes on one of the player's own bishops, not yet cardinal
+// (it is no lady dignity: any sex is fine).
+// A bishop already promised the title by a draft line (`N C XXX` purchase or
+// another `D N XXX CAR`) is left out: the engine rejects it as already cardinal.
+function canReceiveCardinalCard(
+  state: StateData,
+  noble: Noble,
+  player: PlayerId,
+  winterDraft: string,
+): boolean {
+  if (
+    noble.owner !== player ||
+    !(state.bishoprics ?? []).some((bishopric) => bishopric.bishop === noble.code) ||
+    (state.cardinals ?? []).includes(noble.code)
+  ) {
+    return false
+  }
+  return !draftLines(winterDraft).some((line) => {
+    const fields = line.split(/\s+/)
+    return (
+      (fields[0] === 'N' && fields[1] === 'C' && fields[2] === noble.code) ||
+      (fields[0] === 'D' && fields[1] === 'N' && fields[2] === noble.code && fields[3] === 'CAR')
+    )
+  })
+}
+
 function ownedNobles(state: StateData, player: PlayerId): Noble[] {
   return state.nobles.filter((noble) => noble.owner === player)
 }
@@ -469,14 +495,14 @@ function NobleCardActions({
   // A visible dignity can be played on any eligible noble, an opponent's
   // included (own nobles first); a claim needs one of the player's own nobles as heir.
   const nobleOptions = [...state.nobles]
-    .filter((noble) =>
-      isClaim
-        ? noble.owner === player && !(noble.dignities ?? []).includes('bastard')
-        : canReceiveDignity(noble, card.dignity ?? 'bastard') &&
-          // A hidden dignity goes on one of your own ladies only, so the
-          // order cannot be used to probe other players' hidden dignities.
-          (noble.owner === player || !isHiddenDignity(card.dignity ?? 'bastard')),
-    )
+    .filter((noble) => {
+      if (isClaim) return noble.owner === player && !(noble.dignities ?? []).includes('bastard')
+      const dignity = card.dignity ?? 'bastard'
+      if (dignity === 'cardinal') return canReceiveCardinalCard(state, noble, player, winterDraft)
+      // A hidden dignity goes on one of your own ladies only, so the
+      // order cannot be used to probe other players' hidden dignities.
+      return canReceiveDignity(noble, dignity) && (noble.owner === player || !isHiddenDignity(dignity))
+    })
     .sort((a, b) => Number(b.owner === player) - Number(a.owner === player))
     .map((noble) => ({
       value: noble.code,
