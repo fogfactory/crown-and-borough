@@ -51,11 +51,16 @@ func TestGenerateRegionsUsesStableTieBreakAndSortsOutput(t *testing.T) {
 	if len(regions) != 2 || regions[0].Seed != "AAA" || regions[1].Seed != "BBB" {
 		t.Fatalf("regions = %#v, want AAA then BBB", regions)
 	}
-	if got := regions[0].Territories; len(got) != 2 || got[0] != "AAA" || got[1] != "ZZZ" {
-		t.Fatalf("AAA territories = %#v, want [AAA ZZZ]", got)
+	// ZZZ joins the seed that reaches it at the lower step cost, AAA on a tie.
+	winner, loser := 0, 1
+	if regionStepCost("ZZZ", "BBB") < regionStepCost("ZZZ", "AAA") {
+		winner, loser = 1, 0
 	}
-	if got := regions[1].Territories; len(got) != 1 || got[0] != "BBB" {
-		t.Fatalf("BBB territories = %#v, want [BBB]", got)
+	if got := regions[winner].Territories; len(got) != 2 || got[0] > got[1] {
+		t.Fatalf("%s territories = %#v, want its seed and ZZZ sorted", regions[winner].Seed, got)
+	}
+	if got := regions[loser].Territories; len(got) != 1 || got[0] != regions[loser].Seed {
+		t.Fatalf("%s territories = %#v, want only its seed", regions[loser].Seed, got)
 	}
 }
 

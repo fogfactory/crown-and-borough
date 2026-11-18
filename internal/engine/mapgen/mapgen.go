@@ -4,6 +4,7 @@ package mapgen
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -58,7 +59,10 @@ type Territory struct {
 type MapData struct {
 	Territories []Territory     `json:"territories"`
 	Regions     []models.Region `json:"regions"`
-	Starts      []string        `json:"-"`
+	// CornerContacts lists the points where territories touch without sharing
+	// a frontier, so the map can mark them as non-adjacent.
+	CornerContacts []CornerContact `json:"cornerContacts"`
+	Starts         []string        `json:"-"`
 }
 
 // maxGenerateAttempts bounds the derived sub-seeds tried when a random draw
@@ -80,15 +84,23 @@ func Generate(seed string, assets assetgen.Assets, cfg Config) (MapData, error) 
 		return MapData{}, err
 	}
 
+	data, _, err := generateWithAttempts(seed, assets, cfg)
+	return data, err
+}
+
+// generateWithAttempts retries generateAttempt with derived seeds and also
+// returns the seed of the attempt that produced the map.
+func generateWithAttempts(seed string, assets assetgen.Assets, cfg Config) (MapData, string, error) {
 	var err error
 	for attempt := range maxGenerateAttempts {
 		var data MapData
-		data, err = generateAttempt(attemptSeed(seed, attempt), assets, cfg)
+		used := attemptSeed(seed, attempt)
+		data, err = generateAttempt(used, assets, cfg)
 		if err == nil {
-			return data, nil
+			return data, used, nil
 		}
 	}
-	return MapData{}, fmt.Errorf("mapgen: no valid map after %d attempts: %w", maxGenerateAttempts, err)
+	return MapData{}, "", fmt.Errorf("mapgen: no valid map after %d attempts: %w", maxGenerateAttempts, err)
 }
 
 // attemptSeed derives the seed of one generation attempt. Attempt zero keeps
@@ -115,7 +127,7 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		return MapData{}, err
 	}
 
-	geometricEdges := extractAdjacency(grid, cfg.SiteCount)
+	geometricEdges := geometry.edges
 	terrain := assignTerrains(newRNG(seed, "terrain"), sites[:cfg.SiteCount])
 	passableEdges, impassableEdges := pruneFrontiers(newRNG(seed, "frontiers"), geometricEdges, terrain)
 	passableEdges, impassableEdges, err = enforceDegreeCaps(passableEdges, impassableEdges, terrain, geometry.centroids)
@@ -128,10 +140,6 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 
 	distances := siteDistances(passableEdges, cfg.SiteCount)
 	starts, homeVillages, err := selectStarts(newRNG(seed, "starts"), distances, passableEdges, terrain, cfg.StartCount)
-	if err != nil {
-		return MapData{}, err
-	}
-	seats, err := placeSeats(newRNG(seed, "seats"), geometry.centroids, distances, starts, homeVillages, cfg.SeatCount)
 	if err != nil {
 		return MapData{}, err
 	}
@@ -152,9 +160,6 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	for _, home := range homeVillages {
 		village[home] = true
 	}
-	for _, seat := range seats {
-		village[seat] = true
-	}
 
 	territories := make([]Territory, cfg.SiteCount)
 	for i := range territories {
@@ -169,6 +174,23 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		}
 	}
 
+	seats, err := chooseSeats(newRNG(seed, "seats"), seatSearch{
+		territories:   territories,
+		centroids:     geometry.centroids,
+		distances:     distances,
+		eligible:      eligibleSeats(distances, starts, homeVillages),
+		starts:        starts,
+		outline:       geometry.outline,
+		edgeMinimum:   seatOutlineFactor * minFrontierLength(cfg),
+		spreadMinimum: seatSpreadDiagonalRatio * math.Hypot(float64(cfg.Width), float64(cfg.Height)),
+		count:         cfg.SeatCount,
+	})
+	if err != nil {
+		return MapData{}, err
+	}
+	for _, seat := range seats {
+		territories[seat].Village = true
+	}
 	seatIDs := make([]models.TerritoryID, len(seats))
 	for index, seat := range seats {
 		seatIDs[index] = models.TerritoryID(names[seat].code)
@@ -184,7 +206,12 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	}
 	sort.Strings(startIDs)
 
-	return MapData{Territories: territories, Regions: regions, Starts: startIDs}, nil
+	return MapData{
+		Territories:    territories,
+		Regions:        regions,
+		CornerContacts: cornerContacts(territories),
+		Starts:         startIDs,
+	}, nil
 }
 
 func validateConfig(cfg Config) error {

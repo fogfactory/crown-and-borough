@@ -70,6 +70,41 @@ describe('impassableBorderIcons', () => {
   })
 })
 
+describe('corner contacts', () => {
+  const quad = (id: string, x: number, y: number, terrain: Terrain): Territory => ({
+    id,
+    name: id,
+    terrain,
+    village: false,
+    points: [
+      [x, y],
+      [x + 100, y],
+      [x + 100, y + 100],
+      [x, y + 100],
+    ],
+    adjacencies: [],
+    impassable: [],
+  })
+
+  it('draws one icon at each corner contact the map declares', () => {
+    const territories = [
+      quad('AAA', 0, 0, 'plain'),
+      quad('BBB', 100, 100, 'plain'),
+      quad('CCC', 100, 0, 'plain'),
+    ]
+    const icons = impassableBorderIcons([], territories, 1, [
+      { point: [100, 100], between: ['AAA', 'BBB'] },
+    ])
+    expect(icons).toHaveLength(1)
+    expect(icons[0].placement).toMatchObject({ x: 100, y: 100 })
+  })
+
+  it('draws nothing without declared corner contacts', () => {
+    const territories = [quad('AAA', 0, 0, 'plain'), quad('BBB', 100, 0, 'plain')]
+    expect(impassableBorderIcons([], territories, 1)).toHaveLength(0)
+  })
+})
+
 describe('impassableBorderKind', () => {
   it('prefers the marsh, then the peaks, then the escarpment', () => {
     expect(impassableBorderKind('swamp', 'mountain')).toBe('marsh')

@@ -369,7 +369,12 @@ franchissables eux-mêmes non montagneux : cette réserve garantit à la fois qu
 la garnison de départ ne meurt jamais de faim et qu'il existe assez de
 territoires voisins viables pour y placer les avant-postes de départ. Les
 territoires de départ sont séparés d'au moins quatre étapes dans le graphe des
-frontières franchissables. Un château y est construit gratuitement et devient
+frontières franchissables. Parmi les placements valides, la génération retient
+le plus équitable : celui qui laisse au joueur le moins bien servi la plus
+grande part de la carte, mesurée en territoires au moins aussi proches de son
+départ que de tout autre (une égalité de distance partage le territoire). Aucun
+joueur n'est ainsi enclavé entre deux rivaux ni relégué dans un coin. Un
+château y est construit gratuitement et devient
 la capitale par défaut. Le joueur y reçoit sa garnison, ses nobles et ses
 ressources de départ selon `assets/balance.yaml` ; il reçoit en outre
 `starting_outposts` armées d'une troupe chacune, placées dès le début de la
@@ -385,7 +390,11 @@ territoire de départ et d'au moins deux étapes de tout village dédié. Un
 chef-lieu et un village dédié sont des infrastructures identiques en jeu (même
 revenu, même possibilité de fortification) ; seul le chef-lieu sert de seed à
 la partition régionale statique, calculée par BFS multi-source sur les
-frontières franchissables et publiée avec la carte via `regions[].seed`.
+frontières franchissables et publiée avec la carte via `regions[].seed`. Les
+chefs-lieux sont placés pour que les évêchés soient disputés : parmi les
+placements admissibles, la génération retient celui où le moins de joueurs
+occupent seuls leur évêché, chaque évêché touchant le bord de la carte sur une
+longueur suffisante.
 
 Un joueur est éliminé lorsqu'il ne contrôle plus aucun territoire et ne possède
 plus aucune armée. Les nobles seuls ne maintiennent pas un joueur en lice. Le
@@ -410,19 +419,24 @@ qualifiée :
 - une frontière franchissable appartient au graphe des déplacements ;
 - une frontière infranchissable reste visible mais ne permet pas le passage ;
 - il n'existe pas de liaison artificielle sans frontière commune ;
+- une frontière visible mesure au moins 24 px sur la carte de référence
+  (quatre joueurs, 1000 x 700 px), seuil proportionnel à la taille moyenne des
+  territoires sur les autres cartes : deux territoires qui ne se touchent que
+  par un point ou par un contact plus court n'ont aucune frontière commune ;
+  la carte marque ce point de contact d'une icône de non-adjacence ;
 - le graphe franchissable est connexe ;
-- le graphe franchissable ne contient aucun point d'articulation : toute paire
-  de territoires, et donc toute paire de lieux-dits (châteaux de départ ou
-  villages neutres), est reliée par au moins deux chemins sans territoire
-  intermédiaire commun ;
+- le graphe franchissable compte au plus deux points d'articulation (des
+  verrous) : hors d'eux, toute paire de territoires est reliée par au moins
+  deux chemins sans territoire intermédiaire commun ;
 - le degré franchissable de chaque territoire est compris entre 2 et le maximum
-  du terrain : 3 en montagne, marécage ou colline, 5 en plaine ou forêt.
+  du terrain : 3 en montagne, 4 en marécage ou colline, 5 en plaine ou forêt.
 
 Lors de l'élagage des frontières, une frontière montagne/montagne ou
-montagne/marécage est supprimée avec une probabilité de 50 %. Les autres
-frontières non plain/plain ont une probabilité de suppression de 15 % et les
+montagne/marécage est supprimée avec une probabilité de 40 %. Les autres
+frontières non plain/plain ont une probabilité de suppression de 10 % et les
 frontières plain/plain restent franchissables ; aucune suppression n'est
-acceptée si elle crée un point d'articulation ou rompt la connexité.
+acceptée si elle rompt la connexité ou porte à plus de deux le nombre de points
+d'articulation.
 
 Les armées se déplacent d'une case adjacente au plus par résolution, quelle que
 soit la nature du terrain. Le terrain influence la production de rations et les
