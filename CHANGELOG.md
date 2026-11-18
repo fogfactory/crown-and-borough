@@ -21,15 +21,11 @@
 ### Bug Fixes
 
 * **engine:** apply the 12-player cap to the bot league and its tests ([ab30a1f](https://github.com/fogfactory/crown-and-borough/commit/ab30a1f8d3c755c8c79447dec8d124a28efdabcb))
-* **engine:** keep friendly-host retreat merges when an earlier retreat appends an army ([aaac08f](https://github.com/fogfactory/crown-and-borough/commit/aaac08fdfdc10b560e203e31fb1ea185eb97a91f))
 * **engine:** keep friendly-host retreat merges when an earlier retreat appends an army ([b074667](https://github.com/fogfactory/crown-and-borough/commit/b07466792fc7bfb0ea5fa587939b9ef55f402098))
 * **lobby:** avoid duplicate placeholder names and stuck candidate map waiters ([d16b882](https://github.com/fogfactory/crown-and-borough/commit/d16b882f3e94614b77c901ae018036d14d346934))
 * **web:** keep unsent order drafts across a page reload ([529678f](https://github.com/fogfactory/crown-and-borough/commit/529678f7e54eb58628ef9219cb3a6d9c90c59e52))
-* **web:** offer own bishops as targets of the cardinal card ([cc88245](https://github.com/fogfactory/crown-and-borough/commit/cc882456b0506618af0f18aab342c11695f6f629))
 * **web:** offer own bishops as targets of the cardinal card ([13ade89](https://github.com/fogfactory/crown-and-borough/commit/13ade89696772090f23822ab1c4ee71a9ee8f1c9)), closes [#706](https://github.com/fogfactory/crown-and-borough/issues/706)
-* **web:** show derived scores in the live games list ([f4e3b33](https://github.com/fogfactory/crown-and-borough/commit/f4e3b33e398ff1a9a6a01f91d3e699d89b960ce0))
 * **web:** show derived scores in the live games list ([d521e32](https://github.com/fogfactory/crown-and-borough/commit/d521e3261acb306f5e332f40f44bc3267dc3fd80))
-* **web:** warn that the unsent draft is lost on reload ([f9dde90](https://github.com/fogfactory/crown-and-borough/commit/f9dde901e507c48d2bb2382ebf083cbc3035273d))
 * **web:** warn that the unsent draft is lost on reload ([517c1da](https://github.com/fogfactory/crown-and-borough/commit/517c1da35dc51682024c37b3f1920ee2a959fb02))
 
 
