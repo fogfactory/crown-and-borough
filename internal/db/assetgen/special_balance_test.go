@@ -137,7 +137,7 @@ func TestSpecialOrdersScaleWithPlayers(t *testing.T) {
 	}
 	special := balance.SpecialOrders
 	for _, test := range []struct{ players, bonus, calamities, slots int }{
-		{2, 18, 4, 1}, {3, 24, 5, 1}, {4, 30, 6, 2}, {6, 42, 8, 2}, {8, 54, 10, 3},
+		{2, 18, 4, 1}, {3, 24, 5, 1}, {4, 30, 6, 2}, {6, 42, 8, 2}, {8, 54, 10, 3}, {12, 78, 14, 4},
 	} {
 		if got := special.BonusCardCount(test.players); got != test.bonus {
 			t.Errorf("BonusCardCount(%d) = %d, want %d", test.players, got, test.bonus)
@@ -155,15 +155,15 @@ func TestSpecialOrdersScaleWithPlayers(t *testing.T) {
 }
 
 // With 4 bonus cards in every hand, a player who draws 2 cards meets at least
-// one calamity once in two, from 2 to 8 players: the criterion the deck sizes
-// were chosen for.
+// one calamity once in two, whatever the number of players: the criterion the
+// deck sizes were chosen for.
 func TestSpecialDeckCalamityOddsWithFourCardHands(t *testing.T) {
 	balance, err := LoadBalance("../../../assets")
 	if err != nil {
 		t.Fatalf("LoadBalance = %v", err)
 	}
 	special := balance.SpecialOrders
-	for players := 2; players <= 8; players++ {
+	for players := models.MinimumGamePlayers; players <= models.MaximumGamePlayers; players++ {
 		bonus := special.BonusCardCount(players) - 4*players
 		calamities := special.CalamityCardCount(players)
 		if bonus <= 0 {
