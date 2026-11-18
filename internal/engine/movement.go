@@ -52,7 +52,7 @@ func executeMovementsAndRetreats(ctx *resolutionContext) error {
 	if err := executeRetreats(ctx); err != nil {
 		return err
 	}
-	return nil
+	return applyManeuvers(ctx)
 }
 
 func startingRiders(ctx *resolutionContext) map[models.ArmyID][]models.NobleID {
@@ -1200,6 +1200,8 @@ func executeLocalOrders(ctx *resolutionContext) {
 			continue
 		}
 		switch record.order.Type {
+		case models.OrderTypeManeuver:
+			// Applied by applyManeuvers once the retreats are settled.
 		case models.OrderTypeHold:
 			record.outcome = OutcomeSuccess
 			record.reason = "held"

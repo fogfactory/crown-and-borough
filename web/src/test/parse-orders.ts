@@ -3,12 +3,13 @@
  * preview returns, so overlay tests can stay readable. Product code never
  * parses orders; the server is the single source of the order syntax.
  */
-import type { LiaisonMode, Order, OrderType } from '@/types'
+import { MANEUVER_REST, type LiaisonMode, type Order, type OrderType } from '@/types'
 
 const SYMBOL_TO_TYPE: Record<string, OrderType> = {
   A: 'attack',
   J: 'join',
   D: 'disperse',
+  M: 'maneuver',
   H: 'hold',
   P: 'pillage',
   S: 'support',
@@ -104,6 +105,41 @@ function parseLine(line: string): Order | null {
       }
       if (targets.length === 0) return null
       return { type, position, targets, nobleAssignments, liaison }
+    }
+    case 'maneuver': {
+      const targets: string[] = []
+      const counts: number[] = []
+      const nobleAssignments: Record<string, string[]> = {}
+      for (const token of tokens.slice(2)) {
+        const star = token.indexOf('*')
+        const head = star >= 0 ? token.slice(0, star) : token
+        const tail = star >= 0 ? token.slice(star) : ''
+        let code = head
+        let count = 1
+        if (head.endsWith('+')) {
+          code = head.slice(0, -1)
+          count = MANEUVER_REST
+        } else if (head.includes('/')) {
+          const parts = head.split('/')
+          if (parts.length !== 2 || !/^[1-9]\d*$/.test(parts[1])) return null
+          code = parts[0]
+          count = Number(parts[1])
+        }
+        if (/[+/]/.test(code) || code === '') return null
+        const parsed = parseDisperseTarget(code + tail)
+        if (!parsed) return null
+        targets.push(parsed.territory)
+        counts.push(count)
+        if (parsed.assignments.length > 0) {
+          nobleAssignments[parsed.territory] = [
+            ...(nobleAssignments[parsed.territory] ?? []),
+            ...parsed.assignments,
+          ]
+        }
+      }
+      if (targets.length === 0) return null
+      // The server plans the legs; the tests that need them write them out.
+      return { type, position, targets, counts, nobleAssignments, liaison }
     }
     default:
       return null

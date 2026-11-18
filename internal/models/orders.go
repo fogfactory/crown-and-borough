@@ -24,13 +24,20 @@ const (
 	OrderTypePillage  OrderType = "pillage"
 	OrderTypeDisperse OrderType = "disperse"
 	OrderTypeTransfer OrderType = "transfer"
+	// OrderTypeManeuver is the M order: it splits an army into groups sent to
+	// adjacent (or the same) territories. It replaces J, D and H.
+	OrderTypeManeuver OrderType = "maneuver"
 )
+
+// ManeuverRest is the Counts sentinel of a "+" destination: every troop not
+// assigned to another destination.
+const ManeuverRest = -1
 
 // IsValid reports whether the order type is known to the command model.
 func (t OrderType) IsValid() bool {
 	switch t {
 	case OrderTypeAttack, OrderTypeSupport, OrderTypeHold, OrderTypeJoin,
-		OrderTypePillage, OrderTypeDisperse, OrderTypeTransfer:
+		OrderTypePillage, OrderTypeDisperse, OrderTypeTransfer, OrderTypeManeuver:
 		return true
 	}
 	return false
@@ -135,6 +142,9 @@ type Order struct {
 	// TargetIDs come from territory codes in A, S, J, and D orders. Validation
 	// checks them and P1.4 resolution consumes them.
 	TargetIDs []TerritoryID `json:"targets"`
+	// Counts is parallel to TargetIDs for maneuver orders: the number of
+	// troops of each destination, or ManeuverRest for "+".
+	Counts []int `json:"counts,omitempty"`
 	// NobleAssignments comes from D-order asterisks and is consumed by reception
 	// coverage checks and P1.4 dispersion resolution.
 	NobleAssignments map[TerritoryID][]NobleCode `json:"nobleAssignments"`
@@ -286,7 +296,20 @@ type Chain struct {
 	Orders []Order `json:"orders"`
 	// CurrentIndex is set to zero by reception and advanced by P1.4 resolution.
 	CurrentIndex int `json:"currentIndex"`
+	// EmittedTurn is the game turn at which the chain was received. Chains
+	// stored before the field existed leave it zero; use EffectiveEmittedTurn.
+	EmittedTurn int `json:"emittedTurn,omitempty"`
 	// PendingDisperse is set only while a looped D retries its unresolved
 	// residual branches. It is internal resolution state, not source syntax.
 	PendingDisperse *PendingDisperse `json:"pendingDisperse,omitempty"`
+}
+
+// EffectiveEmittedTurn returns the turn at which the chain was emitted: the
+// recorded EmittedTurn, or, for a chain stored without it, the current turn
+// minus the number of orders already executed.
+func (c Chain) EffectiveEmittedTurn(currentTurn int) int {
+	if c.EmittedTurn > 0 {
+		return c.EmittedTurn
+	}
+	return currentTurn - c.CurrentIndex
 }

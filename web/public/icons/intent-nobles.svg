@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 24 24" width="24" height="24" role="img" aria-label="Nobles">
+  <circle r="10.5" fill="#a23b2a" stroke="#fff8e7" stroke-width="1.5"/>
+  <g transform="scale(0.85)" fill="#fff8e7">
+    <path d="M-5.5 5.6 H5.5 V7.3 Q5.5 8.5 4.3 8.5 H-4.3 Q-5.5 8.5 -5.5 7.3 Z"/>
+    <path d="M-4.1 5.6 L-2 -2.6 Q0 -3.6 2 -2.6 L4.1 5.6 Z"/>
+    <circle cy="-5.6" r="2.9"/>
+  </g>
+</svg>

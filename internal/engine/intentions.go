@@ -170,6 +170,10 @@ func (ctx *resolutionContext) emitBadWeatherBlocked(army models.Army, order mode
 func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Army, isLastOrder bool) {
 	order := record.order
 	sourceAffected := ctx.badWeatherRegions[regionForTerritory(ctx, army.TerritoryID)]
+	if order.Type == models.OrderTypeManeuver {
+		ctx.enumerateManeuver(record, army, sourceAffected)
+		return
+	}
 	if order.Type == models.OrderTypeDisperse {
 		if sourceAffected {
 			ctx.emitBadWeatherBlocked(army, order, regionForTerritory(ctx, army.TerritoryID))
