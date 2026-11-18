@@ -8,7 +8,7 @@ import { buildIntentions } from '@/lib/intent-overlay'
 import { draftOrders } from '@/test/parse-orders'
 import type { Intention } from '@/lib/intent-overlay'
 import type { WinterIntention } from '@/lib/winter-overlay'
-import type { Fief, MapData, StateData, SupplyLine } from '@/types'
+import type { Fief, MapData, Order, StateData, SupplyLine } from '@/types'
 
 const map: MapData = {
   territories: [
@@ -1725,6 +1725,32 @@ describe('MapViewer intentions overlay', () => {
 
     expect(marks).toHaveLength(1)
     expect(marks[0]).toHaveAttribute('data-intent-nobles', '*')
+  })
+
+  it('marks the maneuver leg the order sheet follows, with its nobles', () => {
+    const order: Order = {
+      type: 'maneuver',
+      position: 'ROS',
+      liaison: 'single',
+      legs: [
+        { target: 'BRU', troops: 1 },
+        { target: 'CHA', troops: 3, nobles: ['HUG'], carriesChain: true },
+      ],
+    }
+    const { svg } = renderMap(
+      triangleMap,
+      armedState,
+      vi.fn(),
+      null,
+      buildIntentions(triangleMap, armedState, 'P1', { HUG: [order] }),
+    )
+    const overlay = svg.querySelector('g[aria-label="Intentions overlay"]')
+
+    expect(overlay?.querySelectorAll('[data-intent-chain]')).toHaveLength(1)
+    expect(overlay?.querySelector('[data-intent-nobles]')).toHaveAttribute(
+      'data-intent-nobles',
+      'HUG',
+    )
   })
 
   it('labels a named noble on the disperse leg that carries it', () => {

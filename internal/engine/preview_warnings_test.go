@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
@@ -91,7 +92,7 @@ func TestPreviewWarnsAChainUnderWayThatCannotRun(t *testing.T) {
 		t.Errorf("warning = %#v, want no line and the emitting noble", warning)
 	}
 	// A new order on the army settles it.
-	if warnings := previewWarningsFor(t, state, ChainSubmission{Player: "P1", Noble: "TWO", Text: "TWO\nH BBB"}); len(warnings) != 1 || warnings[0].Code != "chain_replaced" {
+	if warnings := withoutDeprecation(previewWarningsFor(t, state, ChainSubmission{Player: "P1", Noble: "TWO", Text: "TWO\nH BBB"})); len(warnings) != 1 || warnings[0].Code != "chain_replaced" {
 		t.Errorf("warnings after a new order = %#v, want only the replacement notice", warnings)
 	}
 }
@@ -137,8 +138,8 @@ func TestPreviewWarningsNeverRevealAnotherPlayersChain(t *testing.T) {
 	storeChain(t, state, "TRE\nDDD A CCC")
 	join := ChainSubmission{Player: "P1", Noble: "TWO", Text: "TWO\nCCC J AAA"}
 
-	withEnemy := previewWarningsFor(t, state, join)
-	without := previewWarningsFor(t, setup(), join)
+	withEnemy := withoutDeprecation(previewWarningsFor(t, state, join))
+	without := withoutDeprecation(previewWarningsFor(t, setup(), join))
 	if len(withEnemy) != 0 || len(without) != 0 {
 		t.Fatalf("warnings with an enemy chain = %#v, without = %#v: want none, whatever the enemy plans", withEnemy, without)
 	}
@@ -200,4 +201,33 @@ func TestPreviewWarnsAnAttackOnOwnArmyThatStaysPut(t *testing.T) {
 			t.Errorf("warnings = %#v, want none for an opposing army", warning)
 		}
 	}
+}
+
+func TestPreviewWarnsDeprecatedHoldJoinAndDispersion(t *testing.T) {
+	for line, symbol := range map[string]string{"H BBB": "H", "BBB J CCC": "J", "BBB D CCC": "D"} {
+		state := supportPlanState(t, "P1")
+		warnings := previewWarningsFor(t, state, ChainSubmission{Player: "P1", Noble: "TWO", Text: "TWO\n" + line})
+		warning := requireWarning(t, warnings, "deprecated_order", WarningLevelWarning)
+		if warning.Line != 2 || warning.Noble != "TWO" || !strings.Contains(warning.Message, symbol) || !strings.Contains(warning.Message, " M ") {
+			t.Errorf("%q: warning = %#v, want a line 2 notice naming %s and the M replacement", line, warning, symbol)
+		}
+	}
+	state := supportPlanState(t, "P1")
+	for _, warning := range previewWarningsFor(t, state, ChainSubmission{Player: "P1", Noble: "TWO", Text: "TWO\nBBB M CCC+"}) {
+		if warning.Code == "deprecated_order" {
+			t.Errorf("M must not be flagged as deprecated: %#v", warning)
+		}
+	}
+}
+
+// withoutDeprecation drops the deprecation notices of the fixtures that still
+// write H, J or D orders, so that the tests judge the other warnings.
+func withoutDeprecation(warnings []PreviewWarning) []PreviewWarning {
+	kept := []PreviewWarning{}
+	for _, warning := range warnings {
+		if warning.Code != "deprecated_order" {
+			kept = append(kept, warning)
+		}
+	}
+	return kept
 }

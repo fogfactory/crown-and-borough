@@ -16,6 +16,7 @@ const SYMBOLS: Record<OrderType, string> = {
   join: 'J',
   pillage: 'P',
   disperse: 'D',
+  maneuver: 'M',
   transfer: 'T',
 }
 
@@ -28,8 +29,10 @@ export interface IntentSegment {
   from: Point
   to: Point
   kind: IntentSegmentKind
-  /** Nobles riding this leg of a dispersion (`*` stands for all the remaining ones). */
+  /** Nobles riding this leg of a dispersion or maneuver (`*` stands for all the remaining ones). */
   nobles?: string[]
+  /** The order sheet (the chain) follows the group of this leg: the last destination of a maneuver. */
+  carriesChain?: boolean
 }
 
 export interface Intention {
@@ -123,6 +126,40 @@ function isInvalidLoop(map: MapData, order: Order): boolean {
   return false
 }
 
+/**
+ * The legs of an order that splits an army: a loop for the troops that stay on
+ * the origin, then one arrow per distinct destination, in order. `extras`
+ * adds what a leg carries. Null when a destination is unknown or not adjacent.
+ */
+function splitSegments(
+  map: MapData,
+  position: string,
+  targets: string[],
+  holdsGround: boolean,
+  extras: (target: string) => Partial<IntentSegment>,
+): IntentSegment[] | null {
+  const from = territoryCentroid(map, position)
+  if (!from) return null
+  for (const target of targets) {
+    if (!known(map, target)) return null
+    if (target !== position && !isAdjacent(map, position, target)) return null
+  }
+  const segments: IntentSegment[] = []
+  const seen = new Set<string>()
+  if (holdsGround) {
+    segments.push({ from, to: from, kind: 'loop', ...extras(position) })
+    seen.add(position)
+  }
+  for (const target of targets) {
+    if (seen.has(target)) continue
+    seen.add(target)
+    const to = territoryCentroid(map, target)
+    if (!to) return null
+    segments.push({ from, to, kind: 'movement', ...extras(target) })
+  }
+  return segments.length > 0 ? segments : null
+}
+
 function makeIntention(
   map: MapData,
   order: Order,
@@ -150,6 +187,7 @@ function makeIntention(
       type: order.type,
       position: order.position,
       targets: order.targets,
+      counts: order.counts,
       nobleAssignments: order.nobleAssignments,
       liaison: order.liaison,
       amount: order.amount,
@@ -206,31 +244,42 @@ function makeIntention(
     }
     case 'disperse': {
       const targets = order.targets ?? []
-      for (const target of targets) {
-        if (!known(map, target)) return null
-        if (target !== position && !isAdjacent(map, position, target)) return null
-      }
+      const segments = splitSegments(
+        map,
+        position,
+        targets,
+        targets.includes(position) || territoryState.size > targets.length,
+        (target) => {
+          const nobles = order.nobleAssignments?.[target]
+          return nobles && nobles.length > 0 ? { nobles } : {}
+        },
+      )
+      return segments && { ...base, type: order.type, segments }
+    }
+    case 'maneuver': {
+      // The server plans where troops, nobles and the order sheet go.
       const segments: IntentSegment[] = []
-      const seen = new Set<string>()
-      const noblesAt = (target: string): { nobles?: string[] } => {
-        const nobles = order.nobleAssignments?.[target]
-        return nobles && nobles.length > 0 ? { nobles } : {}
-      }
-      const holdsGround =
-        targets.includes(position) || territoryState.size > targets.length
-      if (holdsGround) {
-        segments.push({ from, to: from, kind: 'loop', ...noblesAt(position) })
-        seen.add(position)
-      }
-      for (const target of targets) {
-        if (seen.has(target)) continue
-        seen.add(target)
-        const to = territoryCentroid(map, target)
+      for (const leg of order.legs ?? []) {
+        const stays = leg.target === position
+        if (
+          !known(map, leg.target) ||
+          (!stays && !isAdjacent(map, position, leg.target))
+        ) {
+          return null
+        }
+        const to = stays ? from : territoryCentroid(map, leg.target)
         if (!to) return null
-        segments.push({ from, to, kind: 'movement', ...noblesAt(target) })
+        segments.push({
+          from,
+          to,
+          kind: stays ? 'loop' : 'movement',
+          ...((leg.nobles?.length || leg.anyNobles) && {
+            nobles: [...(leg.nobles ?? []), ...(leg.anyNobles ? ['*'] : [])],
+          }),
+          ...(leg.carriesChain && { carriesChain: true }),
+        })
       }
-      if (segments.length === 0) return null
-      return { ...base, type: order.type, segments }
+      return segments.length > 0 ? { ...base, type: order.type, segments } : null
     }
     case 'transfer': {
       const target = order.targets?.[0]
@@ -294,7 +343,6 @@ export function buildIntentions(
   if (state.season === 'winter' && !winterInstalledOnly) return []
 
   const intentions: Intention[] = []
-
   if (options.includeInstalled !== false) {
     for (const territoryState of state.territories) {
       const army = territoryState.army

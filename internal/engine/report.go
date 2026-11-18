@@ -199,6 +199,7 @@ type OrderReport struct {
 	Source           models.TerritoryID                        `json:"source"`
 	Target           models.TerritoryID                        `json:"target,omitempty"`
 	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+	Counts           []int                                     `json:"counts,omitempty"`
 	NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
 	Liaison          models.LiaisonMode                        `json:"liaison"`
 	Outcome          Outcome                                   `json:"outcome"`
@@ -597,6 +598,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 					if len(entry.Targets) > 0 {
 						entry.Target = entry.Targets[0]
 					}
+					entry.Counts = append([]int(nil), order.Counts...)
 					entry.NobleAssignments = cloneNobleAssignments(order.NobleAssignments)
 					entry.Liaison = order.Liaison
 					break

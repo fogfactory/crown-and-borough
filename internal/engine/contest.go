@@ -216,9 +216,16 @@ func nobleCommandBonus(ctx *resolutionContext, army models.Army) int {
 	if ctx.famished[army.ID] {
 		return 0
 	}
+	maneuver := ctx.maneuvers[army.ID]
+	if maneuver != nil && maneuver.remaining == 0 {
+		return 0
+	}
 	commanded := false
 	dignityBonus := 0
 	for _, nobleID := range ctx.noblesAt(army.TerritoryID) {
+		if maneuver != nil && !maneuver.stayingNobles[nobleID] {
+			continue
+		}
 		noble := ctx.noblesByID[nobleID]
 		if noble != nil && noble.OwnerID == army.OwnerID && noble.Status == models.NobleStatusFree {
 			commanded = true

@@ -14,7 +14,7 @@ La v1 comprend :
   `(N + 1) x 4` territoires supplémentaires, portant `2 x N + 1` villages au
   total (un village dédié par territoire de départ, plus `N + 1` chefs-lieux) ;
 - les chaînes d'ordres, leur progression simultanée, les combats, les retraites,
-  les jonctions, les dispersions et le pillage ;
+  les manœuvres, les jonctions, les dispersions et le pillage ;
 - le ravitaillement, la famine et la résolution des ordres d'hiver ;
 - les rapports de tour et la boucle de jeu locale ;
 - le front SVG React ;
@@ -34,8 +34,8 @@ online à réaliser et à suivre par issue.
 | Fondations | Module Go, chargement des assets CSV, balance JSON, front Vite/React/TypeScript | Fait |
 | Carte | Génération Voronoï seedée, territoires nommés par trigramme, frontières franchissables ou infranchissables, graphe connexe, villages neutres et territoires dédiés | Fait |
 | Modèle | Joueurs, territoires, armées uniques par territoire, nobles, infrastructures, stocks, chaînes | Fait |
-| Ordres | Parser texte, ordres A/S/H/J/P/D, liaisons `single` et `loop`, validation et remplacement atomique des chaînes ; statuts nobles en ordres d'hiver O/P | Fait |
-| Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, jonctions, dispersions, contrôle territorial éphémère hors fief et capitale (voir [`titres.md`](titres.md#contrôle-et-occupation)) | Fait |
+| Ordres | Parser texte, ordres A/S/M/P (H/J/D dépréciés), liaisons `single` et `loop`, validation et remplacement atomique des chaînes ; statuts nobles en ordres d'hiver O/P | Fait |
+| Résolution | Progression simultanée, attaques, soutiens, combats multi-contendants, bonus de commandement noble, retraites, manœuvres, jonctions, dispersions, contrôle territorial éphémère hors fief et capitale (voir [`titres.md`](titres.md#contrôle-et-occupation)) | Fait |
 | Logistique | Rations de terrain, ravitaillement BFS, portée, dépôts de vivres, coûts exponentiels, stocks et famine | Fait |
 | Hiver | Recrutement, constructions v1, capitale, libération des nobles, conservation et rapatriement des stocks | Fait |
 | Fiefs | Constitution (`T F`), attribution (`T A`), annexion (`T X`) et changement de rang (`T R`) par ordre d'hiver, bonus de cité, contrôle transitif et occupation, conquête réservée aux armées portant un noble libre, avec titulaire usurpateur et titre exilé restaurable ([#610](https://github.com/fogfactory/crown-and-borough/issues/610)), renonciation `T C`/`T D`, vacance avec attribution par défaut (sans dissolution faute d'attribution), dissolution par perte du château capitale, revenu vers la capitale du fief, score dédié (voir [`titres.md`](titres.md)) | Fait |
