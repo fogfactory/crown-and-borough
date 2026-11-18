@@ -267,7 +267,7 @@ describe('online home', () => {
 
     renderHome()
     fireEvent.click(await screen.findByRole('button', { name: 'Create a game' }))
-    expect(screen.getByLabelText('Seed')).toHaveValue('adelaide-de-beaufort')
+    expect(screen.getByLabelText('Seed')).toHaveValue('')
     fireEvent.change(screen.getByLabelText('Game name'), {
       target: { value: 'Second game' },
     })
@@ -278,7 +278,7 @@ describe('online home', () => {
     expect(postCall).toBeDefined()
     const body = JSON.parse(String(postCall?.[1]?.body)) as Record<string, unknown>
     expect(body).not.toHaveProperty('player')
-    expect(body.seed).toBe('adelaide-de-beaufort')
+    expect(body.seed).toBe('')
     expect(body.players).toBe(4)
     expect(body.spectate).toBe(false)
     expect(body.years).toBe(10)

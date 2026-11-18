@@ -175,6 +175,7 @@ func TestGameDocumentCarriesDurationAndScores(t *testing.T) {
 		"P1": {Titles: 1, Total: 1},
 	}
 	snapshot := store.GameSnapshot{
+		Phase:     store.PhaseStarted,
 		ID:        "game-1",
 		Name:      "Test",
 		Seed:      "seed",
@@ -203,6 +204,7 @@ func TestGameDocumentCarriesSpectatorWithoutChangingSchemaVersion(t *testing.T) 
 		{ID: "P2", Name: "Bot B"},
 	}
 	snapshot := store.GameSnapshot{
+		Phase:        store.PhaseStarted,
 		ID:           "game-spectator",
 		Name:         "Observed",
 		CreatedBy:    "host",
@@ -297,6 +299,7 @@ func TestGameDocumentTracksRequiredPlayers(t *testing.T) {
 		},
 	}
 	snapshot := store.GameSnapshot{
+		Phase: store.PhaseStarted,
 		ID:    "game-required",
 		State: state,
 		Players: []store.PlayerSlot{

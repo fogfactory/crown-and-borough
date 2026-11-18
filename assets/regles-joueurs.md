@@ -714,6 +714,53 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 
 ---
 
+## 11. Salon d'attente, vote de la carte et noms de maison
+
+Une partie online commence dans un **salon d'attente**. Elle n'a ni carte ni
+maisons tant qu'une place reste libre : le salon affiche le nombre de joueurs
+arrivés (« 2/4 joueurs ont rejoint »), et la partie commence quand la
+dernière place est prise et que le créateur a confirmé. Le créateur occupe une
+place dès la création et confirme, par un bouton, le nom de sa maison et son
+vote.
+
+- **Le vote de la carte.** Chaque joueur voit des cartes candidates (trois),
+  dessinées pour le nombre de joueurs de la partie, et peut les **classer** par
+  préférence. Au début de la partie, les votes sont comptés : la carte la mieux
+  classée rapporte le plus de points (le dernier rang n'en rapporte aucun), et
+  celle qui totalise le plus de points devient la carte de la partie. Une
+  égalité est tranchée par un tirage fixé par l'identifiant de la partie ;
+  personne n'ayant voté, la première candidate l'emporte. Un joueur qui ne
+  classe rien ne vote pas. Ton classement reste privé, et tu peux le modifier
+  jusqu'au début de la partie. Si le créateur impose une graine, il n'y a pas
+  de vote.
+- **Avant de rejoindre.** Sur l'écran d'invitation, tu vois les cartes candidates et tu peux déjà classer les cartes et choisir le nom de ta maison : ces choix comptent même si tu es le dernier à arriver. Tu ne votes pas si tu laisses les cartes dans l'ordre proposé.
+- **Le nom de ta maison.** Tu choisis le nom de famille de ta maison dans le
+  salon. Il est libre jusqu'à la première soumission d'ordres de ta maison
+  dans la partie, y compris après le début de la partie, puis il est
+  verrouillé. Sans nom choisi, ta maison prend le nom de ton profil (ou son
+  nom provisoire `P1`, `P2`, etc. dans une partie incognito). Il doit
+  différer de celui de toute autre maison, et tous les joueurs le voient : un
+  changement fait une fois la partie commencée est annoncé dans le salon
+  public du chat.
+- **Ton compte.** Le nom de ton profil est distinct du nom de ta maison :
+  le modifier ne renomme aucune maison. Il s'affiche à côté du nom de ta
+  maison dans la liste des joueurs.
+- **Les maisons.** Quand la partie commence, la carte est générée à partir de
+  la graine retenue et chaque maison reçoit son territoire de départ.
+
+### Parties incognito
+
+Le créateur d'une partie online peut la déclarer **incognito**.
+
+- **Aucun nom de compte.** Le nom de ton profil n'apparaît jamais dans la
+  partie : seuls les noms de maison sont visibles.
+- **Les maisons sont tirées au sort.** Au début de la partie, les joueurs sont
+  répartis au hasard sur les maisons ; l'ordre d'arrivée n'influe pas sur le
+  tirage. Une maison sans nom choisi porte son nom provisoire (`P1`, `P2`,
+  etc.).
+
+---
+
 <a id="rules-action-orders"></a>
 
 ## Annexe A — Aide-mémoire des ordres

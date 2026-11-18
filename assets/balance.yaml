@@ -145,6 +145,10 @@ starting_troops: 2
 starting_outposts: 2
 starting_resources: 6
 
+# Online games: how many candidate seeds (maps) the lobby offers to the vote.
+# Optional; defaults to 3, at most 8.
+seed_candidates: 3
+
 special_orders:
   hand_limit: 6
   draw_orders_limit: 2

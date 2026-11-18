@@ -23,6 +23,8 @@ import { MapLinksProvider } from '@/components/MapLinks'
 import { OrderFormProvider } from '@/components/OrderDialog'
 import { SelectedTerritoryDetails } from '@/components/SelectedTerritoryDetails'
 import { TerritoryCartouche } from '@/components/TerritoryCartouche'
+import { GameLobby } from '@/components/GameLobby'
+import { HouseNameForm } from '@/components/HouseNameForm'
 import { TreasuryBar } from '@/components/TreasuryBar'
 import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
@@ -88,6 +90,18 @@ interface Invitation {
  * The special-card sheet saved on the server. The panel edits a single text:
  * the sheets some other client sent in several entries are joined, not dropped.
  */
+// Cadence at which a game waiting for its last player checks whether it began.
+const WAITING_POLL_INTERVAL_MS = 5000
+
+/**
+ * An incognito game refuses its map and state until every player joined;
+ * that refusal is not a load failure.
+ */
+function ignoreNotStarted(failure: unknown): null {
+  if (failure instanceof ApiError && failure.code === 'game_not_started') return null
+  throw failure
+}
+
 function serverSpecial(submission: MySubmissionResponse): string {
   return (submission.special ?? []).map((entry) => entry.text).join('\n')
 }
@@ -186,6 +200,9 @@ function Lobby({
                 />
                 <span className="min-w-0 flex-1 truncate">
                   {player.name || t('online.emptySlot')}
+                  {player.accountName && player.accountName !== player.name && (
+                    <span className="text-ink-500"> ({player.accountName})</span>
+                  )}
                 </span>
                 {(player.actorId === uid || player.id === currentPlayer) && (
                   <span className="shrink-0 label-caps text-2xs font-bold text-brass-700">
@@ -254,6 +271,8 @@ export function GamePage() {
   const [reportLoading, setReportLoading] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
   const [offline, setOffline] = useState(!window.navigator.onLine)
+  // Bumped to reload the game: once an incognito game starts, after a rename.
+  const [reloadKey, setReloadKey] = useState(0)
   const [showIntentions, setShowIntentions] = useLocalStorageState(
     'cb.intentionsOverlay',
     true,
@@ -286,11 +305,13 @@ export function GamePage() {
     setLoadError(null)
     void Promise.all([
       apiRequest<unknown>({ getIdToken }, `/api/games/${encodedID}`),
-      apiRequest<MapData>({ getIdToken }, `/api/games/${encodedID}/map`),
+      apiRequest<MapData>({ getIdToken }, `/api/games/${encodedID}/map`).catch(
+        ignoreNotStarted,
+      ),
       apiRequest<StateData & { revision: number }>(
         { getIdToken },
         `/api/games/${encodedID}/state`,
-      ),
+      ).catch(ignoreNotStarted),
       apiRequest<MySubmissionResponse>(
         { getIdToken },
         `/api/games/${encodedID}/my-submission`,
@@ -303,6 +324,11 @@ export function GamePage() {
           gameId,
           user.uid,
         )
+        if (mapData === null || stateResponse === null) {
+          // An incognito game waits for its last player: no placement yet.
+          setSummaryFromAPI(summary)
+          return
+        }
         const state = normalizeStateData(stateResponse)
         if (!state) throw new Error('the private state is invalid')
         setSummaryFromAPI(summary)
@@ -322,7 +348,7 @@ export function GamePage() {
         setLoadError(errorText(loadFailure, t, t('error.serverUnavailable')))
       })
     return () => controller.abort()
-  }, [gameId, getIdToken, navigate, signOut, t, user])
+  }, [gameId, getIdToken, navigate, signOut, t, user, reloadKey])
 
   useEffect(() => {
     const handleOnline = () => setOffline(false)
@@ -350,6 +376,30 @@ export function GamePage() {
   )
   const playerID = currentSlot?.id ?? null
   const spectator = summary?.spectator === true
+  const waitingForMap = Boolean(
+    summary && summary.started !== undefined && !map && !loadError,
+  )
+
+  // An incognito game that has not loaded its map is waiting for its last
+  // player: poll until the game has started, then load it.
+  useEffect(() => {
+    if (!gameId || !user || !waitingForMap) return
+    let active = true
+    const timer = window.setInterval(() => {
+      void apiRequest<unknown>({ getIdToken }, `/api/games/${encodeURIComponent(gameId)}`)
+        .then((detail) => {
+          if (!active) return
+          const next = normalizeGameSummary(detail as Record<string, unknown>, gameId, user.uid)
+          if (next.started) setReloadKey((key) => key + 1)
+          else setSummaryFromAPI(next)
+        })
+        .catch(() => undefined)
+    }, WAITING_POLL_INTERVAL_MS)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [gameId, getIdToken, user, waitingForMap])
   const stateTurn = state?.turn
   const stateSeason = state?.season
 
@@ -786,6 +836,47 @@ export function GamePage() {
     }
   }
 
+  const renameHouse = async (name: string) => {
+    if (!gameId) return
+    const detail = await apiRequest<Record<string, unknown>>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/house-name`,
+      { method: 'POST', body: JSON.stringify({ name }) },
+    )
+    if (detail.started === false && user) {
+      // In the lobby the name is only recorded: the summary carries it back.
+      setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
+      return
+    }
+    // Names live in the state and the summary: reload both.
+    setReloadKey((key) => key + 1)
+  }
+
+  const voteForSeed = async (ranking: number[]) => {
+    if (!gameId || !user) return
+    const detail = await apiRequest<Record<string, unknown>>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/seed-vote`,
+      { method: 'PUT', body: JSON.stringify({ ranking }) },
+    )
+    setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
+  }
+
+  // The creator's confirmation may start the game: reload it then.
+  const confirmLobby = async () => {
+    if (!gameId || !user) return
+    const detail = await apiRequest<Record<string, unknown>>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/confirm`,
+      { method: 'POST' },
+    )
+    if (detail.started === true) {
+      setReloadKey((key) => key + 1)
+      return
+    }
+    setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
+  }
+
   const openRules = (section: RulesSection) => {
     setRulesNavigation((current) => ({ section, key: (current?.key ?? 0) + 1 }))
     setActivePanel('rules')
@@ -852,6 +943,65 @@ export function GamePage() {
         <Alert role="alert" size="banner">
           {t('online.accessRevoked')}
         </Alert>
+      </div>
+    )
+  }
+
+  if (summary && summary.started === false && (!map || !state)) {
+    // The lobby only knows the REST view of the caller's own entry: the
+    // Firestore summary does not carry it.
+    const lobby = summaryFromAPI?.lobby
+    return (
+      <div className="mx-auto max-w-5xl space-y-4 py-8">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-brass-700"
+        >
+          <IconArrowLeft aria-hidden="true" className="size-4" /> {t('online.backHome')}
+        </Link>
+        <h1 className="font-display text-2xl font-semibold text-ink-900">{summary.name}</h1>
+        <Alert tone="info" size="banner">
+          <p className="font-semibold">
+            {t('online.waitingForPlayers', {
+              seated: summary.seated ?? 0,
+              total: summary.players.length,
+            })}
+          </p>
+          <p className="mt-1 text-xs text-ink-500">
+            {t('online.waitingForPlayersDescription')}
+          </p>
+        </Alert>
+        {summary.canInvite && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={inviting || summary.inviteAvailable === false}
+            onClick={() => void createInvitation()}
+          >
+            {inviting ? t('online.inviteLoading') : t('online.invite')}
+          </Button>
+        )}
+        {invitation && (
+          <Alert tone="info" size="banner">
+            <p className="font-semibold">
+              {t('home.invitationCode')}: {invitation.inviteCode}
+            </p>
+            <p className="mt-1 break-all text-xs text-ink-500">{invitation.inviteUrl}</p>
+          </Alert>
+        )}
+        {lobby && gameId && !spectator && (
+          <GameLobby
+            gameId={gameId}
+            tokenProvider={tokenProvider}
+            lobby={lobby}
+            houseName={lobby.houseName}
+            onRename={renameHouse}
+            onVote={voteForSeed}
+            onConfirm={summary.canInvite ? confirmLobby : undefined}
+          />
+        )}
+        {actionError && <Alert role="alert">{actionError}</Alert>}
       </div>
     )
   }
@@ -1149,6 +1299,16 @@ export function GamePage() {
               panels={{
                 orders: (
                   <>
+                    {currentSlot &&
+                      !currentSlot.nameLocked &&
+                      !spectator &&
+                      summary.status !== 'finished' && (
+                        <HouseNameForm
+                          key={currentSlot.name}
+                          currentName={currentSlot.name}
+                          onRename={renameHouse}
+                        />
+                      )}
                     <TreasuryBar
                       state={state}
                       playerId={playerID}

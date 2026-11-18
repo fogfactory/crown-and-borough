@@ -5,6 +5,7 @@ import {
   chatLength,
   conversationKey,
   mergeMessages,
+  normalizeChatMessage,
   otherHouse,
   sendChatText,
   splitChatMessage,
@@ -174,6 +175,41 @@ describe('buildTimeline', () => {
       message('2', '2026-01-01T10:00:01Z', 2, { ...batch, part: 2 }),
     ])
     expect(overTurns.filter((item) => item.kind === 'message')).toHaveLength(2)
+  })
+})
+
+describe('house rename events', () => {
+  it('keeps a rename as its own timeline entry', () => {
+    const rename = message('r', '2026-01-01T10:00:01Z', 5, {
+      kind: 'house_renamed',
+      previousName: 'P1',
+      body: 'House Stark',
+    })
+    const items = buildTimeline([
+      message('a', '2026-01-01T10:00:00Z', 5, { batchId: 'b', part: 1, parts: 2 }),
+      rename,
+      message('c', '2026-01-01T10:00:02Z', 5, { batchId: 'b', part: 2, parts: 2 }),
+    ])
+    expect(items.map((item) => item.kind)).toEqual([
+      'separator',
+      'message',
+      'event',
+      'message',
+    ])
+  })
+
+  it('reads the event fields of a stored message', () => {
+    const normalized = normalizeChatMessage({
+      id: 'r',
+      channel: 'public',
+      authorHouseId: 'P1',
+      body: 'House Stark',
+      createdAt: '2026-01-01T10:00:00Z',
+      turn: { number: 1, season: 'spring', year: 1011 },
+      kind: 'house_renamed',
+      previousName: 'P1',
+    })
+    expect(normalized).toMatchObject({ kind: 'house_renamed', previousName: 'P1' })
   })
 })
 

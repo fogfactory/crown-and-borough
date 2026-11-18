@@ -896,6 +896,20 @@ function MessageList({
             </div>
           )
         }
+        if (item.kind === 'event') {
+          return (
+            <p
+              key={item.key}
+              data-chat-event={item.message.kind}
+              className="px-1 py-0.5 text-center text-xs italic text-ink-500"
+            >
+              {t('chat.houseRenamed', {
+                previous: item.message.previousName ?? '',
+                name: item.message.body,
+              })}
+            </p>
+          )
+        }
         const own = item.authorHouseId === house
         return (
           <article

@@ -83,6 +83,12 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Lobby entries (pending house names and seed votes): backend only, a
+      // vote is never shown to the other members.
+      match /lobby/{uid} {
+        allow read, write: if false;
+      }
+
       match /canonical/{document} {
         allow read, write: if false;
       }
