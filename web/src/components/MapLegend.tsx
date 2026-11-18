@@ -93,7 +93,7 @@ function TerrainSwatch({ terrain }: { terrain: Terrain }) {
 }
 
 /** Border sample on the map paper: dotted passable line or icon series. */
-function BorderSwatch({ kind }: { kind: 'passable' | ImpassableBorderKind }) {
+function BorderSwatch({ kind }: { kind: 'passable' | 'corner' | ImpassableBorderKind }) {
   return (
     <svg
       className="h-4 w-6 shrink-0"
@@ -114,6 +114,10 @@ function BorderSwatch({ kind }: { kind: 'passable' | ImpassableBorderKind }) {
           strokeDasharray="0.1 4.5"
           strokeLinecap="round"
         />
+      ) : kind === 'corner' ? (
+        <g transform="scale(0.85)">
+          <BorderGlyph kind="cliff" color={MAP_INK} />
+        </g>
       ) : kind === 'peaks' ? (
         <GameIconGlyph
           glyph={GAME_ICON_GLYPHS['peaks']}
@@ -135,13 +139,14 @@ function BorderSwatch({ kind }: { kind: 'passable' | ImpassableBorderKind }) {
 }
 
 const BORDER_LEGEND: Array<{
-  kind: 'passable' | ImpassableBorderKind
+  kind: 'passable' | 'corner' | ImpassableBorderKind
   label: MessageKey
 }> = [
   { kind: 'passable', label: 'legend.borderPassable' },
   { kind: 'peaks', label: 'legend.borderPeaks' },
   { kind: 'marsh', label: 'legend.borderMarsh' },
   { kind: 'cliff', label: 'legend.borderCliff' },
+  { kind: 'corner', label: 'legend.borderCorner' },
 ]
 
 const LEGEND_ARMS: ResolvedArms = {
@@ -246,7 +251,43 @@ const PAWN_LEGEND: Array<{
   },
 ]
 
+/** Collapsible legend section; the browser handles the expand/collapse. */
+function LegendSection({
+  title,
+  defaultOpen = true,
+  bare = false,
+  children,
+}: {
+  title: string
+  defaultOpen?: boolean
+  /** Render only the content: the surrounding panel already has the title. */
+  bare?: boolean
+  children: React.ReactNode
+}) {
+  if (bare) return <div className="space-y-2">{children}</div>
+  return (
+    <details
+      open={defaultOpen}
+      className="group break-inside-avoid rounded-md border border-line/60 bg-paper-50"
+    >
+      <summary className="flex cursor-pointer select-none items-center justify-between px-2 py-1.5 text-2xs font-semibold uppercase tracking-[0.14em] text-ink-700">
+        {title}
+        <span aria-hidden="true" className="transition-transform group-open:rotate-90">
+          ›
+        </span>
+      </summary>
+      <div className="space-y-2 px-2 pb-2">{children}</div>
+    </details>
+  )
+}
+
+export type LegendSectionId = 'display' | 'map' | 'nobles' | 'borders'
+
+export const LEGEND_SECTIONS: LegendSectionId[] = ['display', 'map', 'nobles', 'borders']
+
 interface MapLegendProps {
+  /** Render a single section as its own compact panel. */
+  section?: LegendSectionId
   showIntentions?: boolean
   onToggleIntentions?: (show: boolean) => void
   showTerritoryColors?: boolean
@@ -260,6 +301,7 @@ interface MapLegendProps {
 }
 
 export function MapLegend({
+  section,
   showIntentions = true,
   onToggleIntentions,
   showTerritoryColors = false,
@@ -275,158 +317,200 @@ export function MapLegend({
 
   return (
     <Card
-      aria-label={t('legend.title')}
+      aria-label={section ? t(`legend.section.${section}`) : t('legend.title')}
       className="w-full border-line bg-paper-50 shadow-panel"
     >
       <CardHeader className="gap-0 pb-2">
         <CardTitle className="text-sm uppercase tracking-[0.16em] text-ink-700">
-          {t('legend.title')}
+          {section ? t(`legend.section.${section}`) : t('legend.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-xs text-ink-700">
-        <p className="text-2xs text-ink-500">{t('app.mapInstructions')}</p>
-        {onToggleIntentions && (
-          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
-            <input
-              type="checkbox"
-              checked={showIntentions}
-              onChange={(event) => onToggleIntentions(event.target.checked)}
-              className="size-3.5 shrink-0 accent-brass-700"
-            />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="font-semibold">{t('legend.intentions')}</span>
-              <span className="text-2xs text-ink-500">{t('legend.intentionsHint')}</span>
-            </span>
-          </label>
-        )}
-        {onToggleTerritoryColors && (
-          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
-            <input
-              type="checkbox"
-              checked={showTerritoryColors}
-              onChange={(event) => onToggleTerritoryColors(event.target.checked)}
-              className="size-3.5 shrink-0 accent-brass-700"
-            />
-            <span>{t('legend.territoryColors')}</span>
-          </label>
-        )}
-        {onToggleRegions && (
-          <label className="flex items-center gap-2 rounded-md bg-winter-100 px-2 py-1.5">
-            <input
-              type="checkbox"
-              checked={showRegions}
-              onChange={(event) => onToggleRegions(event.target.checked)}
-            />
-            <span>{t('legend.regions')}</span>
-          </label>
-        )}
-        {onToggleCalamities && (
-          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
-            <input
-              type="checkbox"
-              checked={showCalamities}
-              onChange={(event) => onToggleCalamities(event.target.checked)}
-            />
-            <span>{t('legend.calamities')}</span>
-          </label>
-        )}
-        {onToggleCards && (
-          <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
-            <input
-              type="checkbox"
-              checked={showCards}
-              onChange={(event) => onToggleCards(event.target.checked)}
-            />
-            <span>{t('legend.cards')}</span>
-          </label>
-        )}
-        {onToggleRegions && (
-          <div
-            className="flex flex-wrap gap-1.5 rounded-md bg-winter-100 px-2 py-1.5"
-            data-region-swatches
-          >
-            {HERALDIC_COLORS.map((color, index) => (
-              <span
-                key={`region-color-${index}`}
-                data-region-color={index}
-                className="size-4 rounded-sm border border-winter-700/40"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-        )}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-          {TERRAIN_ORDER.map((terrain) => (
-            <div key={terrain} className="flex items-center gap-2">
-              <TerrainSwatch terrain={terrain} />
-              <span>{t(TERRAIN_LABEL_KEYS[terrain])}</span>
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <LegendSettlement type="village" />
-            <span>{t('legend.village')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendSettlement type="village" ruined />
-            <span>{t('legend.villageRuin')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendSettlement type="castle" />
-            <span>{t('legend.castle')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendSettlement type="castle" ruined />
-            <span>{t('legend.castleRuin')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendControl />
-            <span>{t('legend.control')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendControl grey />
-            <span>{t('legend.controlOccupied')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendControl crown="barony" />
-            <span>{t('legend.fiefCapital')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendControl attachedTo="ROS" />
-            <span>{t('legend.fief')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <LegendArmy />
-            <span>{t('legend.army')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-6 shrink-0 text-center font-bold text-ink-900">R</span>
-            <span>{t('legend.stock')}</span>
-          </div>
-        </div>
+        {!section && <p className="text-2xs text-ink-500">{t('app.mapInstructions')}</p>}
         <div
-          className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line/60 pt-2"
-          data-legend-nobles
+          className={
+            section
+              ? 'grid gap-2'
+              : 'grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] items-start gap-2'
+          }
         >
-          {PAWN_LEGEND.map(({ key, label, status, attributes }) => (
-            <div key={key} className="flex items-center gap-2" data-legend-pawn={key}>
-              <svg
-                className="h-5 w-4 shrink-0"
-                viewBox="-11 -14 18 23"
-                aria-hidden="true"
-              >
-                <NoblePawn color={PLAYER_RED} status={status} attributes={attributes} />
-              </svg>
-              <span>{t(label)}</span>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line/60 pt-2">
-          {BORDER_LEGEND.map(({ kind, label }) => (
-            <div key={kind} className="flex items-center gap-2">
-              <BorderSwatch kind={kind} />
-              <span>{t(label)}</span>
-            </div>
-          ))}
+          {(!section || section === 'display') &&
+            (onToggleIntentions ||
+              onToggleTerritoryColors ||
+              onToggleRegions ||
+              onToggleCalamities ||
+              onToggleCards) && (
+              <LegendSection title={t('legend.section.display')} bare={!!section}>
+                {onToggleIntentions && (
+                  <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showIntentions}
+                      onChange={(event) => onToggleIntentions(event.target.checked)}
+                      className="size-3.5 shrink-0 accent-brass-700"
+                    />
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="font-semibold">{t('legend.intentions')}</span>
+                      <span className="text-2xs text-ink-500">
+                        {t('legend.intentionsHint')}
+                      </span>
+                    </span>
+                  </label>
+                )}
+                {onToggleTerritoryColors && (
+                  <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showTerritoryColors}
+                      onChange={(event) => onToggleTerritoryColors(event.target.checked)}
+                      className="size-3.5 shrink-0 accent-brass-700"
+                    />
+                    <span>{t('legend.territoryColors')}</span>
+                  </label>
+                )}
+                {onToggleRegions && (
+                  <label className="flex items-center gap-2 rounded-md bg-winter-100 px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showRegions}
+                      onChange={(event) => onToggleRegions(event.target.checked)}
+                    />
+                    <span>{t('legend.regions')}</span>
+                  </label>
+                )}
+                {onToggleCalamities && (
+                  <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showCalamities}
+                      onChange={(event) => onToggleCalamities(event.target.checked)}
+                    />
+                    <span>{t('legend.calamities')}</span>
+                  </label>
+                )}
+                {onToggleCards && (
+                  <label className="flex items-center gap-2 rounded-md bg-paper-100 px-2 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showCards}
+                      onChange={(event) => onToggleCards(event.target.checked)}
+                    />
+                    <span>{t('legend.cards')}</span>
+                  </label>
+                )}
+                {onToggleRegions && (
+                  <div
+                    className="flex flex-wrap gap-1.5 rounded-md bg-winter-100 px-2 py-1.5"
+                    data-region-swatches
+                  >
+                    {HERALDIC_COLORS.map((color, index) => (
+                      <span
+                        key={`region-color-${index}`}
+                        data-region-color={index}
+                        className="size-4 rounded-sm border border-winter-700/40"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </LegendSection>
+            )}
+          {(!section || section === 'map') && (
+            <LegendSection title={t('legend.section.map')} bare={!!section}>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {TERRAIN_ORDER.map((terrain) => (
+                  <div key={terrain} className="flex items-center gap-2">
+                    <TerrainSwatch terrain={terrain} />
+                    <span>{t(TERRAIN_LABEL_KEYS[terrain])}</span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <LegendSettlement type="village" />
+                  <span>{t('legend.village')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendSettlement type="village" ruined />
+                  <span>{t('legend.villageRuin')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendSettlement type="castle" />
+                  <span>{t('legend.castle')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendSettlement type="castle" ruined />
+                  <span>{t('legend.castleRuin')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendControl />
+                  <span>{t('legend.control')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendControl grey />
+                  <span>{t('legend.controlOccupied')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendControl crown="barony" />
+                  <span>{t('legend.fiefCapital')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendControl attachedTo="ROS" />
+                  <span>{t('legend.fief')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <LegendArmy />
+                  <span>{t('legend.army')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-6 shrink-0 text-center font-bold text-ink-900">
+                    R
+                  </span>
+                  <span>{t('legend.stock')}</span>
+                </div>
+              </div>
+            </LegendSection>
+          )}
+          {(!section || section === 'nobles') && (
+            <LegendSection
+              title={t('legend.section.nobles')}
+              defaultOpen={false}
+              bare={!!section}
+            >
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5" data-legend-nobles>
+                {PAWN_LEGEND.map(({ key, label, status, attributes }) => (
+                  <div
+                    key={key}
+                    className="flex items-center gap-2"
+                    data-legend-pawn={key}
+                  >
+                    <svg
+                      className="h-5 w-4 shrink-0"
+                      viewBox="-11 -14 18 23"
+                      aria-hidden="true"
+                    >
+                      <NoblePawn
+                        color={PLAYER_RED}
+                        status={status}
+                        attributes={attributes}
+                      />
+                    </svg>
+                    <span>{t(label)}</span>
+                  </div>
+                ))}
+              </div>
+            </LegendSection>
+          )}
+          {(!section || section === 'borders') && (
+            <LegendSection title={t('legend.section.borders')} bare={!!section}>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {BORDER_LEGEND.map(({ kind, label }) => (
+                  <div key={kind} className="flex items-center gap-2">
+                    <BorderSwatch kind={kind} />
+                    <span>{t(label)}</span>
+                  </div>
+                ))}
+              </div>
+            </LegendSection>
+          )}
         </div>
       </CardContent>
     </Card>

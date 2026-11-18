@@ -79,6 +79,49 @@ export function lowerTerritory(first: Territory, second: Territory): Territory {
 }
 
 /**
+ * Vertices where territories touch only at a point: no edge is shared by the
+ * pair, so no frontier explains the contact. One entry per such vertex, with
+ * the two territories (sorted by code) the icon is drawn for.
+ */
+export function cornerContacts(
+  territories: Territory[],
+): Array<{ point: Point; between: [Territory, Territory] }> {
+  const edgeSets = new Map<string, Set<string>>()
+  const owners = new Map<string, { point: Point; ids: Set<string> }>()
+  const byId = new Map(territories.map((territory) => [territory.id, territory]))
+  for (const territory of territories) {
+    edgeSets.set(
+      territory.id,
+      new Set(polygonEdges(territory.points).map(([from, to]) => edgeKey(from, to))),
+    )
+    for (const point of territory.points) {
+      const key = `${point[0]},${point[1]}`
+      const entry = owners.get(key) ?? { point, ids: new Set<string>() }
+      entry.ids.add(territory.id)
+      owners.set(key, entry)
+    }
+  }
+  const shareEdge = (first: string, second: string) => {
+    const secondEdges = edgeSets.get(second)
+    for (const key of edgeSets.get(first) ?? []) {
+      if (secondEdges?.has(key)) return true
+    }
+    return false
+  }
+  const contacts: Array<{ point: Point; between: [Territory, Territory] }> = []
+  for (const { point, ids } of owners.values()) {
+    const sorted = [...ids].sort()
+    const pair = sorted.flatMap((first, index) =>
+      sorted.slice(index + 1).map((second): [string, string] => [first, second]),
+    ).find(([first, second]) => !shareEdge(first, second))
+    const first = pair && byId.get(pair[0])
+    const second = pair && byId.get(pair[1])
+    if (first && second) contacts.push({ point, between: [first, second] })
+  }
+  return contacts
+}
+
+/**
  * Scale annotations from the actual territory footprint, not the player
  * count, so markers keep a constant size relative to their territory.
  */
@@ -237,6 +280,27 @@ export function impassableBorderIcons(
         kind,
         placement: { ...placement, rotation },
       })
+    })
+  }
+  // A point contact has no frontier to string icons along: one icon marks
+  // it as non-adjacent, in the series of the terrains that meet there.
+  for (const { point, between } of cornerContacts(territories)) {
+    const [first, second] = between
+    const kind = impassableBorderKind(first.terrain, second.terrain)
+    let rotation = 0
+    if (kind === 'cliff') {
+      const lower = lowerTerritory(first, second)
+      const center = lower.points.reduce(
+        (sum, [x, y]) => [sum[0] + x / lower.points.length, sum[1] + y / lower.points.length],
+        [0, 0],
+      )
+      rotation = Math.atan2(center[1] - point[1], center[0] - point[0]) - Math.PI / 2
+    }
+    const size = 18 * annotationScale
+    items.push({
+      key: `corner-${point[0]}-${point[1]}`,
+      kind,
+      placement: { x: point[0], y: point[1], size, rotation },
     })
   }
   // Depth-sort by canvas position: icons lower on the map paint over the

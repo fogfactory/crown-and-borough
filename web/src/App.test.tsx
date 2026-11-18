@@ -437,13 +437,15 @@ describe('App command/report tabs', () => {
 
     expect(await screen.findByText('Nobles présents')).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Afficher la légende' }),
+      screen.getByRole('button', { name: 'Afficher la légende: Frontières' }),
     ).toBeInTheDocument()
     // The pawn's tooltip on the map names the noble too.
     expect(screen.getAllByText('Jean de Rosemont (JEA)')).not.toHaveLength(0)
     expect(screen.getAllByText(/Robert de Rosemont/)).not.toHaveLength(0)
     // The cartouche shows the nobles present as pawns; a pawn opens its detail.
-    const cartouche = document.querySelector('[data-territory-cartouche="ROS"]') as HTMLElement
+    const cartouche = document.querySelector(
+      '[data-territory-cartouche="ROS"]',
+    ) as HTMLElement
     expect(cartouche.querySelectorAll('[data-noble-chip]')).toHaveLength(3)
     fireEvent.click(within(cartouche).getByRole('button', { name: /\(BOB\)/ }))
     expect(await screen.findByText('Otage')).toBeInTheDocument()

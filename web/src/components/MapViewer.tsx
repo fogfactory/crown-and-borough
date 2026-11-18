@@ -4,9 +4,15 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from 'react'
 
-import { MapLegend, TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
+import {
+  LEGEND_SECTIONS,
+  MapLegend,
+  TERRAIN_LABEL_KEYS,
+  type LegendSectionId,
+} from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
 import { HeraldryDefs } from '@/components/MapHeraldry'
 import { EngravedTerrainLayer, snowPatternVariant } from '@/components/MapDecorations'
@@ -136,6 +142,36 @@ interface MapViewerProps {
   specialOrders?: Array<{ player: PlayerId; text: string }>
 }
 
+const LEGEND_TOGGLE_ICONS: Record<LegendSectionId, ReactNode> = {
+  display: (
+    <>
+      <path d="M4 7h10" />
+      <path d="M18 7h2" />
+      <circle cx="16" cy="7" r="2" />
+      <path d="M4 17h2" />
+      <path d="M10 17h10" />
+      <circle cx="8" cy="17" r="2" />
+    </>
+  ),
+  map: (
+    <>
+      <path d="M3 19l6-11 4 7 3-4 5 8z" />
+    </>
+  ),
+  nobles: (
+    <>
+      <circle cx="12" cy="7" r="3" />
+      <path d="M6 20c0-4 3-6 6-6s6 2 6 6z" />
+    </>
+  ),
+  borders: (
+    <>
+      <path d="M3 12h2M8 12h2M13 12h2M18 12h3" />
+      <path d="M12 4v4M12 16v4" />
+    </>
+  ),
+}
+
 export function MapViewer({
   map,
   state,
@@ -167,7 +203,14 @@ export function MapViewer({
   const [ownSelectedId, setSelectedId] = useState<string | null>(null)
   const selectedId =
     controlledSelectedId === undefined ? ownSelectedId : controlledSelectedId
-  const [legendOpen, setLegendOpen] = useState(false)
+  const [openLegends, setOpenLegends] = useState<LegendSectionId[]>([])
+  const hasDisplayToggles = Boolean(
+    onToggleIntentions ||
+    onToggleTerritoryColors ||
+    onToggleRegions ||
+    onToggleCalamities ||
+    onToggleCards,
+  )
 
   const {
     mapWidth,
@@ -734,55 +777,71 @@ export function MapViewer({
 
         {selectionOverlay && selectedAnchor && selectionOverlay(selectedAnchor, svgSize)}
 
-        {(onToggleIntentions ||
-          onToggleTerritoryColors ||
-          onToggleRegions ||
-          onToggleCalamities ||
-          onToggleCards) && (
-          <div className="absolute left-3 top-3 z-10">
-            <button
-              type="button"
-              aria-expanded={legendOpen}
-              aria-label={t(legendOpen ? 'legend.hide' : 'legend.show')}
-              title={t(legendOpen ? 'legend.hide' : 'legend.show')}
-              className="flex size-9 items-center justify-center rounded-lg border border-line bg-paper-50 text-ink-700 shadow-md transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none"
-              onClick={() => setLegendOpen((open) => !open)}
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="size-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 4h6v6h-6z" />
-                <path d="M14 6l6 0" />
-                <path d="M14 10l6 0" />
-                <path d="M4 14h16" />
-                <path d="M4 18h16" />
-              </svg>
-            </button>
-            {legendOpen && (
-              <div className="absolute left-0 top-11 w-72 max-w-[calc(100vw-1.5rem)]">
-                <MapLegend
-                  showIntentions={showIntentions}
-                  onToggleIntentions={onToggleIntentions}
-                  showTerritoryColors={showTerritoryColors}
-                  onToggleTerritoryColors={onToggleTerritoryColors}
-                  showRegions={showRegions}
-                  onToggleRegions={onToggleRegions}
-                  showCalamities={showCalamities}
-                  onToggleCalamities={onToggleCalamities}
-                  showCards={showCards}
-                  onToggleCards={onToggleCards}
-                />
-              </div>
-            )}
+        <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2">
+          <div className="flex gap-1.5">
+            {LEGEND_SECTIONS.filter(
+              (section) => section !== 'display' || hasDisplayToggles,
+            ).map((section) => {
+              const open = openLegends.includes(section)
+              const label = `${t(open ? 'legend.hide' : 'legend.show')}: ${t(
+                `legend.section.${section}`,
+              )}`
+              return (
+                <button
+                  key={section}
+                  type="button"
+                  data-legend-toggle={section}
+                  aria-expanded={open}
+                  aria-label={label}
+                  title={t(`legend.tip.${section}`)}
+                  className={`pointer-events-auto flex size-9 items-center justify-center rounded-lg border border-line shadow-md transition hover:bg-paper-100 hover:text-ink-900 focus-visible:ring-2 focus-visible:ring-brass-700/40 focus-visible:outline-none ${
+                    open ? 'bg-paper-100 text-ink-900' : 'bg-paper-50 text-ink-700'
+                  }`}
+                  onClick={() =>
+                    setOpenLegends((current) =>
+                      current.includes(section)
+                        ? current.filter((entry) => entry !== section)
+                        : [...current, section],
+                    )
+                  }
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    {LEGEND_TOGGLE_ICONS[section]}
+                  </svg>
+                </button>
+              )
+            })}
           </div>
-        )}
+          {openLegends.map((section) => (
+            <div
+              key={section}
+              className="pointer-events-auto max-h-[calc(100vh-10rem)] w-64 max-w-[calc(100vw-1.5rem)] overflow-y-auto"
+            >
+              <MapLegend
+                section={section}
+                showIntentions={showIntentions}
+                onToggleIntentions={onToggleIntentions}
+                showTerritoryColors={showTerritoryColors}
+                onToggleTerritoryColors={onToggleTerritoryColors}
+                showRegions={showRegions}
+                onToggleRegions={onToggleRegions}
+                showCalamities={showCalamities}
+                onToggleCalamities={onToggleCalamities}
+                showCards={showCards}
+                onToggleCards={onToggleCards}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </TooltipProvider>
   )

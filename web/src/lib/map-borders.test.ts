@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   computeMapBorders,
+  cornerContacts,
   impassableBorderIcons,
   impassableBorderKind,
   lowerTerritory,
@@ -67,6 +68,40 @@ describe('impassableBorderIcons', () => {
     expect(icons.every((icon) => icon.key.startsWith(`${impassableKey}-`))).toBe(true)
     const ys = icons.map((icon) => icon.placement.y)
     expect(ys).toEqual([...ys].sort((first, second) => first - second))
+  })
+})
+
+describe('corner contacts', () => {
+  const quad = (id: string, x: number, y: number, terrain: Terrain): Territory => ({
+    id,
+    name: id,
+    terrain,
+    village: false,
+    points: [
+      [x, y],
+      [x + 100, y],
+      [x + 100, y + 100],
+      [x, y + 100],
+    ],
+    adjacencies: [],
+    impassable: [],
+  })
+
+  it('marks a point shared by territories with no common edge', () => {
+    const territories = [
+      quad('AAA', 0, 0, 'plain'),
+      quad('BBB', 100, 100, 'plain'),
+      quad('CCC', 100, 0, 'plain'),
+    ]
+    expect(cornerContacts(territories)).toHaveLength(1)
+    const icons = impassableBorderIcons([], territories, 1)
+    expect(icons).toHaveLength(1)
+    expect(icons[0].placement).toMatchObject({ x: 100, y: 100 })
+  })
+
+  it('ignores a vertex where every pair shares a frontier', () => {
+    const territories = [quad('AAA', 0, 0, 'plain'), quad('BBB', 100, 0, 'plain')]
+    expect(cornerContacts(territories)).toHaveLength(0)
   })
 })
 

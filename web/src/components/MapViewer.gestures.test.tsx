@@ -372,23 +372,38 @@ describe('MapViewer zoom controls', () => {
 })
 
 describe('MapViewer legend overlay', () => {
-  it('opens the legend from the map toggle and forwards intention changes', () => {
+  it('opens the display legend on its own and forwards intention changes', () => {
     const onToggleIntentions = vi.fn()
     renderMap(vi.fn(), { showIntentions: true, onToggleIntentions })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show legend' }))
-    expect(screen.getByText('Legend')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show legend: Display' }))
+    expect(screen.getByText('Intentions overlay')).toBeInTheDocument()
+    expect(screen.queryByText('Passable border')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('checkbox'))
     expect(onToggleIntentions).toHaveBeenCalledWith(false)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hide legend' }))
-    expect(screen.queryByText('Legend')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Hide legend: Display' }))
+    expect(screen.queryByText('Intentions overlay')).not.toBeInTheDocument()
   })
 
-  it('hides the toggle when no intention handler is provided', () => {
+  it('opens each symbol legend separately', () => {
     renderMap()
 
-    expect(screen.queryByRole('button', { name: 'Show legend' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show legend: Borders' }))
+    expect(screen.getByText('Passable border')).toBeInTheDocument()
+    expect(screen.queryByText('In the dungeon')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show legend: Nobles' }))
+    expect(screen.getByText('In the dungeon')).toBeInTheDocument()
+    expect(screen.getByText('Passable border')).toBeInTheDocument()
+  })
+
+  it('hides the display toggle when no display handler is provided', () => {
+    renderMap()
+
+    expect(
+      screen.queryByRole('button', { name: 'Show legend: Display' }),
+    ).not.toBeInTheDocument()
   })
 })
