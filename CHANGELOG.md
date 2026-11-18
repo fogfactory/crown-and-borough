@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.7.0](https://github.com/fogfactory/crown-and-borough/compare/v1.6.0...v1.7.0) (2026-11-18)
+
+
+### Features
+
+* **engine:** cap games at 12 players and set aside a card for the Eon ([07d4760](https://github.com/fogfactory/crown-and-borough/commit/07d476044ce89c8bf1efabf402b4ebe457d6a2bc))
+* **engine:** keep every card kind and resize the noble deck ([3d2b3ee](https://github.com/fogfactory/crown-and-borough/commit/3d2b3ee357c3d0d20a267bcfcfce83901a1ed0eb))
+* **engine:** scale the decks with the number of players and cap games at 12 ([a15a197](https://github.com/fogfactory/crown-and-borough/commit/a15a197fd4a2aded52b3a7e41eb0f8e26dbb3f4e))
+* **engine:** scale the special deck with the number of players ([16b8506](https://github.com/fogfactory/crown-and-borough/commit/16b85064d0d8ced08a6d95fbccfa3986cd7eac1f))
+* **games:** add incognito games with deferred start and house renaming ([18a1fef](https://github.com/fogfactory/crown-and-borough/commit/18a1fef6f9660f6399a105b15953f88b2bf4d1c4))
+* **lobby:** add join lobby with house names and seed vote ([2b2ef28](https://github.com/fogfactory/crown-and-borough/commit/2b2ef28f8572e66bcbcf675ad7c958bde1866091))
+* **lobby:** add join lobby, house names, seed vote and incognito games ([6423d95](https://github.com/fogfactory/crown-and-borough/commit/6423d950cfe91079355c92e387be3cb4e406497c))
+* **lobby:** draw walls, terrain and region borders on map previews ([781fae7](https://github.com/fogfactory/crown-and-borough/commit/781fae708613a9bfa3accba39ac9e19ea17ee195))
+* **lobby:** show castles, seats and villages on map previews and name seeds readably ([7990480](https://github.com/fogfactory/crown-and-borough/commit/79904809865fa4db2d93908d8a6fe15a9857fef1))
+* **lobby:** wait for the creator to confirm their house and vote before starting ([8c6a8b1](https://github.com/fogfactory/crown-and-borough/commit/8c6a8b1ae0f0d73d7e3e0f2858f8ebb7d3d6ed61))
+* **web:** show the content of the decks from their counters ([c429ebb](https://github.com/fogfactory/crown-and-borough/commit/c429ebb7464e41f72ae4d4b167936d8e7f0f550f))
+
+
+### Bug Fixes
+
+* **engine:** apply the 12-player cap to the bot league and its tests ([ab30a1f](https://github.com/fogfactory/crown-and-borough/commit/ab30a1f8d3c755c8c79447dec8d124a28efdabcb))
+* **engine:** keep friendly-host retreat merges when an earlier retreat appends an army ([aaac08f](https://github.com/fogfactory/crown-and-borough/commit/aaac08fdfdc10b560e203e31fb1ea185eb97a91f))
+* **engine:** keep friendly-host retreat merges when an earlier retreat appends an army ([b074667](https://github.com/fogfactory/crown-and-borough/commit/b07466792fc7bfb0ea5fa587939b9ef55f402098))
+* **lobby:** avoid duplicate placeholder names and stuck candidate map waiters ([d16b882](https://github.com/fogfactory/crown-and-borough/commit/d16b882f3e94614b77c901ae018036d14d346934))
+* **web:** keep unsent order drafts across a page reload ([529678f](https://github.com/fogfactory/crown-and-borough/commit/529678f7e54eb58628ef9219cb3a6d9c90c59e52))
+* **web:** offer own bishops as targets of the cardinal card ([cc88245](https://github.com/fogfactory/crown-and-borough/commit/cc882456b0506618af0f18aab342c11695f6f629))
+* **web:** offer own bishops as targets of the cardinal card ([13ade89](https://github.com/fogfactory/crown-and-borough/commit/13ade89696772090f23822ab1c4ee71a9ee8f1c9)), closes [#706](https://github.com/fogfactory/crown-and-borough/issues/706)
+* **web:** show derived scores in the live games list ([f4e3b33](https://github.com/fogfactory/crown-and-borough/commit/f4e3b33e398ff1a9a6a01f91d3e699d89b960ce0))
+* **web:** show derived scores in the live games list ([d521e32](https://github.com/fogfactory/crown-and-borough/commit/d521e3261acb306f5e332f40f44bc3267dc3fd80))
+* **web:** warn that the unsent draft is lost on reload ([f9dde90](https://github.com/fogfactory/crown-and-borough/commit/f9dde901e507c48d2bb2382ebf083cbc3035273d))
+* **web:** warn that the unsent draft is lost on reload ([517c1da](https://github.com/fogfactory/crown-and-borough/commit/517c1da35dc51682024c37b3f1920ee2a959fb02))
+
+
+### Refactoring
+
+* **engine:** use the shared player limits directly ([d7a2f17](https://github.com/fogfactory/crown-and-borough/commit/d7a2f171f6b303e284a8024d87e326a2772b364e))
+* **lobby:** make the game phase explicit and share the start flow ([baae1e8](https://github.com/fogfactory/crown-and-borough/commit/baae1e8713106b9d97df6b9e4e664b57e7cbf7ab))
+* **lobby:** precompute map preview geometry and never send null starts ([8256301](https://github.com/fogfactory/crown-and-borough/commit/82563013480602b2bb10da45f8cbd91607a15d4b))
+* **lobby:** share name, slot and candidate-map helpers ([a9730b2](https://github.com/fogfactory/crown-and-borough/commit/a9730b21ef09a7c090f72d10aed252d459ac5c65))
+
 ## [1.6.0](https://github.com/fogfactory/crown-and-borough/compare/v1.5.0...v1.6.0) (2026-11-18)
 
 
