@@ -9,12 +9,14 @@ import {
 } from '@firebase/rules-unit-testing'
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   orderBy,
   query,
   setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -300,6 +302,131 @@ suite('Firestore security rules', () => {
     const unauthenticated = environment.unauthenticatedContext().firestore()
     await assertFails(getDoc(doc(unauthenticated, 'games/game-1')))
     await assertFails(getDoc(doc(unauthenticated, 'players/alice')))
+  })
+
+  it('denies every operation on backend-only documents to every kind of caller', async () => {
+    const callers: Record<string, RulesFirestore> = {
+      unauthenticated: environment.unauthenticatedContext().firestore(),
+      member: environment.authenticatedContext('alice').firestore(),
+      wrongMember: environment.authenticatedContext('carol').firestore(),
+      nonMember: environment.authenticatedContext('mallory').firestore(),
+      spectator: environment.authenticatedContext('host').firestore(),
+    }
+    const paths = [
+      'games/game-1/canonical/current',
+      'games/game-1/turns/1/submissions/alice',
+      'games/game-1/reports/1',
+      'games/game-1/chat_state/alice',
+      'games/game-1/notify_state/alice',
+      'invitations/hash',
+      'bugReports/some-report',
+      'player_activity/alice',
+      'unknown/anything',
+    ]
+    for (const db of Object.values(callers)) {
+      for (const p of paths) {
+        await assertFails(getDoc(doc(db, p)))
+        await assertFails(setDoc(doc(db, p), { forged: true }))
+        await assertFails(updateDoc(doc(db, p), { forged: true }))
+        await assertFails(deleteDoc(doc(db, p)))
+      }
+    }
+    // Collection-level lists are denied too.
+    for (const db of Object.values(callers)) {
+      await assertFails(getDocs(collection(db, 'invitations')))
+      await assertFails(getDocs(collection(db, 'games/game-1/turns/1/submissions')))
+      await assertFails(getDocs(collection(db, 'games/game-1/reports')))
+      await assertFails(getDocs(collection(db, 'games/game-1/canonical')))
+    }
+  })
+
+  it('denies create, update and delete of member-readable documents', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    const carol = environment.authenticatedContext('carol').firestore()
+    const dan = environment.authenticatedContext('dan').firestore()
+    const host = environment.authenticatedContext('host').firestore()
+    const existing: [RulesFirestore, string][] = [
+      [alice, 'games/game-1'],
+      [alice, 'games/game-1/views/alice'],
+      [alice, 'games/game-1/reports/alice/turns/1'],
+      [alice, 'games/game-1/chat_public/m1'],
+      [alice, 'games/game-1/chat_reads/alice'],
+      [alice, 'players/alice'],
+      [host, 'games/game-1/observer/host'],
+    ]
+    for (const [db, p] of existing) {
+      await assertFails(updateDoc(doc(db, p), { forged: true }))
+      await assertFails(deleteDoc(doc(db, p)))
+    }
+    // A player cannot forge the document that would be theirs.
+    const created: [RulesFirestore, string, object][] = [
+      [carol, 'games/game-9', { memberUids: ['carol'], ownerUid: 'carol' }],
+      [carol, 'games/game-1/views/carol', { uid: 'carol' }],
+      [carol, 'games/game-1/reports/carol/turns/1', { uid: 'carol' }],
+      [carol, 'games/game-1/chat_reads/carol', { uid: 'carol', channels: {} }],
+      [carol, 'players/carol', { uid: 'carol' }],
+      [dan, 'games/game-1/observer/dan', { uid: 'dan' }],
+    ]
+    for (const [db, p, data] of created) {
+      await assertFails(setDoc(doc(db, p), data))
+    }
+  })
+
+  it('isolates private projections between members and between games', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    const carol = environment.authenticatedContext('carol').firestore()
+    const outsider = environment.authenticatedContext('mallory').firestore()
+    const unauthenticated = environment.unauthenticatedContext().firestore()
+    // A member reads neither another member's view nor their report, nor the
+    // observer projection (which is for the spectator only).
+    await assertFails(getDoc(doc(carol, 'games/game-1/views/alice')))
+    await assertFails(getDoc(doc(carol, 'games/game-1/reports/alice/turns/1')))
+    await assertFails(getDoc(doc(alice, 'games/game-1/observer/host')))
+    await assertFails(getDocs(collection(carol, 'games/game-1/reports/alice/turns')))
+    // Membership of one game grants nothing in another: alice is not in game-2.
+    await assertFails(getDoc(doc(alice, 'games/game-2')))
+    await assertFails(getDoc(doc(alice, 'games/game-2/chat_public/m1')))
+    await assertFails(getDoc(doc(alice, 'games/game-2/views/alice')))
+    // Non-members and anonymous callers read no projection at all.
+    for (const db of [outsider, unauthenticated]) {
+      await assertFails(getDoc(doc(db, 'games/game-1/views/alice')))
+      await assertFails(getDoc(doc(db, 'games/game-1/observer/host')))
+      await assertFails(getDoc(doc(db, 'games/game-1/reports/alice/turns/1')))
+      await assertFails(getDoc(doc(db, 'games/game-1/chat_reads/alice')))
+      await assertFails(getDoc(doc(db, 'games/game-1/chat_private/P1_P2/messages/m2')))
+      await assertFails(getDocs(collection(db, 'games/game-1/chat_public')))
+    }
+  })
+
+  it('documents how many access calls each rule can trigger', () => {
+    // The emulator does not report auxiliary reads, so they are counted
+    // statically from the deployed rules: every get/getAfter/exists/existsAfter
+    // is an access call, whether written in an allow condition or reached
+    // through a helper such as memberOf. Firestore allows 10 access calls per
+    // single-document request (20 for multi-document ones) and bills one read
+    // per distinct document. The report is informational; only that platform
+    // limit can fail the test.
+    const accessCalls = (text: string) =>
+      (text.match(/\b(?:get|getAfter|exists|existsAfter)\(\/databases/g) ?? []).length
+    const helperCalls: Record<string, number> = {}
+    for (const match of rules.matchAll(/function (\w+)\([^)]*\) \{([\s\S]*?)\n {4}\}/g)) {
+      helperCalls[match[1]] = accessCalls(match[2])
+    }
+    expect(Object.keys(helperCalls)).toContain('memberOf')
+    const perAllow: Record<string, number> = {}
+    for (const match of rules.matchAll(/allow ([\w, ]+): if ([\s\S]*?);/g)) {
+      const condition = match[2]
+      const helpers = Object.entries(helperCalls).reduce(
+        (sum, [name, calls]) =>
+          sum + (condition.match(new RegExp(`\\b${name}\\(`, 'g')) ?? []).length * calls,
+        0,
+      )
+      const key = `${match[1]}: ${condition.replace(/\s+/g, ' ').slice(0, 60)}`
+      perAllow[key] = accessCalls(condition) + helpers
+    }
+    console.info('Firestore rules: access calls per helper', helperCalls)
+    console.info('Firestore rules: access calls per allow condition', perAllow)
+    expect(Math.max(0, ...Object.values(perAllow))).toBeLessThanOrEqual(10)
   })
 
   it('keeps the rules test explicit when no emulator is configured', () => {
