@@ -59,6 +59,8 @@ type chatMessageDocument struct {
 	Part            int              `firestore:"part,omitempty"`
 	Parts           int              `firestore:"parts,omitempty"`
 	ParticipantUIDs []string         `firestore:"participantUids,omitempty"`
+	Kind            string           `firestore:"kind,omitempty"`
+	PreviousName    string           `firestore:"previousName,omitempty"`
 }
 
 type chatReadsDocument struct {
@@ -107,24 +109,29 @@ func (s *FirestoreStore) AppendChatMessage(ctx context.Context, id store.GameID,
 		Part:            message.Part,
 		Parts:           message.Parts,
 		ParticipantUIDs: participantUIDs,
+		Kind:            message.Kind,
+		PreviousName:    message.PreviousName,
 	}
 	s.recordTransaction()
 	err = s.client.RunTransaction(operationContext, func(_ context.Context, transaction *cloudfirestore.Transaction) error {
-		snapshot, err := transaction.Get(stateRef)
-		switch {
-		case err == nil:
-			var state chatStateDocument
-			if err := snapshot.DataTo(&state); err != nil {
+		// A zero interval is a system event: no rate limit, no state written.
+		if minInterval > 0 {
+			snapshot, err := transaction.Get(stateRef)
+			switch {
+			case err == nil:
+				var state chatStateDocument
+				if err := snapshot.DataTo(&state); err != nil {
+					return err
+				}
+				if message.CreatedAt.Sub(state.LastSentAt) < minInterval {
+					return store.ErrChatRateLimited
+				}
+			case !isCode(err, codes.NotFound):
 				return err
 			}
-			if message.CreatedAt.Sub(state.LastSentAt) < minInterval {
-				return store.ErrChatRateLimited
+			if err := transaction.Set(stateRef, chatStateDocument{LastSentAt: message.CreatedAt.UTC()}); err != nil {
+				return err
 			}
-		case !isCode(err, codes.NotFound):
-			return err
-		}
-		if err := transaction.Set(stateRef, chatStateDocument{LastSentAt: message.CreatedAt.UTC()}); err != nil {
-			return err
 		}
 		return transaction.Create(messageRef, document)
 	})
@@ -215,6 +222,8 @@ func (s *FirestoreStore) ListChatMessages(ctx context.Context, id store.GameID, 
 			BatchID:       document.BatchID,
 			Part:          document.Part,
 			Parts:         document.Parts,
+			Kind:          document.Kind,
+			PreviousName:  document.PreviousName,
 		})
 	}
 }
@@ -244,5 +253,6 @@ func (s *FirestoreStore) Roster(ctx context.Context, actor store.Actor, id store
 		Players:      playerSlots(game.Players),
 		CreatedBy:    game.OwnerUID,
 		SpectatorUID: game.SpectatorUID,
+		Incognito:    game.Incognito,
 	}, nil
 }

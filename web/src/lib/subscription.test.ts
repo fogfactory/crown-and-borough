@@ -142,6 +142,29 @@ describe('Firestore game subscriptions', () => {
     })
   })
 
+  it('reports an incognito game as waiting until every slot is taken', () => {
+    const data = {
+      id: 'game-1',
+      incognito: true,
+      players: [
+        { id: 'P1', name: 'P1', color: '#a84632', actorId: 'alice-uid' },
+        { id: 'P2', name: 'P2', color: '#2d5f9e', actorId: 'slot:P2', nameLocked: true },
+      ],
+    }
+    expect(normalizeGameSummary(data, 'game-1')).toMatchObject({
+      incognito: true,
+      started: false,
+      seated: 1,
+    })
+    const full = normalizeGameSummary(
+      { ...data, players: [data.players[0], { ...data.players[1], actorId: 'bob-uid' }] },
+      'game-1',
+    )
+    expect(full).toMatchObject({ started: true, seated: 2 })
+    expect(full.players[1]).toMatchObject({ nameLocked: true })
+    expect(normalizeGameSummary({ id: 'g', players: [] }, 'g').incognito).toBeUndefined()
+  })
+
   it('marks a player absent from requiredUids as having nothing to submit', () => {
     const summary = normalizeGameSummary(
       {

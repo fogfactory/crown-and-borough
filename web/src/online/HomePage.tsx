@@ -155,6 +155,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
   const [seed, setSeed] = useState(fallbackSeed)
   const [players, setPlayers] = useState(4)
   const [spectate, setSpectate] = useState(false)
+  const [incognito, setIncognito] = useState(false)
   const [years, setYears] = useState(10)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -188,6 +189,7 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
             seed: seed.trim(),
             players,
             spectate,
+            incognito,
             years,
           }),
         },
@@ -272,6 +274,24 @@ function CreateGameForm({ onCreated }: { onCreated: (invitation: Invitation) => 
           </span>
           <span className="mt-1 block text-xs text-ink-500">
             {t('home.observeOnlyDescription')}
+          </span>
+        </span>
+      </label>
+      <label
+        htmlFor="incognito"
+        className="flex items-start gap-3 rounded-lg border border-line/70 bg-paper-100 px-3 py-3 text-sm"
+      >
+        <input
+          id="incognito"
+          type="checkbox"
+          checked={incognito}
+          onChange={(event) => setIncognito(event.target.checked)}
+          className="mt-0.5 size-4 accent-brass-700"
+        />
+        <span>
+          <span className="block font-semibold text-ink-700">{t('home.incognito')}</span>
+          <span className="mt-1 block text-xs text-ink-500">
+            {t('home.incognitoDescription')}
           </span>
         </span>
       </label>

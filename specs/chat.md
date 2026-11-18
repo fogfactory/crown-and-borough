@@ -34,6 +34,7 @@ stockage Firestore et ses règles de lecture dans [`online.md`](online.md).
 | `createdAt` | horodatage serveur, microsecondes |
 | `turn` | `number`, `season`, `year` du tour courant à l'écriture |
 | `batchId`, `part`, `parts` | morceaux d'un texte long (ensemble cohérent, 8 morceaux au plus) |
+| `kind`, `previousName` | `kind: "house_renamed"` marque l'événement système écrit dans le salon public quand une maison d'une partie incognito change de nom : `body` est le nouveau nom, `previousName` l'ancien. Absent d'un message ordinaire ; ces messages ne sont soumis ni à la limite de débit ni à la validation du corps, et n'envoient aucun email. |
 
 Les messages sont ordonnés par `createdAt` puis par identifiant. La limite est
 d'un message par seconde et par joueur (`429 rate_limited`).

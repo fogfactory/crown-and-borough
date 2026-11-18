@@ -23,16 +23,20 @@ type playerDocument struct {
 	Name    string          `firestore:"name"`
 	Color   string          `firestore:"color"`
 	ActorID string          `firestore:"actorId,omitempty"`
+	// NameLocked is absent from documents written before incognito games.
+	NameLocked bool `firestore:"nameLocked,omitempty"`
 }
 
 type gameDocument struct {
-	SchemaVersion int                              `firestore:"schemaVersion"`
-	ID            store.GameID                     `firestore:"id"`
-	Name          string                           `firestore:"name"`
-	Seed          string                           `firestore:"seed"`
-	OwnerUID      string                           `firestore:"ownerUid"`
-	MemberUIDs    []string                         `firestore:"memberUids"`
-	SpectatorUID  string                           `firestore:"spectatorUid,omitempty"`
+	SchemaVersion int          `firestore:"schemaVersion"`
+	ID            store.GameID `firestore:"id"`
+	Name          string       `firestore:"name"`
+	Seed          string       `firestore:"seed"`
+	OwnerUID      string       `firestore:"ownerUid"`
+	MemberUIDs    []string     `firestore:"memberUids"`
+	SpectatorUID  string       `firestore:"spectatorUid,omitempty"`
+	// Incognito is absent (false) from games created before the mode existed.
+	Incognito     bool                             `firestore:"incognito,omitempty"`
 	Players       []playerDocument                 `firestore:"players"`
 	Status        store.Status                     `firestore:"status"`
 	Turn          int                              `firestore:"turn"`

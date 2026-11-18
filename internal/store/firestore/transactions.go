@@ -144,7 +144,8 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		}
 		player := &game.Players[freeIndex]
 		player.ActorID = actorID
-		if profileName != "" {
+		hidden := false
+		if profileName != "" && !game.Incognito {
 			player.Name = profileName
 			for index := range state.Players {
 				if state.Players[index].ID == player.ID {
@@ -154,6 +155,22 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 			}
 		}
 		game.MemberUIDs = append(game.MemberUIDs, actorID)
+		joinedPlayer = player.ID
+		if game.Incognito {
+			if store.SlotsFilled(playerSlots(game.Players)) {
+				// Last slot taken: draw the houses.
+				slots := playerSlots(game.Players)
+				store.SeatIncognitoPlayers(game.Seed, slots)
+				for index := range game.Players {
+					game.Players[index].ActorID = slots[index].ActorID
+					if slots[index].ActorID == actorID {
+						joinedPlayer = game.Players[index].ID
+					}
+				}
+			} else {
+				hidden = true
+			}
+		}
 		game.Revision++
 		game.UpdatedAt = s.now().UTC()
 		canonical.Revision = game.Revision
@@ -165,7 +182,6 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		if err := state.Validate(); err != nil {
 			return err
 		}
-		joinedPlayer = player.ID
 		revision = store.Revision(game.Revision)
 		if err := transaction.Set(gameDocumentRef, game); err != nil {
 			return err
@@ -175,9 +191,13 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 		}
 		// A join changes player metadata in the canonical state. Refresh existing
 		// views too, so connected players do not keep stale slot names.
-		views, err := s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
-		if err != nil {
-			return err
+		// An incognito game publishes no view before its last slot is taken.
+		var views []viewProjection
+		if !hidden {
+			views, err = s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
+			if err != nil {
+				return err
+			}
 		}
 		for _, projection := range views {
 			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
@@ -185,7 +205,7 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 			}
 		}
 		observerWrites := 0
-		if game.SpectatorUID != "" {
+		if game.SpectatorUID != "" && !hidden {
 			observer, observerErr := s.observerDocument(
 				id,
 				game.SpectatorUID,
@@ -223,6 +243,131 @@ func (s *FirestoreStore) Join(ctx context.Context, actor store.Actor, id store.G
 	return store.JoinResult{Snapshot: snapshot, Player: playerSlot(snapshot.Players, joinedPlayer), Joined: true}, nil
 }
 
+// RenameHouse sets the name of the actor's house in an incognito game, until
+// the house submits its first orders.
+func (s *FirestoreStore) RenameHouse(ctx context.Context, actor store.Actor, id store.GameID, name string) (store.RenameResult, error) {
+	if err := s.requireClient(); err != nil {
+		return store.RenameResult{}, err
+	}
+	operationContext, cancel := s.operationContext(ctx)
+	defer cancel()
+	gameDocumentRef := gameRef(s.client, id)
+	canonicalDocumentRef := canonicalRef(s.client, id)
+	var playerID models.PlayerID
+	var previous string
+	s.recordTransaction()
+	err := s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+		gameSnapshot, err := transaction.Get(gameDocumentRef)
+		s.recordReads(1)
+		if status.Code(err) == codes.NotFound {
+			return store.ErrUnknownGame
+		}
+		if err != nil {
+			return err
+		}
+		game, err := decodeGameDocument(gameSnapshot)
+		if err != nil {
+			return err
+		}
+		member, ok := playerIDForActor(game, actor)
+		if !ok {
+			return store.ErrNotMember
+		}
+		playerID = member
+		normalized, err := store.ValidateHouseRename(game.Incognito, playerSlots(game.Players), member, name)
+		if err != nil {
+			return err
+		}
+		for index := range game.Players {
+			if game.Players[index].ID == member {
+				previous = game.Players[index].Name
+			}
+		}
+		if normalized == previous {
+			return nil
+		}
+		canonicalSnapshot, err := transaction.Get(canonicalDocumentRef)
+		s.recordReads(1)
+		if err != nil {
+			return mapReadError(err, ErrInconsistentGame)
+		}
+		canonical, err := decodeCanonicalDocument(canonicalSnapshot)
+		if err != nil {
+			return err
+		}
+		if canonical.Revision != game.Revision || canonical.Turn != game.Turn {
+			return store.ErrRevisionConflict
+		}
+		if canonical.Resolution != nil && s.now().Before(canonical.Resolution.LeaseUntil) {
+			return store.ErrRevisionConflict
+		}
+		state := &models.GameState{}
+		if err := decodeJSONMap(canonical.State, state); err != nil {
+			return err
+		}
+		for index := range game.Players {
+			if game.Players[index].ID == member {
+				game.Players[index].Name = normalized
+			}
+		}
+		for index := range state.Players {
+			if state.Players[index].ID == member {
+				state.Players[index].Name = normalized
+			}
+		}
+		if err := state.Validate(); err != nil {
+			return err
+		}
+		game.Revision++
+		game.UpdatedAt = s.now().UTC()
+		canonical.Revision = game.Revision
+		canonical.UpdatedAt = game.UpdatedAt
+		canonical.State, err = jsonMap(state)
+		if err != nil {
+			return err
+		}
+		revision := store.Revision(game.Revision)
+		if err := transaction.Set(gameDocumentRef, game); err != nil {
+			return err
+		}
+		if err := transaction.Set(canonicalDocumentRef, canonical); err != nil {
+			return err
+		}
+		// Refresh the views too, so connected players see the new name.
+		views, err := s.viewProjections(id, game.Players, revision, state, game.UpdatedAt)
+		if err != nil {
+			return err
+		}
+		for _, projection := range views {
+			if err := transaction.Set(viewRef(s.client, id, projection.actorID), projection.document); err != nil {
+				return err
+			}
+		}
+		observerWrites := 0
+		if game.SpectatorUID != "" {
+			observer, observerErr := s.observerDocument(id, game.SpectatorUID, revision, state, game.UpdatedAt, max(0, game.Turn-1))
+			if observerErr != nil {
+				return observerErr
+			}
+			if err := transaction.Set(observerRef(s.client, id, game.SpectatorUID), observer); err != nil {
+				return err
+			}
+			observerWrites = 1
+		}
+		s.recordWrites(2 + len(views) + observerWrites)
+		s.recordProjectionWrites(len(views) + observerWrites)
+		return nil
+	})
+	if err != nil {
+		return store.RenameResult{}, wrapTransactionResult(err)
+	}
+	snapshot, err := s.Get(operationContext, actor, id)
+	if err != nil {
+		return store.RenameResult{}, err
+	}
+	return store.RenameResult{Snapshot: snapshot, Player: playerSlot(snapshot.Players, playerID), PreviousName: previous}, nil
+}
+
 func (s *FirestoreStore) Submit(ctx context.Context, actor store.Actor, id store.GameID, request store.SubmitRequest) (store.SubmitResult, error) {
 	if err := s.requireClient(); err != nil {
 		return store.SubmitResult{}, err
@@ -234,6 +379,9 @@ func (s *FirestoreStore) Submit(ctx context.Context, actor store.Actor, id store
 	playerID, ok := snapshot.PlayerFor(actor)
 	if !ok {
 		return store.SubmitResult{}, store.ErrNotMember
+	}
+	if snapshot.Incognito && !snapshot.Started() {
+		return store.SubmitResult{}, store.ErrGameNotStarted
 	}
 	if snapshot.Status == store.StatusFinished {
 		return store.SubmitResult{}, store.ErrGameFinished
@@ -375,6 +523,9 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 		playerID, member := playerIDForActor(game, actor)
 		if !member && !membershipForActor(game, actor) {
 			return store.ErrNotMember
+		}
+		if game.Incognito && !store.SlotsFilled(playerSlots(game.Players)) {
+			return store.ErrGameNotStarted
 		}
 		if game.Status == store.StatusFinished {
 			return store.ErrGameFinished
@@ -686,7 +837,7 @@ func wrapTransactionResult(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, store.ErrRevisionConflict) || errors.Is(err, store.ErrUnknownGame) || errors.Is(err, store.ErrNotMember) || errors.Is(err, store.ErrGameFull) || errors.Is(err, store.ErrInvalidInvitation) || errors.Is(err, store.ErrInvitationInactive) || errors.Is(err, store.ErrSpectator) || errors.Is(err, store.ErrGameFinished) || errors.Is(err, store.ErrProfileNotFound) {
+	if errors.Is(err, store.ErrRevisionConflict) || errors.Is(err, store.ErrUnknownGame) || errors.Is(err, store.ErrNotMember) || errors.Is(err, store.ErrGameFull) || errors.Is(err, store.ErrInvalidInvitation) || errors.Is(err, store.ErrInvitationInactive) || errors.Is(err, store.ErrSpectator) || errors.Is(err, store.ErrGameFinished) || errors.Is(err, store.ErrProfileNotFound) || errors.Is(err, store.ErrGameNotStarted) || errors.Is(err, store.ErrNotIncognito) || errors.Is(err, store.ErrNameLocked) || errors.Is(err, store.ErrHouseNameTaken) || errors.Is(err, store.ErrInvalidDisplayName) {
 		return err
 	}
 	if status.Code(err) == codes.Aborted || status.Code(err) == codes.FailedPrecondition {
@@ -751,6 +902,9 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		if !member {
 			return store.ErrNotMember
 		}
+		if game.Incognito && !store.SlotsFilled(playerSlots(game.Players)) {
+			return store.ErrGameNotStarted
+		}
 		if game.Status == store.StatusFinished {
 			return store.ErrGameFinished
 		}
@@ -801,6 +955,11 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		canonical.UpdatedAt = now
 		game.SubmittedUIDs = appendUnique(game.SubmittedUIDs, actor.ID)
 		sort.Strings(game.SubmittedUIDs)
+		for index := range game.Players {
+			if game.Players[index].ID == playerID {
+				game.Players[index].NameLocked = true
+			}
+		}
 		game.Revision = canonical.Revision
 		game.UpdatedAt = now
 		if err := transaction.Set(canonicalRef(s.client, id), canonical); err != nil {

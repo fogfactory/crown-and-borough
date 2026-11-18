@@ -254,6 +254,10 @@ func (s *FirestoreStore) refreshGamePlayerName(ctx context.Context, id store.Gam
 		if err != nil {
 			return err
 		}
+		if game.Incognito {
+			// The account name never reaches an incognito game.
+			return nil
+		}
 		playerID := models.PlayerID("")
 		for index := range game.Players {
 			if game.Players[index].ActorID == uid {

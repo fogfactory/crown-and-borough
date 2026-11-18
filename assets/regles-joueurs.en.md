@@ -704,6 +704,27 @@ It exists in online games only: it is absent in hotseat.
 
 ---
 
+## 11. Incognito games
+
+The creator of an online game can make it **incognito**.
+
+- **No account names.** Houses carry a placeholder name (`P1`, `P2`, and so
+  on); the name of your profile never appears in the game, and changing it
+  does not affect your incognito games.
+- **The game waits for every player.** While a seat is still free, the map,
+  the placement of the houses and orders are unavailable: the game only shows
+  how many seats are taken. When the last seat is taken, the houses are drawn
+  at random among the players; the order in which players arrived does not
+  influence the draw.
+- **Your house, your name.** Once the game has started, you choose the name
+  of your house (1 to 32 characters), ideally according to the territory it
+  holds. The name is free until your house submits its first orders in the
+  game, then it is locked. It must differ from every other house's name in the
+  game, and every player sees it: each change is announced in the public chat
+  room.
+
+---
+
 <a id="rules-action-orders"></a>
 
 ## Appendix A — Order cheat sheet

@@ -171,6 +171,7 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/games/{id}/submitted-orders", h.withActor(h.submittedOrders))
 	mux.HandleFunc("POST /api/games/{id}/join", h.withActor(h.join))
 	mux.HandleFunc("GET /api/games/{id}/invite", h.withActor(h.invite))
+	mux.HandleFunc("POST /api/games/{id}/house-name", h.withActor(h.renameHouse))
 	mux.HandleFunc("POST /api/games/{id}/resolve", h.withActor(h.resolve))
 	mux.HandleFunc("GET /api/games/{id}/reports", h.withActor(h.reportsList))
 	mux.HandleFunc("GET /api/games/{id}/reports/{index}", h.withActor(h.report))
@@ -559,11 +560,48 @@ func (h *GamesHandler) join(w http.ResponseWriter, r *http.Request, actor store.
 		Joined:         result.Joined,
 		Player:         makePlayerSlotView(result.Player, result.Snapshot),
 	}
+	if result.Snapshot.PlacementHidden() {
+		// The houses are drawn once the last slot is taken.
+		response.Player = PlayerSlotView{}
+	}
 	status := http.StatusOK
 	if result.Joined {
 		status = http.StatusCreated
 	}
 	writeJSON(w, status, response)
+}
+
+// renameHouse sets the name of the actor's house in an incognito game and
+// announces it in the public chat.
+func (h *GamesHandler) renameHouse(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	renamer, ok := h.store.(interface {
+		RenameHouse(context.Context, store.Actor, store.GameID, string) (store.RenameResult, error)
+	})
+	if !ok {
+		writeAPIError(w, http.StatusInternalServerError, "rename_unavailable", "house names cannot be changed in this mode")
+		return
+	}
+	var request houseNameRequest
+	if err := decodeJSONBody(w, r, 4<<10, &request); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_house_name_request", err.Error())
+		return
+	}
+	result, err := renamer.RenameHouse(r.Context(), actor, id, request.Name)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	if h.chat != nil && result.PreviousName != result.Player.Name {
+		// The rename is committed: a failed announcement must not undo it.
+		if _, chatErr := h.chat.PostHouseRenamed(r.Context(), actor, id, result.PreviousName, result.Player.Name); chatErr != nil {
+			log.Printf("chat: announce house rename: %v", chatErr)
+		}
+	}
+	writeJSON(w, http.StatusOK, gameJoinResponse{
+		gameDetailView: makeAuthenticatedGameDetailView(result.Snapshot, actor),
+		Joined:         false,
+		Player:         makePlayerSlotView(result.Player, result.Snapshot),
+	})
 }
 
 func (h *GamesHandler) invite(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -730,6 +768,16 @@ func (h *GamesHandler) writeStoreError(w http.ResponseWriter, err error) {
 		writeAPIError(w, http.StatusBadRequest, "profile_required", err.Error())
 	case errors.Is(err, store.ErrRevisionConflict):
 		writeAPIError(w, http.StatusConflict, "revision_conflict", err.Error())
+	case errors.Is(err, store.ErrGameNotStarted):
+		writeAPIError(w, http.StatusConflict, "game_not_started", err.Error())
+	case errors.Is(err, store.ErrNameLocked):
+		writeAPIError(w, http.StatusConflict, "house_name_locked", err.Error())
+	case errors.Is(err, store.ErrHouseNameTaken):
+		writeAPIError(w, http.StatusConflict, "house_name_taken", err.Error())
+	case errors.Is(err, store.ErrNotIncognito):
+		writeAPIError(w, http.StatusConflict, "not_incognito", err.Error())
+	case errors.Is(err, store.ErrInvalidDisplayName):
+		writeAPIError(w, http.StatusBadRequest, "invalid_house_name", "house name must contain between one and thirty-two characters")
 	case errors.Is(err, store.ErrGameFinished), errors.Is(err, store.ErrEliminated):
 		writeAPIError(w, http.StatusConflict, "game_not_playable", err.Error())
 	case errors.Is(err, engine.ErrSupplyLineWinter):
@@ -772,7 +820,7 @@ func applyProfileToCreateRequest(request store.CreateRequest, profile store.Play
 		players[index].Color = ""
 		players[index].Name = ""
 	}
-	if len(players) > 0 && !request.Spectate {
+	if len(players) > 0 && !request.Spectate && !request.Incognito {
 		players[0].Name = profile.DisplayName
 	}
 	request.Players = players
@@ -806,6 +854,10 @@ type chainOrderRequest struct {
 
 type winterOrderRequest struct {
 	Lines string `json:"lines"`
+}
+
+type houseNameRequest struct {
+	Name string `json:"name"`
 }
 
 type joinGameRequest struct {
@@ -872,6 +924,12 @@ type gameListView struct {
 	Season    models.Season                             `json:"season"`
 	Revision  store.Revision                            `json:"revision"`
 	Spectator bool                                      `json:"spectator"`
+	Incognito bool                                      `json:"incognito"`
+	// Started is true once every player slot is taken; an incognito game
+	// accepts orders only then.
+	Started bool `json:"started"`
+	// Seated counts the player slots taken so far.
+	Seated int `json:"seated"`
 }
 
 type gameDetailView struct {
@@ -892,6 +950,9 @@ type gameDetailView struct {
 	InviteCode      string                                    `json:"inviteCode,omitempty"`
 	InviteURL       string                                    `json:"inviteUrl,omitempty"`
 	Spectator       bool                                      `json:"spectator"`
+	Incognito       bool                                      `json:"incognito"`
+	Started         bool                                      `json:"started"`
+	Seated          int                                       `json:"seated"`
 }
 
 type PlayerSlotView struct {
@@ -900,6 +961,9 @@ type PlayerSlotView struct {
 	Color     string          `json:"color"`
 	Submitted bool            `json:"submitted"`
 	Required  bool            `json:"required"`
+	// NameLocked is true once the house submitted orders: an incognito game
+	// then keeps its name.
+	NameLocked bool `json:"nameLocked"`
 }
 
 type invitationView struct {
@@ -920,6 +984,9 @@ type reportSummaryView struct {
 }
 
 func makeGameListView(snapshot store.GameSnapshot, actor store.Actor) gameListView {
+	if snapshot.PlacementHidden() {
+		snapshot.Scores = nil
+	}
 	return gameListView{
 		ID:        snapshot.ID,
 		Name:      snapshot.Name,
@@ -931,12 +998,18 @@ func makeGameListView(snapshot store.GameSnapshot, actor store.Actor) gameListVi
 		Turn:      snapshot.State.Turn,
 		Season:    snapshot.State.Season,
 		Revision:  snapshot.Revision,
+		Incognito: snapshot.Incognito,
+		Started:   snapshot.Started(),
+		Seated:    seatedCount(snapshot.Players),
 		Spectator: strings.TrimSpace(snapshot.SpectatorUID) != "" &&
 			strings.TrimSpace(snapshot.SpectatorUID) == strings.TrimSpace(actor.ID),
 	}
 }
 
 func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
+	if snapshot.PlacementHidden() {
+		snapshot.Scores = nil
+	}
 	return gameDetailView{
 		ID:        snapshot.ID,
 		Name:      snapshot.Name,
@@ -949,17 +1022,33 @@ func makeGameDetailView(snapshot store.GameSnapshot) gameDetailView {
 		Turn:      snapshot.State.Turn,
 		Season:    snapshot.State.Season,
 		Revision:  snapshot.Revision,
+		Incognito: snapshot.Incognito,
+		Started:   snapshot.Started(),
+		Seated:    seatedCount(snapshot.Players),
 	}
 }
 
 func makeAuthenticatedGameDetailView(snapshot store.GameSnapshot, actor store.Actor) gameDetailView {
 	view := makeGameDetailView(snapshot)
-	view.CurrentPlayer, _ = snapshot.PlayerFor(actor)
+	if !snapshot.PlacementHidden() {
+		// Before the houses are drawn, a member holds no house yet.
+		view.CurrentPlayer, _ = snapshot.PlayerFor(actor)
+	}
 	view.CanInvite = strings.TrimSpace(snapshot.CreatedBy) != "" &&
 		strings.TrimSpace(snapshot.CreatedBy) == strings.TrimSpace(actor.ID)
 	view.InviteAvailable = view.CanInvite && hasFreePlayerSlot(snapshot.Players)
 	view.Spectator = store.IsSpectator(snapshot.SpectatorUID, actor)
 	return view
+}
+
+func seatedCount(players []store.PlayerSlot) int {
+	count := 0
+	for _, player := range players {
+		if store.IsAssignedActor(strings.TrimSpace(player.ActorID)) {
+			count++
+		}
+	}
+	return count
 }
 
 func hasFreePlayerSlot(players []store.PlayerSlot) bool {
@@ -982,20 +1071,23 @@ func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
 func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) PlayerSlotView {
 	_, submitted := snapshot.Submissions[player.ID]
 	return PlayerSlotView{
-		ID:        player.ID,
-		Name:      player.Name,
-		Color:     player.Color,
-		Submitted: submitted,
-		Required:  engine.PlayerMustSubmit(snapshot.State, player.ID),
+		ID:         player.ID,
+		Name:       player.Name,
+		Color:      player.Color,
+		Submitted:  submitted,
+		Required:   engine.PlayerMustSubmit(snapshot.State, player.ID),
+		NameLocked: player.NameLocked,
 	}
 }
 
 type createGameBody struct {
-	Name     string          `json:"name"`
-	Seed     string          `json:"seed"`
-	Years    int             `json:"years"`
-	Spectate bool            `json:"spectate,omitempty"`
-	Players  json.RawMessage `json:"players"`
+	Name     string `json:"name"`
+	Seed     string `json:"seed"`
+	Years    int    `json:"years"`
+	Spectate bool   `json:"spectate,omitempty"`
+	// Incognito hides the accounts behind the houses; see store.CreateRequest.
+	Incognito bool            `json:"incognito,omitempty"`
+	Players   json.RawMessage `json:"players"`
 }
 
 func decodeCreateRequest(r *http.Request) (store.CreateRequest, error) {
@@ -1009,7 +1101,7 @@ func decodeCreateRequest(r *http.Request) (store.CreateRequest, error) {
 	if err != nil {
 		return store.CreateRequest{}, err
 	}
-	return store.CreateRequest{Name: body.Name, Seed: body.Seed, Players: players, YearCount: body.Years, Spectate: body.Spectate}, nil
+	return store.CreateRequest{Name: body.Name, Seed: body.Seed, Players: players, YearCount: body.Years, Spectate: body.Spectate, Incognito: body.Incognito}, nil
 }
 
 func decodeCreatePlayers(raw json.RawMessage) ([]engine.PlayerInit, error) {

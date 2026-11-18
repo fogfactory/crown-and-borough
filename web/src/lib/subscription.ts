@@ -127,6 +127,7 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
           player.submitted === true ||
           submittedUIDs.has(actorId ?? '') ||
           submittedPlayerIDs.has(id),
+        ...(player.nameLocked === true ? { nameLocked: true } : {}),
         required:
           typeof player.required === 'boolean'
             ? player.required
@@ -156,6 +157,18 @@ export function normalizeGameSummary(
           )?.id,
         )
       : '')
+  const players = slotsFromData(data, currentUID)
+  const incognito = data.incognito === true
+  const seated =
+    typeof data.seated === 'number'
+      ? data.seated
+      : Array.isArray(data.players)
+        ? data.players.filter((player: unknown) => {
+            const actor = stringValue((player as DocumentData | null)?.actorId)
+            return actor !== '' && !actor.startsWith('slot:')
+          }).length
+        : 0
+  const started = typeof data.started === 'boolean' ? data.started : seated >= players.length
   const canInvite = data.canInvite === true || stringValue(data.ownerUid) === currentUID
   const inviteAvailable =
     typeof data.inviteAvailable === 'boolean' ? data.inviteAvailable : undefined
@@ -171,7 +184,8 @@ export function normalizeGameSummary(
     ...(data.spectator === true || stringValue(data.spectatorUid) === currentUID
       ? { spectator: true }
       : {}),
-    players: slotsFromData(data, currentUID),
+    ...(incognito ? { incognito, started, seated } : {}),
+    players,
     turn: numberValue(data.turn, 1),
     season: seasonValue(data.season),
     yearCount: numberValue(data.yearCount, 10),

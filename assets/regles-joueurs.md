@@ -714,6 +714,27 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 
 ---
 
+## 11. Parties incognito
+
+Le créateur d'une partie online peut la déclarer **incognito**.
+
+- **Aucun nom de compte.** Les maisons portent un nom provisoire (`P1`, `P2`,
+  etc.) ; le nom de ton profil n'apparaît jamais dans la partie, et le
+  modifier ne change rien à tes parties incognito.
+- **La partie attend tous les joueurs.** Tant qu'une place reste libre, la
+  carte, le placement des maisons et les ordres sont indisponibles : la partie
+  affiche seulement le nombre de places prises. Quand la dernière place est
+  prise, les maisons sont tirées au sort entre les joueurs ; l'ordre d'arrivée
+  n'influe pas sur le tirage.
+- **Ta maison, ton nom.** Une fois la partie lancée, tu choisis le nom de ta
+  maison (entre 1 et 32 caractères), de préférence selon le territoire où elle
+  se trouve. Ce nom est libre jusqu'à la première soumission d'ordres de ta
+  maison dans la partie, puis il est verrouillé. Il doit différer de celui de
+  toute autre maison de la partie, et tous les joueurs le voient : chaque
+  changement est annoncé dans le salon public du chat.
+
+---
+
 <a id="rules-action-orders"></a>
 
 ## Annexe A — Aide-mémoire des ordres

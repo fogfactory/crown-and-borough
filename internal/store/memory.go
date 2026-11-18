@@ -61,6 +61,7 @@ type memoryGame struct {
 	createdBy        string
 	spectatorUID     string
 	strictMembership bool
+	incognito        bool
 	joinedAt         map[models.PlayerID]time.Time
 }
 
@@ -146,6 +147,15 @@ func trackOwnerChainKnowledge(_ *models.GameState, after *models.GameState, _ en
 }
 
 func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateRequest) (GameSnapshot, error) {
+	if request.Incognito {
+		// Houses start under the engine placeholders; the players name them.
+		blanked := make([]engine.PlayerInit, len(request.Players))
+		copy(blanked, request.Players)
+		for index := range blanked {
+			blanked[index].Name = ""
+		}
+		request.Players = blanked
+	}
 	players, err := normalizePlayers(request.Players, s.options.MaximumPlayers)
 	if err != nil {
 		return GameSnapshot{}, err
@@ -229,6 +239,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		spectatorUID:     spectatorUID(actorID, request.Spectate),
 		joinedAt:         joinedAt,
 		strictMembership: strictMembership,
+		incognito:        request.Incognito,
 	}
 
 	s.indexMu.Lock()
@@ -285,6 +296,11 @@ func (s *MemoryStore) UpdateProfile(ctx context.Context, uid, displayName string
 	s.indexMu.RUnlock()
 	for _, game := range games {
 		game.mu.Lock()
+		if game.incognito {
+			// The account name never reaches an incognito game.
+			game.mu.Unlock()
+			continue
+		}
 		for index := range game.players {
 			if game.players[index].ActorID != uid {
 				continue
@@ -422,7 +438,10 @@ func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code str
 	}
 	player := &game.players[freeIndex]
 	player.ActorID = actorID
-	if profile, profileErr := s.profiles.GetProfile(ctx, actorID); profileErr == nil && profile.DisplayName != "" {
+	seated := false
+	if game.incognito {
+		// Keep the placeholder name: the account name must not leak.
+	} else if profile, profileErr := s.profiles.GetProfile(ctx, actorID); profileErr == nil && profile.DisplayName != "" {
 		player.Name = profile.DisplayName
 		for index := range game.state.Players {
 			if game.state.Players[index].ID == player.ID {
@@ -435,12 +454,71 @@ func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code str
 		game.joinedAt = make(map[models.PlayerID]time.Time)
 	}
 	game.joinedAt[player.ID] = time.Now().UTC()
+	if game.incognito && SlotsFilled(game.players) {
+		// Last slot taken: draw the houses. joinedAt follows the members.
+		joinedByActor := make(map[string]time.Time, len(game.players))
+		for _, slot := range game.players {
+			joinedByActor[slot.ActorID] = game.joinedAt[slot.ID]
+		}
+		SeatIncognitoPlayers(game.seed, game.players)
+		for _, slot := range game.players {
+			game.joinedAt[slot.ID] = joinedByActor[slot.ActorID]
+		}
+		seated = true
+	}
 	game.revision++
 	snapshot, err := s.snapshotLocked(game)
 	if err != nil {
 		return JoinResult{}, err
 	}
-	return JoinResult{Snapshot: snapshot, Player: *player, Joined: true}, nil
+	slot := *player
+	if seated {
+		if playerID, ok := game.playerForActorLocked(actor); ok {
+			slot = playerSlotForID(game.players, playerID)
+		}
+	}
+	return JoinResult{Snapshot: snapshot, Player: slot, Joined: true}, nil
+}
+
+// RenameHouse sets the name of the actor's house in an incognito game, until
+// the house submits its first orders.
+func (s *MemoryStore) RenameHouse(ctx context.Context, actor Actor, id GameID, name string) (RenameResult, error) {
+	if err := contextError(ctx); err != nil {
+		return RenameResult{}, err
+	}
+	game, err := s.game(id)
+	if err != nil {
+		return RenameResult{}, err
+	}
+	game.mu.Lock()
+	defer game.mu.Unlock()
+	playerID, ok := game.playerForActorLocked(actor)
+	if !ok {
+		return RenameResult{}, ErrNotMember
+	}
+	normalized, err := ValidateHouseRename(game.incognito, game.players, playerID, name)
+	if err != nil {
+		return RenameResult{}, err
+	}
+	previous := playerSlotForID(game.players, playerID).Name
+	if normalized != previous {
+		for index := range game.players {
+			if game.players[index].ID == playerID {
+				game.players[index].Name = normalized
+			}
+		}
+		for index := range game.state.Players {
+			if game.state.Players[index].ID == playerID {
+				game.state.Players[index].Name = normalized
+			}
+		}
+		game.revision++
+	}
+	snapshot, err := s.snapshotLocked(game)
+	if err != nil {
+		return RenameResult{}, err
+	}
+	return RenameResult{Snapshot: snapshot, Player: playerSlotForID(game.players, playerID), PreviousName: previous}, nil
 }
 
 func playerSlotForID(players []PlayerSlot, id models.PlayerID) PlayerSlot {
@@ -450,6 +528,15 @@ func playerSlotForID(players []PlayerSlot, id models.PlayerID) PlayerSlot {
 		}
 	}
 	return PlayerSlot{ID: id}
+}
+
+func slotIndex(players []PlayerSlot, id models.PlayerID) int {
+	for index, player := range players {
+		if player.ID == id {
+			return index
+		}
+	}
+	return -1
 }
 
 func isAssignedSlot(player PlayerSlot) bool {
@@ -506,11 +593,23 @@ func (s *MemoryStore) Map(_ context.Context, actor Actor, id GameID) (mapgen.Map
 	if !game.viewerForActorLocked(actor) {
 		return mapgen.MapData{}, ErrNotMember
 	}
+	if game.incognito && !SlotsFilled(game.players) {
+		return mapgen.MapData{}, ErrGameNotStarted
+	}
 	return cloneMap(game.mapData), nil
 }
 
+// State is Get for the projections of the game: an incognito game keeps its
+// placement secret until every slot is taken.
 func (s *MemoryStore) State(ctx context.Context, actor Actor, id GameID) (GameSnapshot, error) {
-	return s.Get(ctx, actor, id)
+	snapshot, err := s.Get(ctx, actor, id)
+	if err != nil {
+		return GameSnapshot{}, err
+	}
+	if snapshot.PlacementHidden() {
+		return GameSnapshot{}, ErrGameNotStarted
+	}
+	return snapshot, nil
 }
 
 func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territoryID models.TerritoryID, special string) (engine.SupplyLine, error) {
@@ -522,6 +621,9 @@ func (s *MemoryStore) Supply(_ context.Context, actor Actor, id GameID, territor
 	defer game.mu.RUnlock()
 	if !game.viewerForActorLocked(actor) {
 		return engine.SupplyLine{}, ErrNotMember
+	}
+	if game.incognito && !SlotsFilled(game.players) {
+		return engine.SupplyLine{}, ErrGameNotStarted
 	}
 	playerID, _ := game.playerForActorLocked(actor)
 	return engine.FindPlayerSupply(game.state, s.balance, territoryID, playerID, special)
@@ -536,6 +638,9 @@ func (s *MemoryStore) TransferSupply(_ context.Context, actor Actor, id GameID, 
 	defer game.mu.RUnlock()
 	if !game.viewerForActorLocked(actor) {
 		return engine.TransferLine{}, ErrNotMember
+	}
+	if game.incognito && !SlotsFilled(game.players) {
+		return engine.TransferLine{}, ErrGameNotStarted
 	}
 	return engine.FindTransfer(game.state, s.balance, sourceID, targetID)
 }
@@ -553,6 +658,9 @@ func (s *MemoryStore) Submit(_ context.Context, actor Actor, id GameID, request 
 	}
 	if request.Force && strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
 		return SubmitResult{}, ErrNotCreator
+	}
+	if game.incognito && !SlotsFilled(game.players) {
+		return SubmitResult{}, ErrGameNotStarted
 	}
 	return s.submitLocked(game, playerID, request)
 }
@@ -574,6 +682,9 @@ func (s *MemoryStore) ResolveAt(_ context.Context, actor Actor, id GameID, expec
 	}
 	if strings.TrimSpace(game.createdBy) != strings.TrimSpace(actor.ID) {
 		return SubmitResult{}, ErrNotCreator
+	}
+	if game.incognito && !SlotsFilled(game.players) {
+		return SubmitResult{}, ErrGameNotStarted
 	}
 	if game.status == StatusFinished {
 		return SubmitResult{}, ErrGameFinished
@@ -671,37 +782,40 @@ func (s *MemoryStore) submitLocked(game *memoryGame, playerID models.PlayerID, r
 	}
 	previous, replaced := game.submissions[playerID]
 	game.submissions[playerID] = input
-
-	submitted, remaining := game.submissionStatusLocked()
-	if request.Force || len(remaining) == 0 {
-		result, resolveErr := s.resolveLocked(game, playerID, request.Force, submitted, remaining)
-		if resolveErr != nil {
-			if replaced {
-				game.submissions[playerID] = previous
-			} else {
-				delete(game.submissions, playerID)
-			}
-			return SubmitResult{}, resolveErr
-		}
-		return result, nil
+	slot := slotIndex(game.players, playerID)
+	wasLocked := slot >= 0 && game.players[slot].NameLocked
+	if slot >= 0 {
+		game.players[slot].NameLocked = true
 	}
-	if err := turn.ValidateSubmission(game.state, s.balance, input); err != nil {
+	rollback := func() {
 		if replaced {
 			game.submissions[playerID] = previous
 		} else {
 			delete(game.submissions, playerID)
 		}
+		if slot >= 0 && !wasLocked {
+			game.players[slot].NameLocked = false
+		}
+	}
+
+	submitted, remaining := game.submissionStatusLocked()
+	if request.Force || len(remaining) == 0 {
+		result, resolveErr := s.resolveLocked(game, playerID, request.Force, submitted, remaining)
+		if resolveErr != nil {
+			rollback()
+			return SubmitResult{}, resolveErr
+		}
+		return result, nil
+	}
+	if err := turn.ValidateSubmission(game.state, s.balance, input); err != nil {
+		rollback()
 		return SubmitResult{}, err
 	}
 	game.revision++
 	snapshot, snapshotErr := s.snapshotLocked(game)
 	if snapshotErr != nil {
 		game.revision--
-		if replaced {
-			game.submissions[playerID] = previous
-		} else {
-			delete(game.submissions, playerID)
-		}
+		rollback()
 		return SubmitResult{}, snapshotErr
 	}
 	return SubmitResult{
@@ -841,6 +955,7 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame) (GameSnapshot, error) {
 		Revision:     game.revision,
 		CreatedBy:    game.createdBy,
 		SpectatorUID: game.spectatorUID,
+		Incognito:    game.incognito,
 	}, nil
 }
 

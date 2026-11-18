@@ -88,14 +88,19 @@ func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.Ga
 	batch := s.client.Batch()
 	batch.Set(gameRef(s.client, snapshot.ID), game)
 	batch.Set(canonicalRef(s.client, snapshot.ID), canonical)
-	views, err := s.viewProjections(snapshot.ID, game.Players, snapshot.Revision, snapshot.State, createdAt)
-	if err != nil {
-		return err
+	// An incognito game publishes no view until every slot is taken: a view
+	// shows the starting territory of its house.
+	var views []viewProjection
+	if !snapshot.PlacementHidden() {
+		views, err = s.viewProjections(snapshot.ID, game.Players, snapshot.Revision, snapshot.State, createdAt)
+		if err != nil {
+			return err
+		}
 	}
 	for _, projection := range views {
 		batch.Set(viewRef(s.client, snapshot.ID, projection.actorID), projection.document)
 	}
-	if snapshot.SpectatorUID != "" {
+	if snapshot.SpectatorUID != "" && !snapshot.PlacementHidden() {
 		observer, observerErr := s.observerDocument(
 			snapshot.ID,
 			snapshot.SpectatorUID,
@@ -114,7 +119,7 @@ func (s *FirestoreStore) writeInitialGame(ctx context.Context, snapshot store.Ga
 		return err
 	}
 	observerWrites := 0
-	if snapshot.SpectatorUID != "" {
+	if snapshot.SpectatorUID != "" && !snapshot.PlacementHidden() {
 		observerWrites = 1
 	}
 	s.recordWrites(2 + len(views) + observerWrites)
@@ -126,12 +131,21 @@ func (s *FirestoreStore) Get(ctx context.Context, actor store.Actor, id store.Ga
 	return s.loadSnapshot(ctx, actor, id, true)
 }
 
+// State is Get for the projections of the game: an incognito game keeps its
+// placement secret until every slot is taken.
 func (s *FirestoreStore) State(ctx context.Context, actor store.Actor, id store.GameID) (store.GameSnapshot, error) {
-	return s.Get(ctx, actor, id)
+	snapshot, err := s.Get(ctx, actor, id)
+	if err != nil {
+		return store.GameSnapshot{}, err
+	}
+	if snapshot.PlacementHidden() {
+		return store.GameSnapshot{}, store.ErrGameNotStarted
+	}
+	return snapshot, nil
 }
 
 func (s *FirestoreStore) Map(ctx context.Context, actor store.Actor, id store.GameID) (mapgen.MapData, error) {
-	snapshot, err := s.Get(ctx, actor, id)
+	snapshot, err := s.State(ctx, actor, id)
 	if err != nil {
 		return mapgen.MapData{}, err
 	}
@@ -139,7 +153,7 @@ func (s *FirestoreStore) Map(ctx context.Context, actor store.Actor, id store.Ga
 }
 
 func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store.GameID, territoryID models.TerritoryID, special string) (engine.SupplyLine, error) {
-	snapshot, err := s.Get(ctx, actor, id)
+	snapshot, err := s.State(ctx, actor, id)
 	if err != nil {
 		return engine.SupplyLine{}, err
 	}
@@ -148,7 +162,7 @@ func (s *FirestoreStore) Supply(ctx context.Context, actor store.Actor, id store
 }
 
 func (s *FirestoreStore) TransferSupply(ctx context.Context, actor store.Actor, id store.GameID, sourceID, targetID models.TerritoryID) (engine.TransferLine, error) {
-	snapshot, err := s.Get(ctx, actor, id)
+	snapshot, err := s.State(ctx, actor, id)
 	if err != nil {
 		return engine.TransferLine{}, err
 	}
@@ -527,7 +541,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 	players := make([]playerDocument, len(snapshot.Players))
 	memberUIDs := make([]string, 0, len(snapshot.Players))
 	for index, player := range snapshot.Players {
-		players[index] = playerDocument{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID}
+		players[index] = playerDocument{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID, NameLocked: player.NameLocked}
 		if store.IsAssignedActor(player.ActorID) {
 			memberUIDs = append(memberUIDs, player.ActorID)
 		}
@@ -547,6 +561,7 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		OwnerUID:      snapshot.CreatedBy,
 		MemberUIDs:    memberUIDs,
 		SpectatorUID:  snapshot.SpectatorUID,
+		Incognito:     snapshot.Incognito,
 		Players:       players,
 		Status:        snapshot.Status,
 		Turn:          snapshot.State.Turn,
@@ -591,6 +606,7 @@ func gameSnapshot(balance assetgen.Balance, document gameDocument, state *models
 		Revision:     store.Revision(document.Revision),
 		CreatedBy:    document.OwnerUID,
 		SpectatorUID: document.SpectatorUID,
+		Incognito:    document.Incognito,
 	}
 }
 
@@ -632,7 +648,7 @@ func sortedRequiredUIDs(state *models.GameState, players []store.PlayerSlot) []s
 func playerSlots(documents []playerDocument) []store.PlayerSlot {
 	players := make([]store.PlayerSlot, len(documents))
 	for index, player := range documents {
-		players[index] = store.PlayerSlot{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID}
+		players[index] = store.PlayerSlot{ID: player.ID, Name: player.Name, Color: player.Color, ActorID: player.ActorID, NameLocked: player.NameLocked}
 	}
 	return players
 }

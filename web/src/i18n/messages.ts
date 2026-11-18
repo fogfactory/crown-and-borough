@@ -1444,6 +1444,9 @@ const englishMessages = {
   'home.observeOnly': 'Observe without playing',
   'home.observeOnlyDescription':
     'You will be the host and spectator. The invited players fill every slot.',
+  'home.incognito': 'Incognito game',
+  'home.incognitoDescription':
+    'Nobody sees the account names of the players, only house names. Each house starts under a placeholder name and the players pick their own once the game starts. The game starts once every player has joined; houses are then drawn at random.',
   'home.gameYears': 'Game years',
   'home.createSubmit': 'Create and invite',
   'home.invitationTitle': 'Invitation ready',
@@ -1481,6 +1484,14 @@ const englishMessages = {
     'You have full visibility but do not occupy a player slot. You can still resolve a stalled turn.',
   'online.spectatorReadOnly': 'The command post is read-only while you observe.',
   'online.waiting': 'Waiting',
+  'online.waitingForPlayers': 'Waiting for players ({seated}/{total})',
+  'online.waitingForPlayersDescription':
+    'This incognito game starts, and the houses are drawn, once every player has joined.',
+  'online.houseName': 'Your house name',
+  'online.houseNameNote':
+    'The name is free until you submit your first orders in this game, then it is locked. Everyone in the game sees it, and a rename is announced in the public chat.',
+  'online.houseNameSave': 'Rename',
+  'online.houseNameSaving': 'Renaming…',
   'online.submitted': 'Submitted',
   'online.notRequired': 'Nothing to submit',
   'online.invite': 'Invite a friend',
@@ -1545,6 +1556,12 @@ const englishMessages = {
   'error.api.chat_disabled': 'The chat is not available in this mode.',
   'error.api.creator_not_allowed': 'Only authorized accounts can create games.',
   'error.api.game_full': 'This game is full.',
+  'error.api.game_not_started': 'The game starts once every player has joined.',
+  'error.api.house_name_locked':
+    'Your house name is locked: you already submitted orders in this game.',
+  'error.api.house_name_taken': 'Another house already carries this name.',
+  'error.api.invalid_house_name': 'A house name has between one and thirty-two characters.',
+  'error.api.not_incognito': 'House names can only be changed in an incognito game.',
   'error.api.game_not_playable': 'This game is finished or your house is eliminated.',
   'error.api.invalid_game_request': 'Invalid game settings.',
   'error.api.invalid_players': 'The number of players must be between 2 and 8.',
@@ -1586,6 +1603,7 @@ const englishMessages = {
   'chat.messages': 'Messages of {channel}',
   'chat.conversationBetween': '{first} and {second}',
   'chat.you': 'you',
+  'chat.houseRenamed': '{previous} is now known as {name}.',
   'chat.loadMore': 'Load older messages',
   'chat.loadingMore': 'Loading…',
   'chat.loading': 'Loading messages…',
@@ -3139,6 +3157,9 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'home.observeOnly': 'Observer sans jouer',
   'home.observeOnlyDescription':
     'Vous serez l’hôte et l’observateur. Les joueurs invités rempliront toutes les places.',
+  'home.incognito': 'Partie incognito',
+  'home.incognitoDescription':
+    'Personne ne voit les noms de compte des joueurs, seulement les noms de maison. Chaque maison démarre sous un nom provisoire et les joueurs choisissent le leur une fois la partie lancée. La partie commence quand tous les joueurs ont rejoint ; les maisons sont alors tirées au sort.',
   'home.gameYears': 'Années de jeu',
   'home.createSubmit': 'Créer et inviter',
   'home.invitationTitle': 'Invitation prête',
@@ -3177,6 +3198,14 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
     'Vous voyez tout, mais n’occupez aucune place de joueur. Vous pouvez résoudre un tour bloqué.',
   'online.spectatorReadOnly': 'Le poste de commandement est en lecture seule.',
   'online.waiting': 'En attente',
+  'online.waitingForPlayers': 'En attente de joueurs ({seated}/{total})',
+  'online.waitingForPlayersDescription':
+    'Cette partie incognito commence, et les maisons sont tirées au sort, quand tous les joueurs ont rejoint.',
+  'online.houseName': 'Nom de votre maison',
+  'online.houseNameNote':
+    'Le nom est libre jusqu’à votre première soumission d’ordres dans cette partie, puis il est verrouillé. Tous les joueurs de la partie le voient, et un changement est annoncé dans le chat public.',
+  'online.houseNameSave': 'Renommer',
+  'online.houseNameSaving': 'Changement…',
   'online.submitted': 'Soumis',
   'online.notRequired': 'Rien à soumettre',
   'online.invite': 'Inviter un ami',
@@ -3241,6 +3270,12 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'error.api.chat_disabled': 'La discussion n’est pas disponible dans ce mode.',
   'error.api.creator_not_allowed': 'Seuls les comptes autorisés peuvent créer une partie.',
   'error.api.game_full': 'Cette partie est complète.',
+  'error.api.game_not_started': 'La partie commence quand tous les joueurs ont rejoint.',
+  'error.api.house_name_locked':
+    'Le nom de votre maison est verrouillé : vous avez déjà soumis des ordres dans cette partie.',
+  'error.api.house_name_taken': 'Une autre maison porte déjà ce nom.',
+  'error.api.invalid_house_name': 'Un nom de maison compte entre un et trente-deux caractères.',
+  'error.api.not_incognito': 'Le nom de maison ne se change que dans une partie incognito.',
   'error.api.game_not_playable': 'Cette partie est terminée ou votre maison est éliminée.',
   'error.api.invalid_game_request': 'Paramètres de partie invalides.',
   'error.api.invalid_players': 'Le nombre de joueurs doit être compris entre 2 et 8.',
@@ -3282,6 +3317,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'chat.messages': 'Messages de {channel}',
   'chat.conversationBetween': '{first} et {second}',
   'chat.you': 'vous',
+  'chat.houseRenamed': '{previous} s’appelle désormais {name}.',
   'chat.loadMore': 'Charger les messages plus anciens',
   'chat.loadingMore': 'Chargement…',
   'chat.loading': 'Chargement des messages…',
