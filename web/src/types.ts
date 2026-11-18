@@ -715,6 +715,10 @@ export interface StateData {
   nobleDeckSize?: number
   /** Cards left in the shared special draw pile (bonus cards and calamities). */
   specialDeckSize?: number
+  /** Whole content of the special deck as dealt, by card kind. */
+  specialDeckCards?: Array<{ kind: CardKind; count: number }>
+  /** Whole content of the noble deck as dealt: each distinct card and its copies. */
+  nobleDeckCards?: Array<Omit<NobleCard, 'id'> & { count: number }>
   /** Shared hand limit (special + noble cards); the client falls back to DEFAULT_HAND_LIMIT when absent. */
   handLimit?: number
   activeRegionEffects?: ActiveRegionEffect[]

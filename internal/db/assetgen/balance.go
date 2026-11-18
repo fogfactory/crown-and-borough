@@ -174,8 +174,8 @@ type SpecialOrdersBalance struct {
 	CalamityCardsBase      int `json:"calamity_cards_base" yaml:"calamity_cards_base"`
 	CalamityCardsPerPlayer int `json:"calamity_cards_per_player" yaml:"calamity_cards_per_player"`
 	// CalamitySlots is the base capacity per season; one more slot per season
-	// is added for every full CalamitySlotPlayersPerExtra players (zero adds
-	// none).
+	// is added for every full CalamitySlotPlayersPerExtra players (the loader
+	// requires a positive value; CalamitySlotsFor tolerates zero as "none").
 	CalamitySlots               map[models.Season]int   `json:"calamity_slots" yaml:"calamity_slots"`
 	CalamitySlotPlayersPerExtra int                     `json:"calamity_slot_players_per_extra" yaml:"calamity_slot_players_per_extra"`
 	CalamityWeights             map[models.CardKind]int `json:"calamity_weights" yaml:"calamity_weights"`

@@ -27,6 +27,7 @@ import { richTranslate } from '@/lib/rich-text'
 import { CALAMITY_KINDS, formatCardLabel, formatCardName, nobleCardHelp, nobleCardName, shortCode, specialCardHelp } from '@/lib/card-hand'
 import { isSettlement } from '@/lib/supply'
 import { CardPictogram } from '@/components/CardPictogram'
+import { DeckContents, type DeckCard } from '@/components/DeckContents'
 import { HandFan, type FanCard } from '@/components/HandFan'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import {
@@ -767,6 +768,29 @@ function HandSection({
   const drawDisabled = drawn || deckSize === 0 || handFull
   const lines = draftLines(winterDraft)
   const nobleName = (card: NobleCard) => nobleCardName(card, t)
+  const specialDeckCards: DeckCard[] = (state.specialDeckCards ?? []).map(
+    ({ kind, count }) => ({
+      key: `deck:special:${kind}`,
+      family: 'special',
+      name: formatCardName(kind, t),
+      code: shortCode(kind),
+      icon: <CardPictogram kind={kind} />,
+      copies: count,
+      help: specialCardHelp(kind, t),
+    }),
+  )
+  const nobleDeckCards: DeckCard[] = (state.nobleDeckCards ?? []).map((entry) => {
+    const card = { ...entry, id: entry.code }
+    return {
+      key: `deck:noble:${entry.kind}:${entry.code}`,
+      family: entry.kind === 'dignity' ? 'dignity' : 'noble',
+      name: nobleName(card),
+      code: entry.code,
+      icon: <CardPictogram kind={entry.kind} />,
+      copies: entry.count,
+      help: nobleCardHelp(card, t),
+    }
+  })
 
   const cards: FanCard[] = [
     ...specialKinds.map((kind): FanCard => {
@@ -861,13 +885,24 @@ function HandSection({
         label={t('orders.hand')}
         footer={
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
-            <span data-hand-counter>
-              {t('hand.counter', {
-                deck: deckSize,
-                events: specialDeckSize,
-                count: specialCount + hand.length,
-                limit: handLimit,
-              })}
+            <span data-hand-counter className="flex flex-wrap items-center gap-x-1.5">
+              <DeckContents
+                deckName={t('deck.nobleTitle')}
+                counter={t('deck.nobles', { count: deckSize })}
+                title={t('deck.nobleTitle')}
+                cards={nobleDeckCards}
+                onOpenRules={onOpenRules}
+              />
+              <span aria-hidden="true">·</span>
+              <DeckContents
+                deckName={t('deck.eventsTitle')}
+                counter={t('deck.events', { count: specialDeckSize })}
+                title={t('deck.eventsTitle')}
+                cards={specialDeckCards}
+                onOpenRules={onOpenRules}
+              />
+              <span aria-hidden="true">·</span>
+              <span>{t('deck.hand', { count: specialCount + hand.length, limit: handLimit })}</span>
             </span>
             {!cardsOnly && (
               <Button

@@ -165,11 +165,23 @@ const (
 func specialDeckRows(config SpecialOrdersBalance) string {
 	rows := make([]string, 0, ruleDeckMaxPlayers-ruleDeckMinPlayers+1)
 	for players := ruleDeckMinPlayers; players <= ruleDeckMaxPlayers; players++ {
-		rows = append(rows, fmt.Sprintf("| %d | %d | %d | %d | %d |", players,
+		rows = append(rows, fmt.Sprintf("| %d | %d | %d | %d | %s |", players,
 			config.BonusCardCount(players), config.CalamityCardCount(players), config.DeckSize(players),
-			config.CalamitySlotsFor(models.SeasonSpring, players)))
+			calamitySlotsCell(config, players)))
 	}
 	return strings.Join(rows, "\n")
+}
+
+// calamitySlotsCell renders the calamity slots per season: one number when the
+// three seasons agree, otherwise spring / summer / autumn.
+func calamitySlotsCell(config SpecialOrdersBalance, players int) string {
+	spring := config.CalamitySlotsFor(models.SeasonSpring, players)
+	summer := config.CalamitySlotsFor(models.SeasonSummer, players)
+	autumn := config.CalamitySlotsFor(models.SeasonAutumn, players)
+	if spring == summer && summer == autumn {
+		return stringValue(spring)
+	}
+	return fmt.Sprintf("%d / %d / %d", spring, summer, autumn)
 }
 
 func stringValue(value int) string {
