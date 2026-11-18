@@ -708,7 +708,9 @@ It exists in online games only: it is absent in hotseat.
 
 An online game starts in a **lobby**. It has no map and no houses while a seat
 is still free: the lobby shows how many players have arrived ("2/4 players
-joined"), and the game starts when the last seat is taken.
+joined"). The creator holds a seat from the start and confirms their own house
+name and vote with a button: the game starts once the last seat is taken and the
+creator has confirmed.
 
 - **The map vote.** Each player is shown candidate maps (three), drawn for the
   number of players of the game, and can **rank** them by preference. When the

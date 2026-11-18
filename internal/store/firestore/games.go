@@ -436,6 +436,8 @@ func (s *FirestoreStore) buildLobbySnapshot(actor store.Actor, game gameDocument
 		SpectatorUID: game.SpectatorUID,
 		Incognito:    game.Incognito,
 		FixedSeed:    game.FixedSeed,
+
+		AwaitingCreator: game.AwaitingCreator,
 	}
 	if _, member := playerIDForActor(game, actor); member {
 		view := &store.LobbyView{
@@ -624,28 +626,29 @@ func gameDocumentFromSnapshot(snapshot store.GameSnapshot, createdAt, updatedAt 
 		requiredUIDs = sortedRequiredUIDs(snapshot.State, snapshot.Players)
 	}
 	return gameDocument{
-		SchemaVersion: schemaVersion,
-		ID:            snapshot.ID,
-		Name:          snapshot.Name,
-		Seed:          snapshot.Seed,
-		OwnerUID:      snapshot.CreatedBy,
-		MemberUIDs:    memberUIDs,
-		SpectatorUID:  snapshot.SpectatorUID,
-		Incognito:     snapshot.Incognito,
-		Players:       players,
-		Status:        snapshot.Status,
-		Turn:          turn,
-		Season:        season,
-		YearCount:     snapshot.YearCount,
-		Scores:        scoreDocuments(snapshot.Scores),
-		WinnerUID:     winner,
-		SubmittedUIDs: submittedUIDs,
-		RequiredUIDs:  requiredUIDs,
-		Phase:         snapshot.Phase,
-		FixedSeed:     snapshot.FixedSeed,
-		Revision:      int64(snapshot.Revision),
-		CreatedAt:     createdAt,
-		UpdatedAt:     updatedAt,
+		SchemaVersion:   schemaVersion,
+		ID:              snapshot.ID,
+		Name:            snapshot.Name,
+		Seed:            snapshot.Seed,
+		OwnerUID:        snapshot.CreatedBy,
+		MemberUIDs:      memberUIDs,
+		SpectatorUID:    snapshot.SpectatorUID,
+		Incognito:       snapshot.Incognito,
+		Players:         players,
+		Status:          snapshot.Status,
+		Turn:            turn,
+		Season:          season,
+		YearCount:       snapshot.YearCount,
+		Scores:          scoreDocuments(snapshot.Scores),
+		WinnerUID:       winner,
+		SubmittedUIDs:   submittedUIDs,
+		RequiredUIDs:    requiredUIDs,
+		Phase:           snapshot.Phase,
+		FixedSeed:       snapshot.FixedSeed,
+		AwaitingCreator: snapshot.AwaitingCreator,
+		Revision:        int64(snapshot.Revision),
+		CreatedAt:       createdAt,
+		UpdatedAt:       updatedAt,
 	}
 }
 

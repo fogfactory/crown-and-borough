@@ -50,6 +50,9 @@ func newNotifiedChatTestEnv(t *testing.T, withChat bool, notifier Notifier) chat
 			t.Fatalf("join %s: %v", uid, err)
 		}
 	}
+	if _, err := memory.ConfirmLobby(ctx, store.Actor{ID: "alice"}, created.ID); err != nil {
+		t.Fatalf("confirm lobby: %v", err)
+	}
 	clock := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	options := GamesHandlerOptions{Actor: DevActorResolver("alice"), Notifier: notifier}
 	if withChat {

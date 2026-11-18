@@ -36,6 +36,7 @@ func newIncognitoGame(t *testing.T) (*MemoryStore, GameSnapshot, string) {
 	if err != nil {
 		t.Fatalf("create invitation: %v", err)
 	}
+	confirmCreator(t, gameStore, created.ID)
 	return gameStore, created, secret.Code
 }
 
@@ -103,6 +104,7 @@ func TestOrdinaryGameShowsTheAccountNameBesideTheHouseName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	confirmCreator(t, gameStore, created.ID)
 	joined, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code, JoinOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -214,6 +216,7 @@ func seatsAfterJoins(t *testing.T, guests []string) map[string]string {
 	if err != nil {
 		t.Fatalf("create invitation: %v", err)
 	}
+	confirmCreator(t, gameStore, created.ID)
 	for index, guest := range guests {
 		result, err := gameStore.Join(ctx, Actor{ID: guest}, created.ID, secret.Code, JoinOptions{})
 		if err != nil {

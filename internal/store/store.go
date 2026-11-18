@@ -215,6 +215,10 @@ type GameSnapshot struct {
 	Lobby *LobbyView `json:"-"`
 	// FixedSeed is the seed the creator imposed on a lobby, if any.
 	FixedSeed string `json:"-"`
+	// AwaitingCreator is true while the creator, who holds a seat from the
+	// creation, has not confirmed their own house name and vote: the game does
+	// not start before they do, even once every slot is taken.
+	AwaitingCreator bool `json:"-"`
 }
 
 type SubmitResult struct {
@@ -455,6 +459,11 @@ type LobbyStore interface {
 	// the map and its castle set, and does not authorize: the caller already
 	// did, with JoinPreview.
 	SeedCandidateMap(id GameID, players, index int) (CandidateMap, error)
+	// ConfirmLobby is the creator's confirmation that their house name and
+	// vote are final. The game starts as soon as it is confirmed and every
+	// slot is taken; the result tells whether it did. Confirming twice does
+	// nothing.
+	ConfirmLobby(context.Context, Actor, GameID) (JoinResult, error)
 }
 
 // RevisionedGameStore is the optimistic-concurrency extension used by the

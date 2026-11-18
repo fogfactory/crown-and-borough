@@ -83,6 +83,13 @@ func TestAuthenticatedProfileInvitationAndMembershipFlow(t *testing.T) {
 	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"wrong1"}`, "bob-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("invalid invitation = %d: %s", response.Code, response.Body.String())
 	}
+	// The creator confirms their own house before the game can start.
+	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/confirm", "", "bob-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("non-member confirm = %d: %s", response.Code, response.Body.String())
+	}
+	if response := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/confirm", "", "alice-token"); response.Code != http.StatusOK {
+		t.Fatalf("creator confirm = %d: %s", response.Code, response.Body.String())
+	}
 	joined := requestAuthenticated(t, mux, http.MethodPost, "/api/games/"+string(game.ID)+"/join", `{"inviteCode":"`+game.InviteCode+`"}`, "bob-token")
 	if joined.Code != http.StatusCreated || !strings.Contains(joined.Body.String(), `"joined":true`) {
 		t.Fatalf("join = %d: %s", joined.Code, joined.Body.String())

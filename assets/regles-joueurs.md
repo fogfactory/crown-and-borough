@@ -719,7 +719,9 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 Une partie online commence dans un **salon d'attente**. Elle n'a ni carte ni
 maisons tant qu'une place reste libre : le salon affiche le nombre de joueurs
 arrivés (« 2/4 joueurs ont rejoint »), et la partie commence quand la
-dernière place est prise.
+dernière place est prise et que le créateur a confirmé. Le créateur occupe une
+place dès la création et confirme, par un bouton, le nom de sa maison et son
+vote.
 
 - **Le vote de la carte.** Chaque joueur voit des cartes candidates (trois),
   dessinées pour le nombre de joueurs de la partie, et peut les **classer** par

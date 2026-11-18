@@ -263,7 +263,8 @@ type JoinStep struct {
 	// Entry is the joiner's validated lobby entry; nil when they prepared
 	// nothing.
 	Entry *LobbyEntry
-	// Final is true when the join takes the last free slot, so the game starts:
+	// Final is true when the join takes the last free slot and nobody is left
+	// to confirm, so the game starts:
 	// the store then gathers the lobby entries and display names, and calls
 	// PlanStart.
 	Final bool
@@ -272,7 +273,9 @@ type JoinStep struct {
 // PlanJoin validates a lobby join, the same for every store: the first free
 // slot goes to actorID, and what they prepared (house name, seed ranking) is
 // checked against the pending names of the other members (pendingNames) and the number of seed candidates.
-func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNames []string, candidateCount int) (JoinStep, error) {
+// While the creator has not confirmed (awaitingCreator), the last join does not
+// start the game.
+func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNames []string, candidateCount int, awaitingCreator bool) (JoinStep, error) {
 	seat := slices.IndexFunc(slots, func(player PlayerSlot) bool { return !player.Assigned() })
 	if seat < 0 {
 		return JoinStep{}, ErrGameFull
@@ -291,7 +294,7 @@ func PlanJoin(slots []PlayerSlot, actorID string, options JoinOptions, pendingNa
 	entry.SeedRanking = append([]int(nil), options.SeedRanking...)
 	step := JoinStep{Slots: append([]PlayerSlot(nil), slots...), Seat: seat}
 	step.Slots[seat].ActorID = actorID
-	step.Final = SlotsFilled(step.Slots)
+	step.Final = SlotsFilled(step.Slots) && !awaitingCreator
 	if entry.HouseName != "" || len(entry.SeedRanking) > 0 {
 		step.Entry = &entry
 	}

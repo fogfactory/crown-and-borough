@@ -198,6 +198,9 @@ func TestMemoryStoreProfileRenamesMoveTheAccountNameOnly(t *testing.T) {
 	if _, err := gameStore.Join(ctx, Actor{ID: "bob"}, created.ID, secret.Code, JoinOptions{}); err != nil {
 		t.Fatalf("join: %v", err)
 	}
+	if _, err := gameStore.ConfirmLobby(ctx, Actor{ID: "alice"}, created.ID); err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
 	if _, err := gameStore.UpdateProfile(ctx, "alice", "Alicia"); err != nil {
 		t.Fatalf("rename profile: %v", err)
 	}

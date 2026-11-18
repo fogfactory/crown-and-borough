@@ -190,6 +190,8 @@ export interface GameLobby {
   seedRanking: number[]
   /** House name entered so far. */
   houseName: string
+  /** The creator has not confirmed their own name and vote: the game waits. */
+  awaitingCreator: boolean
 }
 
 export interface GameSummary {

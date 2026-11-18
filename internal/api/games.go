@@ -176,6 +176,7 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/games/{id}/house-name", h.withActor(h.renameHouse))
 	mux.HandleFunc("GET /api/games/{id}/join-preview", h.withActor(h.joinPreview))
 	mux.HandleFunc("PUT /api/games/{id}/seed-vote", h.withActor(h.setSeedVote))
+	mux.HandleFunc("POST /api/games/{id}/confirm", h.withActor(h.confirmLobby))
 	mux.HandleFunc("GET /api/games/{id}/seed-candidates/{index}/map", h.withActor(h.seedCandidateMap))
 	mux.HandleFunc("POST /api/games/{id}/resolve", h.withActor(h.resolve))
 	mux.HandleFunc("GET /api/games/{id}/reports", h.withActor(h.reportsList))
@@ -682,6 +683,31 @@ func (h *GamesHandler) setSeedVote(w http.ResponseWriter, r *http.Request, actor
 	writeJSON(w, http.StatusOK, makeAuthenticatedGameDetailView(snapshot, actor))
 }
 
+// confirmLobby is the creator's confirmation that their house name and vote
+// are final. The creator holds a seat from the creation, so the game waits for
+// this before it starts; when every slot is taken it starts right here.
+func (h *GamesHandler) confirmLobby(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	lobby, ok := h.store.(store.LobbyStore)
+	if !ok {
+		writeAPIError(w, http.StatusInternalServerError, "confirm_unavailable", "the lobby cannot be confirmed in this mode")
+		return
+	}
+	result, err := lobby.ConfirmLobby(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	response := joinResponse(result.Snapshot, actor, result.Player, false)
+	if !result.Started {
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+	// The confirmation took the game to its start: tell the houses.
+	h.closeAfterNotifications(w)
+	writeJSONFlushed(w, http.StatusOK, response)
+	h.afterResponse(r, func(ctx context.Context) { h.notifier.TurnStarted(ctx, result.Snapshot) })
+}
+
 // seedCandidateMap serves the map of one candidate seed, generated for the
 // game's player count. It reveals nothing but the map. The generation is cached
 // by game and candidate (already marshalled, with its ETag) since it is not
@@ -1176,6 +1202,9 @@ type lobbyView struct {
 	SeedCandidates []seedCandidateView `json:"seedCandidates"`
 	SeedRanking    []int               `json:"seedRanking"`
 	HouseName      string              `json:"houseName"`
+	// AwaitingCreator is true until the creator confirms their own house name
+	// and vote; the game does not start before.
+	AwaitingCreator bool `json:"awaitingCreator"`
 }
 
 type seedCandidateView struct {
@@ -1188,9 +1217,10 @@ func makeLobbyView(snapshot store.GameSnapshot) *lobbyView {
 		return nil
 	}
 	view := &lobbyView{
-		SeedCandidates: seedCandidateViews(snapshot.Lobby.SeedCandidates),
-		SeedRanking:    snapshot.Lobby.SeedRanking,
-		HouseName:      snapshot.Lobby.HouseName,
+		SeedCandidates:  seedCandidateViews(snapshot.Lobby.SeedCandidates),
+		SeedRanking:     snapshot.Lobby.SeedRanking,
+		HouseName:       snapshot.Lobby.HouseName,
+		AwaitingCreator: snapshot.AwaitingCreator,
 	}
 	return view
 }

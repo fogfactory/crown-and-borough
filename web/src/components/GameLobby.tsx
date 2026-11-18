@@ -224,6 +224,39 @@ export function SeedVote({
   )
 }
 
+/**
+ * The creator holds a seat from the start but the game waits for them to
+ * confirm their house name and vote; everyone else sees that it waits.
+ */
+function CreatorConfirmation({ onConfirm }: { onConfirm?: () => Promise<void> }) {
+  const { t } = useLanguage()
+  const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (!onConfirm) {
+    return <Alert tone="info">{t('lobby.awaitingCreator')}</Alert>
+  }
+  const confirm = async () => {
+    setConfirming(true)
+    setError(null)
+    try {
+      await onConfirm()
+    } catch (failure) {
+      setError(errorText(failure, t, t('error.serverUnavailable')))
+    } finally {
+      setConfirming(false)
+    }
+  }
+  return (
+    <div className="space-y-2">
+      <Alert tone="info">{t('lobby.confirmDescription')}</Alert>
+      <Button type="button" disabled={confirming} onClick={() => void confirm()}>
+        {confirming ? t('lobby.confirming') : t('lobby.confirm')}
+      </Button>
+      {error && <Alert role="alert">{error}</Alert>}
+    </div>
+  )
+}
+
 /** The lobby of an online game: who joined, the house name, the seed vote. */
 export function GameLobby({
   gameId,
@@ -232,6 +265,7 @@ export function GameLobby({
   houseName,
   onRename,
   onVote,
+  onConfirm,
 }: {
   gameId: string
   tokenProvider: TokenProvider
@@ -239,6 +273,8 @@ export function GameLobby({
   houseName: string
   onRename: (name: string) => Promise<void>
   onVote: (ranking: number[]) => Promise<void>
+  /** Given to the creator only: confirms their name and vote. */
+  onConfirm?: () => Promise<void>
 }) {
   return (
     <div className="space-y-6">
@@ -248,6 +284,7 @@ export function GameLobby({
         onRename={onRename}
       />
       <SeedVote gameId={gameId} lobby={lobby} tokenProvider={tokenProvider} onVote={onVote} />
+      {lobby.awaitingCreator && <CreatorConfirmation onConfirm={onConfirm} />}
     </div>
   )
 }

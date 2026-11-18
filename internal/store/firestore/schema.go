@@ -42,6 +42,9 @@ type gameDocument struct {
 	Phase store.Phase `firestore:"phase"`
 	// FixedSeed is the seed the creator imposed on a lobby (no vote).
 	FixedSeed string `firestore:"fixedSeed,omitempty"`
+	// AwaitingCreator: the creator, seated from the creation, has not confirmed
+	// their house name and vote yet (see store.GameSnapshot.AwaitingCreator).
+	AwaitingCreator bool `firestore:"awaitingCreator,omitempty"`
 	// HouseNames are the house names members entered in the lobby, by member
 	// uid, so that their uniqueness is checked on this document alone. They
 	// become public with the houses when the game starts, and are dropped then.

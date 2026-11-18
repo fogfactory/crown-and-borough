@@ -521,6 +521,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
 | `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
 | `POST` | `/api/games/{id}/house-name` | Corps : `{ "name": "..." }`. Nomme la maison du joueur connecté (même normalisation que le nom affiché, 1 à 32 caractères). Dans le salon (`started: false`) le nom est seulement enregistré, sans message ; une fois la partie commencée il renomme la maison (slot et joueur de l'état, révision incrémentée, vues Firestore rafraîchies) et écrit dans le salon public un message système (`kind: "house_renamed"`, `body` = nouveau nom, `previousName`, auteur = la maison, sans limite de débit ni notification email). Le nom doit différer, sans tenir compte de la casse, de celui des autres maisons (`409 house_name_taken`) ; il se change tant que la maison n'a rien soumis (`PlayerSlot.NameLocked`, exposé en `nameLocked`, posé par la première soumission ; ensuite `409 house_name_locked`) ; `400 invalid_house_name`. Réponse : le détail de la partie et le slot `player` (vide dans le salon). |
+| `POST` | `/api/games/{id}/confirm` | Confirmation du créateur (voir « Confirmation du créateur »). Réponse : comme `join` ; la partie démarre si tous les slots sont pris. |
 | `PUT` | `/api/games/{id}/seed-vote` | Corps : `{ "ranking": [2, 0, 1] }`, les indices des graines candidates, de la préférée à la moins aimée ; une permutation des candidates (`400 invalid_seed_ranking`) ou une liste vide qui retire le vote. Réservé aux membres, tant que le salon est ouvert (`409 game_started` ensuite). Réponse : le détail de la partie, dont `lobby.seedRanking` (le classement du seul appelant). |
 | `GET` | `/api/games/{id}/seed-candidates/{index}/map[?inviteCode=…]` | Membres, ou porteur d'un code d'invitation actif de la partie (`403 invalid_invitation` sinon). `map.json` de la graine candidate `index`, générée pour le nombre de joueurs de la partie (`engine.GenerateMap`), mis en cache par (partie, indice), déjà sérialisé, avec `ETag` et `Cache-Control: private, no-cache` (l'autorisation est revérifiée à chaque appel, `304` sur `If-None-Match`) ; ne révèle que la carte et, dans `starts`, l'ensemble trié des territoires portant un château de départ (jamais la maison qui en reçoit un). `404` pour un indice inconnu. |
 | `GET` | `/api/games/{id}/invite` | Renvoie le lien d'invitation au créateur uniquement. |
@@ -568,7 +569,17 @@ chat répondent `409 game_not_started`.
 - **Candidates.** `store.SeedCandidates(gameID, n, assets)` : seeds lisibles `prenom-de-commune` (comme celui proposé par défaut à la création), tirés de `mapgen.NewRNG(gameID, "candidate-"+i)` dans les prénoms et communes des assets (`assetgen.ReadableSeed`), distincts entre eux.
   `n` = `seed_candidates` de `balance.yaml` (3 par défaut, 8 au plus).
   Une graine imposée à la création (`seed` non vide) supprime les candidates.
-- **Démarrage.** Au join du dernier slot, `store.PlanStart` (mémoire : sous le
+- **Confirmation du créateur.** Le créateur occupe un slot dès la création mais
+  la partie attend sa confirmation (`GameSnapshot.AwaitingCreator`, champ
+  `awaitingCreator` du document de partie, absent pour une partie créée en
+  spectateur) : `PlanJoin` ne déclenche pas le démarrage tant qu'elle manque, et
+  `POST /api/games/{id}/confirm` (`store.LobbyStore.ConfirmLobby`, réservé au
+  créateur : `403 not_creator`, `409 game_started` ensuite, idempotent) la
+  pose puis démarre la partie si tous les slots sont pris (même réponse et
+  même notification que le join qui démarre). Le nom et le vote enregistrés
+  par `house-name` et `seed-vote` sont ceux utilisés ; `lobby.awaitingCreator`
+  de la vue détail l'indique à tous les membres.
+- **Démarrage.** Quand le dernier slot est pris et que le créateur a confirmé, `store.PlanStart` (mémoire : sous le
   verrou de la partie ; Firestore : dans la transaction du join) : (1) résout la
   graine par un compte de Borda (rang r sur n : n−1−r points ; abstentions
   ignorées ; égalité départagée par `sha256(gameID|tiebreak|i)` ; aucun vote →

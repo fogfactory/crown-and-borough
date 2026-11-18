@@ -29,7 +29,9 @@ func newLobbyEnv(t *testing.T, body string) lobbyEnv {
 		Chat:             service,
 	})
 	game := createGameHTTP(t, handler, "alice", body)
-	return lobbyEnv{t: t, handler: handler, base: "/api/games/" + string(game.ID), game: game}
+	env := lobbyEnv{t: t, handler: handler, base: "/api/games/" + string(game.ID), game: game}
+	env.expect(http.MethodPost, "/confirm", "alice", "", http.StatusOK, "")
+	return env
 }
 
 func (e lobbyEnv) call(method, path, actor, body string) (int, map[string]any) {
@@ -190,6 +192,7 @@ func TestJoinCarriesTheLobbyEntryAndNotifiesWhenItStartsTheGame(t *testing.T) {
 	})
 	game := createGameHTTP(t, handler, "alice", `{"players":2}`)
 	env := lobbyEnv{t: t, handler: handler, base: "/api/games/" + string(game.ID), game: game}
+	env.expect(http.MethodPost, "/confirm", "alice", "", http.StatusOK, "")
 	invite := requestGames(t, handler, http.MethodGet, env.base+"/invite?player=alice", "")
 	var invitation invitationView
 	if err := json.Unmarshal(invite.Body.Bytes(), &invitation); err != nil {

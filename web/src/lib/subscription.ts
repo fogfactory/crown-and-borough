@@ -156,6 +156,7 @@ function lobbyFromData(value: unknown): GameLobby | undefined {
       ? lobby.seedRanking.filter((index: unknown): index is number => typeof index === 'number')
       : [],
     houseName: stringValue(lobby.houseName),
+    awaitingCreator: lobby.awaitingCreator === true,
   }
 }
 

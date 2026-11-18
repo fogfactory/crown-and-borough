@@ -862,6 +862,21 @@ export function GamePage() {
     setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
   }
 
+  // The creator's confirmation may start the game: reload it then.
+  const confirmLobby = async () => {
+    if (!gameId || !user) return
+    const detail = await apiRequest<Record<string, unknown>>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/confirm`,
+      { method: 'POST' },
+    )
+    if (detail.started === true) {
+      setReloadKey((key) => key + 1)
+      return
+    }
+    setSummaryFromAPI(normalizeGameSummary(detail, gameId, user.uid))
+  }
+
   const openRules = (section: RulesSection) => {
     setRulesNavigation((current) => ({ section, key: (current?.key ?? 0) + 1 }))
     setActivePanel('rules')
@@ -983,6 +998,7 @@ export function GamePage() {
             houseName={lobby.houseName}
             onRename={renameHouse}
             onVote={voteForSeed}
+            onConfirm={summary.canInvite ? confirmLobby : undefined}
           />
         )}
         {actionError && <Alert role="alert">{actionError}</Alert>}

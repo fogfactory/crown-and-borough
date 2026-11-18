@@ -211,20 +211,16 @@ type lobbyJoinResult struct {
 func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, actor store.Actor, game gameDocument, options store.JoinOptions) (lobbyJoinResult, error) {
 	actorID := strings.TrimSpace(actor.ID)
 	id := game.ID
-	step, err := store.PlanJoin(playerSlots(game.Players), actorID, options, store.OtherHouseNames(game.HouseNames, ""), s.balance.SeedCandidateCount())
+	step, err := store.PlanJoin(playerSlots(game.Players), actorID, options, store.OtherHouseNames(game.HouseNames, ""), s.balance.SeedCandidateCount(), game.AwaitingCreator)
 	if err != nil {
 		return lobbyJoinResult{}, err
 	}
 
 	// Every read comes before the first write. The names are on the game
 	// document; only the start needs the (private) rankings and the display names.
-	var entries map[string]store.LobbyEntry
-	var displayNames map[string]string
+	var inputs lobbyStartInputs
 	if step.Final {
-		if entries, err = s.readLobbyEntries(transaction, id); err != nil {
-			return lobbyJoinResult{}, err
-		}
-		if displayNames, err = s.loadDisplayNames(transaction, game.Incognito, step.Slots); err != nil {
+		if inputs, err = s.readLobbyStartInputs(transaction, game, step.Slots); err != nil {
 			return lobbyJoinResult{}, err
 		}
 	}
@@ -243,6 +239,8 @@ func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, acto
 			if err := s.writeSeedRanking(transaction, id, actorID, ranking); err != nil {
 				return lobbyJoinResult{}, err
 			}
+			// The ranking was just written: the start reads it from here.
+			inputs.entries = withEntry(inputs.entries, actorID, store.LobbyEntry{SeedRanking: ranking})
 		}
 	}
 	if !step.Final {
@@ -252,27 +250,60 @@ func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, acto
 		s.recordWrites(1)
 		return lobbyJoinResult{snapshot: s.buildLobbySnapshot(actor, game, ranking), player: step.Slots[step.Seat].ID}, nil
 	}
+	return s.startLobby(transaction, actor, game, step.Slots, inputs, step.Slots[step.Seat].ID)
+}
 
-	// Last slot taken.
+// lobbyStartInputs is what closing a lobby reads besides the game document:
+// the members' lobby entries and account display names.
+type lobbyStartInputs struct {
+	entries      map[string]store.LobbyEntry
+	displayNames map[string]string
+}
+
+// readLobbyStartInputs reads what the start of a game needs; every read of a
+// transaction comes before its first write.
+func (s *FirestoreStore) readLobbyStartInputs(transaction *cloudfirestore.Transaction, game gameDocument, slots []store.PlayerSlot) (lobbyStartInputs, error) {
+	entries, err := s.readLobbyEntries(transaction, game.ID)
+	if err != nil {
+		return lobbyStartInputs{}, err
+	}
+	displayNames, err := s.loadDisplayNames(transaction, game.Incognito, slots)
+	if err != nil {
+		return lobbyStartInputs{}, err
+	}
+	return lobbyStartInputs{entries: entries, displayNames: displayNames}, nil
+}
+
+// withEntry sets uid's lobby entry in entries, creating the map if needed.
+func withEntry(entries map[string]store.LobbyEntry, uid string, entry store.LobbyEntry) map[string]store.LobbyEntry {
 	if entries == nil {
 		entries = make(map[string]store.LobbyEntry)
 	}
-	if step.Entry != nil {
-		entries[actorID] = store.LobbyEntry{SeedRanking: ranking}
-	}
+	entries[uid] = entry
+	return entries
+}
+
+// startLobby closes the lobby: it resolves the seed from the votes, seats the
+// members and writes the map, the canonical state, the views and the observer
+// view, all in the caller's transaction. game already carries the new revision.
+// player is the house the caller gets when the draw does not move them.
+func (s *FirestoreStore) startLobby(transaction *cloudfirestore.Transaction, actor store.Actor, game gameDocument, slots []store.PlayerSlot, inputs lobbyStartInputs, player models.PlayerID) (lobbyJoinResult, error) {
+	id := game.ID
+	actorID := strings.TrimSpace(actor.ID)
+	entries := inputs.entries
 	for uid, name := range game.HouseNames {
 		entry := entries[uid]
 		entry.HouseName = name
-		entries[uid] = entry
+		entries = withEntry(entries, uid, entry)
 	}
 	plan, err := store.PlanStart(store.StartInput{
 		GameID:       id,
 		FixedSeed:    game.FixedSeed,
 		Incognito:    game.Incognito,
 		YearCount:    game.YearCount,
-		Slots:        step.Slots,
+		Slots:        slots,
 		Entries:      entries,
-		DisplayNames: displayNames,
+		DisplayNames: inputs.displayNames,
 		Balance:      s.balance,
 		Assets:       s.assets,
 	})
@@ -316,7 +347,6 @@ func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, acto
 	if err := s.writeStartedProjections(transaction, started, canonical, plan.State); err != nil {
 		return lobbyJoinResult{}, err
 	}
-	player := step.Slots[step.Seat].ID
 	for _, slot := range plan.Slots {
 		if slot.ActorID == actorID {
 			player = slot.ID
@@ -324,6 +354,79 @@ func (s *FirestoreStore) joinLobby(transaction *cloudfirestore.Transaction, acto
 	}
 	snapshot := gameSnapshot(s.balance, started, plan.State, plan.Map, map[models.PlayerID]engine.OrdersInput{}, []store.ReportRecord{})
 	return lobbyJoinResult{snapshot: snapshot, player: player, started: true}, nil
+}
+
+// ConfirmLobby is the creator's confirmation that their house name and vote are
+// final. In the transaction that records it, the game starts if every slot is
+// taken.
+func (s *FirestoreStore) ConfirmLobby(ctx context.Context, actor store.Actor, id store.GameID) (store.JoinResult, error) {
+	if err := s.requireClient(); err != nil {
+		return store.JoinResult{}, err
+	}
+	actorID := strings.TrimSpace(actor.ID)
+	operationContext, cancel := s.operationContext(ctx)
+	defer cancel()
+	var result lobbyJoinResult
+	s.recordTransaction()
+	err := s.client.RunTransaction(operationContext, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
+		result = lobbyJoinResult{}
+		gameSnapshot, err := transaction.Get(gameRef(s.client, id))
+		s.recordReads(1)
+		if err != nil {
+			return mapReadError(err, store.ErrUnknownGame)
+		}
+		game, err := decodeGameDocument(gameSnapshot)
+		if err != nil {
+			return err
+		}
+		playerID, member := playerIDForActor(game, actor)
+		if !member {
+			return store.ErrNotMember
+		}
+		if actorID != strings.TrimSpace(game.OwnerUID) {
+			return store.ErrNotCreator
+		}
+		if game.Phase != store.PhaseLobby {
+			return store.ErrGameStarted
+		}
+		var ranking []int
+		if game.FixedSeed == "" {
+			document, err := transaction.Get(lobbyRef(s.client, id, actorID))
+			s.recordReads(1)
+			if ranking, err = decodeSeedRanking(document, err); err != nil {
+				return err
+			}
+		}
+		if !game.AwaitingCreator {
+			result = lobbyJoinResult{snapshot: s.buildLobbySnapshot(actor, game, ranking), player: playerID}
+			return nil
+		}
+		slots := playerSlots(game.Players)
+		var inputs lobbyStartInputs
+		final := store.SlotsFilled(slots)
+		if final {
+			if inputs, err = s.readLobbyStartInputs(transaction, game, slots); err != nil {
+				return err
+			}
+		}
+		game.AwaitingCreator = false
+		game.Revision++
+		game.UpdatedAt = s.now().UTC()
+		if final {
+			result, err = s.startLobby(transaction, actor, game, slots, inputs, playerID)
+			return err
+		}
+		if err := transaction.Set(gameRef(s.client, id), game); err != nil {
+			return err
+		}
+		s.recordWrites(1)
+		result = lobbyJoinResult{snapshot: s.buildLobbySnapshot(actor, game, ranking), player: playerID}
+		return nil
+	})
+	if err != nil {
+		return store.JoinResult{}, wrapTransactionResult(err)
+	}
+	return store.JoinResult{Snapshot: result.snapshot, Player: playerSlot(result.snapshot.Players, result.player), Started: result.started}, nil
 }
 
 // withHouseName returns names with uid's house name set, on a copy.

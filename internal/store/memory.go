@@ -70,6 +70,9 @@ type memoryGame struct {
 	// lobby holds what each member prepared before the game started, by uid.
 	lobby    map[string]LobbyEntry
 	joinedAt map[models.PlayerID]time.Time
+	// awaitingCreator: the creator, seated from the creation, has not confirmed
+	// their house name and vote yet (see GameSnapshot.AwaitingCreator).
+	awaitingCreator bool
 }
 
 var (
@@ -274,6 +277,7 @@ func (s *MemoryStore) Create(_ context.Context, actor Actor, request CreateReque
 		game.fixedSeed = seed
 		game.seed = ""
 		game.lobby = make(map[string]LobbyEntry)
+		game.awaitingCreator = !request.Spectate
 	}
 
 	s.indexMu.Lock()
@@ -449,7 +453,7 @@ func (s *MemoryStore) Join(ctx context.Context, actor Actor, id GameID, code str
 	var step JoinStep
 	seat := slices.IndexFunc(game.players, func(player PlayerSlot) bool { return !player.Assigned() })
 	if !game.started() {
-		if step, err = PlanJoin(game.players, actorID, options, OtherHouseNames(PendingHouseNames(game.lobby), ""), s.balance.SeedCandidateCount()); err != nil {
+		if step, err = PlanJoin(game.players, actorID, options, OtherHouseNames(PendingHouseNames(game.lobby), ""), s.balance.SeedCandidateCount(), game.awaitingCreator); err != nil {
 			return JoinResult{}, err
 		}
 		seat = step.Seat
@@ -566,6 +570,51 @@ func (s *MemoryStore) startLocked(ctx context.Context, game *memoryGame) error {
 	game.phase = PhaseStarted
 	game.lobby = nil
 	return nil
+}
+
+// ConfirmLobby is the creator's confirmation that their house name and vote
+// are final: the game starts once every slot is taken.
+func (s *MemoryStore) ConfirmLobby(ctx context.Context, actor Actor, id GameID) (JoinResult, error) {
+	if err := contextError(ctx); err != nil {
+		return JoinResult{}, err
+	}
+	game, err := s.game(id)
+	if err != nil {
+		return JoinResult{}, err
+	}
+	game.mu.Lock()
+	defer game.mu.Unlock()
+	playerID, ok := game.playerForActorLocked(actor)
+	if !ok {
+		return JoinResult{}, ErrNotMember
+	}
+	if strings.TrimSpace(actor.ID) != game.createdBy {
+		return JoinResult{}, ErrNotCreator
+	}
+	if game.started() {
+		return JoinResult{}, ErrGameStarted
+	}
+	started := false
+	if game.awaitingCreator {
+		game.awaitingCreator = false
+		if SlotsFilled(game.players) {
+			previous := game.players
+			if err := s.startLocked(ctx, game); err != nil {
+				game.players, game.awaitingCreator = previous, true
+				return JoinResult{}, err
+			}
+			started = true
+		}
+		game.revision++
+	}
+	snapshot, err := s.snapshotLocked(game, actor)
+	if err != nil {
+		return JoinResult{}, err
+	}
+	if started {
+		playerID, _ = game.playerForActorLocked(actor)
+	}
+	return JoinResult{Snapshot: snapshot, Player: playerSlotForID(game.players, playerID), Started: started}, nil
 }
 
 // RenameHouse names the actor's house. In the lobby it records the name the
@@ -1114,6 +1163,7 @@ func (s *MemoryStore) snapshotLocked(game *memoryGame, actor Actor) (GameSnapsho
 		FixedSeed:    game.fixedSeed,
 	}
 	if !game.started() {
+		snapshot.AwaitingCreator = game.awaitingCreator
 		if _, member := game.playerForActorLocked(actor); member {
 			entry := game.lobby[strings.TrimSpace(actor.ID)]
 			view := &LobbyView{SeedCandidates: []string{}, SeedRanking: append([]int{}, entry.SeedRanking...), HouseName: entry.HouseName}

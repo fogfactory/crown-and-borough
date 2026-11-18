@@ -199,6 +199,7 @@ describe('Firestore game subscriptions', () => {
       ],
       seedRanking: [1, 0],
       houseName: 'House Stark',
+      awaitingCreator: false,
     })
   })
 

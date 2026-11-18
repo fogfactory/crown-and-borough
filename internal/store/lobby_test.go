@@ -85,6 +85,7 @@ func newLobbyGame(t *testing.T, request CreateRequest) (*MemoryStore, GameSnapsh
 	if err != nil {
 		t.Fatalf("invite: %v", err)
 	}
+	confirmCreator(t, gameStore, created.ID)
 	return gameStore, created, secret.Code
 }
 
@@ -361,29 +362,29 @@ func TestPlanJoinSeatsTheFirstFreeSlotAndValidatesTheEntry(t *testing.T) {
 	slots := []PlayerSlot{{ID: "P1", ActorID: "alice"}, {ID: "P2"}, {ID: "P3"}}
 	names := []string{"House Stark"}
 
-	step, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "  House Tyrell ", SeedRanking: []int{2, 0, 1}}, names, 3)
+	step, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "  House Tyrell ", SeedRanking: []int{2, 0, 1}}, names, 3, false)
 	if err != nil || step.Seat != 1 || step.Final || step.Slots[1].ActorID != "bob" || slots[1].ActorID != "" {
 		t.Fatalf("step = %#v, %v (input must stay untouched)", step, err)
 	}
 	if step.Entry == nil || step.Entry.HouseName != "House Tyrell" || !slices.Equal(step.Entry.SeedRanking, []int{2, 0, 1}) {
 		t.Fatalf("entry = %#v", step.Entry)
 	}
-	if _, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "house stark"}, names, 3); !errors.Is(err, ErrHouseNameTaken) {
+	if _, err := PlanJoin(slots, "bob", JoinOptions{HouseName: "house stark"}, names, 3, false); !errors.Is(err, ErrHouseNameTaken) {
 		t.Fatalf("taken name = %v", err)
 	}
-	if _, err := PlanJoin(slots, "bob", JoinOptions{SeedRanking: []int{0, 0, 1}}, names, 3); !errors.Is(err, ErrInvalidSeedRanking) {
+	if _, err := PlanJoin(slots, "bob", JoinOptions{SeedRanking: []int{0, 0, 1}}, names, 3, false); !errors.Is(err, ErrInvalidSeedRanking) {
 		t.Fatalf("bad ranking = %v", err)
 	}
-	if step, err := PlanJoin(slots, "bob", JoinOptions{}, names, 3); err != nil || step.Entry != nil {
+	if step, err := PlanJoin(slots, "bob", JoinOptions{}, names, 3, false); err != nil || step.Entry != nil {
 		t.Fatalf("a join with nothing prepared has no entry: %#v, %v", step, err)
 	}
 	slots[1].ActorID = "bob"
-	last, err := PlanJoin(slots, "carol", JoinOptions{}, names, 3)
+	last, err := PlanJoin(slots, "carol", JoinOptions{}, names, 3, false)
 	if err != nil || !last.Final || last.Seat != 2 {
 		t.Fatalf("last = %#v, %v", last, err)
 	}
 	slots[2].ActorID = "carol"
-	if _, err := PlanJoin(slots, "dave", JoinOptions{}, names, 3); !errors.Is(err, ErrGameFull) {
+	if _, err := PlanJoin(slots, "dave", JoinOptions{}, names, 3, false); !errors.Is(err, ErrGameFull) {
 		t.Fatalf("full = %v", err)
 	}
 }
@@ -429,5 +430,45 @@ func TestSeedCandidatesAreReadableAndDistinct(t *testing.T) {
 	}
 	if again := SeedCandidates("some-game", 3, seedTestAssets(t)); !slices.Equal(again, seeds) {
 		t.Fatalf("candidates changed between calls: %v then %v", seeds, again)
+	}
+}
+
+// confirmCreator is the creator confirming their own house name and vote, which
+// the game waits for before it starts.
+func confirmCreator(t *testing.T, gameStore *MemoryStore, id GameID) {
+	t.Helper()
+	if _, err := gameStore.ConfirmLobby(context.Background(), Actor{ID: "alice"}, id); err != nil {
+		t.Fatalf("confirm creator: %v", err)
+	}
+}
+
+func TestGameWaitsForTheCreatorsConfirmationToStart(t *testing.T) {
+	gameStore := newTestStore(t)
+	ctx := context.Background()
+	alice, bob := Actor{ID: "alice"}, Actor{ID: "bob"}
+	created, err := gameStore.Create(ctx, alice, CreateRequest{Players: []engine.PlayerInit{{}, {}}, StrictMembership: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !created.AwaitingCreator {
+		t.Fatal("a new lobby does not await its creator")
+	}
+	secret, err := gameStore.CreateInvitation(ctx, alice, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined, err := gameStore.Join(ctx, bob, created.ID, secret.Code, JoinOptions{})
+	if err != nil || joined.Started || joined.Snapshot.Started() || !joined.Snapshot.AwaitingCreator {
+		t.Fatalf("last join before the confirmation = %+v (%v)", joined, err)
+	}
+	if _, err := gameStore.ConfirmLobby(ctx, bob, created.ID); !errors.Is(err, ErrNotCreator) {
+		t.Fatalf("confirm by a guest = %v, want ErrNotCreator", err)
+	}
+	confirmed, err := gameStore.ConfirmLobby(ctx, alice, created.ID)
+	if err != nil || !confirmed.Started || !confirmed.Snapshot.Started() {
+		t.Fatalf("confirmation with every slot taken = %+v (%v)", confirmed, err)
+	}
+	if _, err := gameStore.ConfirmLobby(ctx, alice, created.ID); !errors.Is(err, ErrGameStarted) {
+		t.Fatalf("confirm after the start = %v, want ErrGameStarted", err)
 	}
 }

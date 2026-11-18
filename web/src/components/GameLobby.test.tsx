@@ -36,9 +36,14 @@ const lobby: LobbyData = {
   ],
   seedRanking: [],
   houseName: '',
+  awaitingCreator: false,
 }
 
-function renderLobby(overrides: Partial<LobbyData> = {}, onVote = vi.fn().mockResolvedValue(undefined)) {
+function renderLobby(
+  overrides: Partial<LobbyData> = {},
+  onVote = vi.fn().mockResolvedValue(undefined),
+  onConfirm?: () => Promise<void>,
+) {
   render(
     <LanguageProvider initialLanguage="en">
       <GameLobby
@@ -48,6 +53,7 @@ function renderLobby(overrides: Partial<LobbyData> = {}, onVote = vi.fn().mockRe
         houseName=""
         onRename={vi.fn().mockResolvedValue(undefined)}
         onVote={onVote}
+        onConfirm={onConfirm}
       />
     </LanguageProvider>,
   )
@@ -83,6 +89,29 @@ describe('GameLobby', () => {
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
+  })
+
+  it('asks the creator to confirm, and tells the others the game waits', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined)
+    const { unmount } = render(
+      <LanguageProvider initialLanguage="en">
+        <GameLobby
+          gameId="game-1"
+          tokenProvider={{ getIdToken: async () => 'token' }}
+          lobby={{ ...lobby, awaitingCreator: true }}
+          houseName=""
+          onRename={vi.fn().mockResolvedValue(undefined)}
+          onVote={vi.fn().mockResolvedValue(undefined)}
+          onConfirm={onConfirm}
+        />
+      </LanguageProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm my house and my vote' }))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1))
+    unmount()
+    renderLobby({ awaitingCreator: true })
+    expect(screen.getByText(/once its creator has confirmed/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirm my house and my vote' })).toBeNull()
   })
 
   it('shows a preview of every candidate map', async () => {

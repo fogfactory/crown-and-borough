@@ -1504,6 +1504,11 @@ const englishMessages = {
   'lobby.savingVote': 'Saving…',
   'lobby.voteSaved': 'Your vote is saved.',
   'lobby.noVote': 'You have not voted yet.',
+  'lobby.confirm': 'Confirm my house and my vote',
+  'lobby.confirming': 'Confirming…',
+  'lobby.confirmDescription':
+    'The game starts once every player has joined and you have confirmed. Your saved house name and vote are the ones used; you can still change the name until your first orders.',
+  'lobby.awaitingCreator': 'The game starts once its creator has confirmed their house and their vote.',
   'lobby.fixedSeed': 'The seed of this game was chosen by its creator.',
 
   'online.houseName': 'Your house name',
@@ -3237,6 +3242,11 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'lobby.savingVote': 'Enregistrement…',
   'lobby.voteSaved': 'Votre vote est enregistré.',
   'lobby.noVote': 'Vous n’avez pas encore voté.',
+  'lobby.confirm': 'Confirmer ma maison et mon vote',
+  'lobby.confirming': 'Confirmation…',
+  'lobby.confirmDescription':
+    'La partie commence quand tous les joueurs ont rejoint et que vous avez confirmé. Le nom de maison et le vote enregistrés sont ceux utilisés ; vous pourrez encore changer le nom jusqu’à vos premiers ordres.',
+  'lobby.awaitingCreator': 'La partie commence quand son créateur a confirmé sa maison et son vote.',
   'lobby.fixedSeed': 'La graine de cette partie a été choisie par son créateur.',
   'online.houseName': 'Nom de votre maison',
   'online.houseNameNote':

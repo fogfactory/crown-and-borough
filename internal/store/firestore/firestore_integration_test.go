@@ -64,6 +64,9 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
+	if _, err := first.ConfirmLobby(ctx, store.Actor{ID: "alice"}, created.Snapshot.ID); err != nil {
+		t.Fatalf("confirm creator: %v", err)
+	}
 	if _, err := first.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
@@ -515,6 +518,9 @@ func TestFirestoreStoreSubmissionsReplaceAndRejectStaleRevisions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
+	if _, err := gameStore.ConfirmLobby(ctx, store.Actor{ID: "alice"}, created.Snapshot.ID); err != nil {
+		t.Fatalf("confirm creator: %v", err)
+	}
 	joined, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{})
 	if err != nil {
 		t.Fatalf("join game: %v", err)
@@ -579,6 +585,9 @@ func TestFirestoreStoreConcurrentSubmissionsDoNotLoseOrders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create game: %v", err)
 	}
+	if _, err := gameStore.ConfirmLobby(ctx, store.Actor{ID: "alice"}, created.Snapshot.ID); err != nil {
+		t.Fatalf("confirm creator: %v", err)
+	}
 	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
@@ -642,6 +651,9 @@ func TestFirestoreStoreJoinRejectsAnActiveResolutionClaim(t *testing.T) {
 	}
 	// A game that predates lobbies is started yet may have a free slot: start
 	// this one, then free Bob's slot as such a game would have it.
+	if _, err := gameStore.ConfirmLobby(ctx, store.Actor{ID: "alice"}, created.Snapshot.ID); err != nil {
+		t.Fatalf("confirm creator: %v", err)
+	}
 	if _, err := gameStore.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{}); err != nil {
 		t.Fatalf("join game: %v", err)
 	}
@@ -694,6 +706,9 @@ func TestFirestoreStoreJoinRejectsAnActiveResolutionClaim(t *testing.T) {
 func startedGame(ctx context.Context, s *FirestoreStore, creator store.Actor, request store.CreateRequest) (store.GameSnapshot, error) {
 	created, err := s.CreateWithInvitation(ctx, creator, request)
 	if err != nil {
+		return store.GameSnapshot{}, err
+	}
+	if _, err := s.ConfirmLobby(ctx, creator, created.Snapshot.ID); err != nil {
 		return store.GameSnapshot{}, err
 	}
 	joined, err := s.Join(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, created.Invitation.Code, store.JoinOptions{})
@@ -783,19 +798,30 @@ func TestFirestoreLobbyStartsWithTheLastJoinAndCountsItsEntry(t *testing.T) {
 	if _, err := gameStore.Join(ctx, bob, id, created.Invitation.Code, store.JoinOptions{HouseName: "house stark"}); err != nil {
 		t.Fatalf("an existing member joining again must be idempotent: %v", err)
 	}
-	last, err := gameStore.Join(ctx, carol, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
+	// The last slot is taken, but the creator has not confirmed yet.
+	filled, err := gameStore.Join(ctx, carol, id, created.Invitation.Code, store.JoinOptions{SeedRanking: []int{2, 1, 0}, HouseName: "House Arryn"})
 	if err != nil {
 		t.Fatalf("join carol: %v", err)
 	}
+	if filled.Started || filled.Snapshot.Started() {
+		t.Fatal("the game started before its creator confirmed")
+	}
+	if _, err := gameStore.ConfirmLobby(ctx, bob, id); !errors.Is(err, store.ErrNotCreator) {
+		t.Fatalf("confirm by a guest = %v, want ErrNotCreator", err)
+	}
+	last, err := gameStore.ConfirmLobby(ctx, alice, id)
+	if err != nil {
+		t.Fatalf("confirm alice: %v", err)
+	}
 	if !last.Started || !last.Snapshot.Started() {
-		t.Fatal("the last join did not start the game")
+		t.Fatal("the creator's confirmation did not start the game")
 	}
 	// Borda: candidate 1 = 2+2+1, candidate 2 = 0+... : candidate 1 wins.
 	if want := store.SeedCandidates(id, 3, assets)[1]; last.Snapshot.Seed != want {
 		t.Fatalf("seed = %s, want candidate 1 %s", last.Snapshot.Seed, want)
 	}
-	if last.Player.Name != "House Arryn" {
-		t.Fatalf("carol's house = %q", last.Player.Name)
+	if last.Player.Name != "House Stark" {
+		t.Fatalf("alice's house = %q", last.Player.Name)
 	}
 	if _, err := canonicalRef(client, id).Get(ctx); err != nil {
 		t.Fatalf("canonical after start: %v", err)
