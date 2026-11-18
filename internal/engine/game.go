@@ -13,12 +13,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
-// MaximumGamePlayers is the largest player count of a game, online or local.
-const MaximumGamePlayers = models.MaximumGamePlayers
-
 const (
-	minimumGamePlayers  = models.MinimumGamePlayers
-	maximumGamePlayers  = MaximumGamePlayers
 	mapReferencePlayers = 4
 	mapReferenceWidth   = 1000
 	mapReferenceHeight  = 700
@@ -132,8 +127,8 @@ func GameMapConfig(playerCount int) mapgen.Config {
 
 // GenerateMap generates the static map used by CreateGame and the hotseat API.
 func GenerateMap(seed string, playerCount int, assets assetgen.Assets) (mapgen.MapData, error) {
-	if playerCount < minimumGamePlayers || playerCount > maximumGamePlayers {
-		return mapgen.MapData{}, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, playerCount)
+	if playerCount < models.MinimumGamePlayers || playerCount > models.MaximumGamePlayers {
+		return mapgen.MapData{}, fmt.Errorf("engine: player count must be between %d and %d, got %d", models.MinimumGamePlayers, models.MaximumGamePlayers, playerCount)
 	}
 	return mapgen.Generate(seed, assets, GameMapConfig(playerCount))
 }
@@ -149,8 +144,8 @@ func CreateGame(seed string, players []PlayerInit, balance assetgen.Balance, ass
 // ordered by territory ID, with its own dedicated home village at graph
 // distance two.
 func CreateGameWithYears(seed string, players []PlayerInit, yearCount int, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
-	if len(players) < minimumGamePlayers || len(players) > maximumGamePlayers {
-		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, len(players))
+	if len(players) < models.MinimumGamePlayers || len(players) > models.MaximumGamePlayers {
+		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", models.MinimumGamePlayers, models.MaximumGamePlayers, len(players))
 	}
 	mapData, err := GenerateMap(seed, len(players), assets)
 	if err != nil {
@@ -180,8 +175,8 @@ func SeatPlayer(index int, init PlayerInit) models.Player {
 // CreateGameFromMap is CreateGameWithYears on a map the caller already
 // generated with GenerateMap(seed, len(players), assets).
 func CreateGameFromMap(seed string, mapData mapgen.MapData, players []PlayerInit, yearCount int, balance assetgen.Balance, assets assetgen.Assets) (*models.GameState, error) {
-	if len(players) < minimumGamePlayers || len(players) > maximumGamePlayers {
-		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", minimumGamePlayers, maximumGamePlayers, len(players))
+	if len(players) < models.MinimumGamePlayers || len(players) > models.MaximumGamePlayers {
+		return nil, fmt.Errorf("engine: player count must be between %d and %d, got %d", models.MinimumGamePlayers, models.MaximumGamePlayers, len(players))
 	}
 	var err error
 	yearCount, err = models.NormalizeGameYears(yearCount)
