@@ -37,7 +37,10 @@ type frontierGeometry struct {
 	chains    []frontierChain
 	// edges lists the sorted interior pairs that still share a frontier chain
 	// once short frontiers have been collapsed: the geometric arcs of the graph.
-	edges   [][2]int
+	edges [][2]int
+	// outline holds, per interior site, the length in map pixels of its
+	// frontier with the map's outline (the sacrificial frame sites).
+	outline []float64
 	padding int
 	width   int
 	height  int
@@ -153,6 +156,7 @@ func extractInteriorFrontiersWithJitter(
 		centroids: centroids,
 		chains:    chains,
 		edges:     frontierEdges(chains, interiorCount),
+		outline:   outlineLengths(chains, interiorCount),
 		padding:   padding,
 		width:     width,
 		height:    height,
@@ -686,4 +690,17 @@ func sharesThirdOwner(chains []frontierChain, removed []bool, chain frontierChai
 		}
 	}
 	return false
+}
+
+// outlineLengths sums, per interior site, the length of its chains that border
+// the frame, that is the map outline.
+func outlineLengths(chains []frontierChain, interiorCount int) []float64 {
+	lengths := make([]float64, interiorCount)
+	for _, chain := range chains {
+		if chain.owners[1] < interiorCount {
+			continue
+		}
+		lengths[chain.owners[0]] += chainLength(chain.points)
+	}
+	return lengths
 }

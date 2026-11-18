@@ -2,6 +2,7 @@ package mapgen
 
 import (
 	"container/heap"
+	"crypto/sha256"
 	"fmt"
 	"slices"
 	"sort"
@@ -93,6 +94,18 @@ func (q *regionQueue) Pop() any {
 	return value
 }
 
+// regionStepCost is the cost of growing a region across one frontier: a base
+// cost of two plus a stable 0 to 2 noise drawn from the two territory codes.
+// The noise makes the growth uneven, so bishopric borders interlock like
+// puzzle pieces instead of tracing the straight bisectors of hop distance.
+func regionStepCost(from, to models.TerritoryID) int {
+	if from > to {
+		from, to = to, from
+	}
+	sum := sha256.Sum256([]byte(string(from) + "|" + string(to)))
+	return 2 + int(sum[0])%3
+}
+
 // generateRegions partitions territories into one region per seed, using a
 // BFS multi-source shortest-path assignment. seeds are the chefs-lieux
 // territory IDs; a home village never seeds its own region, so the region
@@ -131,7 +144,7 @@ func generateRegions(territories []Territory, seeds []models.TerritoryID) ([]mod
 		}
 		for _, adjacent := range byID[item.territory].Adjacencies {
 			neighbor := models.TerritoryID(adjacent)
-			candidate := regionQueueItem{territory: neighbor, seed: item.seed, distance: item.distance + 1}
+			candidate := regionQueueItem{territory: neighbor, seed: item.seed, distance: item.distance + regionStepCost(item.territory, neighbor)}
 			previous, assigned := best[neighbor]
 			if assigned && (previous.distance < candidate.distance || (previous.distance == candidate.distance && previous.seed <= candidate.seed)) {
 				continue

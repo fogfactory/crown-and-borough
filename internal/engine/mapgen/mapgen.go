@@ -4,6 +4,7 @@ package mapgen
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
@@ -139,10 +140,6 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	if err != nil {
 		return MapData{}, err
 	}
-	seats, err := placeSeats(newRNG(seed, "seats"), geometry.centroids, distances, starts, homeVillages, cfg.SeatCount)
-	if err != nil {
-		return MapData{}, err
-	}
 
 	names, err := nameTerritories(newRNG(seed, "naming"), assets, terrain)
 	if err != nil {
@@ -160,9 +157,6 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 	for _, home := range homeVillages {
 		village[home] = true
 	}
-	for _, seat := range seats {
-		village[seat] = true
-	}
 
 	territories := make([]Territory, cfg.SiteCount)
 	for i := range territories {
@@ -177,6 +171,18 @@ func generateAttempt(seed string, assets assetgen.Assets, cfg Config) (MapData, 
 		}
 	}
 
+	seats, err := chooseSeats(
+		newRNG(seed, "seats"), territories, geometry.centroids, distances,
+		eligibleSeats(distances, starts, homeVillages), starts,
+		geometry.outline, 1.5*minFrontierLength(cfg),
+		0.075*math.Hypot(float64(cfg.Width), float64(cfg.Height)), cfg.SeatCount,
+	)
+	if err != nil {
+		return MapData{}, err
+	}
+	for _, seat := range seats {
+		territories[seat].Village = true
+	}
 	seatIDs := make([]models.TerritoryID, len(seats))
 	for index, seat := range seats {
 		seatIDs[index] = models.TerritoryID(names[seat].code)

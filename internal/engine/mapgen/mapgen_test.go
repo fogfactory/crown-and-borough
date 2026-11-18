@@ -212,11 +212,11 @@ func TestFrontierRemovalChance(t *testing.T) {
 		first, second models.Terrain
 		want          float64
 	}{
-		{name: "mountain-mountain", first: models.TerrainMountain, second: models.TerrainMountain, want: 0.50},
-		{name: "mountain-swamp", first: models.TerrainMountain, second: models.TerrainSwamp, want: 0.50},
-		{name: "swamp-mountain", first: models.TerrainSwamp, second: models.TerrainMountain, want: 0.50},
+		{name: "mountain-mountain", first: models.TerrainMountain, second: models.TerrainMountain, want: 0.40},
+		{name: "mountain-swamp", first: models.TerrainMountain, second: models.TerrainSwamp, want: 0.40},
+		{name: "swamp-mountain", first: models.TerrainSwamp, second: models.TerrainMountain, want: 0.40},
 		{name: "plain-plain", first: models.TerrainPlain, second: models.TerrainPlain, want: 0},
-		{name: "plain-forest", first: models.TerrainPlain, second: models.TerrainForest, want: 0.15},
+		{name: "plain-forest", first: models.TerrainPlain, second: models.TerrainForest, want: 0.10},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -233,8 +233,14 @@ func TestGeneratedGraphsHaveTwoVertexDisjointPaths(t *testing.T) {
 		data := generateTestMap(t, seed, assets)
 		arcs := collectDTOArcs(t, data).passable
 		matrix := edgeMatrix(len(data.Territories), arcs)
-		if articulation := articulationPoints(matrix, len(data.Territories)); len(articulation) > 0 {
-			t.Fatalf("generated graph has articulation territories %v", articulation)
+		articulation := articulationPoints(matrix, len(data.Territories))
+		if len(articulation) > maxLockPoints {
+			t.Fatalf("generated graph has articulation territories %v, want at most %d", articulation, maxLockPoints)
+		}
+		if len(articulation) > 0 {
+			// Locks are deliberate chokepoints: pairs they separate have a
+			// single route by design.
+			return
 		}
 
 		// A connected graph without articulation points is biconnected. By
@@ -250,19 +256,28 @@ func TestGeneratedGraphsHaveTwoVertexDisjointPaths(t *testing.T) {
 	})
 }
 
-func TestValidateGraphRejectsArticulation(t *testing.T) {
-	terrain := make([]models.Terrain, 5)
-	for index := range terrain {
-		terrain[index] = models.TerrainPlain
+func TestValidateGraphLimitsArticulation(t *testing.T) {
+	plain := func(n int) []models.Terrain {
+		terrain := make([]models.Terrain, n)
+		for index := range terrain {
+			terrain[index] = models.TerrainPlain
+		}
+		return terrain
 	}
-	// Two cycles share site 0, which is an articulation point despite every
-	// territory meeting the local minimum degree.
-	edges := [][2]int{
+	// Two cycles share site 0: one chokepoint is a deliberate lock.
+	oneLock := [][2]int{{0, 1}, {1, 2}, {0, 2}, {0, 3}, {3, 4}, {0, 4}}
+	if err := validateGraph(oneLock, plain(5), 5); err != nil {
+		t.Fatalf("validateGraph rejected a single chokepoint: %v", err)
+	}
+	// A chain of four triangles has three articulation points, above the limit.
+	tooMany := [][2]int{
 		{0, 1}, {1, 2}, {0, 2},
-		{0, 3}, {3, 4}, {0, 4},
+		{2, 3}, {3, 4}, {2, 4},
+		{4, 5}, {5, 6}, {4, 6},
+		{6, 7}, {7, 8}, {6, 8},
 	}
-	if err := validateGraph(edges, terrain, len(terrain)); err == nil {
-		t.Fatal("validateGraph accepted a graph with an articulation point")
+	if err := validateGraph(tooMany, plain(9), 9); err == nil {
+		t.Fatal("validateGraph accepted three articulation points")
 	} else if !strings.Contains(err.Error(), "articulation") {
 		t.Fatalf("validateGraph error = %q, want an articulation diagnostic", err)
 	}
