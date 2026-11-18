@@ -39,6 +39,7 @@ const (
 	ErrorSupportNoAttack     = "error.support_no_attack"
 
 	WarningChainReplaced         = "warning.chain_replaced"
+	WarningDeprecatedOrder       = "warning.deprecated_order"
 	WarningStarvingAttack        = "warning.starving_attack"
 	WarningStarvingSupport       = "warning.starving_support"
 	WarningStarvingTransfer      = "warning.starving_transfer"
@@ -70,6 +71,8 @@ const (
 	ParseOffensiveSupportDestination = "error.parse.offensive_support_destination"
 	ParseSupportShape                = "error.parse.support_shape"
 	ParseOffensiveSupportDash        = "error.parse.offensive_support_dash"
+	ParseManeuverDestinationRequired = "error.parse.maneuver_destination_required"
+	ParseManeuverCount               = "error.parse.maneuver_count"
 	ParseDisperseDestinationRequired = "error.parse.disperse_destination_required"
 	ParseAssignmentDestination       = "error.parse.assignment_destination"
 	ParseAssignmentEmptyNoble        = "error.parse.assignment_empty_noble"
@@ -151,6 +154,8 @@ const (
 	ValidationAssignmentDestinationMissing = "error.validation.assignment_destination_missing"
 	ValidationUnknownAssignmentNoble       = "error.validation.unknown_assignment_noble"
 	ValidationDuplicateAssignmentNoble     = "error.validation.duplicate_assignment_noble"
+	ValidationManeuverRestMisplaced        = "error.validation.maneuver_rest_misplaced"
+	ValidationManeuverCounts               = "error.validation.maneuver_counts"
 	ValidationMultipleWildcards            = "error.validation.multiple_wildcards"
 	ValidationTransferAmount               = "error.validation.transfer_amount"
 	ValidationTransferShape                = "error.validation.transfer_shape"
@@ -184,6 +189,7 @@ func init() {
 	register(ErrorNobleNotOwned, "noble %q belongs to player %q", "le noble %q appartient au joueur %q")
 	register(ErrorDuplicateEmission, "noble %q appears more than once", "le noble %q apparaît plusieurs fois")
 	register(ErrorTransferPathBlocked, "the transfer route from %q to %q is blocked", "la route de transfert de %q vers %q est bloquée")
+	register(WarningDeprecatedOrder, "%s is deprecated and will be removed: use the maneuver M instead (here: %s)", "%s est déprécié et sera supprimé : utilise la manœuvre M à la place (ici : %s)")
 	register(WarningChainReplaced, "this chain replaces the one under way for the army on %q, which is dropped", "cette chaîne remplace celle en cours de l'armée en %q, qui est abandonnée")
 	register(WarningStarvingAttack, "the army on %q is starving and cannot attack: this order will fail", "l'armée en %q est affamée et ne peut pas attaquer : cet ordre échouera")
 	register(WarningStarvingSupport, "the army on %q is starving and cannot support: this support will count for nothing", "l'armée en %q est affamée et ne peut pas soutenir : ce soutien ne comptera pas")
@@ -193,7 +199,7 @@ func init() {
 	register(WarningTransferSourceLost, "the army on %q is not on a territory you control: it cannot send a transfer", "l'armée en %q n'est pas sur un territoire que tu contrôles : elle ne peut pas envoyer de transfert")
 	register(WarningTransferDestination, "the transfer from %q has no valid recipient: the destination does not accept it", "le transfert depuis %q n'a pas de destinataire valide : la destination ne peut pas le recevoir")
 	register(WarningTransferBlocked, "no supply route lets the transfer from %q reach its destination", "aucune route de ravitaillement ne permet au transfert depuis %q d'atteindre sa destination")
-	register(WarningDisperseNobles, "the noble assignments of the dispersion from %q cannot be honored: the dispersion will be invalid", "les affectations de nobles de la dispersion depuis %q ne peuvent pas être respectées : la dispersion sera invalide")
+	register(WarningDisperseNobles, "the noble assignments of the order from %q cannot be honored: the order will be invalid", "les affectations de nobles de l'ordre depuis %q ne peuvent pas être respectées : l'ordre sera invalide")
 	register(WarningDisperseTooMany, "the looped dispersion from %q lists %d destinations for %d troops: it will be invalid", "la dispersion en boucle depuis %q liste %d destinations pour %d troupes : elle sera invalide")
 	register(WarningSupportAttacker, "the army on %q attacks this turn: it gives up the defensive support of %q", "l'armée en %q attaque ce tour : elle renonce au soutien défensif de %q")
 	register(WarningSupportNoAttack, "the army on %q does not attack %q this turn: the support of %q has nothing to support", "l'armée en %q n'attaque pas %q ce tour : le soutien de %q n'a rien à soutenir")
@@ -217,10 +223,12 @@ func init() {
 	register(ParseOffensiveSupportDestination, "offensive S requires an attack destination after -", "un S offensif exige une destination d'attaque après -")
 	register(ParseSupportShape, "S accepts either one supported position or one position and attack destination", "S accepte une position soutenue, ou une position et une destination d'attaque")
 	register(ParseOffensiveSupportDash, "offensive S requires - before its attack destination", "un S offensif exige - avant sa destination d'attaque")
+	register(ParseManeuverDestinationRequired, "M requires at least one destination code", "M exige au moins un code de destination")
+	register(ParseManeuverCount, "invalid troop count %q: expected /N with N >= 1 or +", "effectif %q invalide : /N avec N >= 1 ou + attendu")
 	register(ParseDisperseDestinationRequired, "D requires at least one destination code", "D exige au moins un code de destination")
-	register(ParseAssignmentDestination, "a dispersion assignment requires a destination code before *", "une affectation de dispersion exige un code de destination avant *")
-	register(ParseAssignmentEmptyNoble, "a dispersion assignment contains an empty noble code", "une affectation de dispersion contient un code de noble vide")
-	register(ParseAssignmentInvalidNoble, "invalid noble code %q in dispersion assignment", "code de noble %q invalide dans l'affectation de dispersion")
+	register(ParseAssignmentDestination, "a noble assignment requires a destination code before *", "une affectation de nobles exige un code de destination avant *")
+	register(ParseAssignmentEmptyNoble, "a noble assignment contains an empty noble code", "une affectation de nobles contient un code de noble vide")
+	register(ParseAssignmentInvalidNoble, "invalid noble code %q in a noble assignment", "code de noble %q invalide dans une affectation de nobles")
 	register(ParseAssignmentUnknownNoble, "noble code %q does not exist", "le code de noble %q n'existe pas")
 	register(ParseCodeFormat, "%s code %q must contain exactly three uppercase letters", "le code de %s %q doit contenir exactement trois lettres majuscules")
 	register(ParseTerritoryUnknown, "territory code %q does not exist", "le code de territoire %q n'existe pas")
@@ -294,10 +302,12 @@ func init() {
 	register(ValidationNotAdjacent, "%s target %q is not adjacent to %q", "la cible %s %q n'est pas adjacente à %q")
 	register(ValidationSupportSamePosition, "defensive S cannot support its own position", "un S défensif ne peut pas soutenir sa propre position")
 	register(ValidationUnknownAssignmentDestination, "assignment destination %q does not exist", "la destination d'affectation %q n'existe pas")
-	register(ValidationAssignmentDestinationMissing, "assignment destination %q is not listed in D targets", "la destination d'affectation %q n'est pas listée dans les cibles de D")
+	register(ValidationAssignmentDestinationMissing, "assignment destination %q is not listed among the order's destinations", "la destination d'affectation %q n'est pas listée parmi les destinations de l'ordre")
 	register(ValidationUnknownAssignmentNoble, "assigned noble %q does not exist", "le noble affecté %q n'existe pas")
 	register(ValidationDuplicateAssignmentNoble, "noble %q is assigned more than once", "le noble %q est affecté plusieurs fois")
-	register(ValidationMultipleWildcards, "D accepts at most one remaining-nobles wildcard", "D accepte au plus un joker pour les nobles restants")
+	register(ValidationManeuverRestMisplaced, "M accepts a single + and only on its last destination", "M accepte un seul + et seulement sur sa dernière destination")
+	register(ValidationManeuverCounts, "M destinations need one valid troop count each", "chaque destination de M exige un effectif valide")
+	register(ValidationMultipleWildcards, "D and M accept at most one remaining-nobles wildcard", "D et M acceptent au plus un joker pour les nobles restants")
 	register(ValidationTransferAmount, "T requires a positive amount", "T exige un montant positif")
 	register(ValidationTransferShape, "T requires exactly one destination", "T exige exactement une destination")
 	register(ValidationTransferSamePosition, "T cannot target its own position", "T ne peut pas viser sa propre position")

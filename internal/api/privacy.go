@@ -172,6 +172,7 @@ func cloneOrders(source []models.Order) []models.Order {
 	for index, order := range source {
 		clone[index] = order
 		clone[index].TargetIDs = append([]models.TerritoryID(nil), order.TargetIDs...)
+		clone[index].Counts = append([]int(nil), order.Counts...)
 		if order.NobleAssignments != nil {
 			clone[index].NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))
 			for destination, codes := range order.NobleAssignments {
@@ -232,7 +233,7 @@ func trajectoryContains(snapshot models.ChainSnapshot, position models.Territory
 			if len(order.TargetIDs) > 0 && order.TargetIDs[0] == position {
 				return true
 			}
-		case models.OrderTypeDisperse:
+		case models.OrderTypeDisperse, models.OrderTypeManeuver:
 			for _, targetID := range order.TargetIDs {
 				if targetID == position {
 					return true
@@ -398,6 +399,7 @@ type OrderReportView struct {
 	Source           models.TerritoryID
 	Target           models.TerritoryID
 	Targets          []models.TerritoryID
+	Counts           []int
 	Amount           int
 	NobleAssignments map[models.TerritoryID][]models.NobleCode
 	Liaison          models.LiaisonMode
@@ -427,6 +429,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Source           models.TerritoryID                        `json:"source"`
 		Target           models.TerritoryID                        `json:"target,omitempty"`
 		Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+		Counts           []int                                     `json:"counts,omitempty"`
 		Amount           int                                       `json:"amount,omitempty"`
 		NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
 		Liaison          models.LiaisonMode                        `json:"liaison"`
@@ -447,6 +450,7 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 		Source:           view.Source,
 		Target:           view.Target,
 		Targets:          view.Targets,
+		Counts:           view.Counts,
 		Amount:           view.Amount,
 		NobleAssignments: view.NobleAssignments,
 		Liaison:          view.Liaison,
@@ -608,6 +612,7 @@ func knownOrderReport(order engine.OrderReport) OrderReportView {
 		Source:           order.Source,
 		Target:           order.Target,
 		Targets:          append([]models.TerritoryID(nil), order.Targets...),
+		Counts:           append([]int(nil), order.Counts...),
 		Amount:           order.Amount,
 		NobleAssignments: cloneNobleAssignments(order.NobleAssignments),
 		Liaison:          order.Liaison,

@@ -1,4 +1,5 @@
 import { formatOrderLabel } from '@/lib/order-label'
+import { MANEUVER_REST } from '@/types'
 import type {
   MapData,
   Order,
@@ -16,6 +17,7 @@ const SYMBOLS: Record<OrderType, string> = {
   join: 'J',
   pillage: 'P',
   disperse: 'D',
+  maneuver: 'M',
   transfer: 'T',
 }
 
@@ -150,6 +152,7 @@ function makeIntention(
       type: order.type,
       position: order.position,
       targets: order.targets,
+      counts: order.counts,
       nobleAssignments: order.nobleAssignments,
       liaison: order.liaison,
       amount: order.amount,
@@ -218,6 +221,41 @@ function makeIntention(
       }
       const holdsGround =
         targets.includes(position) || territoryState.size > targets.length
+      if (holdsGround) {
+        segments.push({ from, to: from, kind: 'loop', ...noblesAt(position) })
+        seen.add(position)
+      }
+      for (const target of targets) {
+        if (seen.has(target)) continue
+        seen.add(target)
+        const to = territoryCentroid(map, target)
+        if (!to) return null
+        segments.push({ from, to, kind: 'movement', ...noblesAt(target) })
+      }
+      if (segments.length === 0) return null
+      return { ...base, type: order.type, segments }
+    }
+    case 'maneuver': {
+      const targets = order.targets ?? []
+      for (const target of targets) {
+        if (!known(map, target)) return null
+        if (target !== position && !isAdjacent(map, position, target)) return null
+      }
+      const counts = order.counts ?? []
+      const hasRest = counts.includes(MANEUVER_REST)
+      const assigned = counts.reduce(
+        (sum, count) => sum + (count === MANEUVER_REST ? 0 : count),
+        0,
+      )
+      const segments: IntentSegment[] = []
+      const seen = new Set<string>()
+      const noblesAt = (target: string): { nobles?: string[] } => {
+        const nobles = order.nobleAssignments?.[target]
+        return nobles && nobles.length > 0 ? { nobles } : {}
+      }
+      // Troops not sent anywhere stay on the origin.
+      const holdsGround =
+        targets.includes(position) || (!hasRest && territoryState.size > assigned)
       if (holdsGround) {
         segments.push({ from, to: from, kind: 'loop', ...noblesAt(position) })
         seen.add(position)

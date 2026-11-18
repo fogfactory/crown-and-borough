@@ -201,7 +201,8 @@ function chainPosition(lines: string[]): string | undefined {
     if (words.length < 2) continue
     if (STAYING_VERBS.has(words[0])) position = words[1]
     // After a dispersal the chain follows the army of its last destination (engine rule, specs/gdd.md).
-    else if (words[1] === 'D' && words.length > 2) position = words[words.length - 1].split('*')[0]
+    else if ((words[1] === 'D' || words[1] === 'M') && words.length > 2)
+      position = words[words.length - 1].split(/[*/+]/)[0]
     else position = MOVING_VERBS.has(words[1]) && words[2] ? words[2] : words[0]
   }
   return position
@@ -224,7 +225,7 @@ function chainSlotCodes(index: CodeIndex, textBefore: string): readonly string[]
   }
   const [origin, verb] = current
   if (current.length === 2 && (MOVING_VERBS.has(verb) || verb === 'S')) return around(origin)
-  if (verb === 'D') return [origin, ...around(origin)]
+  if (verb === 'D' || verb === 'M') return [origin, ...around(origin)]
   // `XXX S YYY - ZZZ`: the attack of YYY goes to one of its neighbours.
   if (verb === 'S' && current.length === 3 && /-\s*$/.test(textBefore)) return around(current[2])
   return undefined

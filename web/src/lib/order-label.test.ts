@@ -57,6 +57,19 @@ describe('formatOrderLabel', () => {
     ).toBe('ROS D ROS* BRU*BOB')
   })
 
+  it('renders a maneuver with its troop counts and nobles', () => {
+    expect(
+      formatOrderLabel({
+        type: 'maneuver',
+        position: 'ROS',
+        targets: ['BRU', 'ROS', 'FOU'],
+        counts: [2, 1, -1],
+        nobleAssignments: { BRU: ['BOB'], FOU: ['*'] },
+        liaison: 'loop',
+      }),
+    ).toBe('(ROS M BRU/2*BOB ROS FOU+*)')
+  })
+
   it('renders an action transfer with its amount', () => {
     expect(
       formatOrderLabel({

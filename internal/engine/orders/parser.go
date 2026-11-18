@@ -134,6 +134,8 @@ func parsePositionOrder(fields []string, lineNumber int, liaison models.LiaisonM
 		return parseSingleTerritoryTarget(models.OrderTypeJoin, fields, lineNumber, liaison, positionID, indexes)
 	case "S":
 		return parseSupport(fields, lineNumber, liaison, positionID, indexes)
+	case "M":
+		return parseManeuver(fields, lineNumber, liaison, positionID, indexes)
 	case "D":
 		return parseDisperse(fields, lineNumber, liaison, positionID, indexes)
 	case "T":
@@ -256,6 +258,53 @@ func parseDisperse(fields []string, lineNumber int, liaison models.LiaisonMode, 
 	return order, nil
 }
 
+// parseManeuver parses "XXX M DEST [DEST ...]" where DEST is
+// TER[/N|+][*NOB...|*]. A bare TER means TER/1.
+func parseManeuver(fields []string, lineNumber int, liaison models.LiaisonMode, positionID models.TerritoryID, indexes gameIndexes) (models.Order, []ParseError) {
+	if len(fields) == 2 {
+		return models.Order{}, []ParseError{parseMessage(lineNumber, ParseCodeMissingTarget, "error.parse.maneuver_destination_required")}
+	}
+	order := models.Order{
+		Type:             models.OrderTypeManeuver,
+		PositionID:       positionID,
+		TargetIDs:        make([]models.TerritoryID, 0, len(fields)-2),
+		Counts:           make([]int, 0, len(fields)-2),
+		NobleAssignments: map[models.TerritoryID][]models.NobleCode{},
+		Liaison:          liaison,
+	}
+	errors := []ParseError{}
+	for _, token := range fields[2:] {
+		head, nobles := token, ""
+		if star := strings.IndexByte(token, '*'); star >= 0 {
+			head, nobles = token[:star], token[star:]
+		}
+		code, count, countOK := splitManeuverCount(head)
+		if !countOK {
+			errors = append(errors, parseMessage(lineNumber, ParseCodeInvalidAmount, "error.parse.maneuver_count", token))
+			continue
+		}
+		territoryID, territoryErrors := parseTerritory(code, lineNumber, "maneuver destination", indexes)
+		if len(territoryErrors) != 0 {
+			errors = append(errors, territoryErrors...)
+			continue
+		}
+		assignedCodes, nobleErrors := parseAssignedNobles(strings.Split(nobles, "*")[1:], lineNumber, indexes)
+		if len(nobleErrors) != 0 {
+			errors = append(errors, nobleErrors...)
+			continue
+		}
+		order.TargetIDs = append(order.TargetIDs, territoryID)
+		order.Counts = append(order.Counts, count)
+		if len(assignedCodes) != 0 {
+			order.NobleAssignments[territoryID] = append(order.NobleAssignments[territoryID], assignedCodes...)
+		}
+	}
+	if len(errors) != 0 {
+		return models.Order{}, errors
+	}
+	return order, nil
+}
+
 func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (models.TerritoryID, []models.NobleCode, []ParseError) {
 	parts := strings.Split(token, "*")
 	if len(parts) == 0 || parts[0] == "" {
@@ -269,24 +318,52 @@ func parseDisperseTarget(token string, lineNumber int, indexes gameIndexes) (mod
 		return territoryID, nil, nil
 	}
 
-	assignedCodes := make([]models.NobleCode, 0, len(parts)-1)
-	for index, nobleCode := range parts[1:] {
+	assignedCodes, nobleErrors := parseAssignedNobles(parts[1:], lineNumber, indexes)
+	if len(nobleErrors) != 0 {
+		return "", nil, nobleErrors
+	}
+	return territoryID, assignedCodes, nil
+}
+
+// parseAssignedNobles parses the noble codes after the first "*" of a
+// destination: a lone "*" is the wildcard for every remaining noble.
+func parseAssignedNobles(parts []string, lineNumber int, indexes gameIndexes) ([]models.NobleCode, []ParseError) {
+	assignedCodes := make([]models.NobleCode, 0, len(parts))
+	for index, nobleCode := range parts {
 		if nobleCode == "" {
-			if len(parts) == 2 && index == 0 {
+			if len(parts) == 1 && index == 0 {
 				assignedCodes = append(assignedCodes, models.NobleCode("*"))
 				continue
 			}
-			return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_empty_noble")}
+			return nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_empty_noble")}
 		}
 		if !isCode(nobleCode) {
-			return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_invalid_noble", nobleCode)}
+			return nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_invalid_noble", nobleCode)}
 		}
 		if _, exists := indexes.noblesByCode[nobleCode]; !exists {
-			return "", nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_unknown_noble", nobleCode)}
+			return nil, []ParseError{parseMessage(lineNumber, ParseCodeInvalidCode, "error.parse.assignment_unknown_noble", nobleCode)}
 		}
 		assignedCodes = append(assignedCodes, models.NobleCode(nobleCode))
 	}
-	return territoryID, assignedCodes, nil
+	return assignedCodes, nil
+}
+
+// splitManeuverCount splits "TER", "TER/N" or "TER+" into the territory code
+// and its troop count (models.ManeuverRest for "+"). N is a plain positive
+// number without sign or leading zero.
+func splitManeuverCount(head string) (string, int, bool) {
+	if code, isRest := strings.CutSuffix(head, "+"); isRest {
+		return code, models.ManeuverRest, !strings.ContainsAny(code, "+/")
+	}
+	code, digits, hasCount := strings.Cut(head, "/")
+	if !hasCount {
+		return head, 1, !strings.Contains(head, "+")
+	}
+	if digits == "" || digits[0] == '0' || strings.Trim(digits, "0123456789") != "" {
+		return "", 0, false
+	}
+	count, err := strconv.Atoi(digits)
+	return code, count, err == nil && !strings.ContainsAny(code, "+/")
 }
 
 func parseTerritory(code string, lineNumber int, role string, indexes gameIndexes) (models.TerritoryID, []ParseError) {

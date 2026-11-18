@@ -203,6 +203,7 @@ type OrderView struct {
 	Type             models.OrderType                          `json:"type"`
 	Position         models.TerritoryID                        `json:"position"`
 	Targets          []models.TerritoryID                      `json:"targets,omitempty"`
+	Counts           []int                                     `json:"counts,omitempty"`
 	NobleAssignments map[models.TerritoryID][]models.NobleCode `json:"nobleAssignments,omitempty"`
 	Liaison          models.LiaisonMode                        `json:"liaison"`
 	Amount           int                                       `json:"amount,omitempty"`
@@ -738,6 +739,9 @@ func projectOrder(order models.Order) OrderView {
 	}
 	if len(order.TargetIDs) != 0 {
 		orderView.Targets = append([]models.TerritoryID(nil), order.TargetIDs...)
+	}
+	if len(order.Counts) != 0 {
+		orderView.Counts = append([]int(nil), order.Counts...)
 	}
 	if len(order.NobleAssignments) != 0 {
 		orderView.NobleAssignments = make(map[models.TerritoryID][]models.NobleCode, len(order.NobleAssignments))

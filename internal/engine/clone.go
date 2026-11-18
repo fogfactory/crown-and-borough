@@ -181,6 +181,7 @@ func clonePrivacy(source *models.PrivacyMeta) *models.PrivacyMeta {
 func cloneOrder(source models.Order) models.Order {
 	clone := source
 	clone.TargetIDs = cloneSlice(source.TargetIDs)
+	clone.Counts = cloneSlice(source.Counts)
 	clone.NobleAssignments = cloneNobleAssignments(source.NobleAssignments)
 	return clone
 }

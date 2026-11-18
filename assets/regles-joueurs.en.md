@@ -108,10 +108,11 @@ for you: you only write the order lines, one per line, in the form
 | Attack | `XXX A YYY` | Enters adjacent `YYY`, fighting if needed. |
 | Defensive support | `XXX S YYY` | Strengthens the army that stays on `YYY`. |
 | Offensive support | `XXX S YYY - ZZZ` | Strengthens the attack from `YYY` to `ZZZ`. |
-| Hold | `H XXX` | Stays put. Useful for waiting: `(H XXX)`. |
-| Join | `XXX J YYY` | Peacefully joins `YYY`; last order of the chain. |
+| Maneuver | `XXX M DEST1 DEST2 …` | Splits the army among destinations without fighting (see below). |
+| Hold (deprecated, see `M`) | `H XXX` | Stays put. Useful for waiting: `(H XXX)`. |
+| Join (deprecated, see `M`) | `XXX J YYY` | Peacefully joins `YYY`; last order of the chain. |
 | Pillage | `P XXX` | Degrades the territory's infrastructure and yields {{pillage_bonus}} R. |
-| Dispersal | `XXX D DEST1 DEST2 …` | Sends one troop to each destination, in order; repeat a destination to send several troops there. |
+| Dispersal (deprecated, see `M`) | `XXX D DEST1 DEST2 …` | Sends one troop to each destination, in order; repeat a destination to send several troops there. |
 | Transfer | `XXX T YYY N` | Sends `N` R through the supply network. |
 
 What to remember:
@@ -122,16 +123,21 @@ What to remember:
   counts if the supported army stays on its territory and does not attack.
   An attack on the supporting army, coming from anywhere but the target,
   **cuts** the support.
-- **A dispersal** splits an army without fighting. Troops that cannot leave
-  stay behind, and the chain follows the group of the last listed destination
-  that received a troop.
+- **A maneuver** splits an army into groups without fighting: each
+  destination is written `TER/N` (N troops) or `TER+` (all remaining troops),
+  a bare `TER` meaning `TER/1`. Unassigned troops stay behind. Its groups only
+  leave at the end of the turn; meanwhile the army has the strength of its
+  remaining troops alone. The chain follows the group of the last listed
+  destination. `M` replaces the join, the dispersal and the hold, which are
+  **deprecated**.
 - **A transfer** sends resources to a castle, a village or another player's
   army within supply range. An enemy army on the way blocks it. An army that
   transfers does nothing else that turn.
 - **A join or a dispersal is cancelled** if its starting territory is
-  attacked. You cannot flee a combat.
+  attacked. You cannot flee a combat. A maneuver is not cancelled: its
+  remaining troops defend the territory, the departing ones do not count.
 
-The details (nobles in a dispersal, transfer caps, edge cases) are in
+The details (nobles in a maneuver, transfer caps, edge cases) are in
 appendix C.
 
 ---
@@ -259,7 +265,7 @@ with it.
 
 > **Good to know.** You always have one full season to react: move the army
 > closer to a source, split it, or send it food. The groups a dispersal
-> creates stay famished until the next supply, but each one, being smaller,
+> or a maneuver creates stay famished until the next supply, but each one, being smaller,
 > is easier to feed.
 
 ### Infrastructure and pillage
@@ -712,10 +718,11 @@ card. Army orders are free.
 | `XXX A YYY` | Attack or move to an adjacent territory |
 | `XXX S YYY` | Defensive support of the army on `YYY` |
 | `XXX S YYY - ZZZ` | Offensive support of the attack `YYY` → `ZZZ` |
-| `H XXX` | Hold |
-| `XXX J YYY` | Peaceful join (last order) |
+| `XXX M DEST1 DEST2 …` | Maneuver: `DEST` = `TER`, `TER/N` or `TER+`, then `*` or `*NNN` to send nobles there |
+| `H XXX` | Hold (deprecated, see `M`) |
+| `XXX J YYY` | Peaceful join, last order (deprecated, see `M`) |
 | `P XXX` | Pillage |
-| `XXX D DEST1 DEST2 …` | Dispersal (`*` or `*NNN` after a destination sends nobles there) |
+| `XXX D DEST1 DEST2 …` | Dispersal (deprecated, see `M`); `*` or `*NNN` after a destination sends nobles there |
 | `XXX T YYY N` | Transfer of `N` R |
 | `( … )` | Loop line, retried until it succeeds |
 
@@ -811,11 +818,61 @@ the order of your sheet.
 - **Defensive support.** Any army that does not leave its territory receives
   it, including an army holding, supporting, pillaging or with No Orders. An
   army that attacks gives it up, even if its attack fails.
-- **Join.** If one of your attacks wins on the target territory, the join
+- **Join (deprecated, see `M`).** If one of your attacks wins on the target territory, the join
   merges with the victorious army.
+- **Maneuver.** `XXX M DEST [DEST …]`, where `DEST` is written `TER`,
+  `TER/N` or `TER+`, optionally followed by `*NNN` (one noble) or `*` (all
+  remaining nobles). `TER` is adjacent to `XXX` or equal to `XXX`. A bare `TER`
+  means `TER/1`, `TER/N` sends `N` troops (`N ≥ 1`), `TER+` sends all the
+  troops not assigned to the other destinations. Only one `+` is allowed, on
+  the last destination. Unassigned troops stay behind when there is no `+`; a
+  repeated destination adds up its troops (`YYY/2 YYY` = `YYY/3`). Examples:
+  `BRI M ATL+` (the whole army), `BRI M ATL/2` (two troops, the rest stays),
+  `BRI M ATL/2 BRI+` (the chain stays with the rest), `BRI M ATL/2*HUG NOR+`
+  (HUG leaves with the two troops sent to ATL).
+  - *Strength during the turn.* The order is planned at the start of the turn:
+    the troops that stay make up the army's strength for the whole turn
+    (defense, defensive supports received, the `+1` command bonus only if a
+    noble stays). Departing troops have no effect on combat. An army that
+    leaves entirely has no troops of its own to defend with, but the defensive
+    supports it receives still apply, so supporters can cover the territory
+    while the army redeploys; without support only a castle's fixed bonus
+    defends it, and keeping one troop (`BRI M BRI/1 ATL+`) also gives it a
+    defender. It neither attacks nor supports. A dislodged army retreats whole and does not maneuver. An attack
+    on the starting territory does not cancel the maneuver.
+  - *Arrival.* At the end of the turn, after retreats, the groups arrive
+    simultaneously. An empty, uncontested territory receives the group, which
+    settles there. A territory held by an allied army (including one that just
+    defended or the winning allied attacker) merges the group with it. A
+    territory held by the enemy, taken by an enemy attacker, or empty but
+    contested sends the group back to its starting territory. Groups of
+    different owners heading for the same empty territory do not arrive; from
+    the same owner they stack. Reinforcements that reach an army that is
+    maneuvering do not leave with it.
+  - *Nobles.* Unassigned nobles follow the group that carries the chain;
+    `*NNN` and `*` send them elsewhere. A noble assigned to a group that does
+    not arrive stays with the troops on the origin; if no troop stays, it
+    follows the group that carries the chain (otherwise the last group to
+    arrive): a noble never stays alone on an empty territory.
+  - *Chain.* It follows the group of the last listed destination (not
+    necessarily the last to arrive); if that group does not arrive or gets no
+    troop, the chain is dropped. `M` need not be the last order of the chain.
+    When a maneuver chain meets another chain (allied host army, converging
+    groups) and at least one of them has orders left for the next turn, only
+    the most recently emitted chain continues; if both were emitted the same
+    turn, both are cancelled. The report mentions the dropping of a chain that
+    still had orders.
+  - *Loop.* `(XXX M …)` rewrites the order each season: destinations already
+    carried out disappear, `+` is recomputed from the current size, and the
+    chain stays on the original army until every group is delivered (a `+`
+    with no troop left counts as done), then follows the last group. If `YYY/2`
+    is delivered and `ZZZ+` is not, next season the order becomes `XXX M ZZZ+`.
+  - *Bad weather.* A starting army in a hit region makes the order invalid
+    (the chain waits); groups whose destination is hit are dropped; if none
+    is left, the order is invalid.
 - **Self-capture.** An army can attack your own empty castle to move in,
   without the castle's defense pushing it back.
-- **Dispersal.** Destinations are adjacent to the starting territory or equal
+- **Dispersal (deprecated, see `M`).** Destinations are adjacent to the starting territory or equal
   to it, and can repeat. A destination held by the enemy or contested uses up
   no troop. `*` sends all remaining nobles with the group, `*NNN` a single
   noble. Unassigned nobles stay behind as long as a troop remains there; if every

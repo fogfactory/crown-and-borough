@@ -20,7 +20,10 @@ export type CardKind =
   | 'justice'
 
 export type OrderType =
-  'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'transfer'
+  'attack' | 'support' | 'hold' | 'join' | 'pillage' | 'disperse' | 'maneuver' | 'transfer'
+
+/** `counts` value of a maneuver destination written "+": every troop not sent elsewhere. */
+export const MANEUVER_REST = -1
 
 export type LiaisonMode = 'single' | 'loop'
 
@@ -210,6 +213,8 @@ export interface Order {
   type: OrderType
   position: string
   targets?: string[]
+  /** Troops per target of a maneuver (M); MANEUVER_REST stands for "+". */
+  counts?: number[]
   nobleAssignments?: Record<string, string[]>
   liaison: LiaisonMode
   amount?: number
@@ -1012,6 +1017,7 @@ export interface OrderReport {
   source?: string
   target?: string
   targets?: string[]
+  counts?: number[]
   amount?: number
   nobleAssignments?: Record<string, string[]>
   liaison?: LiaisonMode

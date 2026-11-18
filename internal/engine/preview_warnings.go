@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
@@ -67,6 +69,7 @@ func previewChainWarnings(game *models.GameState, balance assetgen.Balance, play
 		if !found || noble.OwnerID != playerID || orders.ValidateReceivingArmyOwnership(working, chain, playerID) != nil {
 			continue
 		}
+		warnings = append(warnings, deprecatedOrderWarnings(playerID, models.NobleCode(noble.Code), chain)...)
 		if army == nil || targets[army.ID] != 1 {
 			continue
 		}
@@ -139,7 +142,7 @@ func orderWarnings(ctx *resolutionContext, playerID models.PlayerID, army models
 				return nil
 			}
 			return inapplicable("transfer_blocked", i18n.WarningTransferBlocked, territory)
-		case "invalid_disperse_noble_assignment":
+		case "invalid_disperse_noble_assignment", "invalid_maneuver_noble_assignment":
 			return inapplicable("disperse_nobles", i18n.WarningDisperseNobles, territory)
 		}
 		return nil
@@ -288,6 +291,8 @@ func orderSymbol(orderType models.OrderType) string {
 		return "P"
 	case models.OrderTypeDisperse:
 		return "D"
+	case models.OrderTypeManeuver:
+		return "M"
 	case models.OrderTypeTransfer:
 		return "T"
 	}
@@ -319,6 +324,32 @@ func rejectedWinterWarnings(playerID models.PlayerID, lines []WinterLinePreview)
 			Level:      level,
 		}
 		warnings = append(warnings, warning)
+	}
+	return warnings
+}
+
+// deprecatedOrderWarnings flags every line of a submitted chain that uses a
+// deprecated order (H, J, D), with the maneuver (M) that replaces it. Unlike
+// the other warnings it checks all the lines, since it depends on the syntax
+// only.
+func deprecatedOrderWarnings(playerID models.PlayerID, noble models.NobleCode, chain models.Chain) []PreviewWarning {
+	var warnings []PreviewWarning
+	for _, order := range chain.Orders {
+		var example string
+		switch order.Type {
+		case models.OrderTypeHold:
+			example = fmt.Sprintf("%s M %s+", order.PositionID, order.PositionID)
+		case models.OrderTypeJoin:
+			example = fmt.Sprintf("%s M %s+", order.PositionID, order.TargetIDs[0])
+		case models.OrderTypeDisperse:
+			example = fmt.Sprintf("%s M", order.PositionID)
+			for _, targetID := range order.TargetIDs {
+				example += " " + string(targetID)
+			}
+		default:
+			continue
+		}
+		warnings = append(warnings, newPreviewWarning(playerID, noble, order.Line, "deprecated_order", i18n.WarningDeprecatedOrder, orderSymbol(order.Type), example))
 	}
 	return warnings
 }

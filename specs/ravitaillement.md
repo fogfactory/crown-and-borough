@@ -12,7 +12,7 @@ décrite dans [`architecture.md`](architecture.md).
 
 - Le ravitaillement est résolu en **fin de tour d'action**, après la
   résolution des ordres (intentions, combats, déplacements, retraites,
-  jonctions, dispersions, transferts) et la mise à jour du contrôle
+  manœuvres, jonctions, dispersions, transferts) et la mise à jour du contrôle
   territorial : revenu territorial, production des moulins, rations de
   terrain, puis famine se calculent tous sur les positions et le contrôle
   définitifs du tour, territoires tout juste capturés compris.

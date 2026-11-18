@@ -54,7 +54,7 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 	if !order.Liaison.IsValid() {
 		errors = append(errors, orderValidationError(order, "invalid_liaison", "error.validation.invalid_liaison", order.Liaison))
 	}
-	if order.Type != models.OrderTypeDisperse && len(order.NobleAssignments) != 0 {
+	if order.Type != models.OrderTypeDisperse && order.Type != models.OrderTypeManeuver && len(order.NobleAssignments) != 0 {
 		errors = append(errors, orderValidationError(order, "unexpected_noble_assignments", "error.validation.unexpected_noble_assignments", order.Type))
 	}
 	if order.Type == models.OrderTypeTransfer {
@@ -89,6 +89,8 @@ func validateOrder(indexes gameIndexes, order models.Order, last bool) []Validat
 		}
 	case models.OrderTypeDisperse:
 		errors = append(errors, validateDisperse(indexes, order, positionExists)...)
+	case models.OrderTypeManeuver:
+		errors = append(errors, validateManeuver(indexes, order, positionExists)...)
 	case models.OrderTypeTransfer:
 		if len(order.TargetIDs) != 1 {
 			errors = append(errors, orderValidationError(order, "transfer_shape", "error.validation.transfer_shape"))
@@ -143,6 +145,31 @@ func validateSupport(indexes gameIndexes, order models.Order, positionExists boo
 	return errors
 }
 
+func validateManeuver(indexes gameIndexes, order models.Order, positionExists bool) []ValidationError {
+	errors := []ValidationError{}
+	if len(order.TargetIDs) == 0 {
+		return []ValidationError{orderValidationError(order, "missing_target", "error.parse.maneuver_destination_required")}
+	}
+	if len(order.Counts) != len(order.TargetIDs) {
+		return []ValidationError{orderValidationError(order, "maneuver_counts", "error.validation.maneuver_counts")}
+	}
+	for index, targetID := range order.TargetIDs {
+		count := order.Counts[index]
+		if count == models.ManeuverRest {
+			if index != len(order.TargetIDs)-1 {
+				errors = append(errors, orderValidationError(order, "maneuver_rest_misplaced", "error.validation.maneuver_rest_misplaced"))
+			}
+		} else if count < 1 {
+			errors = append(errors, orderValidationError(order, "maneuver_counts", "error.validation.maneuver_counts"))
+		}
+		if positionExists && indexes.territoriesByID[targetID] != nil && targetID != order.PositionID && !adjacent(indexes, order.PositionID, targetID) {
+			errors = append(errors, orderValidationError(order, ValidationCodeNotAdjacent, "error.validation.not_adjacent", "M", territoryReference(indexes, targetID), territoryReference(indexes, order.PositionID)))
+		}
+	}
+	errors = append(errors, validateNobleAssignments(indexes, order)...)
+	return errors
+}
+
 func validateDisperse(indexes gameIndexes, order models.Order, positionExists bool) []ValidationError {
 	errors := []ValidationError{}
 	if len(order.TargetIDs) == 0 {
@@ -154,6 +181,12 @@ func validateDisperse(indexes gameIndexes, order models.Order, positionExists bo
 		}
 	}
 
+	errors = append(errors, validateNobleAssignments(indexes, order)...)
+	return errors
+}
+
+func validateNobleAssignments(indexes gameIndexes, order models.Order) []ValidationError {
+	errors := []ValidationError{}
 	targets := make(map[models.TerritoryID]bool, len(order.TargetIDs))
 	for _, targetID := range order.TargetIDs {
 		targets[targetID] = true

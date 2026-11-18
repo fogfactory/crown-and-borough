@@ -263,11 +263,11 @@ func TestPromptOrderExamplesMatchPlayerRules(t *testing.T) {
 	prompt := systemPrompt("P1", "Red", Persona{}, nil, MapData{}, "")
 	// prompt example -> the syntax the rules give for it
 	cases := map[string]string{
-		"CPN A CML":    "`XXX A YYY`",
-		"R T CPN":      "`R T XXX`",
-		"C D CML":      "`C D XXX`",
-		"P BT FAL":     "`P BT XXX`",
-		"J (junction)": "`XXX J YYY`",
+		"CPN A CML":  "`XXX A YYY`",
+		"R T CPN":    "`R T XXX`",
+		"C D CML":    "`C D XXX`",
+		"P BT FAL":   "`P BT XXX`",
+		"XXX M YYY+": "`XXX M DEST1 DEST2 …`",
 	}
 	for example, syntax := range cases {
 		if !strings.Contains(prompt, example) {

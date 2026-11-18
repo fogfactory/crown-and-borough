@@ -170,6 +170,10 @@ func (ctx *resolutionContext) emitBadWeatherBlocked(army models.Army, order mode
 func (ctx *resolutionContext) enumerateOrder(record *orderRecord, army models.Army, isLastOrder bool) {
 	order := record.order
 	sourceAffected := ctx.badWeatherRegions[regionForTerritory(ctx, army.TerritoryID)]
+	if order.Type == models.OrderTypeManeuver {
+		ctx.enumerateManeuver(record, army, sourceAffected)
+		return
+	}
 	if order.Type == models.OrderTypeDisperse {
 		if sourceAffected {
 			ctx.emitBadWeatherBlocked(army, order, regionForTerritory(ctx, army.TerritoryID))
@@ -319,7 +323,11 @@ func (ctx *resolutionContext) validateDisperse(record *orderRecord, army models.
 			}
 			nobleID, exists := ctx.noblesByCode[nobleCode]
 			if !exists || assigned[nobleID] || !containsNobleID(coLocated, nobleID) {
-				record.invalidate("invalid_disperse_noble_assignment")
+				reason := "invalid_disperse_noble_assignment"
+				if order.Type == models.OrderTypeManeuver {
+					reason = "invalid_maneuver_noble_assignment"
+				}
+				record.invalidate(reason)
 				return nil, false
 			}
 			assigned[nobleID] = true

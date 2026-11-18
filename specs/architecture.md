@@ -333,6 +333,10 @@ chaîne connue contient `{ "visibility": "known", ... }` avec son détail. Les
 identifiants d'armée, de chaîne et d'ordre internes ne sont pas exposés dans la
 vue d'état. Les positions et les cibles des ordres utilisent les trigrammes
 territoriaux.
+Un ordre de manœuvre (`type: "maneuver"`) porte, de façon optionnelle,
+`counts`, parallèle à `targets` : le nombre de troupes de chaque destination,
+`-1` désignant `+` (toutes les troupes restantes). Le champ est omis quand il
+est vide.
 `capitalTerritory` désigne le territoire du château actuellement choisi comme
 capitale par le joueur ; le champ est absent lorsqu'il n'a pas de capitale.
 
@@ -598,7 +602,7 @@ des chaînes de nobles et des investissements d'hiver. Les ordres de cartes sont
 validés et consommés avant les phases militaires ; leurs effets sont agrégés par
 région avant l'énumération des intentions. `Resolve` enchaîne ensuite les
 intentions, les soutiens, les combats, les déplacements, les retraites, les
-jonctions, les dispersions, les transferts de ressources et la progression des
+manœuvres (appliquées après les retraites), les jonctions, les dispersions, les transferts de ressources et la progression des
 chaînes, met à jour le contrôle territorial, puis résout le ravitaillement de
 fin de tour (revenu territorial, moulins, rations, famine) sur les positions et
 le contrôle ainsi obtenus, territoires tout juste capturés compris
@@ -672,7 +676,8 @@ mouvement et les forces (attaque, maintien, défense, prévention) suivent
 Adjudicator Test Cases, avec les forces de Crown & Borough (§5 du GDD). Avant
 que ce graphe ne soit construit, toute jonction ou dispersion dont l'origine
 est la cible d'une attaque, quel qu'en soit l'auteur et quelle qu'en soit
-l'issue, est annulée (`cancelAttackedOriginPeaceful`) : son armée reste sur
+l'issue, est annulée (une manœuvre `M` n'est jamais annulée pour ce motif : elle
+est planifiée hors du graphe et appliquée après les retraites) (`cancelAttackedOriginPeaceful`) : son armée reste sur
 place comme si elle tenait, et `applyContestOutcomes` en rapporte la raison
 (`attacked_origin`) une fois les délogements connus, pour ne pas écraser un
 délogement par cette raison. Cette règle générale élimine toute dépendance

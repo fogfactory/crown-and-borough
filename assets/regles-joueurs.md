@@ -110,10 +110,11 @@ par ligne, sous la forme `POSITION SYMBOLE [cibles]`.
 | Attaque | `XXX A YYY` | Entre sur `YYY` adjacente, en combattant si besoin. |
 | Soutien défensif | `XXX S YYY` | Renforce l'armée qui reste sur `YYY`. |
 | Soutien offensif | `XXX S YYY - ZZZ` | Renforce l'attaque de `YYY` vers `ZZZ`. |
-| Maintien | `H XXX` | Reste sur place. Utile pour patienter : `(H XXX)`. |
-| Jonction | `XXX J YYY` | Rejoint pacifiquement `YYY` ; dernier ordre de la chaîne. |
+| Manœuvre | `XXX M DEST1 DEST2 …` | Répartit l'armée entre des destinations, sans combattre (voir ci-dessous). |
+| Maintien (déprécié, voir `M`) | `H XXX` | Reste sur place. Utile pour patienter : `(H XXX)`. |
+| Jonction (dépréciée, voir `M`) | `XXX J YYY` | Rejoint pacifiquement `YYY` ; dernier ordre de la chaîne. |
 | Pillage | `P XXX` | Dégrade l'infrastructure de la case et rapporte {{pillage_bonus}} R. |
-| Dispersion | `XXX D DEST1 DEST2 …` | Envoie une troupe vers chaque destination, dans l'ordre ; une même destination peut être répétée pour y envoyer plusieurs troupes. |
+| Dispersion (dépréciée, voir `M`) | `XXX D DEST1 DEST2 …` | Envoie une troupe vers chaque destination, dans l'ordre ; une même destination peut être répétée pour y envoyer plusieurs troupes. |
 | Transfert | `XXX T YYY N` | Envoie `N` R par le réseau de ravitaillement. |
 
 L'essentiel à retenir :
@@ -125,16 +126,21 @@ L'essentiel à retenir :
   défensif ne compte que si l'armée soutenue reste sur sa case et n'attaque
   pas. Une attaque contre l'armée qui soutient, venue d'ailleurs que de la
   cible, **coupe** le soutien.
-- **Une dispersion** répartit une armée sans combattre. Les troupes qui ne
-  peuvent pas partir restent sur place, et la chaîne suit le groupe de la
-  dernière destination listée qui a reçu une troupe.
+- **Une manœuvre** répartit une armée en groupes sans combattre : chaque
+  destination est écrite `TER/N` (N troupes) ou `TER+` (toutes les troupes
+  restantes), `TER` seul valant `TER/1`. Les troupes non affectées restent sur
+  place. Ses groupes ne partent qu'à la fin du tour ; l'armée garde pendant ce
+  temps la force de ses seules troupes restantes. La chaîne suit le groupe de la
+  dernière destination listée. `M` remplace la jonction, la dispersion et le
+  maintien, qui sont **dépréciés**.
 - **Un transfert** envoie des ressources à un château, un village ou une armée
   d'un autre joueur, à portée de ravitaillement. Une armée adverse sur le
   trajet le bloque. Une armée qui transfère ne fait rien d'autre ce tour-là.
 - **Une jonction ou une dispersion est annulée** si sa case de départ est
-  attaquée. On ne fuit pas un combat.
+  attaquée. On ne fuit pas un combat. Une manœuvre n'est pas annulée : ses
+  troupes restantes défendent la case, celles qui partent ne comptent pas.
 
-Les détails (nobles dans une dispersion, plafonds de transfert, cas limites)
+Les détails (nobles dans une manœuvre, plafonds de transfert, cas limites)
 sont en annexe C.
 
 ---
@@ -262,7 +268,7 @@ elle.
 
 > **Bon à savoir.** Tu as toujours une saison complète pour réagir :
 > rapproche l'armée d'une source, divise-la, ou envoie-lui des vivres. Les
-> groupes nés d'une dispersion restent affamés jusqu'au ravitaillement
+> groupes nés d'une dispersion ou d'une manœuvre restent affamés jusqu'au ravitaillement
 > suivant, mais chacun, plus petit, se nourrit plus facilement.
 
 ### Infrastructures et pillage
@@ -722,10 +728,11 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 | `XXX A YYY` | Attaque ou déplacement vers une case adjacente |
 | `XXX S YYY` | Soutien défensif de l'armée sur `YYY` |
 | `XXX S YYY - ZZZ` | Soutien offensif de l'attaque `YYY` → `ZZZ` |
-| `H XXX` | Maintien |
-| `XXX J YYY` | Jonction pacifique (dernier ordre) |
+| `XXX M DEST1 DEST2 …` | Manœuvre : `DEST` = `TER`, `TER/N` ou `TER+`, suivi de `*` ou `*NNN` pour y envoyer des nobles |
+| `H XXX` | Maintien (déprécié, voir `M`) |
+| `XXX J YYY` | Jonction pacifique, dernier ordre (dépréciée, voir `M`) |
 | `P XXX` | Pillage |
-| `XXX D DEST1 DEST2 …` | Dispersion (`*` ou `*NNN` après une destination y envoie des nobles) |
+| `XXX D DEST1 DEST2 …` | Dispersion (dépréciée, voir `M`) ; `*` ou `*NNN` après une destination y envoie des nobles |
 | `XXX T YYY N` | Transfert de `N` R |
 | `( … )` | Ligne en boucle, retentée jusqu'à sa réussite |
 
@@ -820,11 +827,63 @@ ordres dans l'ordre de ta feuille.
 - **Soutien défensif.** Toute armée qui ne quitte pas sa case le reçoit, y
   compris une armée en maintien, en soutien, en pillage ou Sans Ordre. Une
   armée qui attaque y renonce, même si son attaque échoue.
-- **Jonction.** Si une de tes attaques gagne sur la case visée, la jonction
+- **Jonction (dépréciée, voir `M`).** Si une de tes attaques gagne sur la case visée, la jonction
   fusionne avec l'armée victorieuse.
+- **Manœuvre.** `XXX M DEST [DEST …]`, où `DEST` s'écrit `TER`, `TER/N` ou
+  `TER+`, puis éventuellement `*NNN` (un noble) ou `*` (tous les nobles
+  restants). `TER` est adjacent à `XXX` ou égal à `XXX`. `TER` seul vaut
+  `TER/1`, `TER/N` envoie `N` troupes (`N ≥ 1`), `TER+` envoie toutes les
+  troupes non affectées aux autres destinations. Un seul `+` est permis, sur la
+  dernière destination. Les troupes non affectées sans `+` restent sur place ;
+  une destination répétée additionne ses troupes (`YYY/2 YYY` = `YYY/3`).
+  Exemples : `BRI M ATL+` (toute l'armée), `BRI M ATL/2` (deux troupes, le
+  reste demeure), `BRI M ATL/2 BRI+` (la chaîne reste avec le reste),
+  `BRI M ATL/2*HUG NOR+` (HUG part avec les deux troupes d'ATL).
+  - *Force pendant le tour.* L'ordre est planifié au début du tour : les
+    troupes qui restent forment la force de l'armée pour tout le tour
+    (défense, soutiens défensifs reçus, bonus de commandement de `+1` seulement
+    si un noble reste). Les troupes qui partent n'ont aucun effet sur le
+    combat. Une armée qui part en entier n'a plus de troupe pour se défendre,
+    mais les soutiens défensifs qu'elle reçoit s'appliquent quand même : des
+    soutiens peuvent couvrir la case pendant qu'elle se redéploie ; sans
+    soutien, seul le bonus fixe d'un château la défend, et garder une troupe
+    (`BRI M BRI/1 ATL+`) lui donne aussi un défenseur. Elle n'attaque ni ne
+    soutient. Une armée délogée bat en retraite en entier et ne manœuvre pas.
+    Une attaque sur la case de départ n'annule pas la manœuvre.
+  - *Arrivée.* À la fin du tour, après les retraites, les groupes arrivent en
+    même temps. Une case vide et non disputée accueille le groupe, qui s'y
+    installe. Une case tenue par une armée alliée (y compris celle qui vient de
+    se défendre ou l'attaquant allié vainqueur) le fusionne avec elle. Une case
+    tenue par l'ennemi, prise par un attaquant adverse ou vide mais disputée
+    renvoie le groupe sur la case de départ. Des groupes de propriétaires
+    différents vers une même case vide n'arrivent pas ; du même propriétaire,
+    ils s'empilent. Les renforts arrivés sur une armée qui manœuvre ne partent
+    pas avec elle.
+  - *Nobles.* Les nobles non affectés suivent le groupe qui porte la chaîne ;
+    `*NNN` et `*` les envoient ailleurs. Un noble affecté à un groupe qui
+    n'arrive pas reste avec les troupes de l'origine ; si aucune troupe n'y
+    reste, il suit le groupe qui porte la chaîne (à défaut, le dernier groupe
+    arrivé) : un noble ne reste jamais seul sur une case vide.
+  - *Chaîne.* Elle suit le groupe de la dernière destination listée (pas
+    forcément le dernier arrivé) ; si ce groupe n'arrive pas ou ne reçoit
+    aucune troupe, la chaîne est abandonnée. `M` n'est pas obligatoirement le
+    dernier ordre de la chaîne. Quand une chaîne de manœuvre rencontre une autre
+    chaîne (armée alliée hôte, groupes qui convergent) et qu'au moins l'une a
+    encore des ordres pour le tour suivant, seule la chaîne émise le plus
+    récemment continue ; émises le même tour, les deux sont annulées. Le rapport
+    signale l'abandon d'une chaîne qui avait encore des ordres.
+  - *Boucle.* `(XXX M …)` réécrit l'ordre à chaque saison : les destinations
+    déjà servies disparaissent, `+` est recalculé sur la taille courante, et la
+    chaîne reste sur l'armée d'origine jusqu'à ce que tous les groupes soient
+    livrés (un `+` sans troupe disponible compte pour fait), puis suit le
+    dernier groupe. Si `YYY/2` est livré et pas `ZZZ+`, la saison suivante
+    l'ordre devient `XXX M ZZZ+`.
+  - *Mauvais temps.* Une armée de départ dans une région touchée rend l'ordre
+    invalide (la chaîne attend) ; les groupes dont la destination est touchée
+    sont retirés ; s'il n'en reste aucun, l'ordre est invalide.
 - **Auto-capture.** Une armée peut attaquer ton propre château vide pour s'y
   installer, sans que la défense du château la repousse.
-- **Dispersion.** Les destinations sont adjacentes ou égales à la case de
+- **Dispersion (dépréciée, voir `M`).** Les destinations sont adjacentes ou égales à la case de
   départ, et peuvent se répéter. Une destination tenue par l'ennemi ou
   disputée ne consomme pas de troupe. `*` envoie tous les nobles restants avec
   le groupe, `*NNN` un seul noble. Les nobles non affectés restent sur place
