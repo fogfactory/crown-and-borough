@@ -119,3 +119,31 @@ func TestClientIPGroupsIPv6ByNetwork(t *testing.T) {
 		t.Fatalf("mapped IPv4: %s", got)
 	}
 }
+
+func TestRateLimitBoundsInvitationCodeGuesses(t *testing.T) {
+	h := limited(t, RateLimitConfig{Requests: 120, Window: time.Hour})
+	paths := []struct{ method, path string }{
+		{"POST", "/api/games/g/join"},
+		{"GET", "/api/games/g/join-preview?inviteCode=AAAAAA"},
+		{"GET", "/api/games/g/seed-candidates/1/map?inviteCode=AAAAAA"},
+	}
+	// The three routes share one bucket, much smaller than the general quota.
+	for i := 0; i < maxInvitationAttempts; i++ {
+		p := paths[i%len(paths)]
+		if rec := do(h, p.method, p.path, "1.1.1.1:1", ""); rec.Code != http.StatusNoContent {
+			t.Fatalf("attempt %d limited early: %d", i, rec.Code)
+		}
+	}
+	for _, p := range paths {
+		rec := do(h, p.method, p.path, "1.1.1.1:1", "")
+		if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+			t.Fatalf("%s %s: got %d, want 429", p.method, p.path, rec.Code)
+		}
+	}
+	if rec := do(h, "POST", "/api/games/g/orders", "1.1.1.1:1", ""); rec.Code != http.StatusNoContent {
+		t.Fatalf("invitation attempts starved other writes: %d", rec.Code)
+	}
+	if rec := do(h, "GET", "/api/games/g/join-preview?inviteCode=AAAAAA", "2.2.2.2:1", ""); rec.Code != http.StatusNoContent {
+		t.Fatalf("other client limited: %d", rec.Code)
+	}
+}

@@ -355,3 +355,32 @@ func TestChatPostListsTheOtherHousesAsRecipients(t *testing.T) {
 		t.Fatalf("private result = %+v", private)
 	}
 }
+
+func TestMemoryInvitationStoreRejectsUnknownDisabledAndReplayedCodes(t *testing.T) {
+	ctx := context.Background()
+	invitations := NewMemoryInvitationStore()
+	secret, err := invitations.CreateInvitation(ctx, "game-1", "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// There is no expiry: a live code stays valid and may be presented again
+	// (several houses join with the same code, and a member may replay it).
+	for range 3 {
+		invitation, err := invitations.LookupInvitation(ctx, secret.Code)
+		if err != nil || invitation.GameID != "game-1" {
+			t.Fatalf("replayed lookup = %#v, %v", invitation, err)
+		}
+	}
+	// Malformed and unknown codes share one error.
+	for _, code := range []string{"", "short", "ABC23!", "ZZZZZZ"} {
+		if _, err := invitations.LookupInvitation(ctx, code); !errors.Is(err, ErrInvalidInvitation) {
+			t.Fatalf("code %q = %v", code, err)
+		}
+	}
+	if err := invitations.DisableInvitation(ctx, InvitationCodeHash(secret.Code)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := invitations.LookupInvitation(ctx, secret.Code); !errors.Is(err, ErrInvitationInactive) {
+		t.Fatalf("disabled code = %v", err)
+	}
+}
