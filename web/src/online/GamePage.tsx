@@ -303,29 +303,37 @@ export function GamePage() {
     setReportSummaries([])
     setReportError(null)
     setLoadError(null)
-    void Promise.all([
-      apiRequest<unknown>({ getIdToken }, `/api/games/${encodedID}`),
-      apiRequest<MapData>({ getIdToken }, `/api/games/${encodedID}/map`).catch(
-        ignoreNotStarted,
-      ),
-      apiRequest<StateData & { revision: number }>(
-        { getIdToken },
-        `/api/games/${encodedID}/state`,
-      ).catch(ignoreNotStarted),
-      apiRequest<MySubmissionResponse>(
-        { getIdToken },
-        `/api/games/${encodedID}/my-submission`,
-      ).catch(() => null),
-    ])
-      .then(([detail, mapData, stateResponse, mySubmission]) => {
+    // The detail comes first: a game that waits for its last player refuses
+    // its map, state and submission, so they are only requested once it started.
+    void apiRequest<unknown>({ getIdToken }, `/api/games/${encodedID}`)
+      .then(async (detail) => {
         if (controller.signal.aborted) return
         const summary = normalizeGameSummary(
           detail as Record<string, unknown>,
           gameId,
           user.uid,
         )
-        if (mapData === null || stateResponse === null) {
+        if (summary.started === false) {
           // An incognito game waits for its last player: no placement yet.
+          setSummaryFromAPI(summary)
+          return
+        }
+        const [mapData, stateResponse, mySubmission] = await Promise.all([
+          apiRequest<MapData>({ getIdToken }, `/api/games/${encodedID}/map`).catch(
+            ignoreNotStarted,
+          ),
+          apiRequest<StateData & { revision: number }>(
+            { getIdToken },
+            `/api/games/${encodedID}/state`,
+          ).catch(ignoreNotStarted),
+          apiRequest<MySubmissionResponse>(
+            { getIdToken },
+            `/api/games/${encodedID}/my-submission`,
+          ).catch(() => null),
+        ])
+        if (controller.signal.aborted) return
+        if (mapData === null || stateResponse === null) {
+          // The game has not started after all (it was still filling up).
           setSummaryFromAPI(summary)
           return
         }
