@@ -825,13 +825,20 @@ rules only in the Firebase console.
 The server sets explicit timeouts (headers 10 s, request 30 s, response 60 s,
 idle 120 s) so slow clients cannot hold a Cloud Run concurrency slot.
 
-An in-memory token bucket per client address limits three classes of request,
-each with its own bucket: `/api/auth/*`, the order preview and victory
-simulation routes, and every other non-read `/api/*` request (game creation,
+An in-memory token bucket per client address limits four classes of request,
+each with its own bucket: `/api/auth/*`, the routes that take an invitation
+code (see below), the order preview and victory simulation routes, and every
+other non-read `/api/*` request (game creation,
 join, orders, resolution, chat posts, bug reports). Reads, health checks and
 static files are not limited. Excess requests get `429` with `Retry-After`.
 The limit is per instance, and `scripts/league-server.sh` disables it because
 every agent of a league calls from the same address.
+
+Invitation codes (`POST /api/games/{id}/join` and any request carrying an
+`inviteCode` query parameter, `GET` included: `join-preview`,
+`seed-candidates/{index}/map`) draw from a dedicated bucket capped at 20
+attempts per window, whatever `RATE_LIMIT_REQUESTS` says, because a code
+carries about 30 bits of entropy and is only safe while guesses are bounded.
 
 | Variable              | Default | Meaning                                             |
 |-----------------------|---------|-----------------------------------------------------|
@@ -851,3 +858,20 @@ Firebase Hosting rewrite is a second proxy: check the `X-Forwarded-For` chain
 that Cloud Run receives through `PUBLIC_HOSTING_URL`, and raise
 `TRUSTED_PROXY_HOPS` to `2` if its last entry is a Hosting address rather than
 the player. Otherwise every player behind that address shares one bucket.
+
+## Invitation codes: lifetime, replay and revocation
+
+- A code has 6 characters out of 32 (about 30 bits). Only its SHA-256 hash is
+  stored (`invitations/{hash}`); the clear code is shown to the game creator
+  only and is never logged.
+- A code has no expiry. It is valid until the invitation is disabled
+  (`Active: false`, `DisableInvitation`). No application route disables it
+  today: revoking a code is an operator action on the `invitations/{hash}`
+  document (hash = `sha256` of the upper-case code).
+- A code is not single-use: it is shared with every house of the game. A member
+  presenting it again gets the idempotent answer (`joined: false`); once the
+  game is full a new joiner gets `409 game_full`.
+- A code only opens its own game. Unknown, malformed, disabled and foreign
+  codes all answer `403 invalid_invitation` with the same body, so the response
+  does not reveal whether a code exists.
+- Guesses are bounded by the invitation rate limit above (`429` beyond it).
