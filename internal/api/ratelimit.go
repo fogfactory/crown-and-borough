@@ -40,10 +40,11 @@ type rateLimiter struct {
 }
 
 // WithRateLimit answers 429 with a Retry-After header to clients that exceed
-// a token bucket on authentication routes, on the order preview and victory
-// simulation routes, and on every other mutating API request. Each of these
-// three classes has its own bucket per client, so previews never starve the
-// submission of orders. Reads, health checks and static files are never
+// a token bucket on authentication routes, on the routes that take an
+// invitation code (join, and the lobby reads with ?inviteCode=, GET included),
+// on the order preview and victory simulation routes, and on every other
+// mutating API request. Each of these four classes has its own bucket per client, so previews never starve
+// the submission of orders. Reads, health checks and static files are never
 // limited.
 func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 	if cfg.Requests <= 0 || cfg.Window <= 0 {
@@ -59,7 +60,11 @@ func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if wait, ok := limiter.allow(class + "|" + clientIP(r, cfg.TrustedProxyHops)); !ok {
+		capacity := cfg.Requests
+		if class == "invitation" {
+			capacity = min(capacity, maxInvitationAttempts)
+		}
+		if wait, ok := limiter.allow(class+"|"+clientIP(r, cfg.TrustedProxyHops), capacity); !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 			writeAPIError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
 			return
@@ -67,6 +72,12 @@ func WithRateLimit(next http.Handler, cfg RateLimitConfig) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// maxInvitationAttempts caps the burst and the refill per Window of the
+// "invitation" class: every request that submits an invitation code (the join
+// and the lobby reads opened by a code) is an attempt to guess one. A code
+// carries about 30 bits, which is only safe when attempts are bounded.
+const maxInvitationAttempts = 20
 
 // rateClass names the bucket a request draws from, or "" when it is not
 // limited.
@@ -77,6 +88,8 @@ func rateClass(r *http.Request) string {
 		return "auth"
 	case !strings.HasPrefix(path, "/api/"):
 		return ""
+	case r.URL.Query().Has("inviteCode") || (r.Method == http.MethodPost && strings.HasSuffix(path, "/join")):
+		return "invitation"
 	case r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions:
 		return ""
 	case strings.HasSuffix(path, "/orders/preview") || strings.HasSuffix(path, "/victory/simulate"):
@@ -85,9 +98,9 @@ func rateClass(r *http.Request) string {
 	return "write"
 }
 
-func (l *rateLimiter) allow(key string) (time.Duration, bool) {
+func (l *rateLimiter) allow(key string, requests int) (time.Duration, bool) {
 	now := l.cfg.Now()
-	capacity := float64(l.cfg.Requests)
+	capacity := float64(requests)
 	rate := capacity / l.cfg.Window.Seconds()
 	l.mu.Lock()
 	defer l.mu.Unlock()
