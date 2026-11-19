@@ -727,4 +727,21 @@ describe('GamePage notices', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByText(/scores/i)).not.toBeInTheDocument()
   })
+
+  it('does not request the map, state or submission of a game that has not started', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/games/GAME1')) {
+        return Promise.resolve(jsonResponse({ started: false, spectator: true }))
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ code: 'game_not_started' }), { status: 409 }),
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderGame()
+    await screen.findByText(/The game starts once every player has joined/)
+    const urls = fetchMock.mock.calls.map(([input]) => String(input))
+    expect(urls.some((url) => /\/(map|state|my-submission)$/.test(url))).toBe(false)
+  })
 })
