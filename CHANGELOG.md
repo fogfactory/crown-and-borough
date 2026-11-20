@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.1](https://github.com/fogfactory/crown-and-borough/compare/v1.7.0...v1.7.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **api:** rate limit invitation code guesses ([f3e3f91](https://github.com/fogfactory/crown-and-borough/commit/f3e3f9143291a0e40708590d964ef48ec158924f))
+* **api:** rate limit invitation code guesses ([2b4202b](https://github.com/fogfactory/crown-and-borough/commit/2b4202bc0dbef2cb2fad8721424515fdde7a1c75)), closes [#76](https://github.com/fogfactory/crown-and-borough/issues/76)
+* **web:** skip map and state requests while the lobby waits for players ([e14579f](https://github.com/fogfactory/crown-and-borough/commit/e14579f5a2ca4488160ee615eca2962185412c74))
+* **web:** skip map and state requests while the lobby waits for players ([f686348](https://github.com/fogfactory/crown-and-borough/commit/f6863489238db33bf33f9cf37c1a7f466261b7e1)), closes [#732](https://github.com/fogfactory/crown-and-borough/issues/732)
+
 ## [1.7.0](https://github.com/fogfactory/crown-and-borough/compare/v1.6.0...v1.7.0) (2026-11-18)
 
 
