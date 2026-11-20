@@ -40,6 +40,14 @@ func TestContentSecurityPolicyStaysStrict(t *testing.T) {
 			t.Errorf("'unsafe-inline' outside style-src: %s", directive)
 		}
 	}
+	for _, directive := range strings.Split(policy, "; ") {
+		if strings.HasPrefix(directive, "img-src ") && !strings.Contains(directive, "https://www.google.com/images/cleardot.gif") {
+			t.Errorf("img-src must allow the Firestore connectivity probe: %s", directive)
+		}
+		if strings.Contains(directive, "https://www.google.com ") || strings.HasSuffix(directive, "https://www.google.com") {
+			t.Errorf("allow only the probe image, not all of www.google.com: %s", directive)
+		}
+	}
 	if strings.Contains(policy, "127.0.0.1") || strings.Contains(policy, "localhost") {
 		t.Error("the production policy must not allow the loopback interface")
 	}

@@ -90,7 +90,9 @@ test garantit que les deux copies sont identiques.
 
 La CSP n'autorise que l'application elle-même, Firebase (Auth, Firestore, et
 l'iframe d'authentification sur `*.firebaseapp.com`) et l'API GitHub des release
-notes. Elle n'a ni source `*` ni `unsafe-eval`. `style-src` garde
+notes. Une seule image externe est permise dans `img-src` :
+`https://www.google.com/images/cleardot.gif`, la sonde de connectivité que le SDK
+Firestore charge quand un canal tombe en erreur. Elle n'a ni source `*` ni `unsafe-eval`. `style-src` garde
 `'unsafe-inline'` : les attributs `style` de React et la carte SVG en ont
 besoin, et il ne peut disparaître qu'avec un passage aux nonces ou aux feuilles
 de style. Hors production (`ONLINE_DEV_MODE` ou émulateur Firebase dans

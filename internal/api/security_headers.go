@@ -7,8 +7,10 @@ import (
 )
 
 // Content Security Policy sources. Fonts and images are served by the
-// application itself; the web client only talks to its own API, Firebase
-// (Auth and Firestore) and the public GitHub release API.
+// application itself, except the one connectivity probe image that the
+// Firestore WebChannel loads when a stream errors; the web client only talks
+// to its own API, Firebase (Auth and Firestore) and the public GitHub release
+// API.
 //
 // Every wildcard is a host wildcard scoped to a Google-operated domain, and
 // there is no 'unsafe-eval'. 'unsafe-inline' remains in style-src only: React
@@ -18,7 +20,7 @@ var contentSecurityPolicyDirectives = []string{
 	"default-src 'self'",
 	"script-src 'self' https://apis.google.com",
 	"style-src 'self' 'unsafe-inline'",
-	"img-src 'self' data: blob:",
+	"img-src 'self' data: blob: https://www.google.com/images/cleardot.gif",
 	"font-src 'self' data:",
 	"connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://api.github.com",
 	"frame-src 'self' https://*.firebaseapp.com",
