@@ -405,9 +405,12 @@ jobs:
           [[ "$games_status" == 401 ]]
           [[ "$auth_status" == 401 ]]
 
-          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/" | tr -d '\r')"
-          for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy-Report-Only; do
-            grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header"; exit 1; }
+          # Only header names are printed, never response content.
+          for path in / /games/postdeploy /api/version; do
+            headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url$path" | tr -d '\r')"
+            for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy; do
+              grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header on $path"; exit 1; }
+            done
           done
 
   promote-cloudrun:
@@ -522,7 +525,10 @@ jobs:
           [[ "$games_status" == 401 ]]
           [[ "$auth_status" == 401 ]]
 
-          headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url/" | tr -d '\r')"
-          for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy-Report-Only; do
-            grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header"; exit 1; }
+          # Only header names are printed, never response content.
+          for path in / /games/postdeploy /api/version; do
+            headers="$(curl --fail --silent --show-error --dump-header - --output /dev/null "$base_url$path" | tr -d '\r')"
+            for header in X-Content-Type-Options Referrer-Policy Permissions-Policy X-Frame-Options Strict-Transport-Security Content-Security-Policy; do
+              grep -iF "$header:" <<<"$headers" >/dev/null || { echo "::error::missing $header header on $path"; exit 1; }
+            done
           done
