@@ -34,13 +34,23 @@ func TestWithCORSOptions(t *testing.T) {
 	}
 }
 
-func TestWithCORSAllowsTheClientVersionHeader(t *testing.T) {
-	t.Setenv("PUBLIC_WEB_ORIGIN", "https://app.example.com")
-	handler := WithCORSMode(http.NotFoundHandler(), false)
-	request := httptest.NewRequest(http.MethodOptions, "/api/games/G/orders", nil)
-	request.Header.Set("Origin", "https://app.example.com")
+const testOrigin = "https://app.example.com"
+
+// preflight runs an OPTIONS request from origin through the CORS middleware
+// configured for testOrigin.
+func preflight(t *testing.T, development bool, origin string) *httptest.ResponseRecorder {
+	t.Helper()
+	t.Setenv("PUBLIC_WEB_ORIGIN", testOrigin)
+	request := httptest.NewRequest(http.MethodOptions, "/api/games", nil)
+	request.Header.Set("Origin", origin)
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
 	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
+	WithCORSMode(http.NotFoundHandler(), development).ServeHTTP(recorder, request)
+	return recorder
+}
+
+func TestWithCORSAllowsTheClientVersionHeader(t *testing.T) {
+	recorder := preflight(t, false, testOrigin)
 	if got := recorder.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, ClientVersionHeader) {
 		t.Fatalf("Access-Control-Allow-Headers = %q, want it to include %s", got, ClientVersionHeader)
 	}
@@ -59,6 +69,7 @@ func TestWithCORSAllowOrigin(t *testing.T) {
 		{"null origin is refused", "https://app.example.com", "", "null", false, ""},
 		{"configured origin, path trimmed", "https://app.example.com/some/path", "", "https://app.example.com", false, "https://app.example.com"},
 		{"no Origin gets no CORS header", "https://app.example.com", "", "", false, ""},
+		{"PUBLIC_WEB_ORIGIN wins over PUBLIC_APP_URL", "https://web.example.com", "https://game.example.com", "https://game.example.com", false, ""},
 		{"PUBLIC_APP_URL fallback", "", "https://game.example.com/play", "https://game.example.com", false, "https://game.example.com"},
 		{"development origin is allowed in development", "", "", developmentOrigin, true, developmentOrigin},
 		{"development origin is never a production fallback", "", "", developmentOrigin, false, ""},
@@ -95,14 +106,7 @@ func TestWithCORSAllowOrigin(t *testing.T) {
 }
 
 func TestWithCORSPreflightFromUnknownOrigin(t *testing.T) {
-	t.Setenv("PUBLIC_WEB_ORIGIN", "https://app.example.com")
-	request := httptest.NewRequest(http.MethodOptions, "/api/games", nil)
-	request.Header.Set("Origin", "https://evil.example.org")
-	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
-	recorder := httptest.NewRecorder()
-
-	WithCORSMode(http.NotFoundHandler(), false).ServeHTTP(recorder, request)
-
+	recorder := preflight(t, false, "https://evil.example.org")
 	if recorder.Code != http.StatusNoContent {
 		t.Errorf("preflight = %d, want %d", recorder.Code, http.StatusNoContent)
 	}
@@ -114,11 +118,7 @@ func TestWithCORSPreflightFromUnknownOrigin(t *testing.T) {
 }
 
 func TestWithCORSAdvertisesOnlyTheAllowedMethods(t *testing.T) {
-	t.Setenv("PUBLIC_WEB_ORIGIN", "https://app.example.com")
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodOptions, "/api/games", nil)
-	request.Header.Set("Origin", "https://app.example.com")
-	WithCORSMode(http.NotFoundHandler(), false).ServeHTTP(recorder, request)
+	recorder := preflight(t, false, testOrigin)
 
 	got := recorder.Header().Get("Access-Control-Allow-Methods")
 	for _, method := range []string{"GET", "POST", "PUT", "OPTIONS"} {
