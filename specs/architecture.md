@@ -99,6 +99,15 @@ de style. Hors production (`ONLINE_DEV_MODE` ou émulateur Firebase dans
 l'environnement), le serveur n'envoie pas HSTS et la CSP autorise aussi les
 émulateurs sur `localhost` et `127.0.0.1`.
 
+CORS n'autorise qu'une seule origine, `PUBLIC_WEB_ORIGIN` ou à défaut
+`PUBLIC_APP_URL` : le front est servi par le binaire Go, et Firebase Hosting
+relaie `/api/**` vers Cloud Run, donc le navigateur appelle toujours l'API en
+même origine et une liste d'origines n'est pas nécessaire. Une origine inconnue
+ou absente ne reçoit aucun en-tête `Access-Control-*` ; l'origine Vite
+(`http://localhost:5173`) n'est un repli qu'en mode développement. CORS n'est
+pas un mécanisme d'authentification : chaque route protégée vérifie le jeton et
+l'appartenance au jeu.
+
 ## 3. Organisation du dépôt
 
 ```text
