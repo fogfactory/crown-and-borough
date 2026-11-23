@@ -113,9 +113,7 @@ func main() {
 	} else {
 		log.Print("rate limit: disabled")
 	}
-	// CORS wraps the limiter so that a 429 stays readable cross-origin and
-	// preflight requests never draw from a bucket.
-	httpServer := newHTTPServer(addr, api.WithSecurityHeaders(api.WithCORSMode(api.WithRateLimit(server, rateLimit), onlineDevMode), !onlineDevMode))
+	httpServer := newHTTPServer(addr, httpHandler(server, rateLimit, onlineDevMode))
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
@@ -131,6 +129,16 @@ const (
 	idleTimeout       = 120 * time.Second
 	maxHeaderBytes    = 32 << 10
 )
+
+// httpHandler wraps the application with its cross-cutting middleware. The
+// security headers are outermost so that every response carries them, errors
+// and preflights included; CORS wraps the limiter so that a 429 stays readable
+// cross-origin and preflight requests never draw from a bucket. HSTS and the
+// strict Content Security Policy apply to production only, not to the
+// development mode or the local Firebase emulators.
+func httpHandler(server http.Handler, rateLimit api.RateLimitConfig, development bool) http.Handler {
+	return api.WithSecurityHeaders(api.WithCORSMode(api.WithRateLimit(server, rateLimit), development), api.IsProduction(development))
+}
 
 func newHTTPServer(addr string, handler http.Handler) *http.Server {
 	return &http.Server{

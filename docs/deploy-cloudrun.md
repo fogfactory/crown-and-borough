@@ -709,15 +709,21 @@ tag URL:
 - `/` and a client-side route return the embedded SPA root;
 - `/api/rules` is reachable;
 - `/api/games` and `/api/auth/me` return `401` without a Firebase token;
-- `/` carries the security headers (`X-Content-Type-Options`,
-  `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options`,
-  `Strict-Transport-Security` and `Content-Security-Policy-Report-Only`).
+- `/`, a client route and `/api/version` carry the security headers
+  (`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
+  `X-Frame-Options`, `Strict-Transport-Security` and
+  `Content-Security-Policy`); only header names appear in the CI logs.
 
-The Go server sets them for every response it serves (HSTS only outside
-`ONLINE_DEV_MODE`) and `firebase.json` sets the same ones for Hosting. A unit
-test fails if the two copies differ. The Content Security Policy stays
-report-only until its violations have been reviewed in the browser console;
-there is no reporting endpoint yet.
+The Go server sets them for every response it serves, errors and CORS
+preflights included, and `firebase.json` sets the same ones for Hosting. A unit
+test fails if the two copies differ. The Content Security Policy is enforced and
+only allows the application itself, Firebase (Auth and Firestore) and the
+public GitHub release API. Outside production (`ONLINE_DEV_MODE` or a Firebase
+emulator host in the environment) the Go server omits HSTS and also allows the
+emulators on `localhost` and `127.0.0.1`.
+
+The Firebase Auth helper pages under `/__/auth/` are served by Firebase from
+its reserved namespace, which ignores the `headers` of `firebase.json`.
 
 The Hosting smoke job performs the same checks against
 `PUBLIC_HOSTING_URL`, proving that the static frontend, Cloud Run rewrites, and
