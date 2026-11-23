@@ -89,6 +89,15 @@ release notes). Le serveur Go les pose via
 `api.WithSecurityHeaders` et `firebase.json` les reproduit pour Hosting. La CSP
 reste en mode rapport tant que ses violations n'ont pas été examinées.
 
+CORS n'autorise qu'une seule origine, `PUBLIC_WEB_ORIGIN` ou à défaut
+`PUBLIC_APP_URL` : le front est servi par le binaire Go, et Firebase Hosting
+relaie `/api/**` vers Cloud Run, donc le navigateur appelle toujours l'API en
+même origine et une liste d'origines n'est pas nécessaire. Une origine inconnue
+ou absente ne reçoit aucun en-tête `Access-Control-*` ; l'origine Vite
+(`http://localhost:5173`) n'est un repli qu'en mode développement. CORS n'est
+pas un mécanisme d'authentification : chaque route protégée vérifie le jeton et
+l'appartenance au jeu.
+
 ## 3. Organisation du dépôt
 
 ```text
