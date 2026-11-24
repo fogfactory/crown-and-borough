@@ -96,18 +96,25 @@ type InfrastructureReport struct {
 // player's own capital still gets its own line, distinct from the player's
 // non-fief income to the same Destination.
 type IncomeReport struct {
-	Owner       models.PlayerID    `json:"owner"`
+	Owner models.PlayerID `json:"owner"`
+	// Region is the seed of the region a line outside any fief groups: a
+	// player's income is one line per fief and one per region otherwise.
+	Region      models.TerritoryID `json:"region,omitempty"`
 	Destination models.TerritoryID `json:"destination,omitempty"`
 	Fief        models.TerritoryID `json:"fief,omitempty"`
 	Title       models.FiefTitle   `json:"title,omitempty"`
-	Territories int                `json:"territories"`
-	Villages    int                `json:"villages"`
-	Base        int                `json:"base"`
-	Bonus       int                `json:"bonus,omitempty"`
-	Suppressed  int                `json:"suppressed,omitempty"`
-	Credited    int                `json:"credited"`
-	StockAfter  int                `json:"stockAfter,omitempty"`
-	Lost        bool               `json:"lost,omitempty"`
+	// FiefTerritories lists the members of a fief line, capital first.
+	FiefTerritories []models.TerritoryID `json:"fiefTerritories,omitempty"`
+	Territories     int                  `json:"territories"`
+	Villages        int                  `json:"villages"`
+	// VillageLevels lists the levels of the villages counted, highest first.
+	VillageLevels []int `json:"villageLevels,omitempty"`
+	Base          int   `json:"base"`
+	Bonus         int   `json:"bonus,omitempty"`
+	Suppressed    int   `json:"suppressed,omitempty"`
+	Credited      int   `json:"credited"`
+	StockAfter    int   `json:"stockAfter,omitempty"`
+	Lost          bool  `json:"lost,omitempty"`
 	// Source tells a royal flow apart from territory income: "royal_tax" (the
 	// supplement of the king's tax), "royal_rent_king" or "royal_rent_queen".
 	// Taxed is, for a royal tax supplement, the capital of the taxed fief.
@@ -120,9 +127,13 @@ type IncomeReport struct {
 // under the mill's own control, or the mill's own territory when none
 // qualifies. Suppressed is the production lost to bad weather instead.
 type MillReport struct {
-	Territory   models.TerritoryID `json:"territory"`
-	Owner       models.PlayerID    `json:"owner,omitempty"`
-	Level       int                `json:"level"`
+	Territory models.TerritoryID `json:"territory"`
+	Owner     models.PlayerID    `json:"owner,omitempty"`
+	Level     int                `json:"level"`
+	// Fief is the capital of the owner's fief holding the mill, Region the
+	// seed of its region: the income line the mill's output is counted on.
+	Fief        models.TerritoryID `json:"fief,omitempty"`
+	Region      models.TerritoryID `json:"region,omitempty"`
 	Destination models.TerritoryID `json:"destination"`
 	Production  int                `json:"production"`
 	Bonus       int                `json:"bonus,omitempty"`
@@ -501,8 +512,8 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		switch event.Type {
 		case EventTypeIncome:
 			income := IncomeReport{
-				Owner: event.OwnerID, Destination: event.DestinationID,
-				Territories: event.TerritoryCount, Villages: event.VillageCount,
+				Owner: event.OwnerID, Destination: event.DestinationID, Region: event.RegionSeed, FiefTerritories: event.FiefTerritories,
+				Territories: event.TerritoryCount, Villages: event.VillageCount, VillageLevels: event.VillageLevels,
 				Base: event.BaseProduction, Bonus: event.BonusProduction,
 				Suppressed: event.SuppressedProduction, Credited: event.Production,
 				StockAfter: event.StockAfter, Lost: event.Lost, Source: event.Reason, Taxed: event.TerritoryID,
@@ -515,6 +526,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		case EventTypeMillProduction:
 			report.Mills = append(report.Mills, MillReport{
 				Territory: event.TerritoryID, Owner: event.OwnerID, Level: event.Level,
+				Fief: event.FiefCapitalID, Region: event.RegionSeed,
 				Destination: event.DestinationID, Production: event.Production,
 				Bonus: event.BonusProduction, Suppressed: event.SuppressedProduction,
 			})

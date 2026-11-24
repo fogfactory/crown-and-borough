@@ -938,6 +938,7 @@ function AppContent() {
                         report={report}
                         map={map}
                         players={state?.players ?? []}
+                        viewerId={selectedPlayer}
                       />
                     ),
                     realm: state ? (

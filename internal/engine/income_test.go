@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -471,7 +472,7 @@ func TestFiefIncomeNotInterceptedWhenCapitalOccupied(t *testing.T) {
 	validateTestState(t, state)
 
 	reports, _ := computeTerritoryIncome(newResolutionContext(cloneGameState(state), testBalance()))
-	report, ok := reports["P1"]["FCP"]["F1"]
+	report, ok := reports["P1"]["FCP"][incomeGroup{fief: "F1"}]
 	if !ok || report.territories != 3 {
 		t.Fatalf("reports = %#v, want the fief income still routed to the occupied capital", reports)
 	}
@@ -517,5 +518,87 @@ func TestFiefIncomeSeparateLineWhenCapitalCoincidesWithPlayerCapital(t *testing.
 	}
 	if got := resolution.State.TerritoryStates["CAP"].Resources; got != 4 {
 		t.Errorf("CAP stock = %d, want 4 (both lines credited to the same territory)", got)
+	}
+}
+
+// TestIncomeReportGroupsByFiefAndRegion verifies the report grouping of
+// territory income: one line per fief, listing its members and the levels of
+// its villages, and one line per region for the territories held outside any
+// fief; a mill carries the capital of the fief holding it, or none, and its
+// region.
+func TestIncomeReportGroupsByFiefAndRegion(t *testing.T) {
+	state := testState(t,
+		[]models.Territory{
+			territory("CAP", "CAP", "MEM", "OUA", "OUB"),
+			territory("MEM", "MEM", "CAP", "OTH", "MIL"),
+			territory("OTH", "OTH", "MEM"),
+			territory("MIL", "MIL", "MEM"),
+			territory("OUA", "OUA", "CAP"),
+			territory("OUB", "OUB", "CAP"),
+		},
+		nil,
+	)
+	state.Regions = []models.Region{
+		{ID: "R1", Seed: "CAP", Territories: []models.TerritoryID{"CAP", "MEM", "OTH", "MIL"}},
+		{ID: "R2", Seed: "OUA", Territories: []models.TerritoryID{"OUA"}},
+		{ID: "R3", Seed: "OUB", Territories: []models.TerritoryID{"OUB"}},
+	}
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "CAP"})
+	setCapital(state, "P1", "I1")
+	addInfrastructure(state, models.Infrastructure{ID: "V1", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "OTH"})
+	addInfrastructure(state, models.Infrastructure{ID: "V2", Type: models.InfraTypeVillage, Level: 3, TerritoryID: "MEM"})
+	addInfrastructure(state, models.Infrastructure{ID: "M1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "MIL"})
+	addInfrastructure(state, models.Infrastructure{ID: "M2", Type: models.InfraTypeMill, Level: 1, TerritoryID: "OUB"})
+	state.Fiefs = []models.Fief{{
+		ID: "F1", Title: models.FiefTitleCounty, CapitalTerritoryID: "CAP",
+		Territories: []models.TerritoryID{"CAP", "MEM", "OTH", "MIL"}, OwnerID: "P1",
+	}}
+	addAnchorArmy(t, state, "A1", "P1", "OUA")
+	addAnchorArmy(t, state, "A2", "P1", "OUB")
+	validateTestState(t, state)
+
+	resolution, err := Resolve(state, testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	fief := incomeEventForFief(t, resolution.Events, "P1", "CAP", "F1")
+	if want := []models.TerritoryID{"CAP", "MEM", "OTH", "MIL"}; !slices.Equal(fief.FiefTerritories, want) {
+		t.Errorf("fief members = %v, want %v", fief.FiefTerritories, want)
+	}
+	if want := []int{3, 1}; !slices.Equal(fief.VillageLevels, want) {
+		t.Errorf("village levels = %v, want %v, highest first", fief.VillageLevels, want)
+	}
+	// Mutating the event must not reach the fief held in the state.
+	fief.FiefTerritories[0] = "ZZZ"
+	if resolution.State.Fiefs[0].Territories[0] != "CAP" {
+		t.Errorf("fief territories aliased by the income event: %v", resolution.State.Fiefs[0].Territories)
+	}
+
+	var regions []models.TerritoryID
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeIncome && event.OwnerID == "P1" && event.FiefID == "" {
+			if event.TerritoryCount != 1 {
+				t.Errorf("non-fief income event = %#v, want one territory per region", event)
+			}
+			regions = append(regions, event.RegionSeed)
+		}
+	}
+	slices.Sort(regions)
+	if want := []models.TerritoryID{"OUA", "OUB"}; !slices.Equal(regions, want) {
+		t.Errorf("non-fief income regions = %v, want %v", regions, want)
+	}
+
+	mills := map[models.TerritoryID]Event{}
+	for _, event := range resolution.Events {
+		if event.Type == EventTypeMillProduction {
+			mills[event.TerritoryID] = event
+		}
+	}
+	if got := mills["MIL"]; got.FiefCapitalID != "CAP" || got.RegionSeed != "CAP" {
+		t.Errorf("fief mill event = %#v, want fief CAP in region CAP", got)
+	}
+	if got := mills["OUB"]; got.FiefCapitalID != "" || got.RegionSeed != "OUB" {
+		t.Errorf("outside mill event = %#v, want no fief in region OUB", got)
 	}
 }

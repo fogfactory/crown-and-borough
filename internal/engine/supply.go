@@ -877,6 +877,8 @@ func (ctx *resolutionContext) emitMillProductionEvents(mills []millProduction) {
 			Type:                 EventTypeMillProduction,
 			Phase:                6,
 			TerritoryID:          mill.millID,
+			RegionSeed:           regionForTerritory(ctx, mill.millID),
+			FiefCapitalID:        mill.fiefCapitalID,
 			DestinationID:        mill.destinationID,
 			OwnerID:              ownerID,
 			InfrastructureID:     mill.infrastructureID,

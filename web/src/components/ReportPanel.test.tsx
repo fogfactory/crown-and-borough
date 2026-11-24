@@ -383,20 +383,7 @@ describe('ReportPanel', () => {
     expect(
       screen.getByText('perdu, aucune capitale, château ou village pour le recevoir'),
     ).toBeInTheDocument()
-    expect(screen.getByText(/5 produits/)).toBeInTheDocument()
-    expect(screen.getByText(/production de base 1/)).toBeInTheDocument()
-    expect(screen.getByText(/moulins 2/)).toBeInTheDocument()
-    expect(screen.getByText(/bonus régional 1/)).toBeInTheDocument()
-    expect(screen.getByText(/stock : 5 → 3 \(consommé 2\)/)).toBeInTheDocument()
-    expect(screen.getByText(withText(/envoyé 3 vers Bruyères \(BRU\)/))).toBeInTheDocument()
-    expect(screen.getByText(/1 supprimés par une calamité/)).toBeInTheDocument()
     expect(screen.getByText(/demande 2/)).toBeInTheDocument()
-    expect(
-      screen.getByText(/local 2 · sources 0 · reçu 2 · manque 0/),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/source ROS · local 1 · sources 0 · reçu 1 · manque 3/),
-    ).toBeInTheDocument()
     expect(screen.getByText(/· sauvée par pillage/)).toBeInTheDocument()
     expect(screen.getByText(/· −1 troupe/)).toBeInTheDocument()
     expect(
@@ -994,7 +981,7 @@ describe('ReportPanel event cards', () => {
       (summary) => summary.textContent,
     )
     expect(summaries).toContain('Conservation: 1 stocks halved')
-    expect(summaries.some((summary) => summary?.startsWith('Income:'))).toBe(true)
+    expect(summaries.some((summary) => summary?.startsWith('Economy:'))).toBe(true)
     expect(container.querySelector('[data-summary-card]')).not.toHaveAttribute('open')
     expect(container).not.toHaveTextContent('0 → 0')
   })
@@ -1345,5 +1332,224 @@ describe('ReportPanel event cards', () => {
     const box = container.querySelector('[data-report-rumors]')
     expect(box).toHaveTextContent('On dit au marché…')
     expect(box?.querySelector('ul')).toHaveClass('italic')
+  })
+
+  it('sets the economy in one block per house, viewer open, with regions framed', () => {
+    const twoPlayers: StateData['players'] = [
+      { id: 'P1', name: 'One', color: '#a84632' },
+      { id: 'P2', name: 'Two', color: '#2a6f97' },
+    ]
+    const groupedMap: MapData = {
+      ...map,
+      regions: [{ id: 'R1', seed: 'ROS', territories: ['ROS', 'BRU', 'CHA'] }],
+    }
+    const grouped: TurnReport = {
+      ...report,
+      income: [
+        {
+          owner: 'P2',
+          destination: 'ROS',
+          territories: 2,
+          villages: 0,
+          base: 2,
+          credited: 2,
+        },
+      ],
+      mills: [
+        { owner: 'P2', territory: 'BRU', level: 2, destination: 'ROS', production: 3 },
+      ],
+      production: [
+        {
+          territory: 'BRU',
+          region: 'ROS',
+          owner: 'P1',
+          terrainRations: 1,
+          baseProduction: 1,
+          produced: 2,
+        },
+        {
+          territory: 'ROS',
+          region: 'ROS',
+          owner: 'P2',
+          terrainRations: 2,
+          baseProduction: 4,
+          produced: 6,
+        },
+      ],
+      consumption: [
+        {
+          army: 'A9',
+          owner: 'P1',
+          territory: 'BRU',
+          size: 1,
+          demand: 1,
+          receivedLocal: 1,
+          receivedTransfer: 0,
+          totalReceived: 1,
+          missing: 0,
+        },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={grouped}
+          map={groupedMap}
+          players={twoPlayers}
+          viewerId="P2"
+        />
+      </LanguageProvider>,
+    )
+    const houses = Array.from(document.querySelectorAll('[data-report-house]'))
+    expect(houses.map((node) => node.getAttribute('data-report-house'))).toEqual([
+      'P2',
+      'P1',
+    ])
+    expect(houses[0].querySelector('details')).toHaveAttribute('open')
+    expect(houses[1].querySelector('details')).not.toHaveAttribute('open')
+    // The mill is a bonus nested under the income paid to its destination.
+    expect(within(houses[0] as HTMLElement).getByText('mill +3 R')).toBeInTheDocument()
+    expect(houses[1].querySelector('[data-report-region="ROS"]')).not.toBeNull()
+  })
+
+  it('ranks fiefs by title, counts a mill bonus and tells a first deficit from a famine', () => {
+    const economy: TurnReport = {
+      ...report,
+      income: [
+        {
+          owner: 'P1',
+          destination: 'ROS',
+          region: 'ROS',
+          territories: 1,
+          villages: 0,
+          base: 1,
+          credited: 1,
+        },
+        {
+          owner: 'P1',
+          destination: 'BRU',
+          fief: 'BRU',
+          title: 'barony',
+          territories: 3,
+          villages: 0,
+          base: 3,
+          credited: 3,
+        },
+        {
+          owner: 'P1',
+          destination: 'ROS',
+          fief: 'ROS',
+          title: 'duchy',
+          territories: 6,
+          villages: 2,
+          villageLevels: [3, 2],
+          base: 11,
+          credited: 11,
+        },
+      ],
+      mills: [
+        {
+          owner: 'P1',
+          territory: 'BRU',
+          level: 2,
+          fief: 'BRU',
+          destination: 'BRU',
+          production: 2,
+          bonus: 2,
+        },
+      ],
+      production: [],
+      consumption: [
+        {
+          army: 'A1',
+          owner: 'P1',
+          territory: 'ROS',
+          size: 2,
+          demand: 3,
+          receivedLocal: 1,
+          receivedTransfer: 0,
+          totalReceived: 1,
+          missing: 2,
+          famine: true,
+          warned: true,
+        },
+        {
+          army: 'A2',
+          owner: 'P1',
+          territory: 'BRU',
+          size: 2,
+          demand: 3,
+          receivedLocal: 1,
+          receivedTransfer: 0,
+          totalReceived: 1,
+          missing: 2,
+          famine: true,
+          troopsLost: 1,
+        },
+        {
+          army: 'A3',
+          owner: 'P1',
+          territory: 'CHA',
+          size: 1,
+          demand: 1,
+          receivedLocal: 1,
+          receivedTransfer: 0,
+          totalReceived: 1,
+          missing: 0,
+        },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={economy} map={map} players={players} viewerId="P1" />
+      </LanguageProvider>,
+    )
+
+    const house = document.querySelector('[data-report-house="P1"]') as HTMLElement
+    const titles = Array.from(
+      house.querySelectorAll('li > div.bg-brass-300\\/25 > span:first-child'),
+    ).map((node) => node.textContent)
+    expect(titles[0]).toMatch(/Duchy/)
+    expect(titles[1]).toMatch(/Barony/)
+    expect(titles[2]).toMatch(/Outside fiefs/)
+    expect(house).toHaveTextContent('villages: 5 = 3 + 2')
+    // The barony's 3 R plus its mill's 2 + 2 R of fair weather.
+    expect(house).toHaveTextContent('+7 R credited')
+    expect(house).toHaveTextContent('mill +4 R')
+    expect(house).toHaveTextContent('2 missing, famine looms')
+    expect(house).toHaveTextContent('famine: 2 missing, 1 lost')
+    const summary = document.querySelector('[data-summary-card] summary') as HTMLElement
+    expect(summary).toHaveTextContent(
+      'Economy: +19 R · 1 fed · 1 starving · 1 with losses',
+    )
+  })
+
+  it('drops the army tally from the economy summary when no army is fed', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            mills: [],
+            production: [],
+            consumption: [],
+            income: [
+              {
+                owner: 'P1',
+                destination: 'ROS',
+                territories: 1,
+                villages: 0,
+                base: 1,
+                credited: 1,
+              },
+            ],
+          }}
+          map={map}
+          players={players}
+        />
+      </LanguageProvider>,
+    )
+    const summary = document.querySelector('[data-summary-card] summary') as HTMLElement
+    expect(summary.textContent?.trim()).toBe('Economy: +1 R')
   })
 })

@@ -85,7 +85,7 @@ peuvent être amendés en revue sans remettre en cause le choix qu'ils servent.
 | 29 | Trésor | Bandeau d'une ligne, dépliable | Barre du haut, blocs repliés, livre de comptes |
 | 30 | Fiche de territoire | Cartouche posé sur la carte | Sections repliables, marque-page Territoire, infobulle et tiroir |
 | 31 | Lignée et alliances | Arbre généalogique | Maisons compactes, page dédiée, restyle de l'actuel |
-| 32 | Résultats répétitifs du rapport | Carte de synthèse et encadré des rumeurs | Filtrage seul, « chez vous » d'abord, tableau |
+| 32 | Résultats répétitifs du rapport | Carte de synthèse et encadré des rumeurs | Filtrage seul, tableau |
 | 33 | Identifiants hors des ordres | Libellé complet suivi du code entre parenthèses ; code seul uniquement dans les feuilles d'ordres et pour les territoires ordinaires de la carte | Codes seuls partout |
 | 34 | Liens vers la carte | Un clic sur un territoire ou un noble cité dans le rapport, le poste de commandement ou un message de la messagerie cadre la carte sur lui | Aucun lien |
 
@@ -1167,9 +1167,15 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 
 **Précision.** Le rapport se range en catégories : combats, événements
 (effets de saison, famines, fiefs, mariages, élections), hiver ou cartes de
-noble, économie, ordres exécutés. L'économie ne montre que des cartes de
-synthèse repliées : revenus, moulins, production, ravitaillement,
-conservation et réceptions. Une famine reste un événement à part entière.
+noble, économie, ordres exécutés. L'économie tient en une carte de
+synthèse repliée, « Économie », qui s'ouvre sur un bloc par maison : celle du
+joueur d'abord et ouverte, les autres repliées sur leur bilan (revenu, armées
+nourries, en famine ou ayant subi des pertes). Un bloc réunit les entrées —
+une ligne encadrée par fief, du duché au baron, et par région hors fief, les
+villages (« villages : 7 = 3 + 2 + 2 ») et les moulins comptés sur la ligne
+qu'ils alimentent — et le ravitaillement, armée par armée, en blocs encadrés
+par région, le rabais du terrain à côté de son nom. Les conservations et les
+réceptions restent des cartes de synthèse à part. Une famine reste un événement à part entière.
 « Voir » cadre la carte sur les territoires de l'événement, les entoure et
 trace les ordres d'une flèche ; le dessin disparaît à la sélection suivante.
 Un tour sans rien de tout cela écrit « Rien à signaler ce tour. ».
