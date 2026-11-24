@@ -8,7 +8,6 @@
 * **report:** balance winter stocks with transfers, share the house block ([8ef67a9](https://github.com/fogfactory/crown-and-borough/commit/8ef67a9615c9eda0b98efea843a34c96a4d68798))
 * **report:** credit winter transfers to the receiving house, extract grouping ([7425cd9](https://github.com/fogfactory/crown-and-borough/commit/7425cd9235dc9ef2df969d09de0fae95c717e5b9))
 * **report:** describe winter orders in words, with house costs and balance ([0f30e05](https://github.com/fogfactory/crown-and-borough/commit/0f30e05a2bc504877ba0ea68289539c44cc28500))
-* **report:** group the winter report by house ([0fcae0f](https://github.com/fogfactory/crown-and-borough/commit/0fcae0f7dbf0a85f4927fa4483ff2da891c9cf1f))
 * **report:** group the winter report by house ([81d9196](https://github.com/fogfactory/crown-and-borough/commit/81d91964b99f3b55e1f56ff7dd5a3d1207b74ac2))
 
 ## [1.8.0](https://github.com/fogfactory/crown-and-borough/compare/v1.7.0...v1.8.0) (2026-11-24)
