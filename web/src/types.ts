@@ -973,6 +973,14 @@ export interface PlayerReport {
  */
 export interface IncomeReport {
   owner: PlayerId
+  /** Seed of the region a line outside any fief groups. */
+  region?: string
+  /** Members of a fief line, capital first. */
+  fiefTerritories?: string[]
+  /** Villages of level 1 and above, with the income each brings. */
+  villageIncome?: Array<{ territory: string; level: number; amount: number }>
+  /** What the territories bring, villages apart; absent when zero. */
+  territoryAmount?: number
   destination?: string
   fief?: string
   title?: FiefTitle
@@ -1000,6 +1008,9 @@ export interface IncomeReport {
 export interface MillReport {
   territory: string
   owner?: PlayerId
+  /** Capital of the fief holding the mill, and the seed of its region. */
+  fief?: string
+  region?: string
   level: number
   destination: string
   production: number

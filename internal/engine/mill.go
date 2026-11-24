@@ -12,9 +12,13 @@ type millProduction struct {
 	infrastructureID models.InfraID
 	level            int
 	destinationID    models.TerritoryID
-	production       int // base mill production, 0 when suppressed by bad weather
-	bonus            int // fair-weather bonus, equal to level when it applies
-	suppressed       int // production lost to bad weather, equal to level when it applies
+	// fiefCapitalID is the capital of the mill owner's fief holding the mill,
+	// read with the rest of the snapshot, before a famine auto-pillage can
+	// dissolve the fief.
+	fiefCapitalID models.TerritoryID
+	production    int // base mill production, 0 when suppressed by bad weather
+	bonus         int // fair-weather bonus, equal to level when it applies
+	suppressed    int // production lost to bad weather, equal to level when it applies
 }
 
 // total is the mill's harvest-and-weather-adjusted production actually
@@ -43,7 +47,14 @@ func computeMillProduction(ctx *resolutionContext) []millProduction {
 			continue
 		}
 		production, bonus, suppressed := millWeatherProduction(ctx, territoryID, infrastructure.Level)
+		var fiefCapitalID models.TerritoryID
+		if owner := controllerPointer(ctx.controllerNow, territoryID); owner != nil {
+			if fief := ctx.territoryFief(*owner, territoryID); fief != nil {
+				fiefCapitalID = fief.CapitalTerritoryID
+			}
+		}
 		mills = append(mills, millProduction{
+			fiefCapitalID:    fiefCapitalID,
 			millID:           territoryID,
 			ownerID:          controllerPointer(ctx.controllerNow, territoryID),
 			infrastructureID: infrastructure.ID,

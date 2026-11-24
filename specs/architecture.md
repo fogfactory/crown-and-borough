@@ -83,11 +83,30 @@ Hosting, déclenché par un tag `v*` (voir `docs/deploy-cloudrun.md`).
 
 Toutes les réponses portent des en-têtes de sécurité : `nosniff`,
 `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: SAMEORIGIN`, HSTS
-(production uniquement) et une `Content-Security-Policy-Report-Only` qui liste
-les hôtes que le client contacte (Firebase Auth, Firestore, API GitHub des
-release notes). Le serveur Go les pose via
-`api.WithSecurityHeaders` et `firebase.json` les reproduit pour Hosting. La CSP
-reste en mode rapport tant que ses violations n'ont pas été examinées.
+(production uniquement) et une `Content-Security-Policy` appliquée. Le serveur
+Go les pose via `api.WithSecurityHeaders` sur toutes ses réponses, erreurs et
+préflights CORS compris, et `firebase.json` les reproduit pour Hosting ; un
+test garantit que les deux copies sont identiques.
+
+La CSP n'autorise que l'application elle-même, Firebase (Auth, Firestore, et
+l'iframe d'authentification sur `*.firebaseapp.com`) et l'API GitHub des release
+notes. Une seule image externe est permise dans `img-src` :
+`https://www.google.com/images/cleardot.gif`, la sonde de connectivité que le SDK
+Firestore charge quand un canal tombe en erreur. Elle n'a ni source `*` ni `unsafe-eval`. `style-src` garde
+`'unsafe-inline'` : les attributs `style` de React et la carte SVG en ont
+besoin, et il ne peut disparaître qu'avec un passage aux nonces ou aux feuilles
+de style. Hors production (`ONLINE_DEV_MODE` ou émulateur Firebase dans
+l'environnement), le serveur n'envoie pas HSTS et la CSP autorise aussi les
+émulateurs sur `localhost` et `127.0.0.1`.
+
+CORS n'autorise qu'une seule origine, `PUBLIC_WEB_ORIGIN` ou à défaut
+`PUBLIC_APP_URL` : le front est servi par le binaire Go, et Firebase Hosting
+relaie `/api/**` vers Cloud Run, donc le navigateur appelle toujours l'API en
+même origine et une liste d'origines n'est pas nécessaire. Une origine inconnue
+ou absente ne reçoit aucun en-tête `Access-Control-*` ; l'origine Vite
+(`http://localhost:5173`) n'est un repli qu'en mode développement. CORS n'est
+pas un mécanisme d'authentification : chaque route protégée vérifie le jeton et
+l'appartenance au jeu.
 
 ## 3. Organisation du dépôt
 

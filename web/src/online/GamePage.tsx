@@ -1355,6 +1355,7 @@ export function GamePage() {
                     report={report}
                     map={map}
                     players={state.players}
+                    viewerId={playerID ?? undefined}
                     summaries={reportSummaries}
                     loading={reportLoading}
                     error={reportError}

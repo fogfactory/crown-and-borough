@@ -1,10 +1,21 @@
+import { ShieldIcon } from '@/components/ArmsIcons'
+import {
+  BLOCK_FRAME,
+  BLOCK_HEADER,
+  RegionBlocks,
+  regionSeedOf,
+} from '@/components/RegionBlocks'
+import { playerArms } from '@/lib/heraldry'
+import { FIEF_RANK } from '@/lib/lineage'
+import { TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
+import { NEUTRAL_PLAYER_ID } from '@/types'
 import { useId, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import {
   IconBell,
-  IconBread,
   IconBuildingChurch,
   IconBuildingWarehouse,
+  IconBuildingCottage,
   IconBuildingWindTurbine,
   IconChevronDown,
   IconCloudStorm,
@@ -12,7 +23,7 @@ import {
   IconCrown,
   IconHeart,
   IconLink,
-  IconPlant,
+  IconMapPin,
   IconScript,
   IconSkull,
   IconSnowflake,
@@ -38,8 +49,12 @@ import type {
   ReportArmy,
   CardReport,
   CombatReport,
+  ConsumptionReport,
   FiefReport,
   MarriageReport,
+  MillReport,
+  PlayerReport,
+  ProductionReport,
   IncomeReport,
   SeasonEffectReport,
   TurnReport,
@@ -47,7 +62,7 @@ import type {
   WinterInvestmentReport,
   WinterOrder,
 } from '@/types'
-import { DEFAULT_PLAYER_COLOR } from '@/lib/map-palette'
+import { DEFAULT_PLAYER_COLOR, NEUTRAL_ARMY_COLOR } from '@/lib/map-palette'
 
 const FIEF_TITLE_KEYS: Record<FiefTitle, MessageKey> = {
   barony: 'fief.title.barony',
@@ -60,6 +75,8 @@ interface ReportPanelProps {
   report: TurnReport | null
   map: MapData | null
   players: Player[]
+  /** Player whose house is listed first and opened in the economy card. */
+  viewerId?: PlayerId
 }
 
 const WINTER_INFRA_SYMBOLS: Partial<Record<InfraType, string>> = {
@@ -360,9 +377,14 @@ function incomeDestinationLabel(
   t: Translate,
 ): ReactNode {
   if (line.fief && line.title) {
+    const capital = map?.territories.find((candidate) => candidate.id === line.fief)
     return richTranslate(t, 'map.fiefLabel', {
       title: t(FIEF_TITLE_KEYS[line.title]),
-      capital: territoryLabel(map, line.fief, t),
+      capital: capital ? (
+        <TerritoryRef id={capital.id} name={capital.name} lights={line.fiefTerritories} />
+      ) : (
+        t('reports.unknownTerritory')
+      ),
     })
   }
   return territoryLabel(map, line.destination, t)
@@ -1170,7 +1192,7 @@ function groupSeasonEffects(
   return { flat, groups: Array.from(groups.values()) }
 }
 
-export function ReportPanel({ report, map, players }: ReportPanelProps) {
+export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps) {
   const { t } = useLanguage()
   if (!report) return null
   const receptions = report.receptions ?? []
@@ -1198,18 +1220,10 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
   const millLines = mills.filter(
     (line) => line.production > 0 || (line.suppressed ?? 0) > 0,
   )
-  const productionLines = production.filter(
-    (line) =>
-      line.produced > 0 ||
-      (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0) > 0 ||
-      (line.stockBefore ?? 0) !== (line.stockAfter ?? 0),
-  )
   const famines = consumption.filter((line) => line.famine)
-  const fedArmies = consumption.filter((line) => !line.famine)
   const stockLines = winterStocks.filter(
     (stock) => stock.stockBefore !== stock.stockAfter,
   )
-  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 
   const hasEvents =
     seasonEffects.length > 0 ||
@@ -1217,13 +1231,9 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
     fiefs.length > 0 ||
     marriages.length > 0 ||
     elections.length > 0
-  const hasEconomy =
-    incomeLines.length > 0 ||
-    millLines.length > 0 ||
-    productionLines.length > 0 ||
-    fedArmies.length > 0 ||
-    stockLines.length > 0 ||
-    receptions.length > 0
+  const showEconomy =
+    incomeLines.length > 0 || millLines.length > 0 || consumption.length > 0
+  const hasEconomy = showEconomy || stockLines.length > 0 || receptions.length > 0
   const empty =
     combats.length === 0 &&
     orders.length === 0 &&
@@ -1555,230 +1565,17 @@ export function ReportPanel({ report, map, players }: ReportPanelProps) {
           title={t('reports.category.economy')}
           icon={<IconCoins />}
         >
-          {incomeLines.length > 0 && (
-            <SummaryCard
-              icon={<IconCoins />}
-              summary={t('reports.summary.income', {
-                count: incomeLines.length,
-                total: sum(incomeLines.map((line) => (line.lost ? 0 : line.credited))),
-              })}
-            >
-              {incomeLines.map((line, index) => (
-                <li
-                  key={`${line.owner}-${line.destination ?? 'lost'}-${index}`}
-                  className="space-y-0.5"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex min-w-0 items-center gap-2">
-                      {playerMarker(players, line.owner, t)}
-                      {line.destination ? (
-                        <span className="text-xs text-ink-500">
-                          {incomeDestinationLabel(line, map, t)}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className={`shrink-0 text-xs font-semibold ${line.lost ? 'text-brass-700' : 'text-success-700'}`}
-                    >
-                      {line.lost
-                        ? t('reports.incomeLost')
-                        : t('reports.incomeCredited', { count: line.credited })}
-                    </span>
-                  </div>
-                  <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
-                    {line.source ? (
-                      <span>
-                        {richTranslate(t, `reports.incomeSource.${line.source}`, {
-                          fief: territoryLabel(map, line.taxed, t),
-                        })}
-                      </span>
-                    ) : (
-                      <span>
-                        {t('reports.incomeTerritories', { count: line.territories })}
-                      </span>
-                    )}
-                    {line.villages > 0 && (
-                      <span>{t('reports.incomeVillages', { count: line.villages })}</span>
-                    )}
-                    {(line.suppressed ?? 0) > 0 && (
-                      <span className="font-semibold text-vermilion-700">
-                        {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
-                      </span>
-                    )}
-                  </p>
-                </li>
-              ))}
-            </SummaryCard>
-          )}
-          {millLines.length > 0 && (
-            <SummaryCard
-              icon={<IconBuildingWindTurbine />}
-              summary={t('reports.summary.mills', {
-                count: millLines.length,
-                total: sum(millLines.map((line) => line.production)),
-              })}
-            >
-              {millLines.map((line, index) => {
-                const stopped = line.production === 0 && (line.suppressed ?? 0) > 0
-                const keptInPlace = line.destination === line.territory
-                return (
-                  <li
-                    key={`${line.territory}-${index}`}
-                    className="flex items-center justify-between gap-3"
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      {playerMarker(players, line.owner, t)}
-                      <span className="text-xs text-ink-500">
-                        {territoryLabel(map, line.territory, t)}
-                      </span>
-                    </span>
-                    <span
-                      className={`shrink-0 text-xs font-semibold ${stopped ? 'text-brass-700' : 'text-success-700'}`}
-                    >
-                      {stopped
-                        ? t('reports.millStopped')
-                        : keptInPlace
-                          ? t('reports.millKept', { count: line.production })
-                          : richTranslate(t, 'reports.millCredited', {
-                              count: line.production,
-                              destination: territoryLabel(map, line.destination, t),
-                            })}
-                    </span>
-                  </li>
-                )
-              })}
-            </SummaryCard>
-          )}
-          {productionLines.length > 0 && (
-            <SummaryCard
-              icon={<IconPlant />}
-              summary={t('reports.summary.production', {
-                count: productionLines.length,
-                total: sum(productionLines.map((line) => line.produced)),
-              })}
-            >
-              {productionLines.map((line) => {
-                const chips: Array<{ label: string; value: number }> = [
-                  {
-                    label: t('reports.productionTerrainRations'),
-                    value: line.terrainRations,
-                  },
-                  {
-                    label: t('reports.productionBonusRations'),
-                    value: line.bonusRations ?? 0,
-                  },
-                  {
-                    label: t('reports.productionBaseProduction'),
-                    value: line.baseProduction ?? 0,
-                  },
-                  {
-                    label: t('reports.productionMillProduction'),
-                    value: line.millProduction ?? 0,
-                  },
-                  {
-                    label: t('reports.productionBonusProduction'),
-                    value: line.bonusProduction ?? 0,
-                  },
-                ].filter((chip) => chip.value > 0)
-                const suppressed =
-                  (line.suppressedRations ?? 0) + (line.suppressedProduction ?? 0)
-                const sentDestinations = Object.keys(line.sentToRations ?? {}).sort()
-                const hasStock =
-                  (line.stockBefore ?? 0) > 0 ||
-                  (line.stockConsumed ?? 0) > 0 ||
-                  (line.stockAfter ?? 0) > 0
-                return (
-                  <li key={line.territory} className="space-y-0.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        {playerMarker(players, line.owner, t)}
-                        <span className="text-xs">
-                          {territoryLabel(map, line.territory, t)}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-xs font-semibold text-success-700">
-                        {t('reports.productionProduced', { count: line.produced })}
-                      </span>
-                    </div>
-                    {chips.length > 0 && (
-                      <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-ink-500">
-                        {chips.map((chip) => (
-                          <span key={chip.label}>
-                            {chip.label} {chip.value}
-                          </span>
-                        ))}
-                      </p>
-                    )}
-                    {suppressed > 0 && (
-                      <p className="text-2xs font-semibold text-vermilion-700">
-                        {t('reports.productionSuppressed', { count: suppressed })}
-                      </p>
-                    )}
-                    {(sentDestinations.length > 0 || hasStock) && (
-                      <p className="text-2xs text-ink-500">
-                        {joinNodes(
-                          sentDestinations
-                            .map((destination) =>
-                              richTranslate(t, 'reports.productionSent', {
-                                count: line.sentToRations?.[destination] ?? 0,
-                                territory: territoryLabel(map, destination, t),
-                              }),
-                            )
-                            .concat(
-                              hasStock
-                                ? [
-                                    t('reports.productionStockLine', {
-                                      before: line.stockBefore ?? 0,
-                                      consumed: line.stockConsumed ?? 0,
-                                      after: line.stockAfter ?? 0,
-                                    }),
-                                  ]
-                                : [],
-                            ),
-                          ' · ',
-                        )}
-                      </p>
-                    )}
-                  </li>
-                )
-              })}
-            </SummaryCard>
-          )}
-          {fedArmies.length > 0 && (
-            <SummaryCard
-              icon={<IconBread />}
-              summary={t('reports.summary.consumption', { count: fedArmies.length })}
-            >
-              {fedArmies.map((line) => (
-                <li key={line.army} className="space-y-0.5 text-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex min-w-0 items-center gap-2">
-                      {playerMarker(players, line.owner, t)}
-                      <span>
-                        {line.owner} · {territoryLabel(map, line.territory, t)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-ink-500">
-                      {t(line.size === 1 ? 'app.troop' : 'app.troops', {
-                        count: line.size,
-                      })}{' '}
-                      · {t('reports.consumptionDemand', { count: line.demand })}
-                    </span>
-                  </div>
-                  <p className="text-2xs text-ink-500">
-                    {line.source
-                      ? `${t('reports.consumptionSource', { source: line.source })} · `
-                      : ''}
-                    {t('reports.consumptionLine', {
-                      local: line.receivedLocal,
-                      transfer: line.receivedTransfer,
-                      total: line.totalReceived,
-                      missing: line.missing,
-                    })}
-                  </p>
-                </li>
-              ))}
-            </SummaryCard>
+          {showEconomy && (
+            <EconomyCard
+              stocks={report.players}
+              income={incomeLines}
+              mills={millLines}
+              production={production}
+              supply={consumption}
+              map={map}
+              players={players}
+              viewerId={viewerId}
+            />
           )}
           {stockLines.length > 0 && (
             <SummaryCard
@@ -2288,6 +2085,440 @@ function EventCard({
         </button>
       )}
     </article>
+  )
+}
+
+/**
+ * « 12 fed · 2 starving · 1 with losses », with a leading separator, empty
+ * when there is no army: every army counts once, a loss outranking famine
+ * (a deficit, warned or not), famine outranking fed.
+ */
+function armyTally(lines: ConsumptionReport[], t: Translate): string {
+  const lost = lines.filter((line) => (line.troopsLost ?? 0) > 0 || line.destroyed)
+  const starving = lines.filter((line) => !lost.includes(line) && line.famine)
+  const fed = lines.length - lost.length - starving.length
+  const parts = [
+    fed > 0 && t(fed === 1 ? 'reports.tallyFedOne' : 'reports.tallyFed', { count: fed }),
+    starving.length > 0 && t('reports.tallyFamine', { count: starving.length }),
+    lost.length > 0 && t('reports.tallyLosses', { count: lost.length }),
+  ].filter(Boolean)
+  return parts.length > 0 ? ` · ${parts.join(' · ')}` : ''
+}
+
+const NEUTRAL_ARMS = { field: NEUTRAL_ARMY_COLOR, charge: null }
+
+/**
+ * The economy of the turn, one block per house (the viewer's open, the
+ * others folded on their balance). Income comes in one line per fief and one
+ * per region for the territories held outside any fief, mills counted on the
+ * line they feed; supply goes out per army, grouped by region, the terrain's
+ * rations taken off the demand on the army's own line.
+ */
+function EconomyCard({
+  stocks,
+  income,
+  mills,
+  production,
+  supply,
+  map,
+  players,
+  viewerId,
+}: {
+  /** The stock of each player before and after the turn. */
+  stocks: PlayerReport[]
+  income: IncomeReport[]
+  mills: MillReport[]
+  production: ProductionReport[]
+  supply: ConsumptionReport[]
+  map: MapData | null
+  players: Player[]
+  viewerId?: PlayerId
+}) {
+  const { t } = useLanguage()
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
+  const houseOf = (owner?: PlayerId) => owner ?? NEUTRAL_PLAYER_ID
+  const territoryById = new Map((map?.territories ?? []).map((item) => [item.id, item]))
+  // The rations the terrain of each territory gives, a discount on the demand.
+  const rationsAt = new Map(
+    production.map((line) => [
+      line.territory,
+      line.terrainRations + (line.bonusRations ?? 0),
+    ]),
+  )
+  const rank = (key: string) => {
+    if (key === viewerId) return -1
+    if (key === NEUTRAL_PLAYER_ID) return players.length + 1
+    const index = players.findIndex((player) => player.id === key)
+    return index < 0 ? players.length : index
+  }
+  const houses = Array.from(
+    new Set([...income, ...mills, ...supply].map((line) => houseOf(line.owner))),
+  ).sort((a, b) => rank(a) - rank(b))
+  const lineTotal = (line: IncomeReport) => (line.lost ? 0 : line.credited)
+  // A fair-weather mill credits its production twice: the bonus is reported apart.
+  const millTotal = (mill: MillReport) => mill.production + (mill.bonus ?? 0)
+  // What the supply network really distributed from the stocks, famine included.
+  const consumedOf = (lines: ConsumptionReport[]) =>
+    sum(lines.map((line) => line.receivedTransfer))
+  const demandOf = (lines: ConsumptionReport[]) => sum(lines.map((line) => line.demand))
+  const cost = (count: number) =>
+    count > 0 ? t('reports.economyCost', { count }) : t('reports.economyNoCost')
+  const gain = (count: number) => t('reports.economyGain', { count })
+  const signed = (net: number) =>
+    net >= 0 ? gain(net) : t('reports.economyCost', { count: -net })
+  const netClass = (net: number) => (net >= 0 ? 'text-success-700' : 'text-vermilion-700')
+  const armyCount = (count: number) =>
+    t(count === 1 ? 'reports.supplyArmy' : 'reports.supplyArmies', { count })
+
+  function renderHouse(key: string) {
+    const own = (line: { owner?: PlayerId }) => houseOf(line.owner) === key
+    // Fiefs first, the most prestigious title leading; Array.sort is stable.
+    const titleRank = (line: IncomeReport) => (line.title ? FIEF_RANK[line.title] : -1)
+    const houseIncome = income.filter(own).sort((a, b) => titleRank(b) - titleRank(a))
+    const houseMills = mills.filter(own)
+    const houseSupply = supply.filter(own)
+    const player = players.find((candidate) => candidate.id === key)
+    const arms = player ? playerArms(player) : NEUTRAL_ARMS
+    const name = player?.name ?? t('reports.groupNeutral')
+
+    // A mill is counted on the line of its fief, or of its region outside one.
+    // A report from before mills carried their fief and region falls back on
+    // the destination its output went to.
+    const attached = new Map<IncomeReport, MillReport[]>()
+    const loose: MillReport[] = []
+    houseMills.forEach((mill) => {
+      const legacy = mill.fief === undefined && mill.region === undefined
+      const feeds = (line: IncomeReport) => {
+        if (legacy) return line.destination === mill.destination
+        return mill.fief ? line.fief === mill.fief : !line.fief && line.region === mill.region
+      }
+      const target = houseIncome.find((line) => !line.source && feeds(line))
+      if (!target) return void loose.push(mill)
+      attached.set(target, [...(attached.get(target) ?? []), mill])
+    })
+    const withMills = (line: IncomeReport) =>
+      lineTotal(line) + sum((attached.get(line) ?? []).map(millTotal))
+    const earned = sum(houseIncome.map(lineTotal)) + sum(houseMills.map(millTotal))
+    const net = earned - consumedOf(houseSupply)
+    const stock = stocks.find((candidate) => candidate.id === key)
+
+    const nameOf = (id: string) => territoryById.get(id)?.name ?? id
+    const byName = (a: string, b: string) => nameOf(a).localeCompare(nameOf(b))
+    // One gain of a block: what it is on the left, what it brings in green on the right.
+    const gainRow = (
+      key: string,
+      icon: ReactNode,
+      label: ReactNode,
+      gain: ReactNode,
+      stopped = false,
+    ) => (
+      <li key={key} className="flex items-center justify-between gap-3 text-xs">
+        <span className="flex min-w-0 items-center gap-1.5 text-ink-700">
+          <span aria-hidden="true" className="flex shrink-0 [&_svg]:size-3.5">
+            {icon}
+          </span>
+          {label}
+        </span>
+        <span
+          className={`shrink-0 font-semibold ${stopped ? 'text-brass-700' : 'text-success-700'}`}
+        >
+          {gain}
+        </span>
+      </li>
+    )
+    const millRow = (mill: MillReport, index: number) => {
+      const stopped = mill.production === 0 && (mill.suppressed ?? 0) > 0
+      return gainRow(
+        `mill-${mill.territory}-${index}`,
+        <IconBuildingWindTurbine />,
+        <>
+          {territoryLabel(map, mill.territory, t)}{' '}
+          <span className="text-ink-500">
+            {t('reports.economyMillLevel', { level: mill.level })}
+          </span>
+        </>,
+        stopped
+          ? t('reports.millStopped')
+          : gain(millTotal(mill)),
+        stopped,
+      )
+    }
+
+    const incomeTitle = (line: IncomeReport): ReactNode => {
+      if (line.source || line.fief) return incomeDestinationLabel(line, map, t)
+      return line.region
+        ? richTranslate(t, 'reports.economyOutsideFief', {
+            region: regionLabel(map, line.region, t),
+          })
+        : t('reports.economyOutsideFiefPlain')
+    }
+    // A line is a balance: the territories, then the villages and the mills,
+    // each with its gain; a line with nothing but territories stays compact.
+    const renderIncomeBody = (line: IncomeReport) => {
+      const villages = [...(line.villageIncome ?? [])].sort((a, b) =>
+        byName(a.territory, b.territory),
+      )
+      const mills = [...(attached.get(line) ?? [])].sort((a, b) =>
+        byName(a.territory, b.territory),
+      )
+      const suppressed = (line.suppressed ?? 0) > 0 && (
+        <p className="text-2xs font-semibold text-vermilion-700">
+          {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
+        </p>
+      )
+      const destination = line.destination && !line.fief && !line.source && (
+        <>
+          {' '}
+          {richTranslate(t, 'reports.economyTo', {
+            destination: territoryLabel(map, line.destination, t),
+          })}
+        </>
+      )
+      const territories = t(
+        line.territories === 1 ? 'reports.incomeTerritory' : 'reports.incomeTerritories',
+        { count: line.territories },
+      )
+      // A report from before villages were detailed only counts them.
+      const legacyVillages = !line.source && line.villages > 0 && villages.length === 0 && (
+        <> · {t('reports.incomeVillages', { count: line.villages })}</>
+      )
+      if (line.source || line.lost || (villages.length === 0 && mills.length === 0)) {
+        // Nothing of the territories reaches a stock when the line is lost, but
+        // its mills still produce on their own territory.
+        return (
+          <div className="space-y-1 px-2 py-1.5">
+            <p className="text-2xs text-ink-500">
+              {line.source
+                ? richTranslate(t, `reports.incomeSource.${line.source}`, {
+                    fief: territoryLabel(map, line.taxed, t),
+                  })
+                : territories}
+              {destination}
+              {legacyVillages}
+            </p>
+            {mills.length > 0 && <ul className="space-y-0.5">{mills.map(millRow)}</ul>}
+            {suppressed}
+          </div>
+        )
+      }
+      // A report from before the server sent it: all of the line but its villages.
+      const territoryGain =
+        line.territoryAmount ?? line.credited - sum(villages.map((village) => village.amount))
+      return (
+        <div className="space-y-1 px-2 py-1.5">
+          <ul className="space-y-0.5">
+            {gainRow(
+              'territories',
+              <IconMapPin />,
+              <>
+                {territories}
+                {destination}
+                {legacyVillages}
+              </>,
+              gain(territoryGain),
+            )}
+            {villages.map((village) =>
+              gainRow(
+                `village-${village.territory}`,
+                <IconBuildingCottage />,
+                <>
+                  {territoryLabel(map, village.territory, t)}{' '}
+                  <span className="text-ink-500">
+                    {t('reports.economyVillageLevel', { level: village.level })}
+                  </span>
+                </>,
+                gain(village.amount),
+              ),
+            )}
+            {mills.map(millRow)}
+          </ul>
+          {suppressed}
+        </div>
+      )
+    }
+    const renderIncome = (line: IncomeReport, index: number) => {
+      const frame = line.fief
+        ? 'border-l-ink-500'
+        : line.source
+          ? 'border-l-vermilion-700'
+          : 'border-l-brass-500'
+      return (
+        <li
+          key={`${line.fief ?? line.region ?? line.source ?? 'x'}-${line.destination ?? 'lost'}-${index}`}
+          className={`${BLOCK_FRAME} ${frame}`}
+        >
+          <div className={`${BLOCK_HEADER} text-xs text-ink-900`}>
+            <span className="min-w-0">{incomeTitle(line)}</span>
+            <span
+              className={`shrink-0 ${line.lost ? 'text-brass-700' : 'text-success-700'}`}
+            >
+              {line.lost
+                ? t('reports.incomeLost')
+                : t('reports.incomeCredited', { count: withMills(line) })}
+            </span>
+          </div>
+          {renderIncomeBody(line)}
+        </li>
+      )
+    }
+
+    const renderArmy = (line: ConsumptionReport) => {
+      const rations = rationsAt.get(line.territory) ?? 0
+      const terrain = territoryById.get(line.territory)?.terrain
+      const parts: ReactNode[] = [
+        t(line.size === 1 ? 'app.troop' : 'app.troops', { count: line.size }),
+      ]
+      if (line.receivedTransfer > 0) {
+        parts.push(
+          richTranslate(t, 'reports.economyFromSource', {
+            count: line.receivedTransfer,
+            source: territoryLabel(map, line.source, t),
+          }),
+        )
+      }
+      return (
+        <div className="space-y-0.5 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0">
+              {territoryLabel(map, line.territory, t)}
+              {terrain && (
+                <span className="text-ink-500">
+                  {' '}
+                  · {t(TERRAIN_LABEL_KEYS[terrain])} (−{rations} R)
+                </span>
+              )}
+            </span>
+            <span className="shrink-0 text-right">
+              <span className="font-semibold text-vermilion-700">
+                {cost(line.receivedTransfer)}
+              </span>{' '}
+              <span className="text-2xs text-ink-500">
+                {t('reports.economyDemand', { count: line.demand })}
+              </span>
+            </span>
+          </div>
+          <p className="text-2xs text-ink-500">
+            {joinNodes(parts, ' · ')}
+            {line.famine && (
+              <span className="font-semibold text-vermilion-700">
+                {parts.length > 0 && ' · '}
+                {line.warned
+                  ? t('reports.economyMissing', { count: line.missing })
+                  : t('reports.economyFamine', {
+                      count: line.missing,
+                      lost: line.troopsLost ?? 0,
+                    })}
+              </span>
+            )}
+          </p>
+        </div>
+      )
+    }
+
+    const heading = 'text-2xs font-semibold uppercase tracking-wide text-ink-500'
+    return (
+      <li key={key} data-report-house={key}>
+        <details
+          open={key === viewerId || houses.length === 1}
+          className="rounded-md border border-line-soft bg-paper-100/40"
+        >
+          <summary className="flex cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5">
+            <span className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold text-ink-900">
+              <ShieldIcon
+                id={`economy-${key}`}
+                arms={arms}
+                className="h-5 w-4 shrink-0"
+              />
+              {name}
+            </span>
+            <span className="shrink-0 text-xs font-semibold text-ink-700">
+              <span className={netClass(net)}>{signed(net)}</span>
+              {armyTally(houseSupply, t)}
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-line-soft px-2.5 py-2">
+            {(houseIncome.length > 0 || loose.length > 0) && (
+              <section className="space-y-1.5">
+                <h4 className={`${heading} flex items-center justify-between gap-3`}>
+                  {t('reports.economyIn')}
+                  <span className="text-success-700">
+                    {gain(earned)}
+                  </span>
+                </h4>
+                <ul className="space-y-1.5">
+                  {houseIncome.map(renderIncome)}
+                  {loose.length > 0 && (
+                    <li className="rounded-md border border-line-soft bg-paper-50 px-2 py-1.5">
+                      <ul className="space-y-0.5">{loose.map(millRow)}</ul>
+                    </li>
+                  )}
+                </ul>
+              </section>
+            )}
+            {houseSupply.length > 0 && (
+              <section className="space-y-1.5">
+                <h4 className={`${heading} flex items-center justify-between gap-3`}>
+                  {t('reports.economyOut', { armies: armyCount(houseSupply.length) })}
+                  <span className="text-vermilion-700">
+                    {cost(consumedOf(houseSupply))}{' '}
+                    <span className="font-normal normal-case tracking-normal text-ink-500">
+                      {t('reports.economyDemand', { count: demandOf(houseSupply) })}
+                    </span>
+                  </span>
+                </h4>
+                <RegionBlocks
+                  items={houseSupply}
+                  map={map}
+                  regionOf={(line) => regionSeedOf(map, line.territory)}
+                  territoryOf={(line) => line.territory}
+                  keyOf={(line) => line.army}
+                  renderItem={renderArmy}
+                  subtotal={(group) => (
+                    <>
+                      {armyCount(group.length)} ·{' '}
+                      <span className="text-vermilion-700">
+                        {cost(consumedOf(group))}
+                      </span>
+                    </>
+                  )}
+                />
+              </section>
+            )}
+            <div className="space-y-0.5 border-t border-line pt-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+                <span className="text-ink-900">{t('reports.economyNet')}</span>
+                <span className={netClass(net)}>{signed(net)}</span>
+              </div>
+              {stock && (
+                <div className="flex items-center justify-between gap-3 text-xs text-ink-700">
+                  <span>{t('reports.economyStock')}</span>
+                  <span className="font-semibold">
+                    {t('reports.economyStockValue', {
+                      before: stock.resourcesBefore,
+                      after: stock.resourcesAfter,
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </details>
+      </li>
+    )
+  }
+
+  return (
+    <SummaryCard
+      icon={<IconCoins />}
+      summary={t('reports.summary.economy', {
+        net: signed(
+          sum(income.map(lineTotal)) + sum(mills.map(millTotal)) - consumedOf(supply),
+        ),
+        armies: armyTally(supply, t),
+      })}
+    >
+      {houses.map(renderHouse)}
+    </SummaryCard>
   )
 }
 

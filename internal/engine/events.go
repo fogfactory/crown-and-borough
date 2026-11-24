@@ -272,7 +272,11 @@ type Event struct {
 	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
 	TerritoryCount       int                        `json:"territoryCount,omitempty"`
 	VillageCount         int                        `json:"villageCount,omitempty"`
-	Lost                 bool                       `json:"lost,omitempty"`
+	// IncomeVillages details the villages of an income line: what each one brings.
+	IncomeVillages []IncomeVillage `json:"incomeVillages,omitempty"`
+	// TerritoryAmount is what the territories of an income line bring, villages apart.
+	TerritoryAmount int  `json:"territoryAmount,omitempty"`
+	Lost            bool `json:"lost,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`
@@ -303,7 +307,9 @@ type Event struct {
 	// title an investiture confers.
 	Election *ElectionResult `json:"election,omitempty"`
 
-	FiefID          models.FiefID        `json:"fiefId,omitempty"`
+	FiefID models.FiefID `json:"fiefId,omitempty"`
+	// FiefCapitalID is the capital of the fief a mill production event sits in.
+	FiefCapitalID   models.TerritoryID   `json:"fiefCapital,omitempty"`
 	FiefTitle       models.FiefTitle     `json:"fiefTitle,omitempty"`
 	FiefTerritories []models.TerritoryID `json:"fiefTerritories,omitempty"`
 }
