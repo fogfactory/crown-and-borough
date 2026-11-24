@@ -102,11 +102,11 @@ image:
 		docker build -t "$(IMAGE)" \
 			--build-arg APP_VERSION="$(APP_VERSION)" \
 			--build-arg VITE_APP_VERSION="$(APP_VERSION)" \
-			--build-arg VITE_FIREBASE_API_KEY="$${VITE_FIREBASE_API_KEY:-}" \
-			--build-arg VITE_FIREBASE_AUTH_DOMAIN="$${VITE_FIREBASE_AUTH_DOMAIN:-}" \
+			--secret id=firebase_api_key,env=VITE_FIREBASE_API_KEY \
+			--secret id=firebase_auth_domain,env=VITE_FIREBASE_AUTH_DOMAIN \
+			--secret id=firebase_auth_emulator_host,env=VITE_FIREBASE_AUTH_EMULATOR_HOST \
 			--build-arg VITE_FIREBASE_PROJECT_ID="$${VITE_FIREBASE_PROJECT_ID:-}" \
 			--build-arg VITE_FIREBASE_APP_ID="$${VITE_FIREBASE_APP_ID:-}" \
-			--build-arg VITE_FIREBASE_AUTH_EMULATOR_HOST="$${VITE_FIREBASE_AUTH_EMULATOR_HOST:-}" \
 			--build-arg VITE_FIREBASE_FIRESTORE_EMULATOR_HOST="$${VITE_FIREBASE_FIRESTORE_EMULATOR_HOST:-}" \
 			.
 
