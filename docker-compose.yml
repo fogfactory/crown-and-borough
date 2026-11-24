@@ -100,7 +100,9 @@ services:
     restart: unless-stopped
 
 # Build-time Firebase web config, read from the shell environment (see
-# Dockerfile). Unset variables build the hotseat bundle.
+# Dockerfile). Unset variables build the hotseat bundle. BuildKit does not
+# rebuild on a changed secret: run `docker compose build --no-cache server`
+# after changing one of these variables.
 secrets:
   firebase_api_key:
     environment: VITE_FIREBASE_API_KEY

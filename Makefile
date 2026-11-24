@@ -99,7 +99,9 @@ web-dev: web-deps
 
 image:
 	@set -a; [ ! -f web/.env.local ] || . ./web/.env.local; set +a; \
+		digest="$$(printf '%s|%s|%s' "$${VITE_FIREBASE_API_KEY:-}" "$${VITE_FIREBASE_AUTH_DOMAIN:-}" "$${VITE_FIREBASE_AUTH_EMULATOR_HOST:-}" | sha256sum | cut -d' ' -f1)"; \
 		docker build -t "$(IMAGE)" \
+			--build-arg FIREBASE_CONFIG_DIGEST="$$digest" \
 			--build-arg APP_VERSION="$(APP_VERSION)" \
 			--build-arg VITE_APP_VERSION="$(APP_VERSION)" \
 			--secret id=firebase_api_key,env=VITE_FIREBASE_API_KEY \
