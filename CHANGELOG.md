@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.8.0](https://github.com/fogfactory/crown-and-borough/compare/v1.7.0...v1.8.0) (2026-11-24)
+
+
+### Features
+
+* **report:** merge income, mills, production and supply into one economy card per house ([2071955](https://github.com/fogfactory/crown-and-borough/commit/207195521141fca22059d8337844a381a40aab21))
+* **report:** show the balance of each house as gain rows, real consumption and stock ([d49cea9](https://github.com/fogfactory/crown-and-borough/commit/d49cea99f4bafdf1f39de2a5ee1c1c627baef8d1))
+
+
+### Bug Fixes
+
+* **api:** rate limit invitation code guesses ([2b4202b](https://github.com/fogfactory/crown-and-borough/commit/2b4202bc0dbef2cb2fad8721424515fdde7a1c75)), closes [#76](https://github.com/fogfactory/crown-and-borough/issues/76)
+* **report:** read reports stored before income lines carried regions, villages and mill fiefs ([6fddf21](https://github.com/fogfactory/crown-and-borough/commit/6fddf21fa16fe1095cce6a7549e9b78fc1a4bcd8))
+* **report:** send the territories' own income, keep lost-line mills visible, net in the summary ([13f6fc4](https://github.com/fogfactory/crown-and-borough/commit/13f6fc4516f031a6f5eb3a33a0f61fa2df41ee31))
+* **security:** allow the firestore connectivity probe image in img-src ([7652c1c](https://github.com/fogfactory/crown-and-borough/commit/7652c1c4fc899dcd786ac95ca2c3fb2fa5ab86a3))
+* **security:** configure the cors origin in the security headers test ([f63a356](https://github.com/fogfactory/crown-and-borough/commit/f63a35675be9568b4040d9ebb89d9f3310ebc03d))
+* **security:** enforce the csp and test headers on every response ([5b2bce8](https://github.com/fogfactory/crown-and-borough/commit/5b2bce8df8c1cf725252e396b06cb08c051a9095))
+* **security:** lock down the production cors policy ([035c5af](https://github.com/fogfactory/crown-and-borough/commit/035c5af58cb19542330b4cbc41372e8f9afa464c)), closes [#71](https://github.com/fogfactory/crown-and-borough/issues/71)
+* **web:** skip map and state requests while the lobby waits for players ([f686348](https://github.com/fogfactory/crown-and-borough/commit/f6863489238db33bf33f9cf37c1a7f466261b7e1)), closes [#732](https://github.com/fogfactory/crown-and-borough/issues/732)
+
+
+### Refactoring
+
+* **api:** resolve the cors origin once and share test setup ([8a574cb](https://github.com/fogfactory/crown-and-borough/commit/8a574cbc080c32f441ae36a7cc7b0ed3dceea784)), closes [#71](https://github.com/fogfactory/crown-and-borough/issues/71)
+* **report:** index territories and rations once in the economy card ([a440792](https://github.com/fogfactory/crown-and-borough/commit/a440792e4f55ed0cf7f3f7c99a0e69a97ef0bd41))
+* **report:** simplify income grouping and share the block frame ([d8c7b1b](https://github.com/fogfactory/crown-and-borough/commit/d8c7b1bc6d5bcc52688ca3203ce073e4acb7963b))
+
 ## [1.7.0](https://github.com/fogfactory/crown-and-borough/compare/v1.6.0...v1.7.0) (2026-11-18)
 
 
