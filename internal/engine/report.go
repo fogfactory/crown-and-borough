@@ -118,12 +118,15 @@ type IncomeReport struct {
 	// income each brings, harvest and seigneurial tax included. The rest of
 	// Base+Bonus comes from the territories themselves.
 	VillageIncome []IncomeVillage `json:"villageIncome,omitempty"`
-	Base          int             `json:"base"`
-	Bonus         int             `json:"bonus,omitempty"`
-	Suppressed    int             `json:"suppressed,omitempty"`
-	Credited      int             `json:"credited"`
-	StockAfter    int             `json:"stockAfter,omitempty"`
-	Lost          bool            `json:"lost,omitempty"`
+	// TerritoryAmount is what the territories themselves bring: Base+Bonus
+	// minus the villages' income.
+	TerritoryAmount int  `json:"territoryAmount,omitempty"`
+	Base            int  `json:"base"`
+	Bonus           int  `json:"bonus,omitempty"`
+	Suppressed      int  `json:"suppressed,omitempty"`
+	Credited        int  `json:"credited"`
+	StockAfter      int  `json:"stockAfter,omitempty"`
+	Lost            bool `json:"lost,omitempty"`
 	// Source tells a royal flow apart from territory income: "royal_tax" (the
 	// supplement of the king's tax), "royal_rent_king" or "royal_rent_queen".
 	// Taxed is, for a royal tax supplement, the capital of the taxed fief.
@@ -522,7 +525,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		case EventTypeIncome:
 			income := IncomeReport{
 				Owner: event.OwnerID, Destination: event.DestinationID, Region: event.RegionSeed, FiefTerritories: event.FiefTerritories,
-				Territories: event.TerritoryCount, Villages: event.VillageCount, VillageIncome: event.IncomeVillages,
+				Territories: event.TerritoryCount, Villages: event.VillageCount, VillageIncome: event.IncomeVillages, TerritoryAmount: event.TerritoryAmount,
 				Base: event.BaseProduction, Bonus: event.BonusProduction,
 				Suppressed: event.SuppressedProduction, Credited: event.Production,
 				StockAfter: event.StockAfter, Lost: event.Lost, Source: event.Reason, Taxed: event.TerritoryID,

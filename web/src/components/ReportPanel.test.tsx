@@ -1448,6 +1448,7 @@ describe('ReportPanel event cards', () => {
             { territory: 'CHA', level: 3, amount: 3 },
             { territory: 'BRU', level: 2, amount: 2 },
           ],
+          territoryAmount: 6,
           base: 11,
           credited: 11,
         },
@@ -1531,7 +1532,7 @@ describe('ReportPanel event cards', () => {
     expect(house).toHaveTextContent('famine: 2 missing, 1 lost')
     const summary = document.querySelector('[data-summary-card] summary') as HTMLElement
     expect(summary).toHaveTextContent(
-      'Economy: +19 R · 1 fed · 1 starving · 1 with losses',
+      'Economy: +17 R · 1 fed · 1 starving · 1 with losses',
     )
   })
 
@@ -1562,5 +1563,30 @@ describe('ReportPanel event cards', () => {
     )
     const summary = document.querySelector('[data-summary-card] summary') as HTMLElement
     expect(summary.textContent?.trim()).toBe('Economy: +1 R')
+  })
+
+  it('keeps the mills of a lost income line on screen and in the balance', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            production: [],
+            consumption: [],
+            income: [
+              { owner: 'P1', region: 'ROS', territories: 2, villages: 0, base: 2, credited: 2, lost: true },
+            ],
+            mills: [{ owner: 'P1', territory: 'BRU', level: 2, region: 'ROS', destination: 'BRU', production: 2 }],
+          }}
+          map={map}
+          players={players}
+          viewerId="P1"
+        />
+      </LanguageProvider>,
+    )
+    const house = document.querySelector('[data-report-house="P1"]') as HTMLElement
+    expect(house).toHaveTextContent('Bruyères')
+    expect(house).toHaveTextContent('+2 R')
+    expect(house).toHaveTextContent('Balance+2 R')
   })
 })

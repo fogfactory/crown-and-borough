@@ -2279,17 +2279,20 @@ function EconomyCard({
         )
       }
       if (line.lost || (villages.length === 0 && mills.length === 0)) {
+        // Nothing of the territories reaches a stock when the line is lost, but
+        // its mills still produce on their own territory.
         return (
           <div className="space-y-1 px-2 py-1.5">
             <p className="text-2xs text-ink-500">
               {territories}
               {destination}
             </p>
+            {mills.length > 0 && <ul className="space-y-0.5">{mills.map(millRow)}</ul>}
             {suppressed}
           </div>
         )
       }
-      const territoryGain = line.credited - sum(villages.map((village) => village.amount))
+      const territoryGain = line.territoryAmount ?? 0
       return (
         <div className="space-y-1 px-2 py-1.5">
           <ul className="space-y-0.5">
@@ -2502,7 +2505,9 @@ function EconomyCard({
     <SummaryCard
       icon={<IconCoins />}
       summary={t('reports.summary.economy', {
-        income: sum(income.map(lineTotal)) + sum(mills.map(millTotal)),
+        net: signed(
+          sum(income.map(lineTotal)) + sum(mills.map(millTotal)) - consumedOf(supply),
+        ),
         armies: armyTally(supply, t),
       })}
     >

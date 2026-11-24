@@ -35,10 +35,12 @@ type territoryIncomeReport struct {
 	territories   int
 	villages      int
 	villageIncome []IncomeVillage
-	base          int
-	bonus         int
-	suppressed    int
-	lost          bool
+	// territoryAmount is the part of base+bonus the territories bring, villages apart.
+	territoryAmount int
+	base            int
+	bonus           int
+	suppressed      int
+	lost            bool
 }
 
 // TerritoryIncomeForecast is one controlled territory's projected income and
@@ -81,10 +83,9 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			}
 			village := ctx.infrastructureAt(territoryID)
 			parts := territoryIncomeParts(ctx, territoryID)
-			// The village's own part of parts, adjusted the same way.
-			villageShare := harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
 			fief := ctx.territoryFief(ownerID, territoryID)
-			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID {
+			taxed := fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID
+			if taxed {
 				// Seigneurial tax doubles the fief's territorial income,
 				// village included, for the turn (titres.md "Taxe
 				// seigneuriale"); it never touches mill production, which
@@ -96,8 +97,6 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 				// with a tax it never played.
 				parts.base *= 2
 				parts.bonus *= 2
-				villageShare.base *= 2
-				villageShare.bonus *= 2
 			}
 			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID, fief)
 			perTerritory[territoryID] = TerritoryIncomeForecast{Amount: parts.total(), Destination: destinationID}
@@ -126,14 +125,23 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 				reports[ownerID][destinationID][group] = report
 			}
 			report.territories++
+			villageAmount := 0
 			if village != nil && village.Type == models.InfraTypeVillage {
 				report.villages++
 				if village.Level > 0 {
+					// The village's own part of parts, adjusted and taxed the same way.
+					share := harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
+					amount := share.base + share.bonus
+					if taxed {
+						amount *= 2
+					}
+					villageAmount = amount
 					report.villageIncome = append(report.villageIncome, IncomeVillage{
-						Territory: territoryID, Level: village.Level, Amount: villageShare.base + villageShare.bonus,
+						Territory: territoryID, Level: village.Level, Amount: amount,
 					})
 				}
 			}
+			report.territoryAmount += parts.base + parts.bonus - villageAmount
 			report.base += parts.base
 			report.bonus += parts.bonus
 			report.suppressed += parts.suppressed
@@ -176,6 +184,7 @@ func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.Player
 					TerritoryCount:       report.territories,
 					VillageCount:         report.villages,
 					IncomeVillages:       report.villageIncome,
+					TerritoryAmount:      report.territoryAmount,
 					BaseProduction:       report.base,
 					BonusProduction:      report.bonus,
 					SuppressedProduction: report.suppressed,

@@ -274,7 +274,9 @@ type Event struct {
 	VillageCount         int                        `json:"villageCount,omitempty"`
 	// IncomeVillages details the villages of an income line: what each one brings.
 	IncomeVillages []IncomeVillage `json:"incomeVillages,omitempty"`
-	Lost           bool            `json:"lost,omitempty"`
+	// TerritoryAmount is what the territories of an income line bring, villages apart.
+	TerritoryAmount int  `json:"territoryAmount,omitempty"`
+	Lost            bool `json:"lost,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`

@@ -570,6 +570,9 @@ func TestIncomeReportGroupsByFiefAndRegion(t *testing.T) {
 	if !slices.Equal(fief.IncomeVillages, wantVillages) {
 		t.Errorf("village income = %v, want %v", fief.IncomeVillages, wantVillages)
 	}
+	if fief.TerritoryAmount != 4 {
+		t.Errorf("fief territory amount = %d, want 4 (the villages' 4 R apart)", fief.TerritoryAmount)
+	}
 	// Mutating the event must not reach the fief held in the state.
 	fief.FiefTerritories[0] = "ZZZ"
 	if resolution.State.Fiefs[0].Territories[0] != "CAP" {
