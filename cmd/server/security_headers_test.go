@@ -37,6 +37,16 @@ func TestSecurityHeadersOnEveryKindOfResponse(t *testing.T) {
 	t.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "")
 	limit := api.RateLimitConfig{Requests: 1, Window: time.Hour}
 	for _, development := range []bool{false, true} {
+		// Production only allows the configured origin; development falls
+		// back to the Vite origin.
+		origin := "http://localhost:5173"
+		if !development {
+			origin = "https://app.example.com"
+		}
+		t.Setenv("PUBLIC_WEB_ORIGIN", "")
+		if !development {
+			t.Setenv("PUBLIC_WEB_ORIGIN", origin)
+		}
 		handler := httpHandler(newTestServer(t, development), limit, development)
 		hsts := !development
 		cases := []struct {
@@ -49,7 +59,7 @@ func TestSecurityHeadersOnEveryKindOfResponse(t *testing.T) {
 		}
 		for _, tc := range cases {
 			req := httptest.NewRequest(tc.method, tc.path, nil)
-			req.Header.Set("Origin", "http://localhost:5173")
+			req.Header.Set("Origin", origin)
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
 			if rec.Code != tc.want {
