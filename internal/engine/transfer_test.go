@@ -258,6 +258,46 @@ func TestResolveWinterTransferUsesSettlementPaymentAndOnlySettlementTarget(t *te
 	}
 }
 
+// TestResolveWinterStockEventsCarryTheBalanceBeforeConservation checks that a
+// winter stock event reports what the orders left of the stock (here a free
+// transfer between two houses) before the conservation halves it.
+func TestResolveWinterStockEventsCarryTheBalanceBeforeConservation(t *testing.T) {
+	state := testState(t, []models.Territory{
+		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),
+		supplyTerritory("BBB", "BBB", models.TerrainPlain, "AAA"),
+	}, []models.Army{
+		{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+		{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+	})
+	state.Turn = 4
+	state.Season = models.SeasonWinter
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	addInfrastructure(state, models.Infrastructure{ID: "I2", Type: models.InfraTypeVillage, Level: 1, TerritoryID: "BBB"})
+	setTerritoryResources(state, "AAA", 5)
+	validateTestState(t, state)
+
+	resolution, err := ResolveWinter(state, testBalance(), map[models.PlayerID][]models.WinterOrder{
+		"P1": {{ID: "O1", Type: models.WinterOrderTypeTransfer, SourceID: "AAA", TargetID: "BBB", Amount: 3}},
+	})
+	if err != nil {
+		t.Fatalf("ResolveWinter: %v", err)
+	}
+	want := map[models.TerritoryID][3]int{"AAA": {5, 2, 1}, "BBB": {0, 3, 2}}
+	for _, event := range eventsOfType(resolution.Events, EventTypeWinterStock) {
+		expected, ok := want[event.TerritoryID]
+		if !ok {
+			continue
+		}
+		if got := [3]int{event.StockBefore, event.StockBalance, event.StockAfter}; got != expected {
+			t.Errorf("%s stock before/balance/after = %v, want %v", event.TerritoryID, got, expected)
+		}
+		delete(want, event.TerritoryID)
+	}
+	if len(want) != 0 {
+		t.Errorf("missing winter stock events for %v", want)
+	}
+}
+
 func TestResolveWinterKeepsDepotStockAndLosesBareCache(t *testing.T) {
 	state := testState(t, []models.Territory{
 		supplyTerritory("AAA", "AAA", models.TerrainPlain, "BBB"),

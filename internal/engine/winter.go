@@ -111,7 +111,7 @@ func ResolveWinterWithDeckOrders(
 	// still rapatriates its surplus above as the old capital before losing its
 	// anchor here (#215).
 	ctx.emitAbandonedControl(ctx.startControl)
-	ctx.emitWinterStockEvents(stockBefore)
+	ctx.emitWinterStockEvents(stockBefore, stockBeforeConservation)
 	// Stage 9: trials filed at stage 3, after everything else of the winter.
 	ctx.judgeWinterTrials()
 	// Still stage 9: assassinations, then justice, come after the trial verdicts.
@@ -539,7 +539,9 @@ func (ctx *resolutionContext) repatriateWinterStocks() {
 	}
 }
 
-func (ctx *resolutionContext) emitWinterStockEvents(stockBefore map[models.TerritoryID]int) {
+// emitWinterStockEvents reports each winter stock: at the start of the winter,
+// right before conservation (the balance the orders left) and at the end.
+func (ctx *resolutionContext) emitWinterStockEvents(stockBefore, stockBalance map[models.TerritoryID]int) {
 	for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 		state := ctx.state.TerritoryStates[territoryID]
 		if !ctx.hasSettlement(territoryID) && stockBefore[territoryID] == 0 && state.Resources == 0 {
@@ -549,12 +551,13 @@ func (ctx *resolutionContext) emitWinterStockEvents(stockBefore map[models.Terri
 		// reported what its orders unanchored.
 		ownerID, _ := ctx.controllerNow(territoryID)
 		ctx.events = append(ctx.events, Event{
-			Type:        EventTypeWinterStock,
-			Phase:       winterPhase,
-			OwnerID:     ownerID,
-			TerritoryID: territoryID,
-			StockBefore: stockBefore[territoryID],
-			StockAfter:  state.Resources,
+			Type:         EventTypeWinterStock,
+			Phase:        winterPhase,
+			OwnerID:      ownerID,
+			TerritoryID:  territoryID,
+			StockBefore:  stockBefore[territoryID],
+			StockBalance: stockBalance[territoryID],
+			StockAfter:   state.Resources,
 		})
 	}
 }

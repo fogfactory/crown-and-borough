@@ -432,7 +432,10 @@ type WinterStockReport struct {
 	Territory   models.TerritoryID `json:"territory"`
 	Owner       models.PlayerID    `json:"owner,omitempty"`
 	StockBefore int                `json:"stockBefore"`
-	StockAfter  int                `json:"stockAfter"`
+	// StockBalance is the stock right before conservation, once the orders
+	// spent and moved it. Absent from the reports stored before it existed.
+	StockBalance *int `json:"stockBalance,omitempty"`
+	StockAfter   int  `json:"stockAfter"`
 }
 
 // BuildTurnReport converts value-only engine events into the typed report
@@ -732,9 +735,10 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				report.Winter = &WinterReport{Investments: []WinterInvestmentReport{}, Stocks: []WinterStockReport{}, Cards: []CardReport{}, Rumors: []RumorReport{}}
 			}
 			if event.Type == EventTypeWinterStock {
+				balance := event.StockBalance
 				report.Winter.Stocks = append(report.Winter.Stocks, WinterStockReport{
 					Territory: event.TerritoryID, Owner: event.OwnerID,
-					StockBefore: event.StockBefore, StockAfter: event.StockAfter,
+					StockBefore: event.StockBefore, StockBalance: &balance, StockAfter: event.StockAfter,
 				})
 				continue
 			}

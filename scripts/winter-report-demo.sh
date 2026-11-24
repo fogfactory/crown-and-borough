@@ -11,6 +11,7 @@
 #   T F RAI PCT PYL VAR
 #   Q RAI HUO
 #   C M PYL
+#   G PCT PRT 5   (a gift of 5 R to P2: both balances show the transfer)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -33,4 +34,5 @@ and seal these winter orders to resolve the turn:
   T F RAI PCT PYL VAR
   Q RAI HUO
   C M PYL
+  G PCT PRT 5
 MSG

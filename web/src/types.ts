@@ -1223,6 +1223,8 @@ export interface WinterStockReport {
   territory: string
   owner?: PlayerId
   stockBefore: number
+  /** The stock right before conservation, once orders spent and moved it; absent from older reports. */
+  stockBalance?: number
   stockAfter: number
 }
 

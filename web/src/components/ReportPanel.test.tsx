@@ -1048,6 +1048,61 @@ describe('ReportPanel event cards', () => {
       expect(house).toHaveTextContent('Marriage proposed for')
     })
 
+    it('accounts for transfers between houses when the report carries the balance', () => {
+      // P1 sends 3 R to P2 (the gift is a cost of P1): 5 R before, 2 R left, 1 R kept;
+      // P2 has 0 R before, receives 3 R, keeps 2 R.
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'transfer', player: 'P1', outcome: 'success', cost: 3, source: 'ROS', target: 'BRU', amount: 3 },
+            { kind: 'recruit', player: 'P2', outcome: 'success', cost: 0, territory: 'BRU' },
+          ],
+          stocks: [
+            { territory: 'ROS', owner: 'P1', stockBefore: 5, stockBalance: 2, stockAfter: 1 },
+            { territory: 'BRU', owner: 'P2', stockBefore: 0, stockBalance: 3, stockAfter: 2 },
+          ],
+        },
+      } as TurnReport)
+      const sender = document.querySelector('[data-winter-house="P1"]') as HTMLElement
+      const receiver = document.querySelector('[data-winter-house="P2"]') as HTMLElement
+      expect(sender).toHaveTextContent('Stocks 5 R − costs 3 R = 2 R → kept 1 R')
+      expect(receiver).toHaveTextContent('Stocks 0 R − costs 0 R, transfers +3 R = 3 R → kept 2 R')
+      expect(document.body).not.toHaveTextContent('Approximate balance')
+    })
+
+    it('warns that the balance is approximate on an older report with transfers', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'transfer', player: 'P1', outcome: 'success', cost: 0, source: 'ROS', target: 'BRU', amount: 3 },
+          ],
+          stocks: [{ territory: 'ROS', owner: 'P1', stockBefore: 5, stockAfter: 1 }],
+        },
+      } as TurnReport)
+      const house = document.querySelector('[data-winter-house="P1"]') as HTMLElement
+      expect(house).toHaveTextContent('Stocks 5 R − costs 0 R = 5 R → kept 1 R')
+      expect(house).toHaveTextContent('Approximate balance')
+    })
+
+    it('does not guess the infrastructure of a build stored without its type', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS' },
+          ],
+        },
+      } as TurnReport)
+      const house = document.querySelector('[data-winter-house="P1"]') as HTMLElement
+      expect(house).not.toHaveTextContent('Builds a')
+      expect(house).toHaveTextContent('C M ROS')
+    })
+
     it('sums the cost of a house and balances its kept stocks', () => {
       renderWinter('P1', {
         ...winterReport,

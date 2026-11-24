@@ -2359,25 +2359,19 @@ function EconomyCard({
     const heading = 'text-2xs font-semibold uppercase tracking-wide text-ink-500'
     return (
       <li key={key} data-report-house={key}>
-        <details
+        <HouseBlock
+          shieldId={`economy-${key}`}
           open={key === viewerId || houses.length === 1}
-          className="rounded-md border border-line-soft bg-paper-100/40"
-        >
-          <summary className="flex cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5">
-            <span className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold text-ink-900">
-              <ShieldIcon
-                id={`economy-${key}`}
-                arms={arms}
-                className="h-5 w-4 shrink-0"
-              />
-              {name}
-            </span>
-            <span className="shrink-0 text-xs font-semibold text-ink-700">
+          arms={arms}
+          name={name}
+          balance={
+            <>
               <span className={netClass(net)}>{signed(net)}</span>
               {armyTally(houseSupply, t)}
-            </span>
-          </summary>
-          <div className="space-y-3 border-t border-line-soft px-2.5 py-2">
+            </>
+          }
+          inner="space-y-3 px-2.5 py-2"
+        >
             {(houseIncome.length > 0 || loose.length > 0) && (
               <section className="space-y-1.5">
                 <h4 className={`${heading} flex items-center justify-between gap-3`}>
@@ -2442,8 +2436,7 @@ function EconomyCard({
                 </div>
               )}
             </div>
-          </div>
-        </details>
+        </HouseBlock>
       </li>
     )
   }
@@ -2484,8 +2477,9 @@ function winterDescription(
         ? sentence('recruitNoble', { noble, territory })
         : sentence('recruit', { territory })
     case 'build':
-      return sentence('build', { infra, territory })
+      return investment.type ? sentence('build', { infra, territory }) : null
     case 'upgrade':
+      if (!investment.type) return null
       return investment.level
         ? sentence('upgradeLevel', { infra, territory, level: investment.level })
         : sentence('upgrade', { infra, territory })
@@ -2526,6 +2520,48 @@ function winterDescription(
     default:
       return null
   }
+}
+
+/**
+ * One house of a report card: a folded block opened on its shield and name,
+ * with a one-line balance on the right. `inner` sets the body's spacing.
+ */
+function HouseBlock({
+  shieldId,
+  winterHouse,
+  open,
+  arms,
+  name,
+  balance,
+  inner,
+  children,
+}: {
+  shieldId: string
+  /** The house key a winter block carries as `data-winter-house`. */
+  winterHouse?: string
+  open: boolean
+  arms: ReturnType<typeof playerArms>
+  name: ReactNode
+  balance: ReactNode
+  inner: string
+  children: ReactNode
+}) {
+  return (
+    <details
+      data-winter-house={winterHouse}
+      open={open}
+      className="rounded-md border border-line-soft bg-paper-100/40"
+    >
+      <summary className="flex cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5">
+        <span className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold text-ink-900">
+          <ShieldIcon id={shieldId} arms={arms} className="h-5 w-4 shrink-0" />
+          {name}
+        </span>
+        <span className="shrink-0 text-xs font-semibold text-ink-700">{balance}</span>
+      </summary>
+      <div className={`border-t border-line-soft ${inner}`}>{children}</div>
+    </details>
+  )
 }
 
 /** The nature of a winter order, to range a house's orders under a heading. */
@@ -2597,6 +2633,9 @@ function WinterHouses({
 }) {
   const { t } = useLanguage()
   const houseOf = (owner?: PlayerId) => owner || NEUTRAL_PLAYER_ID
+  const hasTransfers = investments.some(
+    (investment) => investment.kind === 'transfer' && investment.outcome === 'success',
+  )
   const houses = Array.from(
     new Set([
       ...investments.map((investment) => investment.player || WINTER_REALM),
@@ -2618,6 +2657,14 @@ function WinterHouses({
         const cost = orders.reduce((total, investment) => total + investment.cost, 0)
         const before = owned.reduce((total, stock) => total + stock.stockBefore, 0)
         const after = owned.reduce((total, stock) => total + stock.stockAfter, 0)
+        // What is left once the orders spent and moved the stocks. A report
+        // stored before the balance existed only allows stocks − costs, which
+        // transfers between houses falsify.
+        const exact = owned.every((stock) => stock.stockBalance !== undefined)
+        const left = exact
+          ? owned.reduce((total, stock) => total + (stock.stockBalance ?? 0), 0)
+          : before - cost
+        const transfers = left - (before - cost)
         const failed = orders.filter((investment) => investment.outcome !== 'success').length
         const player = players.find((candidate) => candidate.id === key)
         const arms = player ? playerArms(player) : NEUTRAL_ARMS
@@ -2643,20 +2690,16 @@ function WinterHouses({
         const heading =
           'flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-500 [&_svg]:size-3.5'
         return (
-          <details
+          <HouseBlock
             key={key}
-            data-winter-house={key}
+            winterHouse={key}
+            shieldId={`winter-${key || 'realm'}`}
             open={key === viewerId || key === WINTER_REALM || houses.length === 1}
-            className="rounded-md border border-line-soft bg-paper-100/40"
+            arms={arms}
+            name={name}
+            balance={balance}
+            inner="space-y-2 px-2 py-1.5"
           >
-            <summary className="flex cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5">
-              <span className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold text-ink-900">
-                <ShieldIcon id={`winter-${key || 'realm'}`} arms={arms} className="h-5 w-4 shrink-0" />
-                {name}
-              </span>
-              <span className="shrink-0 text-xs font-semibold text-ink-700">{balance}</span>
-            </summary>
-            <div className="space-y-2 border-t border-line-soft px-2 py-1.5">
               {WINTER_GROUP_ORDER.map((group) => {
                 const lines = orders.filter(
                   (investment) => winterGroupOf(investment.kind) === group,
@@ -2750,17 +2793,22 @@ function WinterHouses({
                     ))}
                   </ul>
                   <p className="border-t border-line-soft pt-1 text-xs font-semibold text-ink-700">
-                    {t('reports.winterBalance', {
+                    {t(transfers === 0 ? 'reports.winterBalance' : 'reports.winterBalanceTransfers', {
                       before,
                       cost,
-                      left: before - cost,
+                      transfers: `${transfers > 0 ? '+' : '−'}${Math.abs(transfers)}`,
+                      left,
                       after,
                     })}
                   </p>
+                  {!exact && hasTransfers && (
+                    <p className="text-2xs italic text-ink-500">
+                      {t('reports.winterBalanceApprox')}
+                    </p>
+                  )}
                 </section>
               )}
-            </div>
-          </details>
+          </HouseBlock>
         )
       })}
     </>
