@@ -370,10 +370,10 @@ describe('ReportPanel', () => {
     expect(screen.getAllByText('Invalidé')).not.toHaveLength(0)
     expect(screen.getByText(/Bloqué par le mauvais temps/)).toBeInTheDocument()
     expect(screen.getAllByText('C M ROS')).toHaveLength(2)
-    expect(screen.getByText(/Niveau 2/)).toBeInTheDocument()
-    expect(screen.getByText('coût : 3 R')).toBeInTheDocument()
-    expect(screen.getByText('aucun coût')).toBeInTheDocument()
-    expect(screen.queryByText('coût : 0 R')).not.toBeInTheDocument()
+    expect(screen.getByText(withText(/^Améliore le moulin de .* au niveau 2\.$/))).toBeInTheDocument()
+    // The cost sits next to the outcome; a free order shows none.
+    expect(screen.getByText(withText('Réussi · 3 R'))).toBeInTheDocument()
+    expect(screen.queryByText(withText(/Réussi · 0 R/))).not.toBeInTheDocument()
     expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
     expect(screen.getByText('+4 R crédités')).toBeInTheDocument()
@@ -979,10 +979,201 @@ describe('ReportPanel event cards', () => {
     const summaries = Array.from(container.querySelectorAll('[data-summary-card] summary')).map(
       (summary) => summary.textContent,
     )
-    expect(summaries).toContain('Conservation: 1 stocks halved')
     expect(summaries.some((summary) => summary?.startsWith('Economy:'))).toBe(true)
     expect(container.querySelector('[data-summary-card]')).not.toHaveAttribute('open')
+    // The kept stock is listed in the winter block of its house, not in the economy.
+    const conservation = container.querySelector('[data-winter-group="conservation"]')
+    expect(conservation).toHaveTextContent('Rosemont (ROS): 40 → 20 R')
+    expect(container.querySelector('[data-report-category="economy"]')).not.toHaveTextContent(
+      'Rosemont (ROS): 40 → 20 R',
+    )
     expect(container).not.toHaveTextContent('0 → 0')
+  })
+
+  describe('winter houses', () => {
+    const houses: StateData['players'] = [
+      { id: 'P1', name: 'One', color: '#a84632' },
+      { id: 'P2', name: 'Two', color: '#2f5d8a' },
+    ]
+    const winterReport = {
+      ...report,
+      winter: {
+        investments: [
+          { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS', type: 'mill' },
+          { kind: 'fief_assigned', player: 'P2', outcome: 'success', cost: 0, territory: 'ROS', nobleCode: 'ROB' },
+          { kind: 'marriage_refused', player: 'P2', outcome: 'failure', cost: 0, nobleCode: 'JEA' },
+        ],
+        stocks: [{ territory: 'ROS', owner: 'P2', stockBefore: 40, stockAfter: 20 }],
+        cards: [],
+        rumors: [],
+      },
+    } as TurnReport
+
+    function renderWinter(viewerId: string, value: TurnReport = winterReport) {
+      return render(
+        <LanguageProvider initialLanguage="en">
+          <ReportPanel report={value} map={map} players={houses} viewerId={viewerId} />
+        </LanguageProvider>,
+      )
+    }
+
+    it('gives each house a block, the viewer\'s first and open, the others folded', () => {
+      renderWinter('P2')
+      const blocks = Array.from(document.querySelectorAll('[data-winter-house]'))
+      expect(blocks.map((block) => block.getAttribute('data-winter-house'))).toEqual(['P2', 'P1'])
+      expect(blocks[0]).toHaveAttribute('open')
+      expect(blocks[1]).not.toHaveAttribute('open')
+      expect(blocks[0].querySelector('summary')).toHaveTextContent(
+        '2 orders · 1 failed · stocks halved: 1',
+      )
+      expect(blocks[1].querySelector('summary')).toHaveTextContent('1 order')
+    })
+
+    it('ranges the orders of a house by nature and keeps its kept stocks there', () => {
+      renderWinter('P2')
+      const house = document.querySelector('[data-winter-house="P2"]') as HTMLElement
+      const groups = Array.from(house.querySelectorAll('[data-winter-group]')).map((group) =>
+        group.getAttribute('data-winter-group'),
+      )
+      expect(groups).toEqual(['titles', 'court', 'conservation'])
+      expect(house.querySelector('[data-winter-group="conservation"]')).toHaveTextContent(
+        'Rosemont (ROS): 40 → 20 R',
+      )
+    })
+
+    it('describes each order in the viewer\'s language', () => {
+      renderWinter('P2')
+      const house = document.querySelector('[data-winter-house="P2"]') as HTMLElement
+      expect(house).toHaveTextContent('Gives the fief of Rosemont (ROS) to ROB.')
+      expect(house).toHaveTextContent('Marriage proposed for')
+    })
+
+    it('credits a transfer to the house that receives it, not to the sender', () => {
+      // P1 sends 3 R to P2 (a cost of P1): 5 R before, 2 R left, 1 R kept;
+      // P2 has 0 R before, receives 3 R, keeps 2 R. The report holds nothing
+      // but the order and the stocks, as every report stored so far.
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'transfer', player: 'P1', outcome: 'success', cost: 3, source: 'ROS', target: 'BRU', amount: 3 },
+            { kind: 'recruit', player: 'P2', outcome: 'success', cost: 0, territory: 'BRU' },
+          ],
+          stocks: [
+            { territory: 'ROS', owner: 'P1', stockBefore: 5, stockAfter: 1 },
+            { territory: 'BRU', owner: 'P2', stockBefore: 0, stockAfter: 2 },
+          ],
+        },
+      } as TurnReport)
+      const sender = document.querySelector('[data-winter-house="P1"]') as HTMLElement
+      const receiver = document.querySelector('[data-winter-house="P2"]') as HTMLElement
+      expect(sender).toHaveTextContent('Stocks 5 R − costs 3 R = 2 R → kept 1 R')
+      expect(receiver).toHaveTextContent('Stocks 0 R − costs 0 R + received 3 R = 3 R → kept 2 R')
+    })
+
+    it('ignores a transfer that failed', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'transfer', player: 'P1', outcome: 'failure', cost: 0, source: 'ROS', target: 'BRU', amount: 3, reason: 'insufficient_resources' },
+          ],
+          stocks: [
+            { territory: 'ROS', owner: 'P1', stockBefore: 4, stockAfter: 2 },
+            { territory: 'BRU', owner: 'P2', stockBefore: 2, stockAfter: 1 },
+          ],
+        },
+      } as TurnReport)
+      const receiver = document.querySelector('[data-winter-house="P2"]') as HTMLElement
+      expect(receiver).toHaveTextContent('Stocks 2 R − costs 0 R = 2 R → kept 1 R')
+      expect(receiver).not.toHaveTextContent('received')
+    })
+
+    it('does not guess the infrastructure of a build stored without its type', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS' },
+          ],
+        },
+      } as TurnReport)
+      const house = document.querySelector('[data-winter-house="P1"]') as HTMLElement
+      expect(house).not.toHaveTextContent('Builds a')
+      expect(house).toHaveTextContent('C M ROS')
+    })
+
+    it('sums the cost of a house and balances its kept stocks', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS', type: 'mill' },
+            { kind: 'fief_founded', player: 'P1', outcome: 'success', cost: 6, territory: 'ROS', nobleCode: 'ROB', territories: ['ROS'] },
+          ],
+          stocks: [
+            { territory: 'ROS', owner: 'P1', stockBefore: 40, stockAfter: 16 },
+            { territory: 'BRU', owner: 'P1', stockBefore: 1, stockAfter: 1 },
+          ],
+        },
+      } as TurnReport)
+      const house = document.querySelector('[data-winter-house="P1"]') as HTMLElement
+      expect(house.querySelector('summary')).toHaveTextContent('cost: 9 R')
+      // 41 R of stocks − 9 R of costs = 32 R, of which 17 R are kept.
+      expect(house).toHaveTextContent('Stocks 41 R − costs 9 R = 32 R → kept 17 R')
+      // The stock left as it was is not listed.
+      expect(house).not.toHaveTextContent('Bruyères (BRU): 1 → 1')
+    })
+
+    it('puts rumors and public events before the winter orders', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        marriages: [
+          { outcome: 'success', noble: 'n1', nobleCode: 'ROB', nobleName: 'Robert', owner: 'P1', spouse: 'n2', spouseCode: 'JEA', spouseName: 'Jean', spouseOwner: 'P2' },
+        ],
+      } as TurnReport)
+      const rumors = document.querySelector('[data-report-rumors]') as HTMLElement
+      const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+      const winter = document.querySelector('[data-report-category="winter"]') as HTMLElement
+      const before = (a: HTMLElement, b: HTMLElement) =>
+        Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(before(rumors, events)).toBe(true)
+      expect(before(events, winter)).toBe(true)
+    })
+
+    it('keeps the events no house ordered in an open realm block, last', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          investments: [
+            ...winterReport.winter!.investments,
+            { kind: 'prosperity_founded', player: '', outcome: 'success', cost: 0, source: 'ROS', target: 'BRU' },
+          ],
+        },
+      } as TurnReport)
+      const blocks = Array.from(document.querySelectorAll('[data-winter-house]'))
+      expect(blocks.map((block) => block.getAttribute('data-winter-house'))).toEqual(['P1', 'P2', ''])
+      expect(blocks[2]).toHaveAttribute('open')
+      expect(blocks[2].querySelector('summary')).toHaveTextContent('Realm')
+    })
+
+    it('reads a report stored before stocks had an owner', () => {
+      renderWinter('P1', {
+        ...winterReport,
+        winter: {
+          ...winterReport.winter,
+          stocks: [{ territory: 'ROS', stockBefore: 40, stockAfter: 20 }],
+        },
+      } as TurnReport)
+      expect(
+        document.querySelector('[data-winter-house="NEUTRAL"] [data-winter-group="conservation"]'),
+      ).toHaveTextContent('Rosemont (ROS): 40 → 20 R')
+    })
   })
 
   it('draws a support toward the destination it backs', () => {

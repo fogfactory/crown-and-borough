@@ -1145,7 +1145,9 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 ### Rapport de tour
 
 - Chaque événement devient une carte (pictogramme à l'encre, titre, détail),
-  regroupée par catégorie ; les catégories vides sont masquées.
+  regroupée par catégorie ; les catégories vides sont masquées. Les rumeurs,
+  les cartes jouées et les faits publics (effets de saison, famines, fiefs,
+  mariages, élections) ouvrent le rapport.
 - Par défaut, rien n'est dessiné sur la carte. Le bouton « Voir » d'un
   événement le sélectionne, cadre la carte sur les territoires concernés et y
   dessine l'événement (déplacement, combat, retraite…) jusqu'à la sélection
@@ -1155,19 +1157,32 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
   (force, bonus de fortification), soutiens à l'attaque et à la défense (un
   soutien coupé est signalé) et résultat (vainqueur, armée délogée). Un
   combat que le joueur ne connaît qu'en gros n'a pas de détail.
-- **Résultats répétitifs :** les résultats d'une même nature (conservation
-  d'hiver, revenus, production…) forment une seule carte de synthèse
-  (« Conservation : 4 stocks divisés par deux »), dépliable sur la liste
-  (« Rochevent (RVE) : 40 → 20 R »). Les
+- **Résultats répétitifs :** les résultats d'une même nature (réceptions,
+  économie…) forment une seule carte de synthèse, dépliable sur la liste. Les
   lignes sans effet (« 0 → 0 ») ne s'affichent pas.
+- **Hiver :** la catégorie « Hiver » compte un bloc par maison. Celui du
+  joueur courant vient en premier et s'ouvre ; les autres restent repliés sur
+  un bilan d'une ligne (« 3 ordres · 1 en échec · coût : 12 R · stocks divisés
+  par deux : 2 »). Un bloc range les ordres de sa maison par nature (domaine
+  et armées, fiefs et titres, cour et famille, autres ordres), chacun en carte
+  avec le code de l'ordre, une phrase qui dit ce qu'il fait (dans la langue du
+  joueur), son résultat, son coût et son bouton « Voir ». Il se clôt sur la
+  conservation d'hiver des stocks de la maison, une ligne par stock
+  (« Rochevent (RVE) : 40 → 20 R ») puis le bilan : stocks − coûts = solde →
+  conservé (« Stocks 40 R − coûts 12 R = 28 R → conservé 14 R »), avec les
+  transferts reçus d'une autre maison quand il y en a (« Stocks 40 R − coûts
+  7 R + reçu 5 R = 38 R → conservé 19 R » ; l'envoi compte parmi les coûts de
+  l'expéditeur). Les
+  événements qu'aucune maison n'a ordonnés (villages fondés sur terre libre)
+  forment un dernier bloc « Royaume », toujours ouvert.
 - **Rumeurs :** un encadré « On dit au marché… » en Alegreya italique, sur
   `paper-100` avec un filet `line` ; les cartes jouées et calamités à venir
   forment un encadré voisin, en texte droit.
 - `ReportPanel.tsx` affiche ces cartes.
 
-**Précision.** Le rapport se range en catégories : combats, événements
-(effets de saison, famines, fiefs, mariages, élections), hiver ou cartes de
-noble, économie, ordres exécutés. L'économie tient en une carte de
+**Précision.** Le rapport se range en catégories : rumeurs et cartes,
+événements (effets de saison, famines, fiefs, mariages, élections), combats,
+hiver ou cartes de noble, économie, ordres exécutés. L'économie tient en une carte de
 synthèse repliée, « Économie », qui s'ouvre sur un bloc par maison : celle du
 joueur d'abord et ouverte, les autres repliées sur leur bilan (gain ou perte
 du tour, armées nourries, en famine ou ayant subi des pertes). Un bloc se lit
@@ -1177,8 +1192,9 @@ ses moulins (par ordre alphabétique) avec leur gain en vert à droite ; le
 ravitaillement, armée par armée, en blocs encadrés par région, avec en rouge la
 consommation réellement distribuée (famine comprise) et la demande entre
 parenthèses, le rabais du terrain à côté du nom ; enfin le bilan de la maison,
-revenu moins consommation. Les conservations et les réceptions restent des
-cartes de synthèse à part. Une famine reste un événement à part entière.
+revenu moins consommation. Les réceptions restent une carte de synthèse à
+part ; les conservations d'hiver vivent dans le bloc d'hiver de leur maison.
+Une famine reste un événement à part entière.
 « Voir » cadre la carte sur les territoires de l'événement, les entoure et
 trace les ordres d'une flèche ; le dessin disparaît à la sélection suivante.
 Un tour sans rien de tout cela écrit « Rien à signaler ce tour. ».
