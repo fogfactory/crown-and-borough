@@ -5,24 +5,19 @@
 
 ### Features
 
-* **report:** merge income, mills, production and supply into one economy card per house ([060237a](https://github.com/fogfactory/crown-and-borough/commit/060237af2e5c1d79712d7fcf1665b4d95606e32c))
 * **report:** merge income, mills, production and supply into one economy card per house ([2071955](https://github.com/fogfactory/crown-and-borough/commit/207195521141fca22059d8337844a381a40aab21))
 * **report:** show the balance of each house as gain rows, real consumption and stock ([d49cea9](https://github.com/fogfactory/crown-and-borough/commit/d49cea99f4bafdf1f39de2a5ee1c1c627baef8d1))
 
 
 ### Bug Fixes
 
-* **api:** rate limit invitation code guesses ([f3e3f91](https://github.com/fogfactory/crown-and-borough/commit/f3e3f9143291a0e40708590d964ef48ec158924f))
 * **api:** rate limit invitation code guesses ([2b4202b](https://github.com/fogfactory/crown-and-borough/commit/2b4202bc0dbef2cb2fad8721424515fdde7a1c75)), closes [#76](https://github.com/fogfactory/crown-and-borough/issues/76)
 * **report:** read reports stored before income lines carried regions, villages and mill fiefs ([6fddf21](https://github.com/fogfactory/crown-and-borough/commit/6fddf21fa16fe1095cce6a7549e9b78fc1a4bcd8))
 * **report:** send the territories' own income, keep lost-line mills visible, net in the summary ([13f6fc4](https://github.com/fogfactory/crown-and-borough/commit/13f6fc4516f031a6f5eb3a33a0f61fa2df41ee31))
 * **security:** allow the firestore connectivity probe image in img-src ([7652c1c](https://github.com/fogfactory/crown-and-borough/commit/7652c1c4fc899dcd786ac95ca2c3fb2fa5ab86a3))
-* **security:** configure the cors origin in the security headers test ([ed57c2e](https://github.com/fogfactory/crown-and-borough/commit/ed57c2e8019f8e9ae1b42006a111e9c83ef68071))
 * **security:** configure the cors origin in the security headers test ([f63a356](https://github.com/fogfactory/crown-and-borough/commit/f63a35675be9568b4040d9ebb89d9f3310ebc03d))
 * **security:** enforce the csp and test headers on every response ([5b2bce8](https://github.com/fogfactory/crown-and-borough/commit/5b2bce8df8c1cf725252e396b06cb08c051a9095))
-* **security:** lock down the production cors policy ([3591199](https://github.com/fogfactory/crown-and-borough/commit/35911995a284e4a33b82440304e5a0982426f190))
 * **security:** lock down the production cors policy ([035c5af](https://github.com/fogfactory/crown-and-borough/commit/035c5af58cb19542330b4cbc41372e8f9afa464c)), closes [#71](https://github.com/fogfactory/crown-and-borough/issues/71)
-* **web:** skip map and state requests while the lobby waits for players ([e14579f](https://github.com/fogfactory/crown-and-borough/commit/e14579f5a2ca4488160ee615eca2962185412c74))
 * **web:** skip map and state requests while the lobby waits for players ([f686348](https://github.com/fogfactory/crown-and-borough/commit/f6863489238db33bf33f9cf37c1a7f466261b7e1)), closes [#732](https://github.com/fogfactory/crown-and-borough/issues/732)
 
 
