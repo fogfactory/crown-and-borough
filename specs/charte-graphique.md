@@ -1171,10 +1171,8 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
   (« Rochevent (RVE) : 40 → 20 R ») puis le bilan : stocks − coûts = solde →
   conservé (« Stocks 40 R − coûts 12 R = 28 R → conservé 14 R »), avec les
   transferts reçus d'une autre maison quand il y en a (« Stocks 40 R − coûts
-  7 R, transferts +5 R = 38 R → conservé 19 R » ; l'envoi compte parmi les
-  coûts de l'expéditeur). Le solde vient du rapport ; un rapport plus ancien
-  qui n'en porte pas retombe sur stocks − coûts et, s'il contient des
-  transferts, signale un bilan approximatif. Les
+  7 R + reçu 5 R = 38 R → conservé 19 R » ; l'envoi compte parmi les coûts de
+  l'expéditeur). Les
   événements qu'aucune maison n'a ordonnés (villages fondés sur terre libre)
   forment un dernier bloc « Royaume », toujours ouvert.
 - **Rumeurs :** un encadré « On dit au marché… » en Alegreya italique, sur

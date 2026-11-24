@@ -3,7 +3,6 @@ package engine
 import (
 	"encoding/json"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
@@ -522,25 +521,5 @@ func TestBuildTurnReportKeepsUsurpationsAndRenunciations(t *testing.T) {
 	}
 	if occupied := report.Fiefs[3]; occupied.Kind != EventTypeFiefMemberOccupied || occupied.Reason != "capital" || occupied.Occupant != "P2" {
 		t.Errorf("occupied = %#v", occupied)
-	}
-}
-
-// TestWinterStockReportReadsAReportStoredBeforeTheBalance checks that a stored
-// report without the balance still loads, the balance staying absent rather
-// than reading as zero.
-func TestWinterStockReportReadsAReportStoredBeforeTheBalance(t *testing.T) {
-	var stock WinterStockReport
-	if err := json.Unmarshal([]byte(`{"territory":"ROS","owner":"P1","stockBefore":40,"stockAfter":14}`), &stock); err != nil {
-		t.Fatalf("unmarshal legacy stock: %v", err)
-	}
-	if stock.StockBalance != nil || stock.StockBefore != 40 || stock.StockAfter != 14 {
-		t.Errorf("legacy stock = %#v", stock)
-	}
-	encoded, err := json.Marshal(stock)
-	if err != nil {
-		t.Fatalf("marshal legacy stock: %v", err)
-	}
-	if strings.Contains(string(encoded), "stockBalance") {
-		t.Errorf("an absent balance must stay absent, got %s", encoded)
 	}
 }

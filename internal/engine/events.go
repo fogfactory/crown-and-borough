@@ -248,16 +248,13 @@ type Event struct {
 	StockConsumed     int                        `json:"stockConsumed,omitempty"`
 	StockBefore       int                        `json:"stockBefore,omitempty"`
 	StockAfter        int                        `json:"stockAfter,omitempty"`
-	// StockBalance is a winter stock as it stands right before conservation,
-	// once the orders have spent and moved it.
-	StockBalance   int  `json:"stockBalance,omitempty"`
-	ResourceSpent  int  `json:"resourceSpent,omitempty"`
-	Cost           int  `json:"cost,omitempty"`
-	Troops         int  `json:"troops,omitempty"`
-	TroopsLost     int  `json:"troopsLost,omitempty"`
-	RationsLost    int  `json:"rationsLost,omitempty"`
-	SavedByPillage bool `json:"savedByPillage,omitempty"`
-	Warned         bool `json:"warned,omitempty"`
+	ResourceSpent     int                        `json:"resourceSpent,omitempty"`
+	Cost              int                        `json:"cost,omitempty"`
+	Troops            int                        `json:"troops,omitempty"`
+	TroopsLost        int                        `json:"troopsLost,omitempty"`
+	RationsLost       int                        `json:"rationsLost,omitempty"`
+	SavedByPillage    bool                       `json:"savedByPillage,omitempty"`
+	Warned            bool                       `json:"warned,omitempty"`
 	// SuppliedStrength is the size the rations an army reaches can feed.
 	SuppliedStrength int `json:"suppliedStrength,omitempty"`
 	// Destroyed marks an army that reached no ration and disappeared.
