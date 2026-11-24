@@ -1,7 +1,7 @@
 import { useLanguage } from '@/i18n/LanguageContext'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { ReportPanel } from '@/components/ReportPanel'
-import type { MapData, Player, ReportHeader, TurnReport } from '@/types'
+import type { MapData, Player, PlayerId, ReportHeader, TurnReport } from '@/types'
 
 export interface ReportSummary {
   index: number
@@ -12,6 +12,7 @@ interface ReportPaneProps {
   report: TurnReport | null
   map: MapData | null
   players: Player[]
+  viewerId?: PlayerId
   summaries?: ReportSummary[]
   loading?: boolean
   error?: string | null
@@ -22,6 +23,7 @@ export function ReportPane({
   report,
   map,
   players,
+  viewerId,
   summaries = [],
   loading = false,
   error = null,
@@ -63,7 +65,7 @@ export function ReportPane({
           {error}
         </p>
       ) : report ? (
-        <ReportPanel report={report} map={map} players={players} />
+        <ReportPanel report={report} map={map} players={players} viewerId={viewerId} />
       ) : (
         <p className="rounded-lg border border-dashed border-line bg-paper-100 px-4 py-8 text-center font-display italic text-ink-500">
           {t('app.noReport')}

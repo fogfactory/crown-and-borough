@@ -1,32 +1,46 @@
 package engine
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
+// incomeGroup is the report grouping of territory income inside one
+// destination: one line per fief, and one line per region for the territories
+// held outside any fief (region is empty for a fief line).
+type incomeGroup struct {
+	fief   models.FiefID
+	region models.TerritoryID
+}
+
 // territoryIncomeReport aggregates one player's territory income by
-// (destination, fief) for the turn report. Destinations differ per territory
+// (destination, incomeGroup) for the turn report: one line per fief, and one
+// per region for the territories held outside any fief. Destinations differ per territory
 // only when the player controls no valid capital: each territory then finds
 // its own closest controlled castle or village (see
 // territoryIncomeDestination), so several destinations can appear for the
-// same player the same turn. fiefID is empty for territory income routed
+// same player the same turn. group.fief is empty for territory income routed
 // outside any fief; it is otherwise kept as a distinct grouping key from
 // destinationID so a fief whose capital happens to also be the player's own
 // capital still gets its own report line (titres.md, #196).
 type territoryIncomeReport struct {
 	ownerID       models.PlayerID
+	group         incomeGroup
+	members       []models.TerritoryID
 	destinationID models.TerritoryID
-	fiefID        models.FiefID
 	fiefTitle     models.FiefTitle
 	territories   int
 	villages      int
-	base          int
-	bonus         int
-	suppressed    int
-	lost          bool
+	villageIncome []IncomeVillage
+	// territoryAmount is the part of base+bonus the territories bring, villages apart.
+	territoryAmount int
+	base            int
+	bonus           int
+	suppressed      int
+	lost            bool
 }
 
 // TerritoryIncomeForecast is one controlled territory's projected income and
@@ -59,18 +73,19 @@ func resolveTerritoryIncome(ctx *resolutionContext) {
 // fief) for the turn report and individually per territory for the front's
 // per-territory forecast. It is the seam both ForecastIncome and
 // ForecastTerritoryIncome reuse to project income without touching state.
-func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport, map[models.TerritoryID]TerritoryIncomeForecast) {
-	reports := make(map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport)
+func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[models.TerritoryID]map[incomeGroup]*territoryIncomeReport, map[models.TerritoryID]TerritoryIncomeForecast) {
+	reports := make(map[models.PlayerID]map[models.TerritoryID]map[incomeGroup]*territoryIncomeReport)
 	perTerritory := make(map[models.TerritoryID]TerritoryIncomeForecast)
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, territoryID := range sortedStateTerritoryIDs(ctx) {
 			if !controlledBy(ctx.controllerNow, ownerID, territoryID) {
 				continue
 			}
-			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
+			village := ctx.infrastructureAt(territoryID)
 			parts := territoryIncomeParts(ctx, territoryID)
 			fief := ctx.territoryFief(ownerID, territoryID)
-			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID {
+			taxed := fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID
+			if taxed {
 				// Seigneurial tax doubles the fief's territorial income,
 				// village included, for the turn (titres.md "Taxe
 				// seigneuriale"); it never touches mill production, which
@@ -85,30 +100,48 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			}
 			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID, fief)
 			perTerritory[territoryID] = TerritoryIncomeForecast{Amount: parts.total(), Destination: destinationID}
-			var fiefID models.FiefID
-			var fiefTitle models.FiefTitle
+			group := incomeGroup{}
 			if fief != nil {
-				fiefID = fief.ID
-				fiefTitle = fief.Title
+				group.fief = fief.ID
+			} else {
+				group.region = regionForTerritory(ctx, territoryID)
 			}
 			if reports[ownerID] == nil {
-				reports[ownerID] = make(map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport)
+				reports[ownerID] = make(map[models.TerritoryID]map[incomeGroup]*territoryIncomeReport)
 			}
 			if reports[ownerID][destinationID] == nil {
-				reports[ownerID][destinationID] = make(map[models.FiefID]*territoryIncomeReport)
+				reports[ownerID][destinationID] = make(map[incomeGroup]*territoryIncomeReport)
 			}
-			report, exists := reports[ownerID][destinationID][fiefID]
+			report, exists := reports[ownerID][destinationID][group]
 			if !exists {
 				report = &territoryIncomeReport{
-					ownerID: ownerID, destinationID: destinationID,
-					fiefID: fiefID, fiefTitle: fiefTitle, lost: destinationID == "",
+					ownerID: ownerID, destinationID: destinationID, group: group, lost: destinationID == "",
 				}
-				reports[ownerID][destinationID][fiefID] = report
+				if fief != nil {
+					report.fiefTitle = fief.Title
+					// A copy: the report must not alias the live fief.
+					report.members = slices.Clone(fief.Territories)
+				}
+				reports[ownerID][destinationID][group] = report
 			}
 			report.territories++
-			if hasVillage {
+			villageAmount := 0
+			if village != nil && village.Type == models.InfraTypeVillage {
 				report.villages++
+				if village.Level > 0 {
+					// The village's own part of parts, adjusted and taxed the same way.
+					share := harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
+					amount := share.base + share.bonus
+					if taxed {
+						amount *= 2
+					}
+					villageAmount = amount
+					report.villageIncome = append(report.villageIncome, IncomeVillage{
+						Territory: territoryID, Level: village.Level, Amount: amount,
+					})
+				}
 			}
+			report.territoryAmount += parts.base + parts.bonus - villageAmount
 			report.base += parts.base
 			report.bonus += parts.bonus
 			report.suppressed += parts.suppressed
@@ -117,11 +150,11 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 	return reports, perTerritory
 }
 
-func creditTerritoryIncome(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport) {
+func creditTerritoryIncome(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]map[incomeGroup]*territoryIncomeReport) {
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, destinationID := range sortedTerritoryMap(reports[ownerID]) {
-			for _, fiefID := range sortedFiefIDMap(reports[ownerID][destinationID]) {
-				report := reports[ownerID][destinationID][fiefID]
+			for _, group := range sortedIncomeGroups(reports[ownerID][destinationID]) {
+				report := reports[ownerID][destinationID][group]
 				amount := report.base + report.bonus
 				if destinationID == "" || amount == 0 {
 					continue
@@ -134,20 +167,24 @@ func creditTerritoryIncome(ctx *resolutionContext, reports map[models.PlayerID]m
 	}
 }
 
-func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]map[models.FiefID]*territoryIncomeReport) {
+func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.PlayerID]map[models.TerritoryID]map[incomeGroup]*territoryIncomeReport) {
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		for _, destinationID := range sortedTerritoryMap(reports[ownerID]) {
-			for _, fiefID := range sortedFiefIDMap(reports[ownerID][destinationID]) {
-				report := reports[ownerID][destinationID][fiefID]
+			for _, group := range sortedIncomeGroups(reports[ownerID][destinationID]) {
+				report := reports[ownerID][destinationID][group]
 				ctx.events = append(ctx.events, Event{
 					Type:                 EventTypeIncome,
 					Phase:                6,
 					OwnerID:              ownerID,
 					DestinationID:        destinationID,
-					FiefID:               report.fiefID,
+					FiefID:               report.group.fief,
 					FiefTitle:            report.fiefTitle,
+					RegionSeed:           report.group.region,
+					FiefTerritories:      report.members,
 					TerritoryCount:       report.territories,
 					VillageCount:         report.villages,
+					IncomeVillages:       report.villageIncome,
+					TerritoryAmount:      report.territoryAmount,
 					BaseProduction:       report.base,
 					BonusProduction:      report.bonus,
 					SuppressedProduction: report.suppressed,
@@ -162,15 +199,20 @@ func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.Player
 	}
 }
 
-// sortedFiefIDMap returns the keys of a map[models.FiefID]V in deterministic
+// sortedIncomeGroups returns the keys of a map[incomeGroup]V in deterministic
 // order, empty id (income routed outside any fief) sorting first.
-func sortedFiefIDMap[V any](values map[models.FiefID]V) []models.FiefID {
-	ids := make([]models.FiefID, 0, len(values))
-	for id := range values {
-		ids = append(ids, id)
+func sortedIncomeGroups[V any](values map[incomeGroup]V) []incomeGroup {
+	groups := make([]incomeGroup, 0, len(values))
+	for group := range values {
+		groups = append(groups, group)
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	return ids
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].fief != groups[j].fief {
+			return groups[i].fief < groups[j].fief
+		}
+		return groups[i].region < groups[j].region
+	})
+	return groups
 }
 
 func (ctx *resolutionContext) destinationStock(destinationID models.TerritoryID) int {

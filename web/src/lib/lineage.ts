@@ -114,7 +114,7 @@ const KIND_RANK: Record<Exclude<EdgeKind, 'ended'>, number> = {
   head: 2,
   secondary: 1,
 }
-const FIEF_RANK: Record<FiefTitle, number> = {
+export const FIEF_RANK: Record<FiefTitle, number> = {
   barony: 1,
   county: 2,
   marquisate: 3,

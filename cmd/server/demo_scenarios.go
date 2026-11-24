@@ -119,6 +119,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P2's capital is the capital of a barony held by P2's first noble, married to a P1 noble (ZSP); P1's first noble claims its title and P1 holds two Assassination cards: kill the holder to see the claim pass the fief to the heir, or usurp it when a free noble of an army stands on the capital",
 		apply:       forgeClaim,
 	},
+	"production": {
+		description: "spring (see the action scenario), plus up to two mills (levels 2 and 1) under the armies of each house, a six-territory duchy for P1 with villages of several levels, and two six-troop armies next to it that the supply cannot feed: end the turn to read the Economy card with several houses, fiefs, regions and a famine",
+		apply:       forgeProduction,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -1072,6 +1076,116 @@ func freeNeighbor(state *models.GameState, territoryID models.TerritoryID, exclu
 		}
 	}
 	return ""
+}
+
+// forgeProduction is the action scenario with mills added where each house
+// keeps an army on a bare territory, so the production report lists mill
+// harvests for several houses and regions.
+func forgeProduction(state *models.GameState) error {
+	if err := forgeAction(state); err != nil {
+		return err
+	}
+	perHouse := map[models.PlayerID]int{}
+	for _, army := range state.Armies {
+		if perHouse[army.OwnerID] >= 2 {
+			continue
+		}
+		territoryState := state.TerritoryStates[army.TerritoryID]
+		if territoryState.Infrastructures != nil {
+			continue
+		}
+		perHouse[army.OwnerID]++
+		id := models.InfraID(fmt.Sprintf("ZP%s%d", army.OwnerID, perHouse[army.OwnerID]))
+		state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: id, Type: models.InfraTypeMill, Level: 3 - perHouse[army.OwnerID], TerritoryID: army.TerritoryID})
+		territoryState.Infrastructures = &id
+		state.TerritoryStates[army.TerritoryID] = territoryState
+		fmt.Printf("demo production: level-%d mill of %s on %s\n", 3-perHouse[army.OwnerID], army.OwnerID, army.TerritoryID)
+	}
+	return forgeLargeFief(state)
+}
+
+// forgeLargeFief gives P1 a six-territory duchy around its capital (grown
+// over its own and free territories) and sends two six-troop armies to
+// free territories next to it, away from any supply source, so the supply
+// report shows rations coming from another territory and armies short of food.
+func forgeLargeFief(state *models.GameState) error {
+	capitalID := playerCapitalTerritory(state, "P1")
+	p1 := ownedNobles(state, "P1")
+	if capitalID == "" || len(p1) == 0 {
+		return fmt.Errorf("P1 has no capital or noble")
+	}
+	adjacencies := make(map[models.TerritoryID][]models.TerritoryID, len(state.Territories))
+	for _, territory := range state.Territories {
+		adjacencies[territory.ID] = territory.Adjacencies
+	}
+	inFief := make(map[models.TerritoryID]bool)
+	for _, fief := range state.Fiefs {
+		for _, id := range fief.Territories {
+			inFief[id] = true
+		}
+	}
+	usable := func(id models.TerritoryID) bool {
+		if inFief[id] {
+			return false
+		}
+		owner, controlled := state.TerritoryController(id)
+		return !controlled || owner == "P1"
+	}
+	members := []models.TerritoryID{capitalID}
+	for index := 0; index < len(members) && len(members) < 6; index++ {
+		for _, id := range adjacencies[members[index]] {
+			if len(members) < 6 && !containsTerritory(members, id) && usable(id) {
+				members = append(members, id)
+			}
+		}
+	}
+	if len(members) < 6 {
+		return fmt.Errorf("no room for a duchy around %s", capitalID)
+	}
+	holder := state.Nobles[p1[0]].ID
+	state.Fiefs = append(state.Fiefs, models.Fief{
+		ID: "ZD1", Title: models.FiefTitleDuchy, CapitalTerritoryID: capitalID,
+		Territories: members, OwnerID: "P1", HolderNobleID: &holder,
+	})
+	// Villages of several levels: the map's own cycle through 1 to 3, plus new
+	// ones on the bare members of the duchy, so income lines show mixed levels.
+	next := 0
+	for index := range state.Infrastructures {
+		if state.Infrastructures[index].Type == models.InfraTypeVillage {
+			state.Infrastructures[index].Level = 1 + next%3
+			next++
+		}
+	}
+	levels := []int{3, 2, 1, 3}
+	added := 0
+	for _, member := range members {
+		territoryState := state.TerritoryStates[member]
+		if added == len(levels) || territoryState.Infrastructures != nil {
+			continue
+		}
+		id := models.InfraID(fmt.Sprintf("ZV%d", added+1))
+		state.Infrastructures = append(state.Infrastructures, models.Infrastructure{ID: id, Type: models.InfraTypeVillage, Level: levels[added], TerritoryID: member})
+		territoryState.Infrastructures = &id
+		state.TerritoryStates[member] = territoryState
+		added++
+	}
+	placed := 0
+	for _, member := range members {
+		for _, id := range adjacencies[member] {
+			if placed == 2 || containsTerritory(members, id) || !isFreeTerritory(state, id) {
+				continue
+			}
+			armyID := models.ArmyID(fmt.Sprintf("ZH%d", placed+1))
+			state.Armies = append(state.Armies, models.Army{ID: armyID, OwnerID: "P1", TerritoryID: id, Size: 6})
+			territoryState := state.TerritoryStates[id]
+			territoryState.Army = &armyID
+			state.TerritoryStates[id] = territoryState
+			placed++
+		}
+	}
+	state.NextArmyID += placed
+	fmt.Printf("demo production: P1 duchy %v, %d hungry armies next to it\n", members, placed)
+	return nil
 }
 
 func forgeAction(state *models.GameState) error {
