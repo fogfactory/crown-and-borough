@@ -22,16 +22,15 @@ type incomeGroup struct {
 // only when the player controls no valid capital: each territory then finds
 // its own closest controlled castle or village (see
 // territoryIncomeDestination), so several destinations can appear for the
-// same player the same turn. fiefID is empty for territory income routed
+// same player the same turn. group.fief is empty for territory income routed
 // outside any fief; it is otherwise kept as a distinct grouping key from
 // destinationID so a fief whose capital happens to also be the player's own
 // capital still gets its own report line (titres.md, #196).
 type territoryIncomeReport struct {
 	ownerID       models.PlayerID
-	regionID      models.TerritoryID
+	group         incomeGroup
 	members       []models.TerritoryID
 	destinationID models.TerritoryID
-	fiefID        models.FiefID
 	fiefTitle     models.FiefTitle
 	territories   int
 	villages      int
@@ -80,7 +79,7 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			if !controlledBy(ctx.controllerNow, ownerID, territoryID) {
 				continue
 			}
-			hasVillage := ctx.hasInfrastructure(territoryID, models.InfraTypeVillage)
+			village := ctx.infrastructureAt(territoryID)
 			parts := territoryIncomeParts(ctx, territoryID)
 			fief := ctx.territoryFief(ownerID, territoryID)
 			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID {
@@ -98,18 +97,12 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			}
 			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID, fief)
 			perTerritory[territoryID] = TerritoryIncomeForecast{Amount: parts.total(), Destination: destinationID}
-			var fiefID models.FiefID
-			var fiefTitle models.FiefTitle
-			var regionID models.TerritoryID
-			var members []models.TerritoryID
+			group := incomeGroup{}
 			if fief != nil {
-				fiefID = fief.ID
-				fiefTitle = fief.Title
-				members = append([]models.TerritoryID(nil), fief.Territories...)
+				group.fief = fief.ID
 			} else {
-				regionID = regionForTerritory(ctx, territoryID)
+				group.region = regionForTerritory(ctx, territoryID)
 			}
-			group := incomeGroup{fief: fiefID, region: regionID}
 			if reports[ownerID] == nil {
 				reports[ownerID] = make(map[models.TerritoryID]map[incomeGroup]*territoryIncomeReport)
 			}
@@ -119,15 +112,19 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			report, exists := reports[ownerID][destinationID][group]
 			if !exists {
 				report = &territoryIncomeReport{
-					ownerID: ownerID, destinationID: destinationID,
-					fiefID: fiefID, fiefTitle: fiefTitle, regionID: regionID, members: members, lost: destinationID == "",
+					ownerID: ownerID, destinationID: destinationID, group: group, lost: destinationID == "",
+				}
+				if fief != nil {
+					report.fiefTitle = fief.Title
+					// A copy: the report must not alias the live fief.
+					report.members = slices.Clone(fief.Territories)
 				}
 				reports[ownerID][destinationID][group] = report
 			}
 			report.territories++
-			if hasVillage {
+			if village != nil && village.Type == models.InfraTypeVillage {
 				report.villages++
-				report.villageLevels = append(report.villageLevels, ctx.infrastructureAt(territoryID).Level)
+				report.villageLevels = append(report.villageLevels, village.Level)
 			}
 			report.base += parts.base
 			report.bonus += parts.bonus
@@ -164,9 +161,9 @@ func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.Player
 					Phase:                6,
 					OwnerID:              ownerID,
 					DestinationID:        destinationID,
-					FiefID:               report.fiefID,
+					FiefID:               report.group.fief,
 					FiefTitle:            report.fiefTitle,
-					RegionSeed:           report.regionID,
+					RegionSeed:           report.group.region,
 					FiefTerritories:      report.members,
 					TerritoryCount:       report.territories,
 					VillageCount:         report.villages,

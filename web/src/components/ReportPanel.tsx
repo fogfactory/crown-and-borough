@@ -1,5 +1,5 @@
 import { ShieldIcon } from '@/components/ArmsIcons'
-import { RegionBlocks, regionSeedOf } from '@/components/ReportHouseGroups'
+import { BLOCK_FRAME, BLOCK_HEADER, RegionBlocks, regionSeedOf } from '@/components/RegionBlocks'
 import { playerArms } from '@/lib/heraldry'
 import { FIEF_RANK } from '@/lib/lineage'
 import { TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
@@ -2205,9 +2205,9 @@ function EconomyCard({
       return (
         <li
           key={`${line.fief ?? line.region ?? line.source ?? 'x'}-${line.destination ?? 'lost'}-${index}`}
-          className={`overflow-hidden rounded-md border border-line-soft border-l-4 bg-paper-100/70 ${frame}`}
+          className={`${BLOCK_FRAME} ${frame}`}
         >
-          <div className="flex items-center justify-between gap-3 bg-brass-300/25 px-2 py-1 text-xs font-semibold text-ink-900">
+          <div className={`${BLOCK_HEADER} text-xs text-ink-900`}>
             <span className="min-w-0">{incomeTitle(line)}</span>
             <span
               className={`shrink-0 ${line.lost ? 'text-brass-700' : 'text-success-700'}`}

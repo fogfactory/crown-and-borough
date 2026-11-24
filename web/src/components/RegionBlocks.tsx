@@ -10,6 +10,13 @@ export function regionSeedOf(map: MapData | null, territory: string): string {
   )
 }
 
+/** The frame of a block, its left rule coloured by the caller. */
+export const BLOCK_FRAME =
+  'overflow-hidden rounded-md border border-line-soft border-l-4 bg-paper-100/70'
+/** The tinted band heading a framed block. */
+export const BLOCK_HEADER =
+  'flex items-center justify-between gap-3 bg-brass-300/25 px-2 py-1 font-semibold'
+
 interface RegionBlocksProps<T> {
   items: T[]
   map: MapData | null
@@ -66,9 +73,11 @@ export function RegionBlocks<T>({
           <li
             key={region}
             data-report-region={region}
-            className="overflow-hidden rounded-md border border-line-soft border-l-4 border-l-brass-500 bg-paper-100/70"
+            className={`${BLOCK_FRAME} border-l-brass-500`}
           >
-            <div className="flex items-center justify-between gap-3 bg-brass-300/25 px-2 py-1 text-2xs font-semibold uppercase tracking-wide text-brass-700">
+            <div
+              className={`${BLOCK_HEADER} text-2xs uppercase tracking-wide text-brass-700`}
+            >
               <RegionRef id={region} name={name(region)} />
               <span className="shrink-0 normal-case tracking-normal">
                 {subtotal(own)}
