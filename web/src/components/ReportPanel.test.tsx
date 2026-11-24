@@ -1589,4 +1589,33 @@ describe('ReportPanel event cards', () => {
     expect(house).toHaveTextContent('+2 R')
     expect(house).toHaveTextContent('Balance+2 R')
   })
+
+  it('reads a report stored before income lines carried regions, villages and mill fiefs', () => {
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel
+          report={{
+            ...report,
+            production: [],
+            consumption: [],
+            income: [
+              { owner: 'P1', destination: 'ROS', fief: 'ROS', title: 'barony', territories: 3, villages: 1, base: 6, credited: 6 },
+              { owner: 'P1', destination: 'ROS', territories: 1, villages: 0, base: 1, credited: 1 },
+            ],
+            mills: [{ owner: 'P1', territory: 'BRU', level: 2, destination: 'ROS', production: 2 }],
+          }}
+          map={map}
+          players={players}
+          viewerId="P1"
+        />
+      </LanguageProvider>,
+    )
+    const house = document.querySelector('[data-report-house="P1"]') as HTMLElement
+    // The mill goes to the line paid to its destination, the territories keep their share.
+    expect(house).toHaveTextContent('3 territories · 1 villages+6 R')
+    expect(house).toHaveTextContent('Bruyères')
+    expect(house).toHaveTextContent('Outside fiefs')
+    expect(house).not.toHaveTextContent('+0 R')
+    expect(house).toHaveTextContent('Balance+9 R')
+  })
 })

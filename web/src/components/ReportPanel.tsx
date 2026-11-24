@@ -2182,14 +2182,17 @@ function EconomyCard({
     const name = player?.name ?? t('reports.groupNeutral')
 
     // A mill is counted on the line of its fief, or of its region outside one.
+    // A report from before mills carried their fief and region falls back on
+    // the destination its output went to.
     const attached = new Map<IncomeReport, MillReport[]>()
     const loose: MillReport[] = []
     houseMills.forEach((mill) => {
-      const target = houseIncome.find((line) =>
-        mill.fief
-          ? line.fief === mill.fief && !line.source
-          : !line.fief && !line.source && line.region === mill.region,
-      )
+      const legacy = mill.fief === undefined && mill.region === undefined
+      const feeds = (line: IncomeReport) => {
+        if (legacy) return line.destination === mill.destination
+        return mill.fief ? line.fief === mill.fief : !line.fief && line.region === mill.region
+      }
+      const target = houseIncome.find((line) => !line.source && feeds(line))
       if (!target) return void loose.push(mill)
       attached.set(target, [...(attached.get(target) ?? []), mill])
     })
@@ -2243,9 +2246,11 @@ function EconomyCard({
 
     const incomeTitle = (line: IncomeReport): ReactNode => {
       if (line.source || line.fief) return incomeDestinationLabel(line, map, t)
-      return richTranslate(t, 'reports.economyOutsideFief', {
-        region: line.region ? regionLabel(map, line.region, t) : '—',
-      })
+      return line.region
+        ? richTranslate(t, 'reports.economyOutsideFief', {
+            region: regionLabel(map, line.region, t),
+          })
+        : t('reports.economyOutsideFiefPlain')
     }
     // A line is a balance: the territories, then the villages and the mills,
     // each with its gain; a line with nothing but territories stays compact.
@@ -2273,6 +2278,10 @@ function EconomyCard({
         line.territories === 1 ? 'reports.incomeTerritory' : 'reports.incomeTerritories',
         { count: line.territories },
       )
+      // A report from before villages were detailed only counts them.
+      const legacyVillages = !line.source && line.villages > 0 && villages.length === 0 && (
+        <> · {t('reports.incomeVillages', { count: line.villages })}</>
+      )
       if (line.source || line.lost || (villages.length === 0 && mills.length === 0)) {
         // Nothing of the territories reaches a stock when the line is lost, but
         // its mills still produce on their own territory.
@@ -2284,14 +2293,17 @@ function EconomyCard({
                     fief: territoryLabel(map, line.taxed, t),
                   })
                 : territories}
-              {!line.source && destination}
+              {destination}
+              {legacyVillages}
             </p>
             {mills.length > 0 && <ul className="space-y-0.5">{mills.map(millRow)}</ul>}
             {suppressed}
           </div>
         )
       }
-      const territoryGain = line.territoryAmount ?? 0
+      // A report from before the server sent it: all of the line but its villages.
+      const territoryGain =
+        line.territoryAmount ?? line.credited - sum(villages.map((village) => village.amount))
       return (
         <div className="space-y-1 px-2 py-1.5">
           <ul className="space-y-0.5">
@@ -2301,6 +2313,7 @@ function EconomyCard({
               <>
                 {territories}
                 {destination}
+                {legacyVillages}
               </>,
               gain(territoryGain),
             )}
