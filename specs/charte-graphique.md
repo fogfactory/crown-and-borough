@@ -1162,11 +1162,14 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
   lignes sans effet (« 0 → 0 ») ne s'affichent pas.
 - **Hiver :** la catégorie « Hiver » compte un bloc par maison. Celui du
   joueur courant vient en premier et s'ouvre ; les autres restent repliés sur
-  un bilan d'une ligne (« 3 ordres · 1 en échec · stocks divisés par deux : 2 »).
-  Un bloc range les ordres de sa maison par nature (domaine et armées, fiefs
-  et titres, cour et famille, autres ordres), chacun en carte avec son
-  résultat, son coût et son bouton « Voir ». Il se clôt sur la conservation
-  d'hiver des stocks de la maison (« Rochevent (RVE) : 40 → 20 R »). Les
+  un bilan d'une ligne (« 3 ordres · 1 en échec · coût : 12 R · stocks divisés
+  par deux : 2 »). Un bloc range les ordres de sa maison par nature (domaine
+  et armées, fiefs et titres, cour et famille, autres ordres), chacun en carte
+  avec le code de l'ordre, une phrase qui dit ce qu'il fait (dans la langue du
+  joueur), son résultat, son coût et son bouton « Voir ». Il se clôt sur la
+  conservation d'hiver des stocks de la maison, une ligne par stock
+  (« Rochevent (RVE) : 40 → 20 R ») puis le bilan : stocks − coûts = solde →
+  conservé (« Stocks 40 R − coûts 12 R = 28 R → conservé 14 R »). Les
   événements qu'aucune maison n'a ordonnés (villages fondés sur terre libre)
   forment un dernier bloc « Royaume », toujours ouvert.
 - **Rumeurs :** un encadré « On dit au marché… » en Alegreya italique, sur
