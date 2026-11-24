@@ -566,8 +566,9 @@ func TestIncomeReportGroupsByFiefAndRegion(t *testing.T) {
 	if want := []models.TerritoryID{"CAP", "MEM", "OTH", "MIL"}; !slices.Equal(fief.FiefTerritories, want) {
 		t.Errorf("fief members = %v, want %v", fief.FiefTerritories, want)
 	}
-	if want := []int{3, 1}; !slices.Equal(fief.VillageLevels, want) {
-		t.Errorf("village levels = %v, want %v, highest first", fief.VillageLevels, want)
+	wantVillages := []IncomeVillage{{Territory: "MEM", Level: 3, Amount: 3}, {Territory: "OTH", Level: 1, Amount: 1}}
+	if !slices.Equal(fief.IncomeVillages, wantVillages) {
+		t.Errorf("village income = %v, want %v", fief.IncomeVillages, wantVillages)
 	}
 	// Mutating the event must not reach the fief held in the state.
 	fief.FiefTerritories[0] = "ZZZ"

@@ -1,5 +1,10 @@
 import { ShieldIcon } from '@/components/ArmsIcons'
-import { BLOCK_FRAME, BLOCK_HEADER, RegionBlocks, regionSeedOf } from '@/components/RegionBlocks'
+import {
+  BLOCK_FRAME,
+  BLOCK_HEADER,
+  RegionBlocks,
+  regionSeedOf,
+} from '@/components/RegionBlocks'
 import { playerArms } from '@/lib/heraldry'
 import { FIEF_RANK } from '@/lib/lineage'
 import { TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
@@ -10,6 +15,7 @@ import {
   IconBell,
   IconBuildingChurch,
   IconBuildingWarehouse,
+  IconBuildingCottage,
   IconBuildingWindTurbine,
   IconChevronDown,
   IconCloudStorm,
@@ -17,6 +23,7 @@ import {
   IconCrown,
   IconHeart,
   IconLink,
+  IconMapPin,
   IconScript,
   IconSkull,
   IconSnowflake,
@@ -46,6 +53,7 @@ import type {
   FiefReport,
   MarriageReport,
   MillReport,
+  PlayerReport,
   ProductionReport,
   IncomeReport,
   SeasonEffectReport,
@@ -1559,6 +1567,7 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
         >
           {showEconomy && (
             <EconomyCard
+              stocks={report.players}
               income={incomeLines}
               mills={millLines}
               production={production}
@@ -2106,6 +2115,7 @@ const NEUTRAL_ARMS = { field: NEUTRAL_ARMY_COLOR, charge: null }
  * rations taken off the demand on the army's own line.
  */
 function EconomyCard({
+  stocks,
   income,
   mills,
   production,
@@ -2114,6 +2124,8 @@ function EconomyCard({
   players,
   viewerId,
 }: {
+  /** The stock of each player before and after the turn. */
+  stocks: PlayerReport[]
   income: IncomeReport[]
   mills: MillReport[]
   production: ProductionReport[]
@@ -2137,6 +2149,17 @@ function EconomyCard({
   const lineTotal = (line: IncomeReport) => (line.lost ? 0 : line.credited)
   // A fair-weather mill credits its production twice: the bonus is reported apart.
   const millTotal = (mill: MillReport) => mill.production + (mill.bonus ?? 0)
+  // What the supply network really distributed from the stocks, famine included.
+  const consumedOf = (lines: ConsumptionReport[]) =>
+    sum(lines.map((line) => line.receivedTransfer))
+  const demandOf = (lines: ConsumptionReport[]) => sum(lines.map((line) => line.demand))
+  const cost = (count: number) =>
+    count > 0 ? t('reports.economyCost', { count }) : t('reports.economyNoCost')
+  const signed = (net: number) =>
+    net >= 0
+      ? t('reports.economyGain', { count: net })
+      : t('reports.economyCost', { count: -net })
+  const netClass = (net: number) => (net >= 0 ? 'text-success-700' : 'text-vermilion-700')
   const armyCount = (count: number) =>
     t(count === 1 ? 'reports.supplyArmy' : 'reports.supplyArmies', { count })
 
@@ -2166,27 +2189,49 @@ function EconomyCard({
     const withMills = (line: IncomeReport) =>
       lineTotal(line) + sum((attached.get(line) ?? []).map(millTotal))
     const earned = sum(houseIncome.map(lineTotal)) + sum(houseMills.map(millTotal))
+    const net = earned - consumedOf(houseSupply)
+    const stock = stocks.find((candidate) => candidate.id === key)
 
+    const nameOf = (id: string) =>
+      map?.territories.find((candidate) => candidate.id === id)?.name ?? id
+    const byName = (a: string, b: string) => nameOf(a).localeCompare(nameOf(b))
+    // One gain of a block: what it is on the left, what it brings in green on the right.
+    const gainRow = (
+      key: string,
+      icon: ReactNode,
+      label: ReactNode,
+      gain: ReactNode,
+      stopped = false,
+    ) => (
+      <li key={key} className="flex items-center justify-between gap-3 text-xs">
+        <span className="flex min-w-0 items-center gap-1.5 text-ink-700">
+          <span aria-hidden="true" className="flex shrink-0 [&_svg]:size-3.5">
+            {icon}
+          </span>
+          {label}
+        </span>
+        <span
+          className={`shrink-0 font-semibold ${stopped ? 'text-brass-700' : 'text-success-700'}`}
+        >
+          {gain}
+        </span>
+      </li>
+    )
     const millRow = (mill: MillReport, index: number) => {
       const stopped = mill.production === 0 && (mill.suppressed ?? 0) > 0
-      return (
-        <li
-          key={`${mill.territory}-${index}`}
-          className="flex items-center justify-between gap-3 text-2xs text-ink-500"
-        >
-          <span className="flex min-w-0 items-center gap-1.5">
-            <IconBuildingWindTurbine className="size-3.5 shrink-0" aria-hidden="true" />
-            {territoryLabel(map, mill.territory, t)}
-            <span>{t('reports.economyMillLevel', { level: mill.level })}</span>
+      return gainRow(
+        `mill-${mill.territory}-${index}`,
+        <IconBuildingWindTurbine />,
+        <>
+          {territoryLabel(map, mill.territory, t)}{' '}
+          <span className="text-ink-500">
+            {t('reports.economyMillLevel', { level: mill.level })}
           </span>
-          <span
-            className={`shrink-0 font-semibold ${stopped ? 'text-brass-700' : 'text-success-700'}`}
-          >
-            {stopped
-              ? t('reports.millStopped')
-              : t('reports.economyMillBonus', { count: millTotal(mill) })}
-          </span>
-        </li>
+        </>,
+        stopped
+          ? t('reports.millStopped')
+          : t('reports.economyGain', { count: millTotal(mill) }),
+        stopped,
       )
     }
 
@@ -2195,6 +2240,86 @@ function EconomyCard({
       return richTranslate(t, 'reports.economyOutsideFief', {
         region: line.region ? regionLabel(map, line.region, t) : '—',
       })
+    }
+    // A line is a balance: the territories, then the villages and the mills,
+    // each with its gain; a line with nothing but territories stays compact.
+    const renderIncomeBody = (line: IncomeReport) => {
+      const villages = [...(line.villageIncome ?? [])].sort((a, b) =>
+        byName(a.territory, b.territory),
+      )
+      const mills = [...(attached.get(line) ?? [])].sort((a, b) =>
+        byName(a.territory, b.territory),
+      )
+      const suppressed = (line.suppressed ?? 0) > 0 && (
+        <p className="text-2xs font-semibold text-vermilion-700">
+          {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
+        </p>
+      )
+      const destination = line.destination && !line.fief && !line.source && (
+        <>
+          {' '}
+          {richTranslate(t, 'reports.economyTo', {
+            destination: territoryLabel(map, line.destination, t),
+          })}
+        </>
+      )
+      const territories = t(
+        line.territories === 1 ? 'reports.incomeTerritory' : 'reports.incomeTerritories',
+        { count: line.territories },
+      )
+      if (line.source) {
+        return (
+          <div className="space-y-1 px-2 py-1.5">
+            <p className="text-2xs text-ink-500">
+              {richTranslate(t, `reports.incomeSource.${line.source}`, {
+                fief: territoryLabel(map, line.taxed, t),
+              })}
+            </p>
+          </div>
+        )
+      }
+      if (line.lost || (villages.length === 0 && mills.length === 0)) {
+        return (
+          <div className="space-y-1 px-2 py-1.5">
+            <p className="text-2xs text-ink-500">
+              {territories}
+              {destination}
+            </p>
+            {suppressed}
+          </div>
+        )
+      }
+      const territoryGain = line.credited - sum(villages.map((village) => village.amount))
+      return (
+        <div className="space-y-1 px-2 py-1.5">
+          <ul className="space-y-0.5">
+            {gainRow(
+              'territories',
+              <IconMapPin />,
+              <>
+                {territories}
+                {destination}
+              </>,
+              t('reports.economyGain', { count: territoryGain }),
+            )}
+            {villages.map((village) =>
+              gainRow(
+                `village-${village.territory}`,
+                <IconBuildingCottage />,
+                <>
+                  {territoryLabel(map, village.territory, t)}{' '}
+                  <span className="text-ink-500">
+                    {t('reports.economyVillageLevel', { level: village.level })}
+                  </span>
+                </>,
+                t('reports.economyGain', { count: village.amount }),
+              ),
+            )}
+            {mills.map(millRow)}
+          </ul>
+          {suppressed}
+        </div>
+      )
     }
     const renderIncome = (line: IncomeReport, index: number) => {
       const frame = line.fief
@@ -2217,48 +2342,7 @@ function EconomyCard({
                 : t('reports.incomeCredited', { count: withMills(line) })}
             </span>
           </div>
-          <div className="space-y-1 px-2 py-1.5">
-            <p className="flex flex-wrap gap-x-3 text-2xs text-ink-500">
-              {line.source ? (
-                <span>
-                  {richTranslate(t, `reports.incomeSource.${line.source}`, {
-                    fief: territoryLabel(map, line.taxed, t),
-                  })}
-                </span>
-              ) : (
-                <span>{t('reports.incomeTerritories', { count: line.territories })}</span>
-              )}
-              {line.villages > 0 && (
-                <span>
-                  {line.villageLevels?.length === 1
-                    ? t('reports.incomeVillageOne', { total: line.villageLevels[0] })
-                    : line.villageLevels?.length
-                      ? t('reports.incomeVillageLevels', {
-                          total: sum(line.villageLevels),
-                          levels: line.villageLevels.join(' + '),
-                        })
-                      : t('reports.incomeVillages', { count: line.villages })}
-                </span>
-              )}
-              {line.destination && !line.fief && !line.source && (
-                <span>
-                  {richTranslate(t, 'reports.economyTo', {
-                    destination: territoryLabel(map, line.destination, t),
-                  })}
-                </span>
-              )}
-              {(line.suppressed ?? 0) > 0 && (
-                <span className="font-semibold text-vermilion-700">
-                  {t('reports.incomeSuppressed', { count: line.suppressed ?? 0 })}
-                </span>
-              )}
-            </p>
-            {(attached.get(line) ?? []).length > 0 && (
-              <ul className="space-y-0.5 border-t border-line-soft pt-1">
-                {(attached.get(line) ?? []).map(millRow)}
-              </ul>
-            )}
-          </div>
+          {renderIncomeBody(line)}
         </li>
       )
     }
@@ -2272,7 +2356,9 @@ function EconomyCard({
     const renderArmy = (line: ConsumptionReport) => {
       const rations = rationsAt(line.territory)
       const terrain = terrainOf(line.territory)
-      const parts: ReactNode[] = []
+      const parts: ReactNode[] = [
+        t(line.size === 1 ? 'app.troop' : 'app.troops', { count: line.size }),
+      ]
       if (line.receivedTransfer > 0) {
         parts.push(
           richTranslate(t, 'reports.economyFromSource', {
@@ -2293,27 +2379,29 @@ function EconomyCard({
                 </span>
               )}
             </span>
-            <span className="shrink-0 text-ink-500">
-              {t(line.size === 1 ? 'app.troop' : 'app.troops', { count: line.size })} ·{' '}
-              {t('reports.consumptionDemand', { count: line.demand })}
+            <span className="shrink-0 text-right">
+              <span className="font-semibold text-vermilion-700">
+                {cost(line.receivedTransfer)}
+              </span>{' '}
+              <span className="text-2xs text-ink-500">
+                {t('reports.economyDemand', { count: line.demand })}
+              </span>
             </span>
           </div>
-          {(parts.length > 0 || line.famine) && (
-            <p className="text-2xs text-ink-500">
-              {joinNodes(parts, ' · ')}
-              {line.famine && (
-                <span className="font-semibold text-vermilion-700">
-                  {parts.length > 0 && ' · '}
-                  {line.warned
-                    ? t('reports.economyMissing', { count: line.missing })
-                    : t('reports.economyFamine', {
-                        count: line.missing,
-                        lost: line.troopsLost ?? 0,
-                      })}
-                </span>
-              )}
-            </p>
-          )}
+          <p className="text-2xs text-ink-500">
+            {joinNodes(parts, ' · ')}
+            {line.famine && (
+              <span className="font-semibold text-vermilion-700">
+                {parts.length > 0 && ' · '}
+                {line.warned
+                  ? t('reports.economyMissing', { count: line.missing })
+                  : t('reports.economyFamine', {
+                      count: line.missing,
+                      lost: line.troopsLost ?? 0,
+                    })}
+              </span>
+            )}
+          </p>
         </div>
       )
     }
@@ -2335,16 +2423,19 @@ function EconomyCard({
               {name}
             </span>
             <span className="shrink-0 text-xs font-semibold text-ink-700">
-              {t('reports.economyBalance', {
-                income: earned,
-                armies: armyTally(houseSupply, t),
-              })}
+              <span className={netClass(net)}>{signed(net)}</span>
+              {armyTally(houseSupply, t)}
             </span>
           </summary>
           <div className="space-y-3 border-t border-line-soft px-2.5 py-2">
             {(houseIncome.length > 0 || loose.length > 0) && (
               <section className="space-y-1.5">
-                <h4 className={heading}>{t('reports.economyIn', { count: earned })}</h4>
+                <h4 className={`${heading} flex items-center justify-between gap-3`}>
+                  {t('reports.economyIn')}
+                  <span className="text-success-700">
+                    {t('reports.economyGain', { count: earned })}
+                  </span>
+                </h4>
                 <ul className="space-y-1.5">
                   {houseIncome.map(renderIncome)}
                   {loose.length > 0 && (
@@ -2357,8 +2448,14 @@ function EconomyCard({
             )}
             {houseSupply.length > 0 && (
               <section className="space-y-1.5">
-                <h4 className={heading}>
+                <h4 className={`${heading} flex items-center justify-between gap-3`}>
                   {t('reports.economyOut', { armies: armyCount(houseSupply.length) })}
+                  <span className="text-vermilion-700">
+                    {cost(consumedOf(houseSupply))}{' '}
+                    <span className="font-normal normal-case tracking-normal text-ink-500">
+                      {t('reports.economyDemand', { count: demandOf(houseSupply) })}
+                    </span>
+                  </span>
                 </h4>
                 <RegionBlocks
                   items={houseSupply}
@@ -2367,10 +2464,34 @@ function EconomyCard({
                   territoryOf={(line) => line.territory}
                   keyOf={(line) => line.army}
                   renderItem={renderArmy}
-                  subtotal={(group) => armyCount(group.length)}
+                  subtotal={(group) => (
+                    <>
+                      {armyCount(group.length)} ·{' '}
+                      <span className="text-vermilion-700">
+                        {cost(consumedOf(group))}
+                      </span>
+                    </>
+                  )}
                 />
               </section>
             )}
+            <div className="space-y-0.5 border-t border-line pt-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+                <span className="text-ink-900">{t('reports.economyNet')}</span>
+                <span className={netClass(net)}>{signed(net)}</span>
+              </div>
+              {stock && (
+                <div className="flex items-center justify-between gap-3 text-xs text-ink-700">
+                  <span>{t('reports.economyStock')}</span>
+                  <span className="font-semibold">
+                    {t('reports.economyStockValue', {
+                      before: stock.resourcesBefore,
+                      after: stock.resourcesAfter,
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </details>
       </li>

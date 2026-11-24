@@ -977,8 +977,8 @@ export interface IncomeReport {
   region?: string
   /** Members of a fief line, capital first. */
   fiefTerritories?: string[]
-  /** Levels of the villages counted, highest first. */
-  villageLevels?: number[]
+  /** Villages of level 1 and above, with the income each brings. */
+  villageIncome?: Array<{ territory: string; level: number; amount: number }>
   destination?: string
   fief?: string
   title?: FiefTitle

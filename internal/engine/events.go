@@ -272,9 +272,9 @@ type Event struct {
 	SentRations          map[models.TerritoryID]int `json:"sentRations,omitempty"`
 	TerritoryCount       int                        `json:"territoryCount,omitempty"`
 	VillageCount         int                        `json:"villageCount,omitempty"`
-	// VillageLevels lists the levels of the villages counted, highest first.
-	VillageLevels []int `json:"villageLevels,omitempty"`
-	Lost          bool  `json:"lost,omitempty"`
+	// IncomeVillages details the villages of an income line: what each one brings.
+	IncomeVillages []IncomeVillage `json:"incomeVillages,omitempty"`
+	Lost           bool            `json:"lost,omitempty"`
 
 	NobleID         models.NobleID      `json:"noble,omitempty"`
 	NobleCode       models.NobleCode    `json:"nobleCode,omitempty"`

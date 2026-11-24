@@ -377,13 +377,12 @@ describe('ReportPanel', () => {
     expect(screen.getByText(/Ressources insuffisantes/)).toBeInTheDocument()
     expect(screen.getAllByLabelText('Couleur de One')).not.toHaveLength(0)
     expect(screen.getByText('+4 R crédités')).toBeInTheDocument()
-    expect(screen.getByText('3 territoires')).toBeInTheDocument()
-    expect(screen.getByText('1 villages')).toBeInTheDocument()
+    expect(screen.getByText(/3 territoires/)).toBeInTheDocument()
     expect(screen.getByText('1 supprimés par une mauvaise récolte')).toBeInTheDocument()
     expect(
       screen.getByText('perdu, aucune capitale, château ou village pour le recevoir'),
     ).toBeInTheDocument()
-    expect(screen.getByText(/demande 2/)).toBeInTheDocument()
+    expect(screen.getAllByText('(demande 2 R)').length).toBeGreaterThan(0)
     expect(screen.getByText(/· sauvée par pillage/)).toBeInTheDocument()
     expect(screen.getByText(/· −1 troupe/)).toBeInTheDocument()
     expect(
@@ -1408,13 +1407,16 @@ describe('ReportPanel event cards', () => {
     expect(houses[0].querySelector('details')).toHaveAttribute('open')
     expect(houses[1].querySelector('details')).not.toHaveAttribute('open')
     // The mill is a bonus nested under the income paid to its destination.
-    expect(within(houses[0] as HTMLElement).getByText('mill +3 R')).toBeInTheDocument()
+    expect(within(houses[0] as HTMLElement).getByText('+3 R')).toBeInTheDocument()
     expect(houses[1].querySelector('[data-report-region="ROS"]')).not.toBeNull()
   })
 
   it('ranks fiefs by title, counts a mill bonus and tells a first deficit from a famine', () => {
     const economy: TurnReport = {
       ...report,
+      players: report.players.map((entry) =>
+        entry.id === 'P1' ? { ...entry, resourcesBefore: 10, resourcesAfter: 27 } : entry,
+      ),
       income: [
         {
           owner: 'P1',
@@ -1442,7 +1444,10 @@ describe('ReportPanel event cards', () => {
           title: 'duchy',
           territories: 6,
           villages: 2,
-          villageLevels: [3, 2],
+          villageIncome: [
+            { territory: 'CHA', level: 3, amount: 3 },
+            { territory: 'BRU', level: 2, amount: 2 },
+          ],
           base: 11,
           credited: 11,
         },
@@ -1480,8 +1485,8 @@ describe('ReportPanel event cards', () => {
           size: 2,
           demand: 3,
           receivedLocal: 1,
-          receivedTransfer: 0,
-          totalReceived: 1,
+          receivedTransfer: 2,
+          totalReceived: 3,
           missing: 2,
           famine: true,
           troopsLost: 1,
@@ -1512,10 +1517,16 @@ describe('ReportPanel event cards', () => {
     expect(titles[0]).toMatch(/Duchy/)
     expect(titles[1]).toMatch(/Barony/)
     expect(titles[2]).toMatch(/Outside fiefs/)
-    expect(house).toHaveTextContent('villages: 5 = 3 + 2')
+    expect(house).toHaveTextContent('village lvl 3')
+    expect(house).toHaveTextContent('+6 R')
     // The barony's 3 R plus its mill's 2 + 2 R of fair weather.
     expect(house).toHaveTextContent('+7 R credited')
-    expect(house).toHaveTextContent('mill +4 R')
+    expect(house).toHaveTextContent('+4 R')
+    expect(house).toHaveTextContent('(demand 3 R)')
+    // What the network really distributed, and the balance of the house.
+    expect(house).toHaveTextContent('−2 R')
+    expect(house).toHaveTextContent('Balance+17 R')
+    expect(house).toHaveTextContent('Resources10 → 27 R')
     expect(house).toHaveTextContent('2 missing, famine looms')
     expect(house).toHaveTextContent('famine: 2 missing, 1 lost')
     const summary = document.querySelector('[data-summary-card] summary') as HTMLElement

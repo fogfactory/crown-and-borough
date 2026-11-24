@@ -84,6 +84,13 @@ type InfrastructureReport struct {
 	Territory models.TerritoryID `json:"territory"`
 }
 
+// IncomeVillage is one village's share of an income line.
+type IncomeVillage struct {
+	Territory models.TerritoryID `json:"territory"`
+	Level     int                `json:"level"`
+	Amount    int                `json:"amount"`
+}
+
 // IncomeReport is one player's territory income credited to one (destination,
 // fief) pair this turn: territories and villages counted, the
 // harvest-adjusted amounts, and where it landed. Destination is empty and
@@ -107,14 +114,16 @@ type IncomeReport struct {
 	FiefTerritories []models.TerritoryID `json:"fiefTerritories,omitempty"`
 	Territories     int                  `json:"territories"`
 	Villages        int                  `json:"villages"`
-	// VillageLevels lists the levels of the villages counted, highest first.
-	VillageLevels []int `json:"villageLevels,omitempty"`
-	Base          int   `json:"base"`
-	Bonus         int   `json:"bonus,omitempty"`
-	Suppressed    int   `json:"suppressed,omitempty"`
-	Credited      int   `json:"credited"`
-	StockAfter    int   `json:"stockAfter,omitempty"`
-	Lost          bool  `json:"lost,omitempty"`
+	// VillageIncome details the villages of the line, level 1 and above: the
+	// income each brings, harvest and seigneurial tax included. The rest of
+	// Base+Bonus comes from the territories themselves.
+	VillageIncome []IncomeVillage `json:"villageIncome,omitempty"`
+	Base          int             `json:"base"`
+	Bonus         int             `json:"bonus,omitempty"`
+	Suppressed    int             `json:"suppressed,omitempty"`
+	Credited      int             `json:"credited"`
+	StockAfter    int             `json:"stockAfter,omitempty"`
+	Lost          bool            `json:"lost,omitempty"`
 	// Source tells a royal flow apart from territory income: "royal_tax" (the
 	// supplement of the king's tax), "royal_rent_king" or "royal_rent_queen".
 	// Taxed is, for a royal tax supplement, the capital of the taxed fief.
@@ -513,7 +522,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		case EventTypeIncome:
 			income := IncomeReport{
 				Owner: event.OwnerID, Destination: event.DestinationID, Region: event.RegionSeed, FiefTerritories: event.FiefTerritories,
-				Territories: event.TerritoryCount, Villages: event.VillageCount, VillageLevels: event.VillageLevels,
+				Territories: event.TerritoryCount, Villages: event.VillageCount, VillageIncome: event.IncomeVillages,
 				Base: event.BaseProduction, Bonus: event.BonusProduction,
 				Suppressed: event.SuppressedProduction, Credited: event.Production,
 				StockAfter: event.StockAfter, Lost: event.Lost, Source: event.Reason, Taxed: event.TerritoryID,

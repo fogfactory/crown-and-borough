@@ -1169,13 +1169,16 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 (effets de saison, famines, fiefs, mariages, élections), hiver ou cartes de
 noble, économie, ordres exécutés. L'économie tient en une carte de
 synthèse repliée, « Économie », qui s'ouvre sur un bloc par maison : celle du
-joueur d'abord et ouverte, les autres repliées sur leur bilan (revenu, armées
-nourries, en famine ou ayant subi des pertes). Un bloc réunit les entrées —
-une ligne encadrée par fief, du duché au baron, et par région hors fief, les
-villages (« villages : 7 = 3 + 2 + 2 ») et les moulins comptés sur la ligne
-qu'ils alimentent — et le ravitaillement, armée par armée, en blocs encadrés
-par région, le rabais du terrain à côté de son nom. Les conservations et les
-réceptions restent des cartes de synthèse à part. Une famine reste un événement à part entière.
+joueur d'abord et ouverte, les autres repliées sur leur bilan (gain ou perte
+du tour, armées nourries, en famine ou ayant subi des pertes). Un bloc se lit
+comme un bilan : les entrées, une ligne encadrée par fief, du duché au baron,
+et par région hors fief, chacune détaillant ses territoires, ses villages puis
+ses moulins (par ordre alphabétique) avec leur gain en vert à droite ; le
+ravitaillement, armée par armée, en blocs encadrés par région, avec en rouge la
+consommation réellement distribuée (famine comprise) et la demande entre
+parenthèses, le rabais du terrain à côté du nom ; enfin le bilan de la maison,
+revenu moins consommation. Les conservations et les réceptions restent des
+cartes de synthèse à part. Une famine reste un événement à part entière.
 « Voir » cadre la carte sur les territoires de l'événement, les entoure et
 trace les ordres d'une flèche ; le dessin disparaît à la sélection suivante.
 Un tour sans rien de tout cela écrit « Rien à signaler ce tour. ».

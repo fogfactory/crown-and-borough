@@ -34,7 +34,7 @@ type territoryIncomeReport struct {
 	fiefTitle     models.FiefTitle
 	territories   int
 	villages      int
-	villageLevels []int
+	villageIncome []IncomeVillage
 	base          int
 	bonus         int
 	suppressed    int
@@ -81,6 +81,8 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			}
 			village := ctx.infrastructureAt(territoryID)
 			parts := territoryIncomeParts(ctx, territoryID)
+			// The village's own part of parts, adjusted the same way.
+			villageShare := harvestAdjustedParts(ctx, territoryID, ctx.villageProduction(territoryID))
 			fief := ctx.territoryFief(ownerID, territoryID)
 			if fief != nil && ctx.taxedFiefsThisTurn[fief.ID] && ctx.taxedFiefOwnerAtApply[fief.ID] == fief.OwnerID {
 				// Seigneurial tax doubles the fief's territorial income,
@@ -94,6 +96,8 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 				// with a tax it never played.
 				parts.base *= 2
 				parts.bonus *= 2
+				villageShare.base *= 2
+				villageShare.bonus *= 2
 			}
 			destinationID := ctx.territoryIncomeDestination(ownerID, territoryID, fief)
 			perTerritory[territoryID] = TerritoryIncomeForecast{Amount: parts.total(), Destination: destinationID}
@@ -124,7 +128,11 @@ func computeTerritoryIncome(ctx *resolutionContext) (map[models.PlayerID]map[mod
 			report.territories++
 			if village != nil && village.Type == models.InfraTypeVillage {
 				report.villages++
-				report.villageLevels = append(report.villageLevels, village.Level)
+				if village.Level > 0 {
+					report.villageIncome = append(report.villageIncome, IncomeVillage{
+						Territory: territoryID, Level: village.Level, Amount: villageShare.base + villageShare.bonus,
+					})
+				}
 			}
 			report.base += parts.base
 			report.bonus += parts.bonus
@@ -167,7 +175,7 @@ func emitTerritoryIncomeEvents(ctx *resolutionContext, reports map[models.Player
 					FiefTerritories:      report.members,
 					TerritoryCount:       report.territories,
 					VillageCount:         report.villages,
-					VillageLevels:        sortedDescending(report.villageLevels),
+					IncomeVillages:       report.villageIncome,
 					BaseProduction:       report.base,
 					BonusProduction:      report.bonus,
 					SuppressedProduction: report.suppressed,
@@ -299,15 +307,4 @@ func ForecastTerritoryIncome(state *models.GameState, balance assetgen.Balance) 
 	ctx := newResolutionContext(clone, balance)
 	_, perTerritory := computeTerritoryIncome(ctx)
 	return perTerritory
-}
-
-// sortedDescending returns a copy of levels, highest first.
-func sortedDescending(levels []int) []int {
-	if len(levels) == 0 {
-		return nil
-	}
-	sorted := slices.Clone(levels)
-	slices.Sort(sorted)
-	slices.Reverse(sorted)
-	return sorted
 }
