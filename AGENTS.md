@@ -38,6 +38,9 @@ feature without playing the turns that lead to it. Scenarios (`winter`,
 `action`) live in `cmd/server/demo_scenarios.go`, compiled only with `-tags
 demo`: add or adapt one there when a feature needs a particular situation.
 
+`scripts/winter-report-demo.sh` plays the winter of the `winter` scenario up to
+P1's orders, to read the winter turn report (one block per house).
+
 The chat only exists online: `scripts/chat-demo.sh` starts the local online
 stack (Firebase emulators and server), creates a two-house game where one
 house writes to the other, and prints a sign-in link for the reader.
