@@ -54,6 +54,7 @@ import type {
   MarriageReport,
   MillReport,
   PlayerReport,
+  WinterStockReport,
   ProductionReport,
   IncomeReport,
   SeasonEffectReport,
@@ -1233,11 +1234,12 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
     elections.length > 0
   const showEconomy =
     incomeLines.length > 0 || millLines.length > 0 || consumption.length > 0
-  const hasEconomy = showEconomy || stockLines.length > 0 || receptions.length > 0
+  const hasEconomy = showEconomy || receptions.length > 0
+  const hasWinter = winterInvestments.length > 0 || stockLines.length > 0
   const empty =
     combats.length === 0 &&
     orders.length === 0 &&
-    winterInvestments.length === 0 &&
+    !hasWinter &&
     !hasEvents &&
     !hasEconomy &&
     rumors.length === 0 &&
@@ -1258,49 +1260,41 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
         <p className="text-sm italic text-ink-500">{t('reports.nothingToReport')}</p>
       )}
 
-      {combats.length > 0 && (
-        <EventCategory id="combats" title={t('reports.combats')} icon={<IconSwords />}>
-          {combats.map((combat, index) => {
-            const forces =
-              combat.visibility === 'general'
-                ? ''
-                : (combat.contenders ?? [])
-                    .map(
-                      (contender) =>
-                        `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
-                          contender.nobleBonus
-                            ? t('reports.nobleBonus', { bonus: contender.nobleBonus })
-                            : ''
-                        }`,
-                    )
-                    .join(' · ')
-            const detailText = (entry: CombatReport): ReactNode =>
-              entry.visibility === 'general'
-                ? reportReason(entry.outcome, t)
-                : entry.standoff
-                  ? t('reports.standoff')
-                  : entry.winner
-                    ? richTranslate(t, 'reports.victory', {
-                        army: armyDescription(report, map, entry.winner, t),
-                      })
-                    : (reportReason(entry.reason, t) ?? entry.reason)
-            return (
-              <EventCard
-                key={`${combat.territory}-${index}`}
-                icon={<IconSwords />}
-                title={territoryLabel(map, combat.territory, t)}
-                detail={detailText(combat)}
-                aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
-                marks={combatMarks(report, combat)}
-                more={
-                  combat.visibility === 'general'
-                    ? undefined
-                    : combatDetails(report, map, combat, detailText(combat), t)
-                }
-              />
-            )
-          })}
-        </EventCategory>
+      {(rumors.length > 0 || cards.length > 0) && (
+        <div className="grid gap-3">
+          {rumors.length > 0 && (
+            <aside
+              data-report-rumors
+              className="space-y-1.5 rounded-md border border-line bg-paper-100 p-3"
+            >
+              <h4 className="text-sm font-semibold italic text-ink-900">
+                {t('reports.rumorsMarket')}
+              </h4>
+              <ul className="space-y-1 text-sm italic text-ink-700">
+                {rumors.map((rumor, index) => (
+                  <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
+                ))}
+              </ul>
+            </aside>
+          )}
+          {cards.length > 0 && (
+            <aside
+              data-report-cards
+              className="space-y-1.5 rounded-md border border-line bg-paper-50 p-3"
+            >
+              <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-700">
+                {t('reports.cards')}
+              </h4>
+              <ol className="space-y-1 text-sm text-ink-700">
+                {cards.map((card, index) => (
+                  <li key={`${card.eventType}-${card.kind}-${index}`}>
+                    {cardEventLabel(card, map, t)}
+                  </li>
+                ))}
+              </ol>
+            </aside>
+          )}
+        </div>
       )}
 
       {hasEvents && (
@@ -1497,7 +1491,52 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
         </EventCategory>
       )}
 
-      {winterInvestments.length > 0 && (
+      {combats.length > 0 && (
+        <EventCategory id="combats" title={t('reports.combats')} icon={<IconSwords />}>
+          {combats.map((combat, index) => {
+            const forces =
+              combat.visibility === 'general'
+                ? ''
+                : (combat.contenders ?? [])
+                    .map(
+                      (contender) =>
+                        `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
+                          contender.nobleBonus
+                            ? t('reports.nobleBonus', { bonus: contender.nobleBonus })
+                            : ''
+                        }`,
+                    )
+                    .join(' · ')
+            const detailText = (entry: CombatReport): ReactNode =>
+              entry.visibility === 'general'
+                ? reportReason(entry.outcome, t)
+                : entry.standoff
+                  ? t('reports.standoff')
+                  : entry.winner
+                    ? richTranslate(t, 'reports.victory', {
+                        army: armyDescription(report, map, entry.winner, t),
+                      })
+                    : (reportReason(entry.reason, t) ?? entry.reason)
+            return (
+              <EventCard
+                key={`${combat.territory}-${index}`}
+                icon={<IconSwords />}
+                title={territoryLabel(map, combat.territory, t)}
+                detail={detailText(combat)}
+                aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
+                marks={combatMarks(report, combat)}
+                more={
+                  combat.visibility === 'general'
+                    ? undefined
+                    : combatDetails(report, map, combat, detailText(combat), t)
+                }
+              />
+            )
+          })}
+        </EventCategory>
+      )}
+
+      {hasWinter && (
         <EventCategory
           id="winter"
           title={t(
@@ -1505,57 +1544,13 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
           )}
           icon={<IconSnowflake />}
         >
-          {winterInvestments.map((investment, index) => {
-            const isAutoAssignedWarning = investment.kind === 'fief_auto_assigned'
-            const territories = [
-              investment.territory,
-              investment.target,
-              investment.source,
-              ...(investment.territories ?? []),
-            ].filter((id): id is string => Boolean(id))
-            return (
-              <EventCard
-                key={`${investment.kind}-${investment.player}-${index}`}
-                icon={<IconSnowflake />}
-                tone={isAutoAssignedWarning ? 'warning' : undefined}
-                owner={playerMarker(players, investment.player, t)}
-                title={
-                  <>
-                    <strong className="font-mono text-xs">
-                      {investmentLabel(investment, map, t)}
-                    </strong>
-                    {isAutoAssignedWarning && (
-                      <span className="mt-0.5 block text-2xs font-bold uppercase tracking-wide text-warning-700">
-                        {t('reports.fiefAutoAssignedWarning')}
-                      </span>
-                    )}
-                  </>
-                }
-                detail={
-                  <>
-                    {investment.player} · {winterDetails(investment, map, t)}
-                  </>
-                }
-                aside={
-                  <span className={outcomeClass(investment.outcome)}>
-                    {outcomeLabel(investment.outcome, t)}
-                    {investment.outcome === 'success' && (
-                      <span className="mt-1 block text-2xs text-ink-500">
-                        {investment.cost > 0
-                          ? t('reports.cost', { cost: investment.cost })
-                          : t('reports.noCost')}
-                      </span>
-                    )}
-                  </span>
-                }
-                marks={
-                  territories.length > 0
-                    ? { territories: [...new Set(territories)] }
-                    : undefined
-                }
-              />
-            )
-          })}
+          <WinterHouses
+            investments={winterInvestments}
+            stocks={stockLines}
+            map={map}
+            players={players}
+            viewerId={viewerId}
+          />
         </EventCategory>
       )}
 
@@ -1576,22 +1571,6 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
               players={players}
               viewerId={viewerId}
             />
-          )}
-          {stockLines.length > 0 && (
-            <SummaryCard
-              icon={<IconBuildingWarehouse />}
-              summary={t('reports.summary.conservation', { count: stockLines.length })}
-            >
-              {stockLines.map((stock) => (
-                <li key={stock.territory} className="text-xs">
-                  {richTranslate(t, 'reports.conservationLine', {
-                    territory: territoryLabel(map, stock.territory, t),
-                    before: stock.stockBefore,
-                    after: stock.stockAfter,
-                  })}
-                </li>
-              ))}
-            </SummaryCard>
           )}
           {receptions.length > 0 && (
             <SummaryCard
@@ -1706,42 +1685,6 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
         </EventCategory>
       )}
 
-      {(rumors.length > 0 || cards.length > 0) && (
-        <div className="grid gap-3">
-          {rumors.length > 0 && (
-            <aside
-              data-report-rumors
-              className="space-y-1.5 rounded-md border border-line bg-paper-100 p-3"
-            >
-              <h4 className="text-sm font-semibold italic text-ink-900">
-                {t('reports.rumorsMarket')}
-              </h4>
-              <ul className="space-y-1 text-sm italic text-ink-700">
-                {rumors.map((rumor, index) => (
-                  <li key={`${rumor.key}-${index}`}>{t(rumor.key as MessageKey)}</li>
-                ))}
-              </ul>
-            </aside>
-          )}
-          {cards.length > 0 && (
-            <aside
-              data-report-cards
-              className="space-y-1.5 rounded-md border border-line bg-paper-50 p-3"
-            >
-              <h4 className="text-xs font-bold uppercase tracking-[0.16em] text-ink-700">
-                {t('reports.cards')}
-              </h4>
-              <ol className="space-y-1 text-sm text-ink-700">
-                {cards.map((card, index) => (
-                  <li key={`${card.eventType}-${card.kind}-${index}`}>
-                    {cardEventLabel(card, map, t)}
-                  </li>
-                ))}
-              </ol>
-            </aside>
-          )}
-        </div>
-      )}
     </section>
   )
 }
@@ -2145,12 +2088,7 @@ function EconomyCard({
       line.terrainRations + (line.bonusRations ?? 0),
     ]),
   )
-  const rank = (key: string) => {
-    if (key === viewerId) return -1
-    if (key === NEUTRAL_PLAYER_ID) return players.length + 1
-    const index = players.findIndex((player) => player.id === key)
-    return index < 0 ? players.length : index
-  }
+  const rank = (key: string) => houseRank(key, players, viewerId)
   const houses = Array.from(
     new Set([...income, ...mills, ...supply].map((line) => houseOf(line.owner))),
   ).sort((a, b) => rank(a) - rank(b))
@@ -2519,6 +2457,211 @@ function EconomyCard({
     >
       {houses.map(renderHouse)}
     </SummaryCard>
+  )
+}
+
+/** The nature of a winter order, to range a house's orders under a heading. */
+type WinterGroup = 'domain' | 'titles' | 'court' | 'other'
+
+const WINTER_GROUP_ORDER: WinterGroup[] = ['domain', 'titles', 'court', 'other']
+
+/** The block of the winter events no house ordered (villages founded on free land). */
+const WINTER_REALM = ''
+
+function winterGroupOf(kind: string): WinterGroup {
+  switch (kind) {
+    case 'recruit':
+    case 'build':
+    case 'upgrade':
+    case 'fortify':
+    case 'capital_elected':
+    case 'noble_transfer':
+    case 'transfer':
+    case 'prosperity_founded':
+      return 'domain'
+    case 'fief_founded':
+    case 'fief_assigned':
+    case 'fief_auto_assigned':
+    case 'fief_annexed':
+    case 'fief_rank_changed':
+      return 'titles'
+    case 'marriage_refused':
+    case 'claim':
+    case 'dignity':
+    case 'ritual':
+    case 'inquiry':
+    case 'trial_filed':
+    case 'noble_draw':
+    case 'noble_discard':
+      return 'court'
+    default:
+      return 'other'
+  }
+}
+
+/** Sorts house keys: the viewer's first, then the players' order, neutral last. */
+function houseRank(key: string, players: Player[], viewerId?: PlayerId): number {
+  if (key === viewerId) return -1
+  if (key === WINTER_REALM) return players.length + 2
+  if (key === NEUTRAL_PLAYER_ID) return players.length + 1
+  const index = players.findIndex((player) => player.id === key)
+  return index < 0 ? players.length : index
+}
+
+/**
+ * The winter orders and the stocks kept through winter, one block per house:
+ * the viewer's house first and open, the others folded on a one-line balance.
+ * The orders of a house are ranged by nature. It only reads the flat winter
+ * report, so a report stored before this grouping reads the same.
+ */
+function WinterHouses({
+  investments,
+  stocks,
+  map,
+  players,
+  viewerId,
+}: {
+  investments: WinterInvestmentReport[]
+  stocks: WinterStockReport[]
+  map: MapData | null
+  players: Player[]
+  viewerId?: PlayerId
+}) {
+  const { t } = useLanguage()
+  const houseOf = (owner?: PlayerId) => owner || NEUTRAL_PLAYER_ID
+  const houses = Array.from(
+    new Set([
+      ...investments.map((investment) => investment.player || WINTER_REALM),
+      ...stocks.map((stock) => houseOf(stock.owner)),
+    ]),
+  ).sort((a, b) => houseRank(a, players, viewerId) - houseRank(b, players, viewerId))
+
+  return (
+    <>
+      {houses.map((key) => {
+        const orders = investments.filter(
+          (investment) => (investment.player || WINTER_REALM) === key,
+        )
+        const kept = stocks.filter((stock) => houseOf(stock.owner) === key)
+        const failed = orders.filter((investment) => investment.outcome !== 'success').length
+        const player = players.find((candidate) => candidate.id === key)
+        const arms = player ? playerArms(player) : NEUTRAL_ARMS
+        const name =
+          player?.name ??
+          (key === WINTER_REALM
+            ? t('reports.winterRealm')
+            : key === NEUTRAL_PLAYER_ID
+              ? t('reports.groupNeutral')
+              : key)
+        const balance = [
+          orders.length > 0
+            ? t(orders.length === 1 ? 'reports.winterHouseOrder' : 'reports.winterHouseOrders', {
+                count: orders.length,
+              })
+            : null,
+          failed > 0 ? t('reports.winterHouseFailed', { count: failed }) : null,
+          kept.length > 0 ? t('reports.winterHouseStocks', { count: kept.length }) : null,
+        ]
+          .filter((part): part is string => part !== null)
+          .join(' · ')
+        const heading =
+          'flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-500 [&_svg]:size-3.5'
+        return (
+          <details
+            key={key}
+            data-winter-house={key}
+            open={key === viewerId || key === WINTER_REALM || houses.length === 1}
+            className="rounded-md border border-line-soft bg-paper-100/40"
+          >
+            <summary className="flex cursor-pointer items-center justify-between gap-3 px-2.5 py-1.5">
+              <span className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold text-ink-900">
+                <ShieldIcon id={`winter-${key || 'realm'}`} arms={arms} className="h-5 w-4 shrink-0" />
+                {name}
+              </span>
+              <span className="shrink-0 text-xs font-semibold text-ink-700">{balance}</span>
+            </summary>
+            <div className="space-y-3 border-t border-line-soft px-2.5 py-2">
+              {WINTER_GROUP_ORDER.map((group) => {
+                const lines = orders.filter(
+                  (investment) => winterGroupOf(investment.kind) === group,
+                )
+                if (lines.length === 0) return null
+                return (
+                  <section key={group} data-winter-group={group} className="space-y-1.5">
+                    <h5 className={heading}>{t(`reports.winterGroup.${group}`)}</h5>
+                    {lines.map((investment, index) => {
+                      const isAutoAssignedWarning = investment.kind === 'fief_auto_assigned'
+                      const territories = [
+                        investment.territory,
+                        investment.target,
+                        investment.source,
+                        ...(investment.territories ?? []),
+                      ].filter((id): id is string => Boolean(id))
+                      return (
+                        <EventCard
+                          key={`${investment.kind}-${index}`}
+                          icon={<IconSnowflake />}
+                          tone={isAutoAssignedWarning ? 'warning' : undefined}
+                          title={
+                            <>
+                              <strong className="font-mono text-xs">
+                                {investmentLabel(investment, map, t)}
+                              </strong>
+                              {isAutoAssignedWarning && (
+                                <span className="mt-0.5 block text-2xs font-bold uppercase tracking-wide text-warning-700">
+                                  {t('reports.fiefAutoAssignedWarning')}
+                                </span>
+                              )}
+                            </>
+                          }
+                          detail={winterDetails(investment, map, t)}
+                          aside={
+                            <span className={outcomeClass(investment.outcome)}>
+                              {outcomeLabel(investment.outcome, t)}
+                              {investment.outcome === 'success' && (
+                                <span className="mt-1 block text-2xs text-ink-500">
+                                  {investment.cost > 0
+                                    ? t('reports.cost', { cost: investment.cost })
+                                    : t('reports.noCost')}
+                                </span>
+                              )}
+                            </span>
+                          }
+                          marks={
+                            territories.length > 0
+                              ? { territories: [...new Set(territories)] }
+                              : undefined
+                          }
+                        />
+                      )
+                    })}
+                  </section>
+                )
+              })}
+              {kept.length > 0 && (
+                <section data-winter-group="conservation" className="space-y-1">
+                  <h5 className={heading}>
+                    <IconBuildingWarehouse />
+                    {t('reports.winterGroup.conservation')}
+                  </h5>
+                  <ul className="space-y-0.5">
+                    {kept.map((stock) => (
+                      <li key={stock.territory} className="text-xs">
+                        {richTranslate(t, 'reports.conservationLine', {
+                          territory: territoryLabel(map, stock.territory, t),
+                          before: stock.stockBefore,
+                          after: stock.stockAfter,
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          </details>
+        )
+      })}
+    </>
   )
 }
 
