@@ -126,10 +126,12 @@ Issue : [#192](https://github.com/fogfactory/crown-and-borough/issues/192)
 - Dans un fief, il est versé au stock de la **capitale du fief** — y compris
   lorsque le territoire producteur ou la capitale du fief elle-même est
   occupée par une armée adverse, le revenu n'étant jamais intercepté par
-  l'occupant. Le regroupement du rapport de revenu se fait par (destination,
-  fief) : un fief dont la capitale coïncide avec la capitale du joueur
-  produit donc une ligne distincte de celle du reste du domaine, même s'ils
-  partagent la même destination. Lorsque la capitale d'un fief taxé
+  l'occupant. Le rapport de revenu compte une ligne par fief et, hors fief, une
+  ligne par région (et par destination) : un fief dont la capitale coïncide
+  avec la capitale du joueur produit donc une ligne distincte de celle du
+  reste du domaine, même s'ils partagent la même destination. Une ligne de
+  fief liste ses territoires et les niveaux de ses villages ; un moulin se
+  compte sur la ligne de son fief, ou de sa région hors fief. Lorsque la capitale d'un fief taxé
   ([#189](https://github.com/fogfactory/crown-and-borough/issues/189)) est
   capturée pendant le tour même où la taxe seigneuriale s'applique, la taxe
   est annulée pour ce tour de transition : personne ne touche le doublement,
