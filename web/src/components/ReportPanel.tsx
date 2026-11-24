@@ -2137,6 +2137,14 @@ function EconomyCard({
   const { t } = useLanguage()
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
   const houseOf = (owner?: PlayerId) => owner ?? NEUTRAL_PLAYER_ID
+  const territoryById = new Map((map?.territories ?? []).map((item) => [item.id, item]))
+  // The rations the terrain of each territory gives, a discount on the demand.
+  const rationsAt = new Map(
+    production.map((line) => [
+      line.territory,
+      line.terrainRations + (line.bonusRations ?? 0),
+    ]),
+  )
   const rank = (key: string) => {
     if (key === viewerId) return -1
     if (key === NEUTRAL_PLAYER_ID) return players.length + 1
@@ -2155,10 +2163,9 @@ function EconomyCard({
   const demandOf = (lines: ConsumptionReport[]) => sum(lines.map((line) => line.demand))
   const cost = (count: number) =>
     count > 0 ? t('reports.economyCost', { count }) : t('reports.economyNoCost')
+  const gain = (count: number) => t('reports.economyGain', { count })
   const signed = (net: number) =>
-    net >= 0
-      ? t('reports.economyGain', { count: net })
-      : t('reports.economyCost', { count: -net })
+    net >= 0 ? gain(net) : t('reports.economyCost', { count: -net })
   const netClass = (net: number) => (net >= 0 ? 'text-success-700' : 'text-vermilion-700')
   const armyCount = (count: number) =>
     t(count === 1 ? 'reports.supplyArmy' : 'reports.supplyArmies', { count })
@@ -2192,8 +2199,7 @@ function EconomyCard({
     const net = earned - consumedOf(houseSupply)
     const stock = stocks.find((candidate) => candidate.id === key)
 
-    const nameOf = (id: string) =>
-      map?.territories.find((candidate) => candidate.id === id)?.name ?? id
+    const nameOf = (id: string) => territoryById.get(id)?.name ?? id
     const byName = (a: string, b: string) => nameOf(a).localeCompare(nameOf(b))
     // One gain of a block: what it is on the left, what it brings in green on the right.
     const gainRow = (
@@ -2230,7 +2236,7 @@ function EconomyCard({
         </>,
         stopped
           ? t('reports.millStopped')
-          : t('reports.economyGain', { count: millTotal(mill) }),
+          : gain(millTotal(mill)),
         stopped,
       )
     }
@@ -2267,25 +2273,18 @@ function EconomyCard({
         line.territories === 1 ? 'reports.incomeTerritory' : 'reports.incomeTerritories',
         { count: line.territories },
       )
-      if (line.source) {
-        return (
-          <div className="space-y-1 px-2 py-1.5">
-            <p className="text-2xs text-ink-500">
-              {richTranslate(t, `reports.incomeSource.${line.source}`, {
-                fief: territoryLabel(map, line.taxed, t),
-              })}
-            </p>
-          </div>
-        )
-      }
-      if (line.lost || (villages.length === 0 && mills.length === 0)) {
+      if (line.source || line.lost || (villages.length === 0 && mills.length === 0)) {
         // Nothing of the territories reaches a stock when the line is lost, but
         // its mills still produce on their own territory.
         return (
           <div className="space-y-1 px-2 py-1.5">
             <p className="text-2xs text-ink-500">
-              {territories}
-              {destination}
+              {line.source
+                ? richTranslate(t, `reports.incomeSource.${line.source}`, {
+                    fief: territoryLabel(map, line.taxed, t),
+                  })
+                : territories}
+              {!line.source && destination}
             </p>
             {mills.length > 0 && <ul className="space-y-0.5">{mills.map(millRow)}</ul>}
             {suppressed}
@@ -2303,7 +2302,7 @@ function EconomyCard({
                 {territories}
                 {destination}
               </>,
-              t('reports.economyGain', { count: territoryGain }),
+              gain(territoryGain),
             )}
             {villages.map((village) =>
               gainRow(
@@ -2315,7 +2314,7 @@ function EconomyCard({
                     {t('reports.economyVillageLevel', { level: village.level })}
                   </span>
                 </>,
-                t('reports.economyGain', { count: village.amount }),
+                gain(village.amount),
               ),
             )}
             {mills.map(millRow)}
@@ -2350,15 +2349,9 @@ function EconomyCard({
       )
     }
 
-    const terrainOf = (territory: string) =>
-      map?.territories.find((candidate) => candidate.id === territory)?.terrain
-    const rationsAt = (territory: string) => {
-      const line = production.find((candidate) => candidate.territory === territory)
-      return (line?.terrainRations ?? 0) + (line?.bonusRations ?? 0)
-    }
     const renderArmy = (line: ConsumptionReport) => {
-      const rations = rationsAt(line.territory)
-      const terrain = terrainOf(line.territory)
+      const rations = rationsAt.get(line.territory) ?? 0
+      const terrain = territoryById.get(line.territory)?.terrain
       const parts: ReactNode[] = [
         t(line.size === 1 ? 'app.troop' : 'app.troops', { count: line.size }),
       ]
@@ -2436,7 +2429,7 @@ function EconomyCard({
                 <h4 className={`${heading} flex items-center justify-between gap-3`}>
                   {t('reports.economyIn')}
                   <span className="text-success-700">
-                    {t('reports.economyGain', { count: earned })}
+                    {gain(earned)}
                   </span>
                 </h4>
                 <ul className="space-y-1.5">
