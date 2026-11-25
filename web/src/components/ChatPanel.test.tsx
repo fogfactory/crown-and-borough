@@ -428,6 +428,18 @@ describe('ChatPanel', () => {
     expect(screen.getByText('802 / 4000')).toBeInTheDocument()
   })
 
+  it('sends on Shift+Enter and keeps Enter for a new line', async () => {
+    setChat({ public: channel([]) })
+    postChatMessage.mockResolvedValue({})
+    renderPanel({ visible: true })
+    const field = screen.getByLabelText('Your message')
+    fireEvent.change(field, { target: { value: 'hello' } })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(postChatMessage).not.toHaveBeenCalled()
+    fireEvent.keyDown(field, { key: 'Enter', shiftKey: true })
+    await waitFor(() => expect(postChatMessage).toHaveBeenCalledTimes(1))
+  })
+
   it('refuses a text over 4000 characters', () => {
     setChat({ public: channel([]) })
     renderPanel()
