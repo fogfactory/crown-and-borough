@@ -909,6 +909,8 @@ export interface OrdersResponse {
 export interface ReceptionReport {
   player: PlayerId
   noble: string
+  /** Full display name of the noble; `noble` is its trigram. */
+  nobleName?: string
   received: boolean
   reason?: string
   reasonKey?: string
@@ -1112,6 +1114,23 @@ export interface OrderReport {
   progression?: Progression
   indexBefore?: number
   indexAfter?: number
+}
+
+/**
+ * What an army did when it attacked or maneuvered, as the viewer may know it.
+ * A `general` entry only says that a contested fight happened and how it
+ * ended: no army, owner or origin.
+ */
+export interface ArmyMovement {
+  visibility: 'exact' | 'general'
+  /** Conquest of a contested territory, a move nobody opposed, or a failure. */
+  kind: 'victory' | 'move' | 'failure'
+  army?: string
+  owner?: PlayerId
+  legs: Array<{ from?: string; to: string }>
+  /** Territory of the contested fight behind the move. */
+  combat?: string
+  reason?: string
 }
 
 export interface MoveReport {
@@ -1346,6 +1365,8 @@ export interface TurnReport {
   consumption: ConsumptionReport[]
   combats: CombatReport[]
   orders: OrderReport[]
+  /** Absent or null on a report stored before the engine listed movements. */
+  movements?: ArmyMovement[] | null
   moves: MoveReport[]
   nobles: ReportNoble[]
   seasonEffects?: SeasonEffectReport[]

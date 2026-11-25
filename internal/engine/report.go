@@ -12,15 +12,17 @@ import (
 // internal handoff for the hotseat session and is intentionally excluded from
 // JSON: the API returns the projected state as a separate document.
 type TurnReport struct {
-	Header        ReportHeader         `json:"header"`
-	Players       []PlayerReport       `json:"players"`
-	Receptions    []ReceptionReport    `json:"receptions"`
-	Income        []IncomeReport       `json:"income"`
-	Mills         []MillReport         `json:"mills"`
-	Production    []ProductionReport   `json:"production"`
-	Consumption   []ConsumptionReport  `json:"consumption"`
-	Combats       []CombatReport       `json:"combats"`
-	Orders        []OrderReport        `json:"orders"`
+	Header      ReportHeader        `json:"header"`
+	Players     []PlayerReport      `json:"players"`
+	Receptions  []ReceptionReport   `json:"receptions"`
+	Income      []IncomeReport      `json:"income"`
+	Mills       []MillReport        `json:"mills"`
+	Production  []ProductionReport  `json:"production"`
+	Consumption []ConsumptionReport `json:"consumption"`
+	Combats     []CombatReport      `json:"combats"`
+	Orders      []OrderReport       `json:"orders"`
+	// Movements read the combats and orders as what each army did.
+	Movements     []ArmyMovement       `json:"movements"`
 	Moves         []MoveReport         `json:"moves"`
 	Nobles        []NobleReport        `json:"nobles"`
 	SeasonEffects []SeasonEffectReport `json:"seasonEffects"`
@@ -48,12 +50,14 @@ type ReportHeader struct {
 // ReceptionReport records whether a syntactically valid chain was received by
 // an army. A failed reception is a lost chain and does not cancel the turn.
 type ReceptionReport struct {
-	Player     models.PlayerID  `json:"player"`
-	Noble      models.NobleCode `json:"noble"`
-	Received   bool             `json:"received"`
-	Reason     string           `json:"reason,omitempty"`
-	ReasonKey  string           `json:"reasonKey,omitempty"`
-	ReasonArgs []any            `json:"reasonArgs,omitempty"`
+	Player   models.PlayerID  `json:"player"`
+	Noble    models.NobleCode `json:"noble"`
+	Received bool             `json:"received"`
+	// NobleName is the noble's full display name; Noble stays the trigram.
+	NobleName  string `json:"nobleName,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	ReasonKey  string `json:"reasonKey,omitempty"`
+	ReasonArgs []any  `json:"reasonArgs,omitempty"`
 }
 
 type PlayerReport struct {
@@ -208,6 +212,13 @@ type CombatReport struct {
 	CutSupporters []models.ArmyID    `json:"cutSupporters"`
 	Reason        string             `json:"reason"`
 	Standoff      bool               `json:"standoff"`
+}
+
+// IsContested is false for an attack on an empty, unfortified territory: a
+// plain movement that no one opposed, not a combat. A fight has a defender
+// (an army or a fortification) or several attackers.
+func (combat CombatReport) IsContested() bool {
+	return len(combat.Contenders) > 1
 }
 
 type OrderReport struct {
@@ -457,6 +468,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 		Consumption:   []ConsumptionReport{},
 		Combats:       []CombatReport{},
 		Orders:        []OrderReport{},
+		Movements:     []ArmyMovement{},
 		Moves:         []MoveReport{},
 		Nobles:        []NobleReport{},
 		SeasonEffects: []SeasonEffectReport{},
@@ -839,6 +851,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 	for _, armyID := range armyIDs {
 		report.Consumption = append(report.Consumption, *consumptionByArmy[armyID])
 	}
+	report.Movements = buildMovements(report.Combats, report.Orders)
 	return report
 }
 

@@ -140,15 +140,18 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	report := engine.TurnReport{
 		Combats: []engine.CombatReport{{
 			Territory: "BOI", BaseDefense: 1, Defense: 2, CastleBonus: 0,
-			Contenders: []engine.CombatContender{{ArmyID: "A1", OwnerID: "P1", Force: 3}},
+			Contenders: []engine.CombatContender{{ArmyID: "A1", OwnerID: "P1", Force: 3}, {ArmyID: "A3", OwnerID: "P3", Force: 2, Defender: true}},
 			Supporters: []models.ArmyID{"A2"}, Winner: "A1", CutSupporters: []models.ArmyID{},
 			Reason: "attack_wins",
+		}, {
+			Territory: "VID", Contenders: []engine.CombatContender{{ArmyID: "A1", OwnerID: "P1", Force: 3}},
+			Winner: "A1", CutSupporters: []models.ArmyID{}, Reason: "attack_wins",
 		}},
 	}
 	privacy := &models.PrivacyMeta{
 		ChainKnowledge: map[models.PlayerID]map[models.ChainID]models.ChainSnapshot{},
 		CombatParticipation: map[models.PlayerID]map[string]bool{
-			"P1": {"combat-BOI": true},
+			"P1": {"combat-BOI": true, "combat-VID": true},
 		},
 	}
 
@@ -159,6 +162,12 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	general := projectReport(report, "P3", privacy)
 	if general.Combats[0].Visibility != "general" {
 		t.Fatalf("spectator visibility = %q, want general", general.Combats[0].Visibility)
+	}
+	if len(exact.Combats) != 2 {
+		t.Fatalf("participant combats = %+v, want the unopposed move kept", exact.Combats)
+	}
+	if len(general.Combats) != 1 {
+		t.Fatalf("spectator combats = %+v, want the unopposed move left out", general.Combats)
 	}
 	data, err := json.Marshal(general)
 	if err != nil {
@@ -177,7 +186,7 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	if spectator.Combats[0].Visibility != "exact" {
 		t.Fatalf("spectator visibility = %q, want exact", spectator.Combats[0].Visibility)
 	}
-	if len(spectator.Combats[0].Contenders) != 1 {
+	if len(spectator.Combats[0].Contenders) != 2 {
 		t.Fatalf("spectator combat contenders = %#v, want full combat details", spectator.Combats[0].Contenders)
 	}
 }
@@ -667,5 +676,40 @@ func TestGeneralCombatOutcome(t *testing.T) {
 		if got := generalCombatOutcome(tc.combat); got != tc.want {
 			t.Errorf("%s: outcome = %q, want %q", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestProjectMovementsRedactsByWhatTheViewerMayKnow(t *testing.T) {
+	movements := []engine.ArmyMovement{
+		{Kind: engine.MovementVictory, Army: "A1", Owner: "P1", Chain: "c1", Combat: "BRU", Legs: []engine.MovementLeg{{From: "ROS", To: "BRU"}}},
+		{Kind: engine.MovementMove, Army: "A2", Owner: "P2", Chain: "c2", Legs: []engine.MovementLeg{{From: "VAL", To: "CHA"}}},
+	}
+	privacy := &models.PrivacyMeta{
+		ChainKnowledge:      map[models.PlayerID]map[models.ChainID]models.ChainSnapshot{"P1": {"c1": {}}},
+		CombatParticipation: map[models.PlayerID]map[string]bool{"P3": {"combat-BRU": true}},
+	}
+	owner := projectMovements(movements, "P1", privacy)
+	if len(owner) != 1 || owner[0].Visibility != "exact" || owner[0].Legs[0].From != "ROS" {
+		t.Fatalf("owner view = %+v, want its own move with the origin", owner)
+	}
+	participant := projectMovements(movements, "P3", privacy)
+	if len(participant) != 1 || participant[0].Army != "A1" || participant[0].Legs[0].From != "" {
+		t.Fatalf("participant view = %+v, want the army without its origin", participant)
+	}
+	other := projectMovements(movements, "P4", privacy)
+	if len(other) != 1 || other[0].Visibility != "general" || other[0].Army != "" || other[0].Owner != "" || other[0].Legs[0].From != "" {
+		t.Fatalf("outsider view = %+v, want a general outcome with no army", other)
+	}
+	if spectator := projectMovements(movements, models.SpectatorViewer, privacy); len(spectator) != 2 || spectator[1].Legs[0].From != "VAL" {
+		t.Fatalf("spectator view = %+v, want every move in full", spectator)
+	}
+}
+
+func TestProjectMovementsKeepsAStoredReportWithoutMovementsAbsent(t *testing.T) {
+	if got := projectMovements(nil, "P1", nil); got != nil {
+		t.Fatalf("movements of a report stored before the field = %+v, want nil", got)
+	}
+	if got := projectMovements([]engine.ArmyMovement{}, "P1", nil); got == nil || len(got) != 0 {
+		t.Fatalf("movements of a turn with none = %+v, want an empty, non-nil list", got)
 	}
 }

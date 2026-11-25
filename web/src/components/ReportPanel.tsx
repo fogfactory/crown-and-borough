@@ -14,8 +14,8 @@ import {
   type WinterHouseKind,
 } from '@/lib/winter-report'
 import { TERRAIN_LABEL_KEYS } from '@/components/MapLegend'
-import { NEUTRAL_PLAYER_ID } from '@/types'
-import { useId, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { MANEUVER_REST, NEUTRAL_PLAYER_ID } from '@/types'
+import { Fragment, useId, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import {
   IconBell,
@@ -28,7 +28,6 @@ import {
   IconCoins,
   IconCrown,
   IconHeart,
-  IconLink,
   IconMapPin,
   IconScript,
   IconSkull,
@@ -36,9 +35,16 @@ import {
   IconSwords,
 } from '@tabler/icons-react'
 
-import { NobleRef, RegionRef, TerritoryRef, useMapHighlight, useMapLinks } from '@/components/MapLinks'
+import {
+  NobleRef,
+  RegionRef,
+  TerritoryRef,
+  useMapHighlight,
+  useMapLinks,
+} from '@/components/MapLinks'
 import type { EventMarks } from '@/lib/map-frame'
-import { formatOrderLabel } from '@/lib/order-label'
+import { legacyMovements } from '@/lib/legacy-movements'
+import { formatOrderLabel, orderTargets } from '@/lib/order-label'
 import { joinNodes, richTranslate } from '@/lib/rich-text'
 import { formatCardLabel } from '@/lib/card-hand'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -60,6 +66,9 @@ import type {
   MarriageReport,
   MillReport,
   PlayerReport,
+  ArmyMovement,
+  OrderReport,
+  ReceptionReport,
   WinterStockReport,
   ProductionReport,
   IncomeReport,
@@ -706,7 +715,12 @@ function fiefEventLabel(
         })
       }
       if (fief.reason === 'claim_usurpation') {
-        return richTranslate(t, 'reports.fiefClaimUsurped', { capital, owner, noble, exiled })
+        return richTranslate(t, 'reports.fiefClaimUsurped', {
+          capital,
+          owner,
+          noble,
+          exiled,
+        })
       }
       if (fief.reason === 'restoration') {
         return richTranslate(t, 'reports.fiefRestored', { capital, owner, noble })
@@ -1202,13 +1216,10 @@ function groupSeasonEffects(
 export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps) {
   const { t } = useLanguage()
   if (!report) return null
-  const receptions = report.receptions ?? []
-  const combats = report.combats ?? []
   const income = report.income ?? []
   const mills = report.mills ?? []
   const production = report.production ?? []
   const consumption = report.consumption ?? []
-  const orders = report.orders ?? []
   const winterInvestments = report.winter?.investments ?? []
   const winterStocks = report.winter?.stocks ?? []
   const rumors = report.rumors ?? report.winter?.rumors ?? []
@@ -1229,6 +1240,10 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
   )
   const famines = consumption.filter((line) => line.famine)
   const stockLines = winterStocks.filter(isHalved)
+  // Reports stored before the engine listed movements are rebuilt from
+  // their combats and orders (temporary).
+  const movements = report.movements ?? legacyMovements(report)
+  const houseLogs = groupHouseLogs(report, players, viewerId)
 
   const hasEvents =
     seasonEffects.length > 0 ||
@@ -1238,11 +1253,11 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
     elections.length > 0
   const showEconomy =
     incomeLines.length > 0 || millLines.length > 0 || consumption.length > 0
-  const hasEconomy = showEconomy || receptions.length > 0
+  const hasEconomy = showEconomy
   const hasWinter = winterInvestments.length > 0 || stockLines.length > 0
   const empty =
-    combats.length === 0 &&
-    orders.length === 0 &&
+    movements.length === 0 &&
+    houseLogs.length === 0 &&
     !hasWinter &&
     !hasEvents &&
     !hasEconomy &&
@@ -1495,46 +1510,28 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
         </EventCategory>
       )}
 
-      {combats.length > 0 && (
-        <EventCategory id="combats" title={t('reports.combats')} icon={<IconSwords />}>
-          {combats.map((combat, index) => {
-            const forces =
-              combat.visibility === 'general'
-                ? ''
-                : (combat.contenders ?? [])
-                    .map(
-                      (contender) =>
-                        `${contender.force ?? '—'}${contender.defender ? ` ${t('reports.defense')}` : ''}${contender.tunnelForce !== undefined ? t('reports.tunnelDefense', { force: contender.tunnelForce }) : ''}${contender.tunnel ? t('reports.tunnelAttack') : ''}${
-                          contender.nobleBonus
-                            ? t('reports.nobleBonus', { bonus: contender.nobleBonus })
-                            : ''
-                        }`,
-                    )
-                    .join(' · ')
-            const detailText = (entry: CombatReport): ReactNode =>
-              entry.visibility === 'general'
-                ? reportReason(entry.outcome, t)
-                : entry.standoff
-                  ? t('reports.standoff')
-                  : entry.winner
-                    ? richTranslate(t, 'reports.victory', {
-                        army: armyDescription(report, map, entry.winner, t),
-                      })
-                    : (reportReason(entry.reason, t) ?? entry.reason)
+      {movements.length > 0 && (
+        <EventCategory
+          id="movements"
+          title={t('reports.movements')}
+          icon={<IconSwords />}
+        >
+          {(['victory', 'move', 'failure'] as const).map((kind) => {
+            const group = movements.filter((movement) => movement.kind === kind)
+            if (group.length === 0) return null
             return (
-              <EventCard
-                key={`${combat.territory}-${index}`}
-                icon={<IconSwords />}
-                title={territoryLabel(map, combat.territory, t)}
-                detail={detailText(combat)}
-                aside={forces ? `${t('reports.forces')} : ${forces}` : undefined}
-                marks={combatMarks(report, combat)}
-                more={
-                  combat.visibility === 'general'
-                    ? undefined
-                    : combatDetails(report, map, combat, detailText(combat), t)
-                }
-              />
+              <section key={kind} data-movement-group={kind} className="space-y-1.5">
+                <h5 className={SUBHEADING}>{t(`reports.movements.${kind}`)}</h5>
+                {group.map((movement, index) => (
+                  <MovementCard
+                    key={`${movement.army ?? movement.combat ?? movement.legs[0]?.to}-${index}`}
+                    movement={movement}
+                    report={report}
+                    map={map}
+                    players={players}
+                  />
+                ))}
+              </section>
             )
           })}
         </EventCategory>
@@ -1576,93 +1573,237 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
               viewerId={viewerId}
             />
           )}
-          {receptions.length > 0 && (
-            <SummaryCard
-              icon={<IconLink />}
-              summary={t('reports.summary.receptions', {
-                received: receptions.filter((reception) => reception.received).length,
-                total: receptions.length,
-              })}
-            >
-              {receptions.map((reception, index) => (
-                <li
-                  key={`${reception.player}-${reception.noble}-${index}`}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    {playerMarker(players, reception.player, t)}
-                    <span>
-                      {reception.player} · {reception.noble}
-                    </span>
-                  </span>
-                  <span
-                    className={
-                      reception.received
-                        ? 'shrink-0 text-success-700'
-                        : 'shrink-0 text-brass-700'
-                    }
-                  >
-                    {reception.received
-                      ? t('reports.receptionReceived')
-                      : reception.reason
-                        ? richTranslate(t, 'reports.receptionLost', {
-                            reason:
-                              reportReason(
-                                reception.reason,
-                                t,
-                                reception.reasonKey,
-                                reception.reasonArgs,
-                                map,
-                              ) ?? reception.reason,
-                          })
-                        : t('reports.receptionLostPlain')}
-                  </span>
-                </li>
-              ))}
-            </SummaryCard>
-          )}
         </EventCategory>
       )}
 
-      {orders.length > 0 && (
+      {houseLogs.length > 0 && (
         <EventCategory
-          id="orders"
-          title={t('reports.ordersExecuted')}
+          id="houses"
+          title={t('reports.category.houses')}
           icon={<IconScript />}
         >
-          {orders.map((order, index) => {
-            const targets = order.targets ?? (order.target ? [order.target] : [])
+          {houseLogs.map((house) => (
+            <HouseLog
+              key={house.player}
+              house={house}
+              open={house.player === viewerId || houseLogs.length === 1}
+              map={map}
+              players={players}
+            />
+          ))}
+        </EventCategory>
+      )}
+    </section>
+  )
+}
+
+const SUBHEADING = 'text-2xs font-semibold uppercase tracking-wide text-ink-500'
+
+/** Orders and receptions of one player, for the closing block of the report. */
+interface HouseLogData {
+  player: PlayerId
+  receptions: ReceptionReport[]
+  orders: OrderReport[]
+}
+
+/**
+ * The receptions of every house, and the orders of the viewer's only: another
+ * house's orders are not the viewer's to read (a spectator or a hotseat
+ * screen, with no viewer, reads them all).
+ */
+function groupHouseLogs(
+  report: TurnReport,
+  players: Player[],
+  viewerId?: PlayerId,
+): HouseLogData[] {
+  const houses = new Map<PlayerId, HouseLogData>()
+  const house = (player: PlayerId) => {
+    let entry = houses.get(player)
+    if (!entry) {
+      entry = { player, receptions: [], orders: [] }
+      houses.set(player, entry)
+    }
+    return entry
+  }
+  for (const reception of report.receptions ?? [])
+    house(reception.player).receptions.push(reception)
+  for (const order of report.orders ?? []) {
+    if (order.visibility === 'hidden' || !order.owner) continue
+    if (viewerId && order.owner !== viewerId) continue
+    house(order.owner).orders.push(order)
+  }
+  const rank = (player: PlayerId) => houseRank(player, players, viewerId)
+  return [...houses.values()].sort((a, b) => rank(a.player) - rank(b.player))
+}
+
+/** Territory names, each linked, joined by commas. */
+function territoryList(ids: string[], map: MapData | null, t: Translate): ReactNode {
+  return joinNodes(
+    [...new Set(ids)].map((id) => (
+      <Fragment key={id}>{territoryLabel(map, id, t)}</Fragment>
+    )),
+    ', ',
+  )
+}
+
+/** What an order does, in a sentence. */
+function orderMeaning(order: OrderReport, map: MapData | null, t: Translate): ReactNode {
+  const targets = orderTargets(order)
+  const source = territoryLabel(map, order.source, t)
+  const at = (index: number) => territoryLabel(map, targets[index], t)
+  const list = () =>
+    joinNodes(
+      targets.map((target, index) => {
+        const count = order.counts?.[index]
+        const suffix =
+          count === MANEUVER_REST
+            ? ` (${t('reports.orderMeaning.maneuverRest')})`
+            : count !== undefined && count !== 1
+              ? ` (${count})`
+              : ''
+        return (
+          <Fragment key={target}>
+            {territoryLabel(map, target, t)}
+            {suffix}
+          </Fragment>
+        )
+      }),
+      ', ',
+    )
+  switch (order.type) {
+    case 'hold':
+      return richTranslate(t, 'reports.orderMeaning.hold', { source })
+    case 'attack':
+      return richTranslate(t, 'reports.orderMeaning.attack', { source, target: at(0) })
+    case 'support':
+      return targets.length > 1
+        ? richTranslate(t, 'reports.orderMeaning.supportAttack', {
+            source,
+            supported: at(0),
+            target: at(1),
+          })
+        : richTranslate(t, 'reports.orderMeaning.supportDefense', {
+            source,
+            supported: at(0),
+          })
+    case 'join':
+      return richTranslate(t, 'reports.orderMeaning.join', { source, target: at(0) })
+    case 'pillage':
+      return richTranslate(t, 'reports.orderMeaning.pillage', { source })
+    case 'disperse':
+      return richTranslate(t, 'reports.orderMeaning.disperse', {
+        source,
+        targets: list(),
+      })
+    case 'maneuver':
+      return richTranslate(t, 'reports.orderMeaning.maneuver', {
+        source,
+        targets: list(),
+      })
+    case 'transfer':
+      return richTranslate(t, 'reports.orderMeaning.transfer', {
+        source,
+        target: at(0),
+        amount: order.amount ?? '—',
+      })
+    default:
+      return formatReportOrderLabel(order, map, t)
+  }
+}
+
+/** A house's closing block: its chain receptions, then the orders it gave. */
+function HouseLog({
+  house,
+  open,
+  map,
+  players,
+}: {
+  house: HouseLogData
+  open: boolean
+  map: MapData | null
+  players: Player[]
+}) {
+  const { t } = useLanguage()
+  const { arms, name } = houseIdentity('player', house.player, players, t)
+  const received = house.receptions.filter((reception) => reception.received).length
+  return (
+    <HouseBlock
+      shieldId={`log-${house.player}`}
+      open={open}
+      arms={arms}
+      name={name}
+      balance={
+        house.receptions.length > 0
+          ? t('reports.summary.receptions', {
+              received,
+              total: house.receptions.length,
+            })
+          : ''
+      }
+      inner="space-y-2 px-2 py-1.5"
+    >
+      {house.receptions.length > 0 && (
+        <section data-house-receptions className="space-y-1">
+          <h5 className={SUBHEADING}>{t('reports.receptionsTitle')}</h5>
+          <ul className="space-y-1 text-sm">
+            {house.receptions.map((reception, index) => (
+              <li
+                key={`${reception.noble}-${index}`}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="min-w-0">
+                  {nobleLabel(reception.noble, reception.nobleName)}
+                </span>
+                <span
+                  className={
+                    reception.received
+                      ? 'shrink-0 text-success-700'
+                      : 'shrink-0 text-brass-700'
+                  }
+                >
+                  {reception.received
+                    ? t('reports.receptionReceived')
+                    : reception.reason
+                      ? richTranslate(t, 'reports.receptionLost', {
+                          reason:
+                            reportReason(
+                              reception.reason,
+                              t,
+                              reception.reasonKey,
+                              reception.reasonArgs,
+                              map,
+                            ) ?? reception.reason,
+                        })
+                      : t('reports.receptionLostPlain')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {house.orders.length > 0 && (
+        <section data-house-orders className="space-y-1">
+          <h5 className={SUBHEADING}>{t('reports.ordersExecuted')}</h5>
+          {house.orders.map((order, index) => {
+            const targets = orderTargets(order)
             const territories = [order.source, ...targets].filter((id): id is string =>
               Boolean(id),
             )
-            return order.visibility === 'hidden' ? (
+            return (
               <EventCard
-                key={`${order.chain ?? 'hidden'}-${order.order ?? index}-${index}`}
+                key={`${order.chain ?? 'order'}-${order.order ?? index}-${index}`}
                 icon={<IconScript />}
-                tone="muted"
-                title={<span className="italic">{t('reports.hiddenOrder')}</span>}
-                aside={
-                  <span className={outcomeClass(order.outcome)}>
-                    {outcomeLabel(order.outcome, t)}
-                  </span>
-                }
-              />
-            ) : (
-              <EventCard
-                key={`${order.chain ?? 'hidden'}-${order.order ?? index}-${index}`}
-                icon={<IconScript />}
-                owner={playerMarker(players, order.owner, t)}
-                title={
-                  <strong className="font-mono text-sm">
-                    {formatReportOrderLabel(order, map, t)}
-                  </strong>
-                }
+                dense
+                title={orderMeaning(order, map, t)}
                 detail={
                   <>
-                    {order.owner || t('reports.unknownPlayer')} ·{' '}
                     {richTranslate(t, 'reports.noble', {
                       noble: nobleLabel(order.noble, order.nobleName),
                     })}
+                    {' · '}
+                    <span className="font-mono">
+                      {formatReportOrderLabel(order, map, t)}
+                    </span>
                   </>
                 }
                 aside={
@@ -1686,10 +1827,112 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
               />
             )
           })}
-        </EventCategory>
+        </section>
       )}
+    </HouseBlock>
+  )
+}
 
-    </section>
+/** Where each support that bears on a fight stands, drawn toward it. */
+function supporterLegs(
+  report: TurnReport,
+  combat: CombatReport,
+): Array<[string, string]> {
+  const armies = new Set([...(combat.supporters ?? []), ...(combat.cutSupporters ?? [])])
+  const legs: Array<[string, string]> = []
+  for (const army of armies) {
+    const from = armyOrigin(report, army)
+    if (from && from !== combat.territory) legs.push([from, combat.territory])
+  }
+  return legs
+}
+
+/**
+ * One army's move: what it did in a sentence, where it came from, and, for a
+ * real fight, the forces behind the result in a fold-out.
+ */
+function MovementCard({
+  movement,
+  report,
+  map,
+  players,
+}: {
+  movement: ArmyMovement
+  report: TurnReport
+  map: MapData | null
+  players: Player[]
+}) {
+  const { t } = useLanguage()
+  const exact = movement.combat
+    ? report.combats?.find(
+        (combat) =>
+          combat.territory === movement.combat && combat.visibility !== 'general',
+      )
+    : undefined
+  const destinations = [...new Set(movement.legs.map((leg) => leg.to))]
+  const origins = [
+    ...new Set(
+      movement.legs.map((leg) => leg.from).filter((id): id is string => Boolean(id)),
+    ),
+  ]
+  const to = territoryList(destinations, map, t)
+  const owner = movement.owner ?? t('reports.unknownPlayer')
+  const title = movement.army
+    ? richTranslate(t, `reports.movement.${movement.kind}`, { owner, to })
+    : richTranslate(
+        t,
+        movement.kind === 'victory'
+          ? 'reports.movement.victoryUnknown'
+          : 'reports.movement.failureUnknown',
+        { to },
+      )
+  const result: ReactNode = exact
+    ? exact.winner
+      ? richTranslate(t, 'reports.victory', {
+          army: armyDescription(report, map, exact.winner, t),
+        })
+      : exact.standoff
+        ? t('reports.standoff')
+        : (reportReason(exact.reason, t) ?? exact.reason)
+    : undefined
+  const why =
+    movement.kind === 'failure'
+      ? (reportReason(movement.reason, t) ?? movement.reason)
+      : undefined
+  const detail = [
+    origins.length > 0
+      ? richTranslate(t, 'reports.movement.from', {
+          from: territoryList(origins, map, t),
+        })
+      : null,
+    why,
+  ].filter(Boolean)
+  // The supports behind a fight are drawn with it, each from where it stands.
+  const supports = exact ? supporterLegs(report, exact) : []
+  const arrows = movement.legs
+    .filter(
+      (leg): leg is { from: string; to: string } =>
+        Boolean(leg.from) && leg.from !== leg.to,
+    )
+    .map((leg): [string, string] => [leg.from, leg.to])
+  arrows.push(
+    ...supports.filter(([from, to]) => !arrows.some(([a, b]) => a === from && b === to)),
+  )
+  return (
+    <EventCard
+      icon={<IconSwords />}
+      tone={movement.kind === 'failure' ? 'muted' : 'plain'}
+      owner={movement.owner ? playerMarker(players, movement.owner, t) : undefined}
+      title={title}
+      detail={detail.length > 0 ? joinNodes(detail, ' · ') : undefined}
+      marks={{
+        territories: [
+          ...new Set([...origins, ...destinations, ...supports.map(([from]) => from)]),
+        ],
+        arrows: arrows.length > 0 ? arrows : undefined,
+      }}
+      more={exact ? combatDetails(report, map, exact, result, t) : undefined}
+    />
   )
 }
 
@@ -1721,31 +1964,7 @@ function orderArrows(
 function armyOrigin(report: TurnReport, army: string | undefined): string | undefined {
   // A castle-only defense has no army; hidden orders have none either.
   if (!army) return undefined
-  return report.orders.find((order) => order.army === army && order.source)?.source
-}
-
-/**
- * What a combat draws: its territory, and every force committed to it, each
- * on the territory it came from with an arrow to the fight. The attackers,
- * the supporters whose help counted and those whose support was cut.
- */
-function combatMarks(report: TurnReport, combat: CombatReport): EventMarks {
-  const territories = new Set([combat.territory])
-  const arrows: Array<[string, string]> = []
-  const armies = [
-    ...(combat.contenders ?? [])
-      .filter((contender) => !contender.defender)
-      .map((contender) => contender.army),
-    ...(combat.supporters ?? []),
-    ...(combat.cutSupporters ?? []),
-  ]
-  for (const army of new Set(armies)) {
-    const from = armyOrigin(report, army)
-    if (!from || from === combat.territory) continue
-    territories.add(from)
-    arrows.push([from, combat.territory])
-  }
-  return { territories: [...territories], arrows: arrows.length > 0 ? arrows : undefined }
+  return report.orders?.find((order) => order.army === army && order.source)?.source
 }
 
 /**
@@ -1783,8 +2002,10 @@ function combatDetails(
   const owner = (army: string | undefined, known?: string): string | undefined =>
     known ||
     (army
-      ? (report.players.flatMap((player) => player.armies).find((entry) => entry.id === army)
-          ?.owner ?? report.orders.find((order) => order.army === army)?.owner)
+      ? (report.players
+          .flatMap((player) => player.armies)
+          .find((entry) => entry.id === army)?.owner ??
+        report.orders.find((order) => order.army === army)?.owner)
       : undefined)
   const cut = new Set(combat.cutSupporters ?? [])
   // A cut support still applies, so the engine lists it in both lists.
@@ -1815,7 +2036,9 @@ function combatDetails(
         base: (contender.force ?? 0) - (contender.supported ?? 0),
         support: contender.supported ?? 0,
       }) +
-        (contender.nobleBonus ? t('reports.nobleBonus', { bonus: contender.nobleBonus }) : '') +
+        (contender.nobleBonus
+          ? t('reports.nobleBonus', { bonus: contender.nobleBonus })
+          : '') +
         (contender.tunnel ? t('reports.tunnelAttack') : ''),
       contender.defender && combat.castleBonus
         ? t('reports.combat.castleBonus', { bonus: combat.castleBonus })
@@ -2138,7 +2361,9 @@ function EconomyCard({
       const legacy = mill.fief === undefined && mill.region === undefined
       const feeds = (line: IncomeReport) => {
         if (legacy) return line.destination === mill.destination
-        return mill.fief ? line.fief === mill.fief : !line.fief && line.region === mill.region
+        return mill.fief
+          ? line.fief === mill.fief
+          : !line.fief && line.region === mill.region
       }
       const target = houseIncome.find((line) => !line.source && feeds(line))
       if (!target) return void loose.push(mill)
@@ -2185,9 +2410,7 @@ function EconomyCard({
             {t('reports.economyMillLevel', { level: mill.level })}
           </span>
         </>,
-        stopped
-          ? t('reports.millStopped')
-          : gain(millTotal(mill)),
+        stopped ? t('reports.millStopped') : gain(millTotal(mill)),
         stopped,
       )
     }
@@ -2227,9 +2450,11 @@ function EconomyCard({
         { count: line.territories },
       )
       // A report from before villages were detailed only counts them.
-      const legacyVillages = !line.source && line.villages > 0 && villages.length === 0 && (
-        <> · {t('reports.incomeVillages', { count: line.villages })}</>
-      )
+      const legacyVillages = !line.source &&
+        line.villages > 0 &&
+        villages.length === 0 && (
+          <> · {t('reports.incomeVillages', { count: line.villages })}</>
+        )
       if (line.source || line.lost || (villages.length === 0 && mills.length === 0)) {
         // Nothing of the territories reaches a stock when the line is lost, but
         // its mills still produce on their own territory.
@@ -2251,7 +2476,8 @@ function EconomyCard({
       }
       // A report from before the server sent it: all of the line but its villages.
       const territoryGain =
-        line.territoryAmount ?? line.credited - sum(villages.map((village) => village.amount))
+        line.territoryAmount ??
+        line.credited - sum(villages.map((village) => village.amount))
       return (
         <div className="space-y-1 px-2 py-1.5">
           <ul className="space-y-0.5">
@@ -2379,70 +2605,66 @@ function EconomyCard({
           }
           inner="space-y-3 px-2.5 py-2"
         >
-            {(houseIncome.length > 0 || loose.length > 0) && (
-              <section className="space-y-1.5">
-                <h4 className={`${heading} flex items-center justify-between gap-3`}>
-                  {t('reports.economyIn')}
-                  <span className="text-success-700">
-                    {gain(earned)}
+          {(houseIncome.length > 0 || loose.length > 0) && (
+            <section className="space-y-1.5">
+              <h4 className={`${heading} flex items-center justify-between gap-3`}>
+                {t('reports.economyIn')}
+                <span className="text-success-700">{gain(earned)}</span>
+              </h4>
+              <ul className="space-y-1.5">
+                {houseIncome.map(renderIncome)}
+                {loose.length > 0 && (
+                  <li className="rounded-md border border-line-soft bg-paper-50 px-2 py-1.5">
+                    <ul className="space-y-0.5">{loose.map(millRow)}</ul>
+                  </li>
+                )}
+              </ul>
+            </section>
+          )}
+          {houseSupply.length > 0 && (
+            <section className="space-y-1.5">
+              <h4 className={`${heading} flex items-center justify-between gap-3`}>
+                {t('reports.economyOut', { armies: armyCount(houseSupply.length) })}
+                <span className="text-vermilion-700">
+                  {cost(consumedOf(houseSupply))}{' '}
+                  <span className="font-normal normal-case tracking-normal text-ink-500">
+                    {t('reports.economyDemand', { count: demandOf(houseSupply) })}
                   </span>
-                </h4>
-                <ul className="space-y-1.5">
-                  {houseIncome.map(renderIncome)}
-                  {loose.length > 0 && (
-                    <li className="rounded-md border border-line-soft bg-paper-50 px-2 py-1.5">
-                      <ul className="space-y-0.5">{loose.map(millRow)}</ul>
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
-            {houseSupply.length > 0 && (
-              <section className="space-y-1.5">
-                <h4 className={`${heading} flex items-center justify-between gap-3`}>
-                  {t('reports.economyOut', { armies: armyCount(houseSupply.length) })}
-                  <span className="text-vermilion-700">
-                    {cost(consumedOf(houseSupply))}{' '}
-                    <span className="font-normal normal-case tracking-normal text-ink-500">
-                      {t('reports.economyDemand', { count: demandOf(houseSupply) })}
-                    </span>
-                  </span>
-                </h4>
-                <RegionBlocks
-                  items={houseSupply}
-                  map={map}
-                  regionOf={(line) => regionSeedOf(map, line.territory)}
-                  territoryOf={(line) => line.territory}
-                  keyOf={(line) => line.army}
-                  renderItem={renderArmy}
-                  subtotal={(group) => (
-                    <>
-                      {armyCount(group.length)} ·{' '}
-                      <span className="text-vermilion-700">
-                        {cost(consumedOf(group))}
-                      </span>
-                    </>
-                  )}
-                />
-              </section>
-            )}
-            <div className="space-y-0.5 border-t border-line pt-1.5">
-              <div className="flex items-center justify-between gap-3 text-sm font-semibold">
-                <span className="text-ink-900">{t('reports.economyNet')}</span>
-                <span className={netClass(net)}>{signed(net)}</span>
-              </div>
-              {stock && (
-                <div className="flex items-center justify-between gap-3 text-xs text-ink-700">
-                  <span>{t('reports.economyStock')}</span>
-                  <span className="font-semibold">
-                    {t('reports.economyStockValue', {
-                      before: stock.resourcesBefore,
-                      after: stock.resourcesAfter,
-                    })}
-                  </span>
-                </div>
-              )}
+                </span>
+              </h4>
+              <RegionBlocks
+                items={houseSupply}
+                map={map}
+                regionOf={(line) => regionSeedOf(map, line.territory)}
+                territoryOf={(line) => line.territory}
+                keyOf={(line) => line.army}
+                renderItem={renderArmy}
+                subtotal={(group) => (
+                  <>
+                    {armyCount(group.length)} ·{' '}
+                    <span className="text-vermilion-700">{cost(consumedOf(group))}</span>
+                  </>
+                )}
+              />
+            </section>
+          )}
+          <div className="space-y-0.5 border-t border-line pt-1.5">
+            <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+              <span className="text-ink-900">{t('reports.economyNet')}</span>
+              <span className={netClass(net)}>{signed(net)}</span>
             </div>
+            {stock && (
+              <div className="flex items-center justify-between gap-3 text-xs text-ink-700">
+                <span>{t('reports.economyStock')}</span>
+                <span className="font-semibold">
+                  {t('reports.economyStockValue', {
+                    before: stock.resourcesBefore,
+                    after: stock.resourcesAfter,
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
         </HouseBlock>
       </li>
     )
@@ -2637,7 +2859,8 @@ function WinterOrderCard({
               {investmentLabel(investment, map, t)}
             </span>
           )}
-          {(!description || (investment.reason && investment.kind !== 'prosperity_founded')) && (
+          {(!description ||
+            (investment.reason && investment.kind !== 'prosperity_founded')) && (
             <span className="block">{winterDetails(investment, map, t)}</span>
           )}
         </>
@@ -2696,7 +2919,9 @@ function WinterHouses({
                 { count: house.orderCount },
               )
             : null,
-          house.failed > 0 ? t('reports.winterHouseFailed', { count: house.failed }) : null,
+          house.failed > 0
+            ? t('reports.winterHouseFailed', { count: house.failed })
+            : null,
           house.cost > 0 ? t('reports.winterHouseCost', { cost: house.cost }) : null,
           house.halved.length > 0
             ? t('reports.winterHouseStocks', { count: house.halved.length })
