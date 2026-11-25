@@ -270,6 +270,20 @@ export function Soldier({ arms, clipId }: { arms: ResolvedArms; clipId: string }
 const BANNER_LIFT = 2
 
 /**
+ * Where the flag bearer of an army stands, at the foot of the flag, from the
+ * point the pack's feet rest on (unscaled units).
+ */
+export function armyBearerFoot(
+  size: number,
+  seed: string,
+  compact = false,
+): [number, number] {
+  const figures = armyFigures(size, hashSeed(seed))
+  const bearer = compact ? { x: 0, y: 0 } : figures.soldiers[figures.bearer]
+  return [bearer.x + SPEAR_X, bearer.y]
+}
+
+/**
  * An army: a pack of up to six upright figurines in the owner's arms, shifted
  * irregularly (a function of `seed`), grey shadows behind a big army, and a
  * numbered banner on the leftmost soldier's spear, which its pole continues:

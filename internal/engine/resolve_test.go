@@ -1140,6 +1140,68 @@ func TestResolveLoopSupport(t *testing.T) {
 		}
 	})
 
+	t.Run("offensive retries while the supported army does not attack", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("AAA", "AAA", "BBB"),
+				territory("BBB", "BBB", "AAA", "CCC"),
+				territory("CCC", "CCC", "BBB"),
+			},
+			[]models.Army{
+				{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1},
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
+			},
+		)
+		addNoble(state, "N1", "ONE", "P1", "AAA")
+		addNoble(state, "N3", "THR", "P1", "CCC")
+		addChain(t, state, "A1", "N1", models.Order{ID: "A1O", Type: models.OrderTypeHold, PositionID: "AAA"})
+		addChainOrders(t, state, "A3", "N3",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA", "BBB"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "CCC"},
+		)
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if chain := chainOf(resolution.State, "A3"); chain == nil || chain.CurrentIndex != 0 {
+			t.Errorf("support chain = %#v, want index 0 while no attack happens", chain)
+		}
+		if event, found := findOutcome(resolution.Events, "S1"); !found || event.Progression != ProgressionRetried {
+			t.Errorf("S1 event = %#v, found=%t, want retried", event, found)
+		}
+	})
+
+	t.Run("offensive advances when no army stands on the supported territory", func(t *testing.T) {
+		state := testState(t,
+			[]models.Territory{
+				territory("AAA", "AAA", "BBB"),
+				territory("BBB", "BBB", "AAA", "CCC"),
+				territory("CCC", "CCC", "BBB"),
+			},
+			[]models.Army{
+				{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 1},
+				{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 1},
+			},
+		)
+		addNoble(state, "N3", "THR", "P1", "CCC")
+		addChainOrders(t, state, "A3", "N3",
+			models.Order{ID: "S1", Type: models.OrderTypeSupport, PositionID: "CCC", TargetIDs: []models.TerritoryID{"AAA", "BBB"}, Liaison: models.LiaisonModeLoop},
+			models.Order{ID: "S2", Type: models.OrderTypeHold, PositionID: "CCC"},
+		)
+		validateTestState(t, state)
+
+		resolution, err := Resolve(state, testBalance())
+		if err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if chain := chainOf(resolution.State, "A3"); chain == nil || chain.CurrentIndex != 1 {
+			t.Errorf("support chain = %#v, want index 1 with nobody to support", chain)
+		}
+	})
+
 	t.Run("offensive retries while attack repelled", func(t *testing.T) {
 		state := testState(t,
 			[]models.Territory{

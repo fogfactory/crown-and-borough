@@ -1576,7 +1576,6 @@ describe('MapViewer intentions overlay', () => {
     const line = group?.querySelector('line:not([data-intent-outline])')
     const outline = group?.querySelector('line[data-intent-outline]')
     const marker = svg.querySelector('#intent-arrow')
-    const outlineMarker = svg.querySelector('#intent-arrow-outline')
     const referenceMeanArea = (1000 * 700) / (8 * 4 + 4 * (4 + 1))
     const expectedScale = Math.sqrt((50 * 50) / referenceMeanArea)
 
@@ -1590,7 +1589,8 @@ describe('MapViewer intentions overlay', () => {
     // A draft attack keeps its arrow, dashed.
     expect(line).toHaveAttribute('stroke-dasharray')
     expect(marker?.querySelector('path')).toHaveAttribute('fill', '#a84632')
-    expect(outlineMarker?.querySelector('path')).toHaveAttribute('fill', '#30291f')
+    expect(marker?.querySelector('path')).toHaveAttribute('stroke', '#30291f')
+    expect(svg.querySelector('#intent-arrow-outline')).toBeNull()
     expect(line?.getAttribute('x2')).toEqual('75')
     expect(line?.getAttribute('y2')).toEqual('25')
   })
@@ -1650,7 +1650,7 @@ describe('MapViewer intentions overlay', () => {
     ])
   })
 
-  it('renders defensive support dashed with a circle head at the supported center', () => {
+  it('renders defensive support as a palisade with a value disc and a thin link', () => {
     const { svg } = renderMap(
       triangleMap,
       armedState,
@@ -1658,22 +1658,25 @@ describe('MapViewer intentions overlay', () => {
       null,
       intentionsFor('HUG\nROS S BRU'),
     )
-    const line = svg.querySelector(
-      'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
-    )
-    const outline = svg.querySelector(
-      'g[aria-label="Intentions overlay"] line[data-intent-outline]',
-    )
+    const overlay = svg.querySelector('g[aria-label="Intentions overlay"]')
+    const palisade = overlay?.querySelector('[data-intent-palisade="BRU"]')
 
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-circle)')
-    expect(line).toHaveAttribute('stroke-dasharray')
-    expect(outline).toHaveAttribute('stroke', '#30291f')
-    expect(outline).toHaveAttribute('marker-end', 'url(#intent-circle-outline)')
-    expect(svg.querySelector('#intent-circle circle')).toBeInTheDocument()
-    expect(svg.querySelector('#intent-circle-outline circle')).toBeInTheDocument()
+    expect(palisade).toBeInTheDocument()
+    // One shield per passable border of the held territory.
+    const shields = palisade?.querySelectorAll('[data-intent-support-value="4"]') ?? []
+    expect(shields.length).toBeGreaterThan(0)
+    // Two stake paths, then one path per shield.
+    expect(palisade?.querySelectorAll('path')).toHaveLength(2 + shields.length)
+    expect(palisade?.querySelector('[data-intent-support-link]')).toHaveAttribute(
+      'stroke',
+      '#a84632',
+    )
+    // 3 troops and the noble commanding them.
+    for (const shield of shields) expect(shield).toHaveTextContent('+4')
+    expect(overlay?.querySelector('marker-end, [marker-end]')).toBeNull()
   })
 
-  it('renders offensive support dashed with an arrow head at the attacked frontier', () => {
+  it('renders offensive support as a thin tributary with a +N disc', () => {
     const { svg } = renderMap(
       triangleMap,
       armedState,
@@ -1681,12 +1684,20 @@ describe('MapViewer intentions overlay', () => {
       null,
       intentionsFor('HUG\nROS S CHA - BRU'),
     )
-    const line = svg.querySelector(
-      'g[aria-label="Intentions overlay"] line:not([data-intent-outline])',
-    )
+    const affluent = svg.querySelector('[data-intent-affluent="BRU"]')
 
-    expect(line).toHaveAttribute('marker-end', 'url(#intent-arrow)')
-    expect(line).toHaveAttribute('stroke-dasharray')
+    expect(affluent).toBeInTheDocument()
+    expect(affluent?.querySelector('path:not([data-intent-outline])')).toHaveAttribute(
+      'd',
+      expect.stringMatching(/^M .* C .*/),
+    )
+    expect(affluent?.querySelector('[data-intent-support-value="4"]')).toHaveTextContent(
+      '+4',
+    )
+    expect(affluent?.querySelector('path:not([data-intent-outline])')).toHaveAttribute(
+      'marker-end',
+      'url(#intent-affluent-arrow)',
+    )
   })
 
   it('renders one arrow per disperse destination and a loop back to the origin', () => {
@@ -1704,10 +1715,6 @@ describe('MapViewer intentions overlay', () => {
     expect(group?.querySelector('path:not([data-intent-outline])')).toHaveAttribute(
       'marker-end',
       'url(#intent-arrow)',
-    )
-    expect(group?.querySelector('path[data-intent-outline]')).toHaveAttribute(
-      'marker-end',
-      'url(#intent-arrow-outline)',
     )
   })
 

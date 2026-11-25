@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildIntentions as buildIntentionsFromOrders } from '@/lib/intent-overlay'
+import {
+  affluentCurve,
+  bezierPoint,
+  anchorIntentions,
+  assignSupportSlots,
+  buildIntentions as buildIntentionsFromOrders,
+} from '@/lib/intent-overlay'
 import { draftOrders } from '@/test/parse-orders'
 
 /** Keeps the fixtures readable: drafts are written as order text. */
@@ -785,5 +791,219 @@ describe('buildIntentions', () => {
     })
 
     expect(intentions).toHaveLength(0)
+  })
+
+  describe('support geometry', () => {
+    const offensive = () =>
+      buildIntentions(supportMap, supportState(), 'P1', {
+        HUG: 'HUG\nART H\nART S BOR - CID',
+      })[0].segments[0]
+    const defensive = () =>
+      buildIntentions(supportMap, supportState(), 'P1', {
+        HUG: 'HUG\nART H\nART S BOR',
+      })[0].segments[0]
+
+    it('values a support as the army size plus one for its noble', () => {
+      expect(offensive().offensive?.value).toBe(5)
+      expect(defensive().defensive?.value).toBe(5)
+    })
+
+    it('keeps the tributary inside the two territories it links and ends on the attack tip', () => {
+      // ART is [0,50]x[0,50], CID is [50,100]x[50,100].
+      const inside = ([x, y]: [number, number]) =>
+        (x >= -1e-6 && x <= 50 + 1e-6 && y >= -1e-6 && y <= 50 + 1e-6) ||
+        (x >= 50 - 1e-6 && x <= 100 + 1e-6 && y >= 50 - 1e-6 && y <= 100 + 1e-6)
+      const support = offensive().offensive!
+      const { curves, tail } = affluentCurve(support)
+      expect(tail).toEqual(support.arrowEnd)
+      for (const curve of curves) {
+        for (let step = 0; step <= 20; step += 1) {
+          expect(inside(bezierPoint(curve, step / 20))).toBe(true)
+        }
+      }
+    })
+
+    it('starts the tributary on the attacked territory boundary nearest the supporting army', () => {
+      expect(offensive().offensive?.start).toEqual([50, 50])
+    })
+
+    it('lists every passable border of the held territory with an inward normal', () => {
+      const palisade = defensive().defensive!
+      expect(palisade.borders).toHaveLength(2)
+      for (const border of palisade.borders) {
+        const middle = [
+          (border.from[0] + border.to[0]) / 2,
+          (border.from[1] + border.to[1]) / 2,
+        ]
+        // BOR is the square [50..100] x [0..50]: inward points to its center.
+        expect(
+          (75 - middle[0]) * border.inward[0] + (25 - middle[1]) * border.inward[1],
+        ).toBeGreaterThan(0)
+      }
+      expect(palisade.link.from).toEqual([50, 50])
+    })
+
+    describe('a supporter that does not touch the supported army', () => {
+      // S and A both touch D, but not each other.
+      const square = (id: string, x: number, y: number, adjacencies: string[]) => ({
+        id,
+        name: id,
+        terrain: 'plain' as const,
+        village: false,
+        points: [
+          [x, y],
+          [x + 50, y],
+          [x + 50, y + 50],
+          [x, y + 50],
+        ] as [number, number][],
+        adjacencies,
+        impassable: [],
+      })
+      const apartMap: MapData = {
+        territories: [
+          square('SUP', 0, 0, ['DST']),
+          square('DST', 50, 0, ['SUP', 'AID']),
+          square('AID', 50, 50, ['DST']),
+        ],
+      }
+      const apartState: StateData = {
+        ...supportState(),
+        territories: [
+          {
+            id: 'SUP',
+            owner: 'P1',
+            resources: 0,
+            army: { owner: 'P1', size: 2, chain: null },
+            infrastructures: [],
+          },
+          { id: 'DST', owner: 'P2', resources: 0, army: null, infrastructures: [] },
+          {
+            id: 'AID',
+            owner: 'P1',
+            resources: 0,
+            army: { owner: 'P1', size: 3, chain: null },
+            infrastructures: [],
+          },
+        ],
+        nobles: [
+          {
+            id: 'N1',
+            code: 'HUG',
+            name: 'Hugues',
+            owner: 'P1',
+            location: 'AID',
+            status: 'free',
+          },
+        ],
+      }
+      const draw = () =>
+        buildIntentions(apartMap, apartState, 'P1', { HUG: 'HUG\nAID S SUP - DST' })
+
+      it('is still drawn', () => {
+        expect(draw()).toHaveLength(1)
+        expect(draw()[0].segments[0].offensive).toMatchObject({
+          supported: 'SUP',
+          destination: 'DST',
+          value: 4,
+        })
+      })
+
+      it('leaves the supporting army, crosses the shared border and joins the attack arrow inside the attacked territory', () => {
+        const anchors = new Map<string, [number, number]>([
+          ['AID', [70, 90]],
+          ['SUP', [20, 30]],
+        ])
+        const [intention] = anchorIntentions(apartMap, draw(), anchors)
+        const support = intention.segments[0].offensive!
+        expect(intention.segments[0].from).toEqual([70, 90])
+        expect(support.origin).toEqual([70, 90])
+        // The border shared by AID and DST is y = 50.
+        expect(support.start[1]).toBe(50)
+        // The arrow runs from the supported army to the attacked territory's centre.
+        expect(support.arrowEnd).toEqual([75, 25])
+        expect(support.arrowEntry[0]).toBeCloseTo(50)
+        const { curves, tail } = affluentCurve(support)
+        const [[start, , near, crossing], [again, far, lead, end]] = curves
+        expect(start).toEqual([70, 90])
+        // The two halves meet on the shared border, smoothly.
+        expect(crossing[1]).toBeCloseTo(50)
+        expect(again).toEqual(crossing)
+        const turn =
+          (crossing[0] - near[0]) * (far[1] - crossing[1]) -
+          (crossing[1] - near[1]) * (far[0] - crossing[0])
+        expect(Math.abs(turn)).toBeLessThan(1e-6)
+        // It ends exactly on the tip of the attack arrow, tangent to its vector.
+        expect(tail).toEqual(support.arrowEnd)
+        const onArrow = ([x, y]: [number, number]) => {
+          const [ax, ay] = [20, 30]
+          const [bx, by] = support.arrowEnd
+          return Math.abs((x - ax) * (by - ay) - (y - ay) * (bx - ax)) < 1e-6
+        }
+        expect(onArrow(end)).toBe(true)
+        expect(onArrow(lead)).toBe(true)
+        const [tx, ty] = [tail[0] - end[0], tail[1] - end[1]]
+        const [vx, vy] = [support.arrowEnd[0] - 20, support.arrowEnd[1] - 30]
+        expect(tx * vx + ty * vy).toBeGreaterThan(0)
+        // The last stretch is a third of the way from the border to the centre.
+        expect(Math.hypot(tx, ty)).toBeCloseTo(
+          Math.hypot(
+            support.arrowEnd[0] - support.arrowEntry[0],
+            support.arrowEnd[1] - support.arrowEntry[1],
+          ) / 3,
+        )
+        // AID is [50,100]x[50,100] and DST [50,100]x[0,50].
+        for (const curve of curves) {
+          for (let step = 0; step <= 20; step += 1) {
+            const [x, y] = bezierPoint(curve, step / 20)
+            expect(x).toBeGreaterThanOrEqual(50 - 1e-6)
+            expect(x).toBeLessThanOrEqual(100 + 1e-6)
+            expect(y).toBeGreaterThanOrEqual(-1e-6)
+            expect(y).toBeLessThanOrEqual(100 + 1e-6)
+          }
+        }
+      })
+    })
+
+    it('starts a defensive link at the supporting army and ends it on the border', () => {
+      const [intention] = anchorIntentions(
+        supportMap,
+        buildIntentions(supportMap, supportState(), 'P1', {
+          HUG: 'HUG\nART H\nART S BOR',
+        }),
+        new Map([['ART', [10, 10]]]),
+      )
+      expect(intention.segments[0].from).toEqual([10, 10])
+      const link = intention.segments[0].defensive!.link
+      // The border BOR shares with ART, the supporter's own territory.
+      expect([link.from[0], link.to[0]]).toEqual([50, 50])
+      expect([link.from[1], link.to[1]].sort((a, b) => a - b)).toEqual([0, 50])
+    })
+
+    it('puts supports of the same territory side by side, colors alternating', () => {
+      const base = defensive()
+      const mk = (color: string) => ({
+        armyTerritory: 'ART',
+        from: [25, 25] as [number, number],
+        symbol: 'S',
+        type: 'support' as const,
+        turn: 1,
+        turnLabel: '1',
+        source: 'chain' as const,
+        color,
+        label: 'S',
+        segments: [base],
+      })
+      const placed = assignSupportSlots([mk('#111'), mk('#111'), mk('#222')])
+      const slots = placed.map((intention) => [
+        intention.color,
+        intention.segments[0].defensive?.slot,
+        intention.segments[0].defensive?.slots,
+      ])
+      expect(slots).toEqual([
+        ['#111', 0, 3],
+        ['#111', 2, 3],
+        ['#222', 1, 3],
+      ])
+    })
   })
 })

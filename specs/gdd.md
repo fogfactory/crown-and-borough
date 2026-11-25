@@ -826,7 +826,9 @@ aussi sans effet si la case est vide au début du tour ou si l'armée la quitte
 par une jonction ou une dispersion complète ; il n'empêche alors pas une armée
 adverse d'entrer sur la case libérée. Un soutien offensif renforce une attaque
 précise et ne produit aucun effet si l'armée soutenue n'effectue pas cette
-attaque.
+attaque. Un soutien offensif en boucle attend sur le même ordre tant que cette
+attaque n'a pas lieu ou n'aboutit pas, et la chaîne n'avance qu'une fois
+l'attaque soutenue réussie, ou dès que la case soutenue est sans armée.
 Toutefois, un soutien offensif qui ouvre une chaîne reçue ce tour est rejeté à la
 soumission lorsque l'armée soutenue est au joueur lui-même et que son ordre en
 cours n'est pas l'attaque soutenue (`support_no_attack`).

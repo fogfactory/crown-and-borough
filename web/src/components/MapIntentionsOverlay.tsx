@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import { useLanguage } from '@/i18n/LanguageContext'
-import type { Intention } from '@/lib/intent-overlay'
+import {
+  affluentCurve,
+  borderSlotPoint,
+  type AffluentPath,
+  type DefensiveSupport,
+  type Intention,
+} from '@/lib/intent-overlay'
 import { distanceBetween } from '@/lib/map-gestures'
 import { NoblePawnSilhouette } from '@/components/MapHeraldry'
 import { IntentBadge } from '@/components/MapMarkers'
@@ -138,6 +144,183 @@ function legStep(
   ]
 }
 
+/** The value of a support: a shield for a defensive one, a round disc for an offensive one. */
+function SupportValueDisc({
+  x,
+  y,
+  value,
+  color,
+  scale,
+  label,
+  turnLabel,
+  shape = 'shield',
+}: {
+  x: number
+  y: number
+  value: number
+  color: string
+  scale: number
+  label: string
+  turnLabel?: string
+  shape?: 'shield' | 'disc'
+}) {
+  return (
+    <g transform={`translate(${x} ${y})`} data-intent-support-value={value}>
+      <title>{label}</title>
+      {shape === 'disc' ? (
+        <circle
+          r={8 * scale}
+          fill={color}
+          stroke={MAP_PARCHMENT}
+          strokeWidth={1.5 * scale}
+        />
+      ) : (
+        <path
+          d={`M ${-8 * scale} ${-9 * scale} H ${8 * scale} V ${1 * scale} C ${8 * scale} ${6 * scale} ${3 * scale} ${9 * scale} 0 ${11 * scale} C ${-3 * scale} ${9 * scale} ${-8 * scale} ${6 * scale} ${-8 * scale} ${1 * scale} Z`}
+          fill={color}
+          stroke={MAP_PARCHMENT}
+          strokeWidth={1.5 * scale}
+          strokeLinejoin="round"
+        />
+      )}
+      <text
+        y={(shape === 'disc' ? 0 : -1) * scale}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill={MAP_PARCHMENT}
+        fontSize={9 * scale}
+        fontWeight="700"
+      >
+        +{value}
+      </text>
+      {turnLabel && (
+        <text
+          x={0}
+          y={-16 * scale}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill={color}
+          fontSize={9 * scale}
+          fontWeight="700"
+          stroke={MAP_PARCHMENT}
+          strokeWidth={2.5 * scale}
+          paintOrder="stroke"
+        >
+          {turnLabel}
+        </text>
+      )}
+    </g>
+  )
+}
+
+/**
+ * A defensive support: a row of stakes along each passable border of the held
+ * territory, bases inside and points towards the border, in the supporter's
+ * colour. Several supports share each border side by side.
+ */
+function Palisade({
+  support,
+  from,
+  color,
+  scale,
+  dash,
+  label,
+}: {
+  support: DefensiveSupport
+  from: [number, number]
+  color: string
+  scale: number
+  dash?: string
+  label: string
+}) {
+  const depth = 9 * scale
+  const width = 3.6 * scale
+  const spacing = 6 * scale
+  const t0 = support.slot / support.slots
+  const t1 = (support.slot + 1) / support.slots
+  const anchor = borderSlotPoint(support.link, support.slot, support.slots)
+  const stakes: string[] = []
+  for (const border of support.borders) {
+    const length = distanceBetween(border.from, border.to)
+    const count = Math.max(1, Math.round(((t1 - t0) * length) / spacing))
+    const ux = (border.to[0] - border.from[0]) / (length || 1)
+    const uy = (border.to[1] - border.from[1]) / (length || 1)
+    for (let index = 0; index < count; index += 1) {
+      const t = t0 + ((t1 - t0) * (index + 0.5)) / count
+      // The point of the stake sits just inside the border, its base deeper in.
+      const tx =
+        border.from[0] +
+        (border.to[0] - border.from[0]) * t +
+        border.inward[0] * 1.5 * scale
+      const ty =
+        border.from[1] +
+        (border.to[1] - border.from[1]) * t +
+        border.inward[1] * 1.5 * scale
+      const bx = tx + border.inward[0] * depth
+      const by = ty + border.inward[1] * depth
+      stakes.push(
+        `M ${tx} ${ty} L ${bx + (ux * width) / 2} ${by + (uy * width) / 2} L ${bx - (ux * width) / 2} ${by - (uy * width) / 2} Z`,
+      )
+    }
+  }
+  const path = stakes.join(' ')
+  return (
+    <g data-intent-palisade={support.supported}>
+      <path
+        d={path}
+        data-intent-outline="true"
+        fill={INTENT_OUTLINE_COLOR}
+        stroke={INTENT_OUTLINE_COLOR}
+        strokeWidth={1.6 * scale}
+        strokeLinejoin="round"
+      />
+      <path d={path} fill={color} stroke={color} strokeWidth={0.4 * scale} />
+      <line
+        data-intent-outline="true"
+        x1={from[0]}
+        y1={from[1]}
+        x2={anchor[0]}
+        y2={anchor[1]}
+        stroke={INTENT_OUTLINE_COLOR}
+        strokeWidth={2.8 * scale}
+        strokeDasharray={dash}
+        strokeLinecap="round"
+      />
+      <line
+        data-intent-support-link="true"
+        x1={from[0]}
+        y1={from[1]}
+        x2={anchor[0]}
+        y2={anchor[1]}
+        stroke={color}
+        strokeWidth={1.2 * scale}
+        strokeDasharray={dash}
+        strokeLinecap="round"
+      />
+      {support.borders.map((border, index) => {
+        const [x, y] = borderSlotPoint(border, support.slot, support.slots)
+        return (
+          <SupportValueDisc
+            key={index}
+            x={x + border.inward[0] * 17 * scale}
+            y={y + border.inward[1] * 17 * scale}
+            value={support.value}
+            color={color}
+            scale={scale}
+            label={label}
+          />
+        )
+      })}
+    </g>
+  )
+}
+
+/** The path of an offensive support's tributary: from the army, bowing into the attacked territory. */
+function affluentPath({ curves, tail }: AffluentPath): string {
+  const [[from, a1, a2, crossing], [, b1, b2, end]] = curves
+  return `M ${from[0]} ${from[1]} C ${a1[0]} ${a1[1]} ${a2[0]} ${a2[1]} ${crossing[0]} ${crossing[1]} C ${b1[0]} ${b1[1]} ${b2[0]} ${b2[1]} ${end[0]} ${end[1]} L ${tail[0]} ${tail[1]}`
+}
+
 export function IntentionsOverlay({
   intentions,
   annotationScale,
@@ -222,7 +405,6 @@ export function IntentionsOverlay({
                       strokeWidth={4.5 * annotationScale}
                       strokeDasharray={draftDash}
                       strokeLinecap="round"
-                      markerEnd="url(#intent-arrow-outline)"
                     />
                     <path
                       d={path}
@@ -250,6 +432,77 @@ export function IntentionsOverlay({
                   </g>
                 )
               }
+              if (segment.defensive) {
+                return (
+                  <g key={segmentIndex}>
+                    <Palisade
+                      support={segment.defensive}
+                      from={segment.from}
+                      color={intentionColor}
+                      scale={annotationScale}
+                      dash={draftDash}
+                      label={intention.label}
+                    />
+                    <IntentBadge
+                      x={
+                        (segment.from[0] +
+                          segment.defensive.link.from[0] / 2 +
+                          segment.defensive.link.to[0] / 2) /
+                        2
+                      }
+                      y={
+                        (segment.from[1] +
+                          segment.defensive.link.from[1] / 2 +
+                          segment.defensive.link.to[1] / 2) /
+                        2
+                      }
+                      symbol={intention.symbol}
+                      turnLabel={intention.turnLabel}
+                      color={intentionColor}
+                      scale={annotationScale}
+                    />
+                  </g>
+                )
+              }
+              if (segment.offensive) {
+                const support = segment.offensive
+                const tributary = affluentCurve(support)
+                const path = affluentPath(tributary)
+                // A single shield sits at the middle of the curve.
+                const disc = tributary.curves[0][3]
+                return (
+                  <g key={segmentIndex} data-intent-affluent={support.destination}>
+                    <path
+                      d={path}
+                      data-intent-outline="true"
+                      fill="none"
+                      stroke={INTENT_OUTLINE_COLOR}
+                      strokeWidth={3.4 * annotationScale}
+                      strokeDasharray={draftDash}
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={intentionColor}
+                      strokeWidth={1.4 * annotationScale}
+                      strokeDasharray={draftDash}
+                      strokeLinecap="round"
+                      markerEnd="url(#intent-affluent-arrow)"
+                    />
+                    <SupportValueDisc
+                      x={disc[0]}
+                      y={disc[1]}
+                      value={support.value}
+                      color={intentionColor}
+                      scale={annotationScale}
+                      label={intention.label}
+                      turnLabel={intention.turnLabel}
+                      shape="disc"
+                    />
+                  </g>
+                )
+              }
               const strokeWidth =
                 segment.kind === 'attack' ? 4 * annotationScale : 2.5 * annotationScale
               const strokeDasharray =
@@ -259,9 +512,7 @@ export function IntentionsOverlay({
                   : draftDash
               const markerKind = segment.kind === 'support-defensive' ? 'circle' : 'arrow'
               const outlineMarkerEnd =
-                markerKind === 'circle'
-                  ? 'url(#intent-circle-outline)'
-                  : 'url(#intent-arrow-outline)'
+                markerKind === 'circle' ? 'url(#intent-circle-outline)' : undefined
 
               return (
                 <g key={segmentIndex}>
