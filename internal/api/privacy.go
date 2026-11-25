@@ -494,11 +494,6 @@ type MovementView struct {
 // contested fight, its general outcome. A move nobody opposed whose order the
 // viewer does not know is dropped.
 func projectMovements(movements []engine.ArmyMovement, viewer models.PlayerID, privacy *models.PrivacyMeta) []MovementView {
-	if movements == nil {
-		// A report stored before the engine listed movements: stay absent (null)
-		// so the front rebuilds them, rather than claiming there were none.
-		return nil
-	}
 	views := make([]MovementView, 0, len(movements))
 	for _, movement := range movements {
 		view := MovementView{Kind: movement.Kind, Combat: movement.Combat, Reason: movement.Reason}
