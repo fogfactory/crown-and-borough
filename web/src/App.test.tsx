@@ -560,7 +560,18 @@ describe('App command/report tabs', () => {
             remaining: [],
             report: {
               ...resolvedReport,
-              combats: [{ territory: 'ROS', visibility: 'general' }],
+              combats: [
+                { territory: 'ROS', visibility: 'general', outcome: 'defense_holds' },
+              ],
+              movements: [
+                {
+                  visibility: 'general',
+                  kind: 'failure',
+                  legs: [{ to: 'ROS' }],
+                  combat: 'ROS',
+                  reason: 'defense_holds',
+                },
+              ],
             },
             state,
           }),
@@ -630,11 +641,24 @@ describe('App command/report tabs', () => {
           baseDefense: 1,
           defense: 2,
           castleBonus: 0,
-          contenders: [{ army: 'A1', owner: 'P1', force: 3, defender: false }],
+          contenders: [
+            { army: 'A1', owner: 'P1', force: 3, defender: false },
+            { army: 'A2', owner: 'P2', force: 2, defender: true },
+          ],
           cutSupporters: [],
           winner: 'A1',
           reason: 'attack_wins',
           standoff: false,
+        },
+      ],
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'victory',
+          army: 'A1',
+          owner: 'P1',
+          legs: [{ from: 'ROS', to: 'BRU' }],
+          combat: 'BRU',
         },
       ],
       orders: [
@@ -683,7 +707,9 @@ describe('App command/report tabs', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Resolve' }))
 
     expect(await screen.findByText('Turn report 1')).toBeInTheDocument()
-    expect(screen.getByText(/^Forces :/)).toBeInTheDocument()
+    expect(
+      screen.getByText(withText('Army of P1 takes Bruyères (BRU)')),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('ROS A BRU').length).toBeGreaterThanOrEqual(1)
   })
 
