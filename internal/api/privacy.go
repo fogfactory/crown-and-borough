@@ -255,7 +255,7 @@ func trackCombatParticipation(before, after *models.GameState, combats []engine.
 	beforeArmies := armyOwners(before)
 	afterArmies := armyOwners(after)
 	for _, combat := range combats {
-		combatID := fmt.Sprintf("combat-%s", combat.Territory)
+		combatID := combatParticipationID(combat.Territory)
 		participants := make(map[models.PlayerID]bool)
 		for _, contender := range combat.Contenders {
 			if contender.OwnerID != "" {
@@ -372,6 +372,7 @@ type TurnReportView struct {
 	Consumption   []engine.ConsumptionReport  `json:"consumption"`
 	Combats       []CombatView                `json:"combats"`
 	Orders        []OrderReportView           `json:"orders"`
+	Movements     []MovementView              `json:"movements"`
 	Moves         []engine.MoveReport         `json:"moves"`
 	Nobles        []engine.NobleReport        `json:"nobles"`
 	SeasonEffects []engine.SeasonEffectReport `json:"seasonEffects"`
@@ -462,6 +463,67 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// combatParticipationID keys the participation of a viewer in the combat of a
+// territory.
+func combatParticipationID(territory models.TerritoryID) string {
+	return fmt.Sprintf("combat-%s", territory)
+}
+
+// tookPartInCombat tells whether the viewer fought, or supported a fight, on
+// the territory: it then reads the combat exactly.
+func tookPartInCombat(privacy *models.PrivacyMeta, viewer models.PlayerID, territory models.TerritoryID) bool {
+	return privacy != nil && privacy.CombatParticipation[viewer][combatParticipationID(territory)]
+}
+
+// MovementView is an army's move as one viewer may read it. An exact entry
+// names the army; a general one only says that a contested fight took place
+// and who came out on top, without any army, owner or origin.
+type MovementView struct {
+	Visibility string               `json:"visibility"`
+	Kind       engine.MovementKind  `json:"kind"`
+	Army       models.ArmyID        `json:"army,omitempty"`
+	Owner      models.PlayerID      `json:"owner,omitempty"`
+	Legs       []engine.MovementLeg `json:"legs"`
+	Combat     models.TerritoryID   `json:"combat,omitempty"`
+	Reason     string               `json:"reason,omitempty"`
+}
+
+// projectMovements keeps the moves the viewer may know: those of a chain it
+// knows (the origin included), then the armies of a fight it took part in
+// (their origin stays hidden unless it knows the chain), then, for any other
+// contested fight, its general outcome. A move nobody opposed whose order the
+// viewer does not know is dropped.
+func projectMovements(movements []engine.ArmyMovement, viewer models.PlayerID, privacy *models.PrivacyMeta) []MovementView {
+	if movements == nil {
+		// A report stored before the engine listed movements: stay absent (null)
+		// so the front rebuilds them, rather than claiming there were none.
+		return nil
+	}
+	views := make([]MovementView, 0, len(movements))
+	for _, movement := range movements {
+		view := MovementView{Kind: movement.Kind, Combat: movement.Combat, Reason: movement.Reason}
+		known := viewerKnowsChainSnapshot(privacy, viewer, movement.Chain)
+		participant := movement.Combat != "" && tookPartInCombat(privacy, viewer, movement.Combat)
+		switch {
+		case known || participant:
+			view.Visibility, view.Army, view.Owner = "exact", movement.Army, movement.Owner
+		case movement.Combat != "":
+			view.Visibility = "general"
+		default:
+			continue
+		}
+		view.Legs = make([]engine.MovementLeg, len(movement.Legs))
+		for index, leg := range movement.Legs {
+			view.Legs[index] = engine.MovementLeg{To: leg.To}
+			if known {
+				view.Legs[index].From = leg.From
+			}
+		}
+		views = append(views, view)
+	}
+	return views
+}
+
 // CombatView has two JSON variants. The general variant deliberately has no
 // fields from which forces or army identities can be reconstructed.
 type CombatView struct {
@@ -532,6 +594,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		Consumption:   append([]engine.ConsumptionReport{}, report.Consumption...),
 		Combats:       make([]CombatView, 0, len(report.Combats)),
 		Orders:        make([]OrderReportView, 0, len(report.Orders)),
+		Movements:     projectMovements(report.Movements, viewer, privacy),
 		Moves:         append([]engine.MoveReport{}, report.Moves...),
 		Nobles:        append([]engine.NobleReport{}, report.Nobles...),
 		SeasonEffects: visibleSeasonEffects(report.SeasonEffects, viewer),
@@ -553,8 +616,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		}
 	}
 	for _, combat := range report.Combats {
-		combatID := fmt.Sprintf("combat-%s", combat.Territory)
-		exact := viewer == models.SpectatorViewer || privacy != nil && privacy.CombatParticipation[viewer][combatID]
+		exact := viewer == models.SpectatorViewer || tookPartInCombat(privacy, viewer, combat.Territory)
 		if exact {
 			view.Combats = append(view.Combats, CombatView{
 				Visibility:    "exact",
@@ -570,6 +632,10 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 				Reason:        combat.Reason,
 				Standoff:      combat.Standoff,
 			})
+			continue
+		}
+		if !combat.IsContested() {
+			// An unopposed move is no combat: only those who took part see it.
 			continue
 		}
 		view.Combats = append(view.Combats, CombatView{

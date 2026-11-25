@@ -1,4 +1,9 @@
-import { MANEUVER_REST, type LiaisonMode, type OrderType } from '@/types'
+import {
+  MANEUVER_REST,
+  type LiaisonMode,
+  type OrderReport,
+  type OrderType,
+} from '@/types'
 
 export interface OrderLabelData {
   type: OrderType
@@ -82,4 +87,9 @@ export function formatOrderLabel(order: OrderLabelData): string {
 
   const label = parts.join(' ')
   return order.liaison === 'loop' ? `(${label})` : label
+}
+
+/** Destinations of a reported order, whether stored as `targets` or a lone `target`. */
+export function orderTargets(order: OrderReport): string[] {
+  return order.targets ?? (order.target ? [order.target] : [])
 }

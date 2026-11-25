@@ -905,6 +905,14 @@ filtre les chaînes et les combats selon le joueur. La connaissance des chaînes
 et les audiences des rapports sont des métadonnées de serveur, indépendantes du
 rendu React et persistées avec la partie.
 
+Le moteur classe lui-même ce que chaque armée a fait (`movements` du rapport :
+conquête d'un territoire contesté, déplacement que personne ne disputait,
+échec) ; la projection serveur le range par joueur : entrée exacte (armée,
+propriétaire, origine si la chaîne est connue) ou simple issue générale d'un
+combat contesté. Une attaque sur un territoire vide n'est pas un combat et un
+déplacement dont l'ordre est inconnu n'apparaît pas. Le front ne fait que
+l'afficher.
+
 Firestore Native mode est la frontière de persistance. Les documents de résumé
 public, de vue privée et de rapports filtrés sont séparés des documents
 canoniques réservés au backend. Les règles Firestore refusent au navigateur

@@ -1152,13 +1152,22 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
   événement le sélectionne, cadre la carte sur les territoires concernés et y
   dessine l'événement (déplacement, combat, retraite…) jusqu'à la sélection
   suivante.
-- **Combat :** la carte d'un combat se déplie d'un clic sur son texte ou sur
-  son chevron : attaquants (joueur, territoire d'origine, force), défenseur
-  (force, bonus de fortification), soutiens à l'attaque et à la défense (un
-  soutien coupé est signalé) et résultat (vainqueur, armée délogée). Un
-  combat que le joueur ne connaît qu'en gros n'a pas de détail.
-- **Résultats répétitifs :** les résultats d'une même nature (réceptions,
-  économie…) forment une seule carte de synthèse, dépliable sur la liste. Les
+- **Mouvements :** la catégorie « Mouvements » regroupe les armées qui se
+  sont déplacées, une carte par armée (« L'armée de P1 s'empare de Bruyères »),
+  en trois blocs : les *conquêtes* (territoire contesté dont l'armée sort
+  vainqueur), les *déplacements* (destination que personne ne disputait,
+  par attaque ou manœuvre) et les *échecs* (attaque repoussée, manœuvre
+  impossible, avec la raison). Une attaque sur un territoire vide sans
+  fortification n'est pas un combat. Seules les armées que le joueur peut
+  voir y figurent : un ordre qu'il ne connaît pas n'est jamais classé par son
+  type, et un combat qu'il ne connaît qu'en gros s'écrit sans armée ni
+  détail. Le texte d'une conquête ou d'un échec disputé se déplie d'un clic
+  sur son texte ou sur son chevron : attaquants (joueur, territoire d'origine,
+  force), défenseur (force, bonus de fortification), soutiens à l'attaque et
+  à la défense (un soutien coupé est signalé) et résultat (vainqueur, armée
+  délogée).
+- **Résultats répétitifs :** les résultats d'une même nature (économie…)
+  forment une seule carte de synthèse, dépliable sur la liste. Les
   lignes sans effet (« 0 → 0 ») ne s'affichent pas.
 - **Hiver :** la catégorie « Hiver » compte un bloc par maison. Celui du
   joueur courant vient en premier et s'ouvre ; les autres restent repliés sur
@@ -1181,8 +1190,13 @@ tiges disent tout. Le graphe d'alliances est un encart replié par défaut.
 - `ReportPanel.tsx` affiche ces cartes.
 
 **Précision.** Le rapport se range en catégories : rumeurs et cartes,
-événements (effets de saison, famines, fiefs, mariages, élections), combats,
-hiver ou cartes de noble, économie, ordres exécutés. L'économie tient en une carte de
+événements (effets de saison, famines, fiefs, mariages, élections),
+mouvements (conquêtes, déplacements, échecs), hiver ou cartes de noble,
+économie, puis un bloc par maison pour les réceptions et les ordres exécutés.
+Le bloc d'une maison liste ses réceptions (noble en nom complet suivi de son
+trigramme entre parenthèses) puis les ordres du joueur seul, chacun dit en une
+phrase dans sa langue, avec son code, son résultat et son bouton « Voir » ; les
+ordres des autres maisons ne s'y lisent pas. L'économie tient en une carte de
 synthèse repliée, « Économie », qui s'ouvre sur un bloc par maison : celle du
 joueur d'abord et ouverte, les autres repliées sur leur bilan (gain ou perte
 du tour, armées nourries, en famine ou ayant subi des pertes). Un bloc se lit
@@ -1192,8 +1206,7 @@ ses moulins (par ordre alphabétique) avec leur gain en vert à droite ; le
 ravitaillement, armée par armée, en blocs encadrés par région, avec en rouge la
 consommation réellement distribuée (famine comprise) et la demande entre
 parenthèses, le rabais du terrain à côté du nom ; enfin le bilan de la maison,
-revenu moins consommation. Les réceptions restent une carte de synthèse à
-part ; les conservations d'hiver vivent dans le bloc d'hiver de leur maison.
+revenu moins consommation. Les conservations d'hiver vivent dans le bloc d'hiver de leur maison.
 Une famine reste un événement à part entière.
 « Voir » cadre la carte sur les territoires de l'événement, les entoure et
 trace les ordres d'une flèche ; le dessin disparaît à la sélection suivante.
