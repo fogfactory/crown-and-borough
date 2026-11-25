@@ -5,7 +5,6 @@
 
 ### Bug Fixes
 
-* **front:** keep the later orders of a chain on the territory they start from ([585913f](https://github.com/fogfactory/crown-and-borough/commit/585913fc2a801b7135b7c46e06ca395e3f66b4bf))
 * **front:** keep the later orders of a chain on the territory they start from ([55463da](https://github.com/fogfactory/crown-and-borough/commit/55463dab7856ce1b64c23ccd36707977c2e15383))
 
 
