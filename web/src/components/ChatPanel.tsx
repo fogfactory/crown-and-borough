@@ -511,7 +511,7 @@ export function ChatPanel({
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+    if (event.key === 'Enter' && event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault()
       void send()
     }
