@@ -74,6 +74,9 @@ type ChatMessage struct {
 type ChatReadCursor struct {
 	Channel    string    `json:"channel"`
 	LastReadAt time.Time `json:"lastReadAt"`
+	// AcknowledgedAt is when the player dismissed the "unanswered" marker of
+	// the channel without replying; zero when never acknowledged.
+	AcknowledgedAt time.Time `json:"acknowledgedAt,omitzero"`
 }
 
 // ChatConversationKey is the deterministic identifier of the private
@@ -139,6 +142,9 @@ type ChatBackend interface {
 	AppendChatMessage(ctx context.Context, id GameID, authorUID string, message ChatMessage, participantUIDs []string, minInterval time.Duration) (ChatMessage, error)
 	// SetChatReadCursor moves a cursor forward; it never moves it back.
 	SetChatReadCursor(ctx context.Context, id GameID, uid string, cursor ChatReadCursor) (ChatReadCursor, error)
+	// SetChatAcknowledged moves the acknowledgement of a channel forward; it
+	// never moves it back and leaves the read cursor untouched.
+	SetChatAcknowledged(ctx context.Context, id GameID, uid string, channel string, at time.Time) (ChatReadCursor, error)
 	// ListChatMessages returns up to limit messages of a channel older than
 	// the cursor (all when zero), newest first.
 	ListChatMessages(ctx context.Context, id GameID, channel string, before ChatCursor, limit int) ([]ChatMessage, error)
@@ -286,6 +292,20 @@ func (c *ChatService) MarkRead(ctx context.Context, actor Actor, id GameID, chan
 		return ChatReadCursor{}, err
 	}
 	return c.backend.SetChatReadCursor(ctx, id, actor.ID, ChatReadCursor{Channel: key, LastReadAt: c.now().UTC().Truncate(time.Microsecond)})
+}
+
+// Acknowledge dismisses the "unanswered" marker of a channel without
+// replying: the actor's acknowledgement cursor moves to now.
+func (c *ChatService) Acknowledge(ctx context.Context, actor Actor, id GameID, channel string) (ChatReadCursor, error) {
+	snapshot, house, err := c.houseOf(ctx, actor, id, false)
+	if err != nil {
+		return ChatReadCursor{}, err
+	}
+	key, _, err := c.channelKey(snapshot, house, channel)
+	if err != nil {
+		return ChatReadCursor{}, err
+	}
+	return c.backend.SetChatAcknowledged(ctx, id, actor.ID, key, c.now().UTC().Truncate(time.Microsecond))
 }
 
 // History returns one page of a channel the actor may read: the public room,

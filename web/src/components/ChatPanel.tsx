@@ -9,7 +9,13 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { IconLock, IconSend, IconUsers } from '@tabler/icons-react'
+import {
+  IconCheck,
+  IconLock,
+  IconMessageReply,
+  IconSend,
+  IconUsers,
+} from '@tabler/icons-react'
 
 import { ShieldIcon } from '@/components/ArmsIcons'
 import { MapMention } from '@/components/MapLinks'
@@ -30,6 +36,7 @@ import {
   CHAT_MAX_PARTS,
   PUBLIC_CHANNEL,
   buildTimeline,
+  channelStatus,
   chatLength,
   conversationHouses,
   conversationKey,
@@ -49,7 +56,7 @@ import {
   tokenizeMentions,
   type MentionIndex,
 } from '@/lib/chat-mentions'
-import { markChatRead, postChatMessage } from '@/lib/chat-api'
+import { acknowledgeChat, markChatRead, postChatMessage } from '@/lib/chat-api'
 import { luminance, playerArms } from '@/lib/heraldry'
 import { playerDisplayName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
@@ -91,6 +98,22 @@ export function ChatUnreadBadge({ count }: { count: number }) {
 
 // Above this luminance (0–255) a house color takes dark text.
 const LIGHT_COLOR_LUMINANCE = 150
+
+/** Marker of a channel whose last message waits for an answer from the reader's house. */
+function ChannelUnanswered({ className }: { className?: string }) {
+  const { t } = useLanguage()
+  return (
+    <span
+      data-chat-unanswered
+      role="img"
+      aria-label={t('chat.unanswered')}
+      title={t('chat.unanswered')}
+      className={cn('inline-flex shrink-0 text-vermilion-700', className)}
+    >
+      <IconMessageReply aria-hidden="true" className="size-4" />
+    </span>
+  )
+}
 
 /** Unread pills of a channel: one per author house, in the house color. */
 function ChannelUnread({
@@ -264,7 +287,7 @@ export function ChatPanel({
     ],
     [privateKeys, house, opened],
   )
-  const { channels, lastRead, loadMore } = useChat({ gameId, uid, specs })
+  const { channels, lastRead, acknowledged, loadMore } = useChat({ gameId, uid, specs })
 
   // Unread messages per channel and author house, whatever the open channel.
   const unreadAuthors = useMemo(() => {
@@ -292,6 +315,25 @@ export function ChatPanel({
     onUnreadChange?.(unreadTotal)
   }, [onUnreadChange, unreadTotal])
 
+  // Channels whose last message from another house still waits for a reply.
+  const unansweredKeys = useMemo(() => {
+    const keys: string[] = []
+    if (!house || !lastRead) return keys
+    for (const spec of specs) {
+      if (!spec.own && spec.channel !== PUBLIC_CHANNEL) continue
+      const status = channelStatus(
+        channels[spec.channel]?.messages ?? [],
+        {
+          lastReadAt: lastRead[spec.channel],
+          acknowledgedAt: acknowledged?.[spec.channel],
+        },
+        house,
+      )
+      if (status === 'unanswered') keys.push(spec.channel)
+    }
+    return keys
+  }, [acknowledged, channels, house, lastRead, specs])
+
   // `settled`: the channel shown first is known, chosen by the reader or by the
   // rule below. Nothing is marked read before that.
   const [settled, setSettled] = useState(false)
@@ -305,9 +347,9 @@ export function ChatPanel({
 
   // The first time the chat is shown, once the public room and every own
   // conversation have loaded: the only channel with unread messages, else the
-  // public room. A pick made by the reader meanwhile stands.
+  // only unanswered one, else the public room. A pick made by the reader meanwhile stands.
   useEffect(() => {
-    if (settled || !visible || !house || !lastRead) return
+    if (settled || !visible || !house || !lastRead || !acknowledged) return
     const counted = specs.filter((spec) => spec.own || spec.channel === PUBLIC_CHANNEL)
     if (counted.some((spec) => !channels[spec.channel]?.loaded)) return
     select(
@@ -315,9 +357,21 @@ export function ChatPanel({
         Object.fromEntries(
           counted.map((spec) => [spec.channel, totalUnread(unreadAuthors[spec.channel])]),
         ),
+        unansweredKeys,
       ),
     )
-  }, [channels, house, lastRead, select, settled, specs, unreadAuthors, visible])
+  }, [
+    acknowledged,
+    channels,
+    house,
+    lastRead,
+    select,
+    settled,
+    specs,
+    unansweredKeys,
+    unreadAuthors,
+    visible,
+  ])
 
   // Reading the open channel moves its cursor.
   const openState = channels[open]
@@ -344,6 +398,27 @@ export function ChatPanel({
     tokenProvider,
     visible,
   ])
+
+  // The unanswered channels other than the open one, for the trigger.
+  const otherUnansweredChannels = useMemo(
+    () => unansweredKeys.filter((key) => key !== open),
+    [open, unansweredKeys],
+  )
+  const openUnanswered = unansweredKeys.includes(open)
+  const [acknowledging, setAcknowledging] = useState(false)
+  const acknowledge = async () => {
+    if (!house || acknowledging) return
+    const channel = apiChannel(open, house)
+    if (!channel) return
+    setAcknowledging(true)
+    try {
+      await acknowledgeChat(tokenProvider, gameId, channel)
+    } catch {
+      // The marker stays: the reader may try again.
+    } finally {
+      setAcknowledging(false)
+    }
+  }
 
   /** Houses a channel concerns for this reader: the other one, or both for the observer. */
   const channelHouses = useCallback(
@@ -421,11 +496,14 @@ export function ChatPanel({
               houses={channelHouses(key)}
               label={channelLabel(key)}
               trailing={
-                <ChannelUnread
-                  authors={shown ? unreadAuthors[key] : undefined}
-                  houseName={houseName}
-                  playerOf={playerOf}
-                />
+                <>
+                  <ChannelUnread
+                    authors={shown ? unreadAuthors[key] : undefined}
+                    houseName={houseName}
+                    playerOf={playerOf}
+                  />
+                  {unansweredKeys.includes(key) && <ChannelUnanswered />}
+                </>
               }
               playerOf={playerOf}
             />
@@ -439,6 +517,7 @@ export function ChatPanel({
       open,
       playerOf,
       privateChannels,
+      unansweredKeys,
       unreadAuthors,
       visible,
     ],
@@ -540,10 +619,47 @@ export function ChatPanel({
                       .join(', '),
                   })}`
                 : ''
+            }${
+              otherUnansweredChannels.length > 0
+                ? `, ${t('chat.unansweredElsewhere', {
+                    rooms: otherUnansweredChannels.map(channelLabel).join(', '),
+                  })}`
+                : ''
             }`}
             className={SELECT_TRIGGER_CLASS}
           >
             <SelectValue />
+            {otherUnansweredChannels.length > 0 && (
+              <span
+                data-chat-unanswered-elsewhere={otherUnansweredChannels.length}
+                aria-hidden="true"
+                className={cn(
+                  'flex shrink-0 items-center gap-1',
+                  otherUnread > 0 ? 'ml-auto' : 'mr-1 ml-auto',
+                )}
+              >
+                {otherUnansweredChannels.map((key) => (
+                  <span
+                    key={key}
+                    data-chat-unanswered-channel={key}
+                    className="flex shrink-0 items-center gap-0.5"
+                  >
+                    {key === PUBLIC_CHANNEL ? (
+                      <IconUsers className="size-4 text-ink-500" />
+                    ) : (
+                      channelHouses(key).map((houseId) => (
+                        <HouseMark
+                          key={houseId}
+                          player={playerOf(houseId)}
+                          className="size-4 shrink-0"
+                        />
+                      ))
+                    )}
+                    <IconMessageReply className="size-4 text-vermilion-700" />
+                  </span>
+                ))}
+              </span>
+            )}
             {otherUnread > 0 && (
               <span
                 data-chat-unread-elsewhere={otherUnread}
@@ -651,6 +767,25 @@ export function ChatPanel({
           >
             {t('chat.error.dismiss')}
           </button>
+        </Alert>
+      )}
+
+      {house && openUnanswered && (
+        <Alert
+          tone="info"
+          className="flex items-center justify-between gap-2"
+          data-chat-unanswered-banner
+        >
+          <span>{t('chat.unansweredNotice')}</span>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={acknowledging}
+            onClick={() => void acknowledge()}
+          >
+            <IconCheck aria-hidden="true" />
+            {t('chat.acknowledge')}
+          </Button>
         </Alert>
       )}
 

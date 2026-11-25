@@ -71,6 +71,23 @@ func (h *GamesHandler) markChannelRead(w http.ResponseWriter, r *http.Request, a
 	writeJSON(w, http.StatusOK, cursor)
 }
 
+func (h *GamesHandler) acknowledgeChannel(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	if !h.chatEnabled(w) {
+		return
+	}
+	var request chatReadRequest
+	if err := decodeJSONBody(w, r, 1<<10, &request); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_message_request", err.Error())
+		return
+	}
+	cursor, err := h.chat.Acknowledge(r.Context(), actor, id, request.Channel)
+	if err != nil {
+		h.writeChatError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cursor)
+}
+
 func (h *GamesHandler) listMessages(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
 	if !h.chatEnabled(w) {
 		return

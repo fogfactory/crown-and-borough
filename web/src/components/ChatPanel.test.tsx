@@ -12,8 +12,9 @@ const chat = vi.hoisted(() => ({ result: null as unknown }))
 vi.mock('@/lib/use-chat', () => ({ useChat: () => chat.result }))
 
 const markChatRead = vi.hoisted(() => vi.fn().mockResolvedValue({}))
+const acknowledgeChat = vi.hoisted(() => vi.fn().mockResolvedValue({}))
 const postChatMessage = vi.hoisted(() => vi.fn().mockResolvedValue({}))
-vi.mock('@/lib/chat-api', () => ({ markChatRead, postChatMessage }))
+vi.mock('@/lib/chat-api', () => ({ markChatRead, postChatMessage, acknowledgeChat }))
 
 function message(
   id: string,
@@ -74,8 +75,14 @@ function shields(element: HTMLElement) {
 function setChat(
   channels: UseChatResult['channels'],
   lastRead: UseChatResult['lastRead'] = {},
+  acknowledged: UseChatResult['acknowledged'] = {},
 ) {
-  chat.result = { channels, lastRead, loadMore: vi.fn() } satisfies UseChatResult
+  chat.result = {
+    channels,
+    lastRead,
+    acknowledged,
+    loadMore: vi.fn(),
+  } satisfies UseChatResult
 }
 
 // The reader's conversations (P1 against P2, P3 and P4), loaded and empty.
@@ -147,7 +154,7 @@ describe('ChatPanel', () => {
     setChat(
       {
         public: channel([]),
-        P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+        P1_P3: channel([message('1', 'P3', 1, 'P1_P3'), message('2', 'P1', 1, 'P1_P3')]),
       },
       { P1_P3: toChatTimestamp('2026-01-01T10:00:09Z') as string },
     )
@@ -493,5 +500,85 @@ describe('ChatPanel', () => {
     fireEvent.click(within(log).getByRole('button', { name: 'Rochevent' }))
     expect(links.focus).toHaveBeenLastCalledWith('AAA', undefined)
     expect(within(log).getByText(/près de Rochevental\./)).toBeInTheDocument()
+  })
+
+  describe('unanswered channels', () => {
+    const READ = { P1_P3: toChatTimestamp('2026-01-01T10:00:09Z') as string }
+
+    it('opens the only unanswered channel when nothing is unread', async () => {
+      setChat(
+        {
+          public: channel([]),
+          P1_P2: channel([]),
+          P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+          P1_P4: channel([]),
+        },
+        READ,
+      )
+      renderPanel({ visible: true })
+      await waitFor(() => expect(trigger(CHANNELS)).toHaveTextContent('Maison Cérès'))
+    })
+
+    it('prefers unread channels over unanswered ones', async () => {
+      setChat(
+        {
+          public: channel([]),
+          P1_P2: channel([message('5', 'P2', 1, 'P1_P2', '2026-01-01T10:00:15Z')]),
+          P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+          P1_P4: channel([]),
+        },
+        READ,
+      )
+      renderPanel({ visible: true })
+      await waitFor(() => expect(trigger(CHANNELS)).toHaveTextContent('Maison Brieuc'))
+    })
+
+    it('shows the marker and acknowledges without sending a message', async () => {
+      setChat(
+        {
+          ...NO_CONVERSATION,
+          public: channel([]),
+          P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+        },
+        READ,
+      )
+      renderPanel({ visible: true })
+      await waitFor(() => expect(trigger(CHANNELS)).toHaveTextContent('Maison Cérès'))
+      fireEvent.click(screen.getByRole('button', { name: 'Acknowledged' }))
+      await waitFor(() =>
+        expect(acknowledgeChat).toHaveBeenCalledWith(expect.anything(), 'g1', 'P3'),
+      )
+      expect(postChatMessage).not.toHaveBeenCalled()
+    })
+
+    it('hides the button once acknowledged or answered', async () => {
+      setChat(
+        {
+          ...NO_CONVERSATION,
+          public: channel([]),
+          P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+        },
+        READ,
+        { P1_P3: toChatTimestamp('2026-01-01T10:00:30Z') as string },
+      )
+      renderPanel({ visible: true })
+      await waitFor(() => expect(trigger(CHANNELS)).toBeInTheDocument())
+      expect(screen.queryByRole('button', { name: 'Acknowledged' })).toBeNull()
+    })
+
+    it('flags another unanswered channel on the trigger', () => {
+      setChat(
+        {
+          ...NO_CONVERSATION,
+          public: channel([]),
+          P1_P3: channel([message('1', 'P3', 1, 'P1_P3')]),
+        },
+        READ,
+      )
+      renderPanel()
+      expect(
+        trigger(CHANNELS).querySelector('[data-chat-unanswered-channel="P1_P3"]'),
+      ).not.toBeNull()
+    })
   })
 })

@@ -29,3 +29,16 @@ export function markChatRead(
     { method: 'POST', body: JSON.stringify({ channel }) },
   )
 }
+
+/** Dismisses the "unanswered" marker of a channel without replying. */
+export function acknowledgeChat(
+  tokenProvider: TokenProvider,
+  gameId: string,
+  channel: string,
+): Promise<unknown> {
+  return apiRequest<unknown>(
+    tokenProvider,
+    `/api/games/${encodeURIComponent(gameId)}/messages/acknowledge`,
+    { method: 'POST', body: JSON.stringify({ channel }) },
+  )
+}

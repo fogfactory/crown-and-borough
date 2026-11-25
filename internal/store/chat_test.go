@@ -251,6 +251,37 @@ func TestChatMarkReadMovesCursorsForwardOnly(t *testing.T) {
 	}
 }
 
+func TestChatAcknowledgeMovesForwardOnlyAndKeepsReadCursor(t *testing.T) {
+	service, _, clock := newChatFixture(t)
+	ctx := context.Background()
+	read, err := service.MarkRead(ctx, Actor{ID: "alice"}, "g1", "P2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(time.Minute)
+	first, err := service.Acknowledge(ctx, Actor{ID: "alice"}, "g1", "P2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Channel != "P1_P2" || first.AcknowledgedAt.IsZero() || !first.LastReadAt.Equal(read.LastReadAt) {
+		t.Fatalf("acknowledge = %+v (read %+v)", first, read)
+	}
+	*clock = clock.Add(-time.Hour)
+	second, err := service.Acknowledge(ctx, Actor{ID: "alice"}, "g1", "P2")
+	if err != nil || !second.AcknowledgedAt.Equal(first.AcknowledgedAt) {
+		t.Fatalf("acknowledgement moved back: %+v, %v", second, err)
+	}
+	// Reading afterwards keeps the acknowledgement.
+	*clock = clock.Add(2 * time.Hour)
+	again, err := service.MarkRead(ctx, Actor{ID: "alice"}, "g1", "P2")
+	if err != nil || !again.AcknowledgedAt.Equal(first.AcknowledgedAt) {
+		t.Fatalf("read dropped the acknowledgement: %+v, %v", again, err)
+	}
+	if _, err := service.Acknowledge(ctx, Actor{ID: "alice"}, "g1", "P1"); !errors.Is(err, ErrChatInvalidRecipient) {
+		t.Fatalf("own house = %v", err)
+	}
+}
+
 func TestChatHistoryPaginatesNewestFirstByCursor(t *testing.T) {
 	service, _, clock := newChatFixture(t)
 	ctx := context.Background()
