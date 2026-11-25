@@ -8,24 +8,35 @@ RUN npm ci
 
 COPY web/ ./
 
-ARG VITE_FIREBASE_API_KEY
-ARG VITE_FIREBASE_AUTH_DOMAIN
 ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_APP_ID
-ARG VITE_FIREBASE_AUTH_EMULATOR_HOST
 ARG VITE_FIREBASE_FIRESTORE_EMULATOR_HOST
 ARG APP_VERSION=dev
 ARG VITE_APP_VERSION
+# BuildKit does not key its cache on secret contents: callers pass a digest of
+# the secrets here so that changing one rebuilds the bundle.
+ARG FIREBASE_CONFIG_DIGEST=
 
-ENV VITE_FIREBASE_API_KEY="$VITE_FIREBASE_API_KEY" \
-    VITE_FIREBASE_AUTH_DOMAIN="$VITE_FIREBASE_AUTH_DOMAIN" \
-    VITE_FIREBASE_PROJECT_ID="$VITE_FIREBASE_PROJECT_ID" \
+ENV VITE_FIREBASE_PROJECT_ID="$VITE_FIREBASE_PROJECT_ID" \
     VITE_FIREBASE_APP_ID="$VITE_FIREBASE_APP_ID" \
-    VITE_FIREBASE_AUTH_EMULATOR_HOST="$VITE_FIREBASE_AUTH_EMULATOR_HOST" \
     VITE_FIREBASE_FIRESTORE_EMULATOR_HOST="$VITE_FIREBASE_FIRESTORE_EMULATOR_HOST"
 
+# The three values Docker's secret lint flags (API key, auth domain, auth
+# emulator host) come in as BuildKit secrets, not ARG/ENV, so that check stays
+# active for any real secret added later. A missing secret gives an empty
+# value, which builds the hotseat bundle.
+
 # dist/.gitkeep only keeps go:embed compiling on a fresh clone; do not ship it.
-RUN VITE_APP_VERSION="${VITE_APP_VERSION:-$APP_VERSION}" npm run build && rm -f dist/.gitkeep
+RUN --mount=type=secret,id=firebase_api_key,required=false \
+    --mount=type=secret,id=firebase_auth_domain,required=false \
+    --mount=type=secret,id=firebase_auth_emulator_host,required=false \
+    : "$FIREBASE_CONFIG_DIGEST" && \
+    read_secret() { if [ -f "/run/secrets/$1" ]; then cat "/run/secrets/$1"; fi; } && \
+    export VITE_FIREBASE_API_KEY="$(read_secret firebase_api_key)" \
+           VITE_FIREBASE_AUTH_DOMAIN="$(read_secret firebase_auth_domain)" \
+           VITE_FIREBASE_AUTH_EMULATOR_HOST="$(read_secret firebase_auth_emulator_host)" \
+           VITE_APP_VERSION="${VITE_APP_VERSION:-$APP_VERSION}" && \
+    npm run build && rm -f dist/.gitkeep
 
 # Go build stage
 FROM golang:1.27-alpine AS build
