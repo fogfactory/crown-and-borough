@@ -86,6 +86,8 @@ export interface IntentSegment {
 
 export interface Intention {
   armyTerritory: string
+  /** Where the order starts: the army's own territory, or one it has yet to reach. */
+  position: string
   from: Point
   symbol: string
   type: OrderType
@@ -430,17 +432,9 @@ export function anchorIntentions(
 ): Intention[] {
   return intentions.map((intention) => {
     const anchor = anchors.get(intention.armyTerritory)
-    const home = territoryCentroid(map, intention.armyTerritory)
     // Only the orders that start where the army stands leave its flag: the
     // next orders of a chain start from territories the army has yet to reach.
-    if (
-      !anchor ||
-      !home ||
-      intention.from[0] !== home[0] ||
-      intention.from[1] !== home[1]
-    ) {
-      return intention
-    }
+    if (!anchor || intention.position !== intention.armyTerritory) return intention
     return {
       ...intention,
       from: anchor,
@@ -551,6 +545,7 @@ function makeIntention(
 
   const base: Omit<Intention, 'type' | 'segments'> = {
     armyTerritory: territoryState.id,
+    position,
     from,
     symbol: SYMBOLS[order.type],
     turn,
