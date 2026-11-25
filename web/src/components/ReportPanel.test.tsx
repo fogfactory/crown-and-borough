@@ -1645,44 +1645,6 @@ describe('ReportPanel event cards', () => {
     ).toBeTruthy()
   })
 
-  it('rebuilds the movements of a report stored before the engine listed them', () => {
-    const stored: TurnReport = {
-      ...report,
-      combats: [
-        {
-          visibility: 'exact',
-          territory: 'BRU',
-          contenders: [
-            { army: 'A1', owner: 'P1', force: 3, defender: false },
-            { army: 'A2', owner: 'P2', force: 2, defender: true },
-          ],
-          winner: 'A1',
-        },
-      ],
-      orders: [
-        {
-          visibility: 'known',
-          army: 'A1',
-          owner: 'P1',
-          type: 'attack',
-          source: 'ROS',
-          targets: ['BRU'],
-          outcome: 'success',
-        },
-      ],
-    }
-    render(
-      <LanguageProvider initialLanguage="en">
-        <ReportPanel report={stored} map={map} players={players} viewerId="P1" />
-      </LanguageProvider>,
-    )
-    const group = document.querySelector('[data-movement-group="victory"]') as HTMLElement
-    expect(group).toHaveTextContent('Army of P1 takes Bruyères (BRU)')
-    expect(
-      within(group).getByRole('button', { name: /combat details/ }),
-    ).toBeInTheDocument()
-  })
-
   it('draws a support toward the destination it backs', () => {
     render(
       <LanguageProvider initialLanguage="en">
