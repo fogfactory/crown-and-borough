@@ -49,7 +49,7 @@ func buildMovements(combats []CombatReport, orders []OrderReport) []ArmyMovement
 	}
 	covered := map[models.ArmyID]bool{}
 	for _, combat := range combats {
-		if !combat.Contested {
+		if !combat.IsContested() {
 			continue
 		}
 		for _, contender := range combat.Contenders {

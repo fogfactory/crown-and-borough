@@ -1243,7 +1243,7 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
   // Reports stored before the engine listed movements are rebuilt from
   // their combats and orders (temporary).
   const movements = report.movements ?? legacyMovements(report)
-  const houseLogs = groupHouseLogs(report, viewerId)
+  const houseLogs = groupHouseLogs(report, players, viewerId)
 
   const hasEvents =
     seasonEffects.length > 0 ||
@@ -1611,7 +1611,11 @@ interface HouseLogData {
  * house's orders are not the viewer's to read (a spectator or a hotseat
  * screen, with no viewer, reads them all).
  */
-function groupHouseLogs(report: TurnReport, viewerId?: PlayerId): HouseLogData[] {
+function groupHouseLogs(
+  report: TurnReport,
+  players: Player[],
+  viewerId?: PlayerId,
+): HouseLogData[] {
   const houses = new Map<PlayerId, HouseLogData>()
   const house = (player: PlayerId) => {
     let entry = houses.get(player)
@@ -1628,7 +1632,7 @@ function groupHouseLogs(report: TurnReport, viewerId?: PlayerId): HouseLogData[]
     if (viewerId && order.owner !== viewerId) continue
     house(order.owner).orders.push(order)
   }
-  const rank = (player: PlayerId) => houseRank(player, report.players ?? [], viewerId)
+  const rank = (player: PlayerId) => houseRank(player, players, viewerId)
   return [...houses.values()].sort((a, b) => rank(a.player) - rank(b.player))
 }
 

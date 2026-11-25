@@ -16,10 +16,10 @@ func attackOrder(army models.ArmyID, source, target models.TerritoryID, outcome 
 
 func TestBuildMovementsClassifiesVictoriesMovesAndFailures(t *testing.T) {
 	combats := []CombatReport{
-		{Territory: "BRU", Contested: true, Winner: "A1", Reason: "attack_wins", Contenders: []CombatContender{
+		{Territory: "BRU", Winner: "A1", Reason: "attack_wins", Contenders: []CombatContender{
 			{ArmyID: "A1", OwnerID: "P1", Force: 3}, {ArmyID: "A2", OwnerID: "P2", Force: 2, Defender: true},
 		}},
-		{Territory: "CHA", Contested: true, Reason: "defense_holds", Contenders: []CombatContender{
+		{Territory: "CHA", Reason: "defense_holds", Contenders: []CombatContender{
 			{ArmyID: "A3", OwnerID: "P1", Force: 1}, {Force: 2, Defender: true},
 		}},
 		{Territory: "VAL", Winner: "A5", Reason: "attack_wins", Contenders: []CombatContender{{ArmyID: "A5", OwnerID: "P1", Force: 1}}},

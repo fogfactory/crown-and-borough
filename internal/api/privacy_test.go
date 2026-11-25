@@ -140,9 +140,9 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	report := engine.TurnReport{
 		Combats: []engine.CombatReport{{
 			Territory: "BOI", BaseDefense: 1, Defense: 2, CastleBonus: 0,
-			Contenders: []engine.CombatContender{{ArmyID: "A1", OwnerID: "P1", Force: 3}},
+			Contenders: []engine.CombatContender{{ArmyID: "A1", OwnerID: "P1", Force: 3}, {ArmyID: "A3", OwnerID: "P3", Force: 2, Defender: true}},
 			Supporters: []models.ArmyID{"A2"}, Winner: "A1", CutSupporters: []models.ArmyID{},
-			Reason: "attack_wins", Contested: true,
+			Reason: "attack_wins",
 		}, {
 			Territory: "VID", Contenders: []engine.CombatContender{{ArmyID: "A1", OwnerID: "P1", Force: 3}},
 			Winner: "A1", CutSupporters: []models.ArmyID{}, Reason: "attack_wins",
@@ -166,14 +166,6 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	if len(exact.Combats) != 2 {
 		t.Fatalf("participant combats = %+v, want the unopposed move kept", exact.Combats)
 	}
-	stored := report
-	stored.Combats = []engine.CombatReport{{
-		Territory: "BOI", Contenders: []engine.CombatContender{{ArmyID: "A1", Force: 3}, {ArmyID: "A2", Force: 2, Defender: true}},
-		Winner: "A1", Reason: "attack_wins",
-	}}
-	if got := projectReport(stored, "P3", privacy).Combats; len(got) != 1 {
-		t.Fatalf("a stored report without the flag lost its contested fight: %+v", got)
-	}
 	if len(general.Combats) != 1 {
 		t.Fatalf("spectator combats = %+v, want the unopposed move left out", general.Combats)
 	}
@@ -194,7 +186,7 @@ func TestProjectReportUsesExactParticipationAndGeneralSpectatorView(t *testing.T
 	if spectator.Combats[0].Visibility != "exact" {
 		t.Fatalf("spectator visibility = %q, want exact", spectator.Combats[0].Visibility)
 	}
-	if len(spectator.Combats[0].Contenders) != 1 {
+	if len(spectator.Combats[0].Contenders) != 2 {
 		t.Fatalf("spectator combat contenders = %#v, want full combat details", spectator.Combats[0].Contenders)
 	}
 }
@@ -710,5 +702,14 @@ func TestProjectMovementsRedactsByWhatTheViewerMayKnow(t *testing.T) {
 	}
 	if spectator := projectMovements(movements, models.SpectatorViewer, privacy); len(spectator) != 2 || spectator[1].Legs[0].From != "VAL" {
 		t.Fatalf("spectator view = %+v, want every move in full", spectator)
+	}
+}
+
+func TestProjectMovementsKeepsAStoredReportWithoutMovementsAbsent(t *testing.T) {
+	if got := projectMovements(nil, "P1", nil); got != nil {
+		t.Fatalf("movements of a report stored before the field = %+v, want nil", got)
+	}
+	if got := projectMovements([]engine.ArmyMovement{}, "P1", nil); got == nil || len(got) != 0 {
+		t.Fatalf("movements of a turn with none = %+v, want an empty, non-nil list", got)
 	}
 }

@@ -212,9 +212,13 @@ type CombatReport struct {
 	CutSupporters []models.ArmyID    `json:"cutSupporters"`
 	Reason        string             `json:"reason"`
 	Standoff      bool               `json:"standoff"`
-	// Contested is false for an attack on an empty, unfortified territory: a
-	// plain movement that no one opposed, not a combat.
-	Contested bool `json:"contested"`
+}
+
+// IsContested is false for an attack on an empty, unfortified territory: a
+// plain movement that no one opposed, not a combat. A fight has a defender
+// (an army or a fortification) or several attackers.
+func (combat CombatReport) IsContested() bool {
+	return len(combat.Contenders) > 1
 }
 
 type OrderReport struct {
@@ -603,8 +607,7 @@ func BuildTurnReportWithBalance(before, after *models.GameState, events []Event,
 				CastleBonus: event.CastleBonus, Contenders: contenders, Supporters: supporters,
 				Winner: event.WinnerArmyID, Dislodged: event.DislodgedArmyID,
 				CutSupporters: cutSupporters, Reason: event.Reason,
-				Standoff:  event.Reason == "standoff",
-				Contested: len(contenders) > 1,
+				Standoff: event.Reason == "standoff",
 			})
 		case EventTypeOrderOutcome:
 			entry := OrderReport{

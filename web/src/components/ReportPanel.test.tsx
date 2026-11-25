@@ -1545,7 +1545,6 @@ describe('ReportPanel event cards', () => {
         {
           visibility: 'exact',
           territory: 'BRU',
-          contested: true,
           contenders: [
             { army: 'A1', owner: 'P1', force: 3, defender: false },
             { army: 'A2', owner: 'P2', force: 2, defender: true },
@@ -1556,7 +1555,6 @@ describe('ReportPanel event cards', () => {
         {
           visibility: 'exact',
           territory: 'CHA',
-          contested: false,
           contenders: [{ army: 'A3', owner: 'P1', force: 1, defender: false }],
           winner: 'A3',
           reason: 'attack_wins',

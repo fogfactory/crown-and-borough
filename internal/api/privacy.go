@@ -255,7 +255,7 @@ func trackCombatParticipation(before, after *models.GameState, combats []engine.
 	beforeArmies := armyOwners(before)
 	afterArmies := armyOwners(after)
 	for _, combat := range combats {
-		combatID := fmt.Sprintf("combat-%s", combat.Territory)
+		combatID := combatParticipationID(combat.Territory)
 		participants := make(map[models.PlayerID]bool)
 		for _, contender := range combat.Contenders {
 			if contender.OwnerID != "" {
@@ -463,6 +463,18 @@ func (view OrderReportView) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// combatParticipationID keys the participation of a viewer in the combat of a
+// territory.
+func combatParticipationID(territory models.TerritoryID) string {
+	return fmt.Sprintf("combat-%s", territory)
+}
+
+// tookPartInCombat tells whether the viewer fought, or supported a fight, on
+// the territory: it then reads the combat exactly.
+func tookPartInCombat(privacy *models.PrivacyMeta, viewer models.PlayerID, territory models.TerritoryID) bool {
+	return privacy != nil && privacy.CombatParticipation[viewer][combatParticipationID(territory)]
+}
+
 // MovementView is an army's move as one viewer may read it. An exact entry
 // names the army; a general one only says that a contested fight took place
 // and who came out on top, without any army, owner or origin.
@@ -482,12 +494,16 @@ type MovementView struct {
 // contested fight, its general outcome. A move nobody opposed whose order the
 // viewer does not know is dropped.
 func projectMovements(movements []engine.ArmyMovement, viewer models.PlayerID, privacy *models.PrivacyMeta) []MovementView {
+	if movements == nil {
+		// A report stored before the engine listed movements: stay absent (null)
+		// so the front rebuilds them, rather than claiming there were none.
+		return nil
+	}
 	views := make([]MovementView, 0, len(movements))
 	for _, movement := range movements {
 		view := MovementView{Kind: movement.Kind, Combat: movement.Combat, Reason: movement.Reason}
 		known := viewerKnowsChainSnapshot(privacy, viewer, movement.Chain)
-		participant := movement.Combat != "" && privacy != nil &&
-			privacy.CombatParticipation[viewer][fmt.Sprintf("combat-%s", movement.Combat)]
+		participant := movement.Combat != "" && tookPartInCombat(privacy, viewer, movement.Combat)
 		switch {
 		case known || participant:
 			view.Visibility, view.Army, view.Owner = "exact", movement.Army, movement.Owner
@@ -600,11 +616,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 		}
 	}
 	for _, combat := range report.Combats {
-		combatID := fmt.Sprintf("combat-%s", combat.Territory)
-		// Reports stored before the flag existed decode it as false: a fight
-		// with a defender or several attackers is contested all the same.
-		contested := combat.Contested || len(combat.Contenders) > 1
-		exact := viewer == models.SpectatorViewer || privacy != nil && privacy.CombatParticipation[viewer][combatID]
+		exact := viewer == models.SpectatorViewer || tookPartInCombat(privacy, viewer, combat.Territory)
 		if exact {
 			view.Combats = append(view.Combats, CombatView{
 				Visibility:    "exact",
@@ -622,7 +634,7 @@ func projectReport(report engine.TurnReport, viewer models.PlayerID, privacy *mo
 			})
 			continue
 		}
-		if !contested {
+		if !combat.IsContested() {
 			// An unopposed move is no combat: only those who took part see it.
 			continue
 		}
