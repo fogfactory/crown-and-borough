@@ -145,9 +145,16 @@ func (ctx *resolutionContext) freezeLoopSupport(armyID models.ArmyID) bool {
 		return false
 	}
 	if support.offensive {
+		// The support only succeeds with the attack it backs: while that attack
+		// does not happen, or does not succeed, the loop waits on the same order.
+		// With no army left on the supported territory there is nothing to wait
+		// for, and the chain moves on.
+		if support.targetArmyID == "" {
+			return false
+		}
 		attack := ctx.attacks[support.targetArmyID]
 		if attack == nil || attack.target != support.destinationID {
-			return false
+			return true
 		}
 		record := ctx.records[attack.armyID]
 		return record == nil || record.outcome != OutcomeSuccess

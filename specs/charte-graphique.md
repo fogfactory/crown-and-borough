@@ -533,7 +533,28 @@ du bâtiment, et la légende rappelle que R désigne les ressources ; aucun
 - **Ravitaillement :** zone en hachures `ink-900` à 35 % ; ligne en tirets
   à la teinture du joueur.
 - **Intentions :** flèches à la teinture du joueur, cernées d'`ink-900` ; un
-  brouillon garde la même flèche à 45 % d'opacité, en tirets.
+  brouillon garde la même flèche à 45 % d'opacité, en tirets. L'attaque a le
+  trait le plus épais ; les soutiens, plus fins, se distinguent par leur forme
+  et non par la seule couleur :
+  - **Soutien défensif : palissade.** Sur chaque frontière franchissable de la
+    case soutenue, une rangée de pieux (base à l'intérieur, pointe vers la
+    frontière) à la teinture du soutien, cernée d'`ink-900`. Sur chaque frontière, un
+    écu « +N » (N : force du soutien, taille de l'armée, +1 si un noble la
+    commande) à la teinture du soutien, un écu par soutien. Un trait fin relie
+    l'armée soutenante à la frontière qu'elle partage avec la case. Plusieurs
+    soutiens sur la même case se partagent la rangée côte à côte, les teintes
+    alternant, chacun avec son écu sur chaque frontière.
+  - **Soutien offensif : affluent.** Un fin trait qui part du pied du
+    drapeau de l'armée soutenante, franchit la frontière commune avec le
+    territoire attaqué et finit exactement sur la pointe de la flèche
+    d'attaque, tangent à son vecteur, avec un dernier tiers droit (un tiers de
+    la distance entre la frontière et le centre) ; une petite pointe cernée
+    d'`ink-900` le termine. Le trait reste dans ces deux territoires, quitte à
+    plus se couder. Une seule pastille ronde « +N » (N : force du soutien,
+    taille de l'armée, +1 si un noble la commande) se tient au franchissement
+    de la frontière.
+  - Un soutien en brouillon prend la même transparence et les mêmes tirets que
+    les autres brouillons.
 - **Calamités et cartes :** pictogrammes à l'encre et au papier ; une
   calamité annulée est barrée d'un trait `ink-900`, pas de rouge.
 

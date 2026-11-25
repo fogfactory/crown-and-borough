@@ -11,6 +11,12 @@ import { pointsToPath } from '@/lib/map-svg-geometry'
 import type { Terrain, Territory } from '@/types'
 import { INTENT_OUTLINE_COLOR, MAP_INK, RIVER_BLUE, SNOW_STROKE } from '@/lib/map-palette'
 
+/** Arrowhead markers of the intentions overlay: id and size (in stroke widths). */
+const ARROW_MARKERS: ReadonlyArray<readonly [string, number]> = [
+  ['intent-arrow', 4],
+  ['intent-affluent-arrow', 6],
+]
+
 /**
  * Shared SVG definitions referenced by the map layers: per-territory clip
  * paths, the supply hatch, engraved terrain and border symbols, snow
@@ -96,28 +102,26 @@ export function MapSvgDefs({
       <clipPath id="region-frame-clip">
         <rect x={-bandMarginX} y={-bandMarginY} width={viewWidth} height={viewHeight} />
       </clipPath>
-      <marker
-        id="intent-arrow-outline"
-        viewBox="0 0 10 10"
-        refX="8.5"
-        refY="5"
-        markerWidth="3.8"
-        markerHeight="3.8"
-        orient="auto"
-      >
-        <path d="M0 0 L10 5 L0 10 Z" fill={INTENT_OUTLINE_COLOR} />
-      </marker>
-      <marker
-        id="intent-arrow"
-        viewBox="0 0 10 10"
-        refX="8.5"
-        refY="5"
-        markerWidth="3.2"
-        markerHeight="3.2"
-        orient="auto"
-      >
-        <path d="M0 0 L10 5 L0 10 Z" fill={intentionsColor} />
-      </marker>
+      {ARROW_MARKERS.map(([id, size]) => (
+        <marker
+          key={id}
+          id={id}
+          viewBox="0 0 10 10"
+          refX="8.5"
+          refY="5"
+          markerWidth={size}
+          markerHeight={size}
+          orient="auto"
+        >
+          <path
+            d="M1 0 L9 5 L1 10 Z"
+            fill={intentionsColor}
+            stroke={INTENT_OUTLINE_COLOR}
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+        </marker>
+      ))}
       <marker
         id="intent-circle-outline"
         viewBox="0 0 10 10"
