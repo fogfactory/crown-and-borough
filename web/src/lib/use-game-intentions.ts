@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { buildIntentions, type Intention } from '@/lib/intent-overlay'
+import { assignSupportSlots, buildIntentions, type Intention } from '@/lib/intent-overlay'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
 import { buildWinterIntentions, type WinterIntention } from '@/lib/winter-overlay'
 import type {
@@ -90,7 +90,7 @@ export function useGameIntentions({
   const intentions = useMemo(
     () =>
       spectator
-        ? [...installedIntentions, ...submittedIntentions]
+        ? assignSupportSlots([...installedIntentions, ...submittedIntentions])
         : state && playerID
           ? buildIntentions(
               map ?? { territories: [] },

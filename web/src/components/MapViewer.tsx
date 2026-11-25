@@ -14,7 +14,7 @@ import {
   type LegendSectionId,
 } from '@/components/MapLegend'
 import { MapControls } from '@/components/MapControls'
-import { HeraldryDefs } from '@/components/MapHeraldry'
+import { HeraldryDefs, armyBearerFoot } from '@/components/MapHeraldry'
 import { EngravedTerrainLayer, snowPatternVariant } from '@/components/MapDecorations'
 import {
   CalamityIconLayer,
@@ -22,6 +22,7 @@ import {
   ImpassableBorderChain,
 } from '@/components/MapIconLayers'
 import { IntentionsOverlay } from '@/components/MapIntentionsOverlay'
+import { anchorIntentions } from '@/lib/intent-overlay'
 import {
   RegionBadges,
   RegionBands,
@@ -34,6 +35,7 @@ import {
   OwnershipLayer,
   TerritoryColorLayer,
   TerritoryLabels,
+  armyAnchor,
 } from '@/components/MapTerritoryLayers'
 import { WinterOrdersOverlay } from '@/components/MapWinterOrdersOverlay'
 import { useLanguage } from '@/i18n/LanguageContext'
@@ -288,6 +290,41 @@ export function MapViewer({
       ),
     [map.territories, particularIds, showOrdinaryNames],
   )
+
+  // Intentions leave the foot of the flag of the army's pack.
+  const anchoredIntentions = useMemo(() => {
+    const anchors = new Map<string, [number, number]>()
+    const territoriesById = new Map(
+      map.territories.map((territory) => [territory.id, territory]),
+    )
+    for (const territoryState of state.territories) {
+      if (!territoryState.army) continue
+      const territory = territoriesById.get(territoryState.id)
+      if (!territory) continue
+      const [x, feet] = armyAnchor(
+        territory,
+        labelLayouts.get(territory.id),
+        annotationScale,
+      )
+      const [footX, footY] = armyBearerFoot(
+        territoryState.army.size,
+        territory.id,
+        !showOrdinaryNames,
+      )
+      anchors.set(territory.id, [
+        x + footX * annotationScale,
+        feet + footY * annotationScale,
+      ])
+    }
+    return anchorIntentions(map, intentions, anchors)
+  }, [
+    annotationScale,
+    intentions,
+    labelLayouts,
+    map,
+    showOrdinaryNames,
+    state.territories,
+  ])
 
   const colorsByPlayer = new Map(state.players.map((player) => [player.id, player.color]))
   const owners = Array.from(
@@ -724,7 +761,7 @@ export function MapViewer({
             {/* Intentions draw on top in every season (layer order, charter). */}
             {showIntentions && (
               <IntentionsOverlay
-                intentions={intentions}
+                intentions={anchoredIntentions}
                 annotationScale={annotationScale}
                 passableBorderDash={passableBorderDash}
                 intentionsColor={intentionsColor}
