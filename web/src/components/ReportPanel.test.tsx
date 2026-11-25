@@ -364,13 +364,22 @@ describe('ReportPanel', () => {
     )
 
     expect(screen.getByText('(ROS S BRU - CHA)')).toBeInTheDocument()
-    expect(screen.getAllByText(withText('P1 · Noble JEA'))).not.toHaveLength(0)
+    expect(screen.getAllByText(withText(/Noble .*JEA/))).not.toHaveLength(0)
+    expect(
+      screen.getByText(
+        withText(
+          "L'armée de Rosemont (ROS) soutient l'attaque de l'armée de Bruyères (BRU) sur Chavaux (CHA).",
+        ),
+      ),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('Réussi')).not.toHaveLength(0)
     expect(screen.getAllByText('Échec')).not.toHaveLength(0)
     expect(screen.getAllByText('Invalidé')).not.toHaveLength(0)
     expect(screen.getByText(/Bloqué par le mauvais temps/)).toBeInTheDocument()
     expect(screen.getAllByText('C M ROS')).toHaveLength(2)
-    expect(screen.getByText(withText(/^Améliore le moulin de .* au niveau 2\.$/))).toBeInTheDocument()
+    expect(
+      screen.getByText(withText(/^Améliore le moulin de .* au niveau 2\.$/)),
+    ).toBeInTheDocument()
     // The cost sits next to the outcome; a free order shows none.
     expect(screen.getByText(withText('Réussi · 3 R'))).toBeInTheDocument()
     expect(screen.queryByText(withText(/Réussi · 0 R/))).not.toBeInTheDocument()
@@ -389,32 +398,62 @@ describe('ReportPanel', () => {
       screen.getByText(/manque de vivres — elle se défend à force réduite/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Un bel ensoleillement gagne le royaume/)).toBeInTheDocument()
-    expect(screen.getByText(withText(/Beau temps \(BT\) jouée sur Rosemont \(ROS\)/))).toBeInTheDocument()
-    expect(screen.getByText(withText(/Peste \(PE\) à venir en Été dans Rosemont \(ROS\)/))).toBeInTheDocument()
-    expect(screen.getByText(withText(/P1 : Révolte \(RE\) annulée à Bruyères \(BRU\)/))).toBeInTheDocument()
+    expect(
+      screen.getByText(withText(/Beau temps \(BT\) jouée sur Rosemont \(ROS\)/)),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(withText(/Peste \(PE\) à venir en Été dans Rosemont \(ROS\)/)),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(withText(/P1 : Révolte \(RE\) annulée à Bruyères \(BRU\)/)),
+    ).toBeInTheDocument()
     expect(screen.getByText(/P1 : Révolte \(RE\) récupérée/)).toBeInTheDocument()
     expect(
       screen.getByText(withText(/Mauvaise récolte \(MR\) active dans Rosemont \(ROS\)/)),
     ).toBeInTheDocument()
-    expect(screen.getByText(withText(/Beau temps \(BT\) actif dans Rosemont \(ROS\)/))).toBeInTheDocument()
-    expect(screen.getByText(withText('Peste (PE) active dans Rosemont (ROS)'))).toBeInTheDocument()
-    expect(screen.getByText(withText(/Armée de P1 à Rosemont \(ROS\) : 5 → 2 troupes/))).toBeInTheDocument()
-    expect(screen.getByText(withText('Le noble Robert de Rosemont (ROB) meurt de la peste à Rosemont (ROS)'))).toBeInTheDocument()
-    expect(screen.getByText(withText('Le noble Jean de Rosemont (JEA) à Rosemont (ROS) survit à la peste'))).toBeInTheDocument()
     expect(
-      screen.getByText(withText(/Armée de P1 à Rosemont \(ROS\) : mouvement vers Bruyères \(BRU\) bloqué/)),
+      screen.getByText(withText(/Beau temps \(BT\) actif dans Rosemont \(ROS\)/)),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(withText('Peste (PE) active dans Rosemont (ROS)')),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(withText(/Armée de P1 à Rosemont \(ROS\) : 5 → 2 troupes/)),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        withText('Le noble Robert de Rosemont (ROB) meurt de la peste à Rosemont (ROS)'),
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        withText('Le noble Jean de Rosemont (JEA) à Rosemont (ROS) survit à la peste'),
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        withText(
+          /Armée de P1 à Rosemont \(ROS\) : mouvement vers Bruyères \(BRU\) bloqué/,
+        ),
+      ),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/2 R de production supprimées, 2 rations/),
     ).toBeInTheDocument()
-    expect(screen.getByText(withText(/Bruyères \(BRU\) : 1 R non produites/))).toBeInTheDocument()
+    expect(
+      screen.getByText(withText(/Bruyères \(BRU\) : 1 R non produites/)),
+    ).toBeInTheDocument()
     expect(
       screen.getByText(/3 R de production des moulins supprimées/),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(withText(/Moulin à Bruyères \(BRU\) à l’arrêt : 3 R non produites/)),
+      screen.getByText(
+        withText(/Moulin à Bruyères \(BRU\) à l’arrêt : 3 R non produites/),
+      ),
     ).toBeInTheDocument()
-    expect(screen.getByText(withText('Armée neutre de 2 troupes créée à Bruyères (BRU)'))).toBeInTheDocument()
+    expect(
+      screen.getByText(withText('Armée neutre de 2 troupes créée à Bruyères (BRU)')),
+    ).toBeInTheDocument()
   })
 
   it('does not display storage identifiers in visible report text', () => {
@@ -438,8 +477,21 @@ describe('ReportPanel', () => {
           report={{
             ...report,
             seasonEffects: [
-              { kind: 'assassination', cardKind: 'assassination', noble: 'TWO', nobleName: 'Two', territory: 'AAA' },
-              { kind: 'assassination_revealed', owner: 'P1', noble: 'TWO', nobleName: 'Two', commissioner: 'ONE', commissionerName: 'One' },
+              {
+                kind: 'assassination',
+                cardKind: 'assassination',
+                noble: 'TWO',
+                nobleName: 'Two',
+                territory: 'AAA',
+              },
+              {
+                kind: 'assassination_revealed',
+                owner: 'P1',
+                noble: 'TWO',
+                nobleName: 'Two',
+                commissioner: 'ONE',
+                commissionerName: 'One',
+              },
             ],
           }}
           map={map}
@@ -450,7 +502,9 @@ describe('ReportPanel', () => {
     const text = container.textContent ?? ''
     expect(text).toContain('Two (TWO) was assassinated')
     expect(text).toContain('nobody claims the deed')
-    expect(text).toContain('Your inquiry reveals that One (ONE) commissioned the assassination of Two (TWO)')
+    expect(text).toContain(
+      'Your inquiry reveals that One (ONE) commissioned the assassination of Two (TWO)',
+    )
   })
 
   it('reports a revolt that turns a starving army neutral and one it holds against', () => {
@@ -460,8 +514,24 @@ describe('ReportPanel', () => {
           report={{
             ...report,
             seasonEffects: [
-              { kind: 'army_revolt', cardKind: 'revolt', territory: 'AAA', victimOwner: 'P1', sizeBefore: 3, troops: 4, reason: 'neutralized' },
-              { kind: 'army_revolt', cardKind: 'revolt', territory: 'AAA', victimOwner: 'P1', sizeBefore: 3, troops: 2, reason: 'suppressed' },
+              {
+                kind: 'army_revolt',
+                cardKind: 'revolt',
+                territory: 'AAA',
+                victimOwner: 'P1',
+                sizeBefore: 3,
+                troops: 4,
+                reason: 'neutralized',
+              },
+              {
+                kind: 'army_revolt',
+                cardKind: 'revolt',
+                territory: 'AAA',
+                victimOwner: 'P1',
+                sizeBefore: 3,
+                troops: 2,
+                reason: 'suppressed',
+              },
             ],
           }}
           map={map}
@@ -481,8 +551,23 @@ describe('ReportPanel', () => {
           report={{
             ...report,
             seasonEffects: [
-              { kind: 'justice', cardKind: 'justice', owner: 'P1', reason: 'justice_executed', noble: 'TWO', nobleName: 'Two', territory: 'AAA' },
-              { kind: 'justice', cardKind: 'justice', owner: 'P1', reason: 'justice_no_effect', noble: 'ONE', nobleName: 'One' },
+              {
+                kind: 'justice',
+                cardKind: 'justice',
+                owner: 'P1',
+                reason: 'justice_executed',
+                noble: 'TWO',
+                nobleName: 'Two',
+                territory: 'AAA',
+              },
+              {
+                kind: 'justice',
+                cardKind: 'justice',
+                owner: 'P1',
+                reason: 'justice_no_effect',
+                noble: 'ONE',
+                nobleName: 'One',
+              },
             ],
           }}
           map={map}
@@ -502,7 +587,16 @@ describe('ReportPanel', () => {
           report={{
             ...report,
             cards: [
-              { kind: 'assassination', eventType: 'deck_order_played', player: 'P1', outcome: 'success', noble: 'TWO', nobleName: 'Two', commissioner: 'ONE', commissionerName: 'One' },
+              {
+                kind: 'assassination',
+                eventType: 'deck_order_played',
+                player: 'P1',
+                outcome: 'success',
+                noble: 'TWO',
+                nobleName: 'Two',
+                commissioner: 'ONE',
+                commissionerName: 'One',
+              },
             ],
           }}
           map={map}
@@ -510,7 +604,9 @@ describe('ReportPanel', () => {
         />
       </LanguageProvider>,
     )
-    expect(container.textContent).toContain('played on Two (TWO), commissioned by One (ONE)')
+    expect(container.textContent).toContain(
+      'played on Two (TWO), commissioned by One (ONE)',
+    )
   })
 
   it('renders a rejected winter order stripped of its order and noble', () => {
@@ -519,7 +615,20 @@ describe('ReportPanel', () => {
         <ReportPanel
           report={{
             ...report,
-            winter: { investments: [{ kind: 'rejected', player: 'P2', outcome: 'failure', cost: 0, reason: 'card_not_in_hand' }], stocks: [], cards: [], rumors: [] },
+            winter: {
+              investments: [
+                {
+                  kind: 'rejected',
+                  player: 'P2',
+                  outcome: 'failure',
+                  cost: 0,
+                  reason: 'card_not_in_hand',
+                },
+              ],
+              stocks: [],
+              cards: [],
+              rumors: [],
+            },
           }}
           map={map}
           players={players}
@@ -589,7 +698,9 @@ describe('ReportPanel', () => {
 
     expect(screen.getByText('C N JUL JEN')).toBeInTheDocument()
     expect(
-      screen.getByText(withText(/Dame Julienne \(JUL\) revendique les titres de Dame Jeanne \(JEN\)/)),
+      screen.getByText(
+        withText(/Dame Julienne \(JUL\) revendique les titres de Dame Jeanne \(JEN\)/),
+      ),
     ).toBeInTheDocument()
     expect(screen.getByText('Cartes de noble')).toBeInTheDocument()
     expect(screen.queryByText('Hiver')).toBeNull()
@@ -643,7 +754,9 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    const occupiedLine = screen.getByText(withText('Bruyères (BRU) (fief of Rosemont (ROS)) occupied by P2'))
+    const occupiedLine = screen.getByText(
+      withText('Bruyères (BRU) (fief of Rosemont (ROS)) occupied by P2'),
+    )
     expect(occupiedLine).toBeInTheDocument()
     expect(occupiedLine.closest('[data-event-card]')).toHaveClass('text-vermilion-700')
   })
@@ -653,13 +766,55 @@ describe('ReportPanel', () => {
       ...report,
       fiefs: [
         {
-          kind: 'fief_conquered', owner: 'P1', previousOwner: 'P2', capital: 'ROS', title: 'barony',
-          territories: [], reason: 'usurpation', noble: 'N1', nobleName: 'Baron Hugon', exiledName: 'Sieur Anne',
+          kind: 'fief_conquered',
+          owner: 'P1',
+          previousOwner: 'P2',
+          capital: 'ROS',
+          title: 'barony',
+          territories: [],
+          reason: 'usurpation',
+          noble: 'N1',
+          nobleName: 'Baron Hugon',
+          exiledName: 'Sieur Anne',
         },
-        { kind: 'fief_conquered', owner: 'P2', capital: 'ROS', title: 'barony', territories: [], reason: 'usurper_died', nobleName: 'Baron Anne' },
-        { kind: 'fief_title_settled', owner: 'P1', capital: 'ROS', title: 'barony', territories: [], reason: 'usurper_legitimised', nobleName: 'Baron Hugon' },
-        { kind: 'title_renounced', owner: 'P1', capital: '', title: 'barony', territories: [], reason: 'claim', nobleName: 'Sieur Kid', targetName: 'Dame Ann' },
-        { kind: 'fief_member_occupied', owner: 'P1', occupant: 'P2', capital: 'ROS', title: 'barony', territories: [], territory: 'ROS', reason: 'capital' },
+        {
+          kind: 'fief_conquered',
+          owner: 'P2',
+          capital: 'ROS',
+          title: 'barony',
+          territories: [],
+          reason: 'usurper_died',
+          nobleName: 'Baron Anne',
+        },
+        {
+          kind: 'fief_title_settled',
+          owner: 'P1',
+          capital: 'ROS',
+          title: 'barony',
+          territories: [],
+          reason: 'usurper_legitimised',
+          nobleName: 'Baron Hugon',
+        },
+        {
+          kind: 'title_renounced',
+          owner: 'P1',
+          capital: '',
+          title: 'barony',
+          territories: [],
+          reason: 'claim',
+          nobleName: 'Sieur Kid',
+          targetName: 'Dame Ann',
+        },
+        {
+          kind: 'fief_member_occupied',
+          owner: 'P1',
+          occupant: 'P2',
+          capital: 'ROS',
+          title: 'barony',
+          territories: [],
+          territory: 'ROS',
+          reason: 'capital',
+        },
       ],
     }
 
@@ -670,10 +825,18 @@ describe('ReportPanel', () => {
     )
 
     expect(screen.getByText(/Baron Hugon usurps the fief/)).toBeInTheDocument()
-    expect(screen.getByText(/the usurper is dead; Baron Anne recovers the fief/)).toBeInTheDocument()
-    expect(screen.getByText(/Baron Hugon is now the official titleholder/)).toBeInTheDocument()
-    expect(screen.getByText('Sieur Kid gives up the claim on Dame Ann')).toBeInTheDocument()
-    expect(screen.getByText(/the capital is occupied by P2 without being conquered/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/the usurper is dead; Baron Anne recovers the fief/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Baron Hugon is now the official titleholder/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Sieur Kid gives up the claim on Dame Ann'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/the capital is occupied by P2 without being conquered/),
+    ).toBeInTheDocument()
   })
 
   it('warns distinctly about a fief automatically assigned at the end of winter', () => {
@@ -752,6 +915,17 @@ describe('ReportPanel', () => {
   it('displays the noble command bonus in combat forces', () => {
     const combatReport: TurnReport = {
       ...report,
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'failure',
+          army: 'A1',
+          owner: 'P1',
+          legs: [{ to: 'BRU' }],
+          combat: 'BRU',
+          reason: 'standoff',
+        },
+      ],
       combats: [
         {
           territory: 'BRU',
@@ -760,10 +934,11 @@ describe('ReportPanel', () => {
           castleBonus: 0,
           contenders: [
             { army: 'A1', owner: 'P1', force: 2, nobleBonus: 1, defender: false },
+            { army: 'A2', owner: 'P2', force: 1, defender: true },
           ],
           cutSupporters: [],
-          reason: 'attack_wins',
-          standoff: false,
+          reason: 'standoff',
+          standoff: true,
         },
       ],
     }
@@ -774,19 +949,43 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText(/2 \(\+1 noble\)/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher le détail du combat' }))
+    expect(screen.getByText(/force 2 \(\+1 noble\)/)).toBeInTheDocument()
   })
 
   it('reports an ambush capture and a card played with no region', () => {
     const ambushReport: TurnReport = {
       ...report,
-      cards: [{ eventType: 'deck_order_played', kind: 'ambush', player: 'P1', season: 'spring', outcome: 'success' }],
+      cards: [
+        {
+          eventType: 'deck_order_played',
+          kind: 'ambush',
+          player: 'P1',
+          season: 'spring',
+          outcome: 'success',
+        },
+      ],
       seasonEffects: [
         {
-          kind: 'ambush', cardKind: 'ambush', season: 'spring', owner: 'P1', target: 'ROS', territory: 'BRU',
-          noble: 'JEN', nobleName: 'Jeanne de Ravinval', reason: 'ambush_capture',
+          kind: 'ambush',
+          cardKind: 'ambush',
+          season: 'spring',
+          owner: 'P1',
+          target: 'ROS',
+          territory: 'BRU',
+          noble: 'JEN',
+          nobleName: 'Jeanne de Ravinval',
+          reason: 'ambush_capture',
         },
-        { kind: 'ambush', cardKind: 'ambush', season: 'spring', owner: 'P1', target: 'ROS', territory: 'BRU', reason: 'ambush_void' },
+        {
+          kind: 'ambush',
+          cardKind: 'ambush',
+          season: 'spring',
+          owner: 'P1',
+          target: 'ROS',
+          territory: 'BRU',
+          reason: 'ambush_void',
+        },
       ],
     }
 
@@ -797,13 +996,30 @@ describe('ReportPanel', () => {
     )
 
     expect(screen.getByText('P1: Ambush (EM) played')).toBeInTheDocument()
-    expect(screen.getByText(withText(/^Ambush: .*JEN.* was captured when the army driven from/))).toBeInTheDocument()
-    expect(screen.getByText(/^The ambush played on the attack from .* had no effect$/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        withText(/^Ambush: .*JEN.* was captured when the army driven from/),
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/^The ambush played on the attack from .* had no effect$/),
+    ).toBeInTheDocument()
   })
 
   it('shows the defense a tunneled attack faced without the fortifications', () => {
     const combatReport: TurnReport = {
       ...report,
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'failure',
+          army: 'A1',
+          owner: 'P1',
+          legs: [{ to: 'BRU' }],
+          combat: 'BRU',
+          reason: 'standoff',
+        },
+      ],
       combats: [
         {
           territory: 'BRU',
@@ -827,9 +1043,11 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher le détail du combat' }))
     expect(
-      screen.getByText(/2 défense \(1 face à un souterrain\) · 2 \(souterrain\)/),
+      screen.getByText(/force 2 · fortification \+1 · \(1 face à un souterrain\)/),
     ).toBeInTheDocument()
+    expect(screen.getByText(/force 2 \(souterrain\)/)).toBeInTheDocument()
   })
 
   it('renders a general combat without exposing forces', () => {
@@ -840,6 +1058,15 @@ describe('ReportPanel', () => {
           visibility: 'general',
           territory: 'BRU',
           outcome: 'standoff',
+        },
+      ],
+      movements: [
+        {
+          visibility: 'general',
+          kind: 'failure',
+          legs: [{ to: 'BRU' }],
+          combat: 'BRU',
+          reason: 'standoff',
         },
       ],
     }
@@ -856,12 +1083,21 @@ describe('ReportPanel', () => {
 
   it.each([
     ['standoff', 'Statu quo'],
-    ['attack_wins', "L'attaque gagne"],
+    ['attack_wins', "Une armée s'empare de Bruyères (BRU)"],
     ['defense_holds', 'La défense tient'],
   ])('translates the %s outcome of a general combat', (outcome, expected) => {
     const generalReport: TurnReport = {
       ...report,
       combats: [{ visibility: 'general', territory: 'BRU', outcome }],
+      movements: [
+        {
+          visibility: 'general',
+          kind: outcome === 'attack_wins' ? 'victory' : 'failure',
+          legs: [{ to: 'BRU' }],
+          combat: 'BRU',
+          reason: outcome === 'attack_wins' ? undefined : outcome,
+        },
+      ],
     }
 
     render(
@@ -870,7 +1106,7 @@ describe('ReportPanel', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText(expected)).toBeInTheDocument()
+    expect(screen.getByText(withText(expected))).toBeInTheDocument()
   })
 
   it('translates the rejection of an attack by a famished army', () => {
@@ -925,7 +1161,7 @@ describe('ReportPanel', () => {
     expect(screen.getByText('Resolution complete')).toBeInTheDocument()
     // Empty categories are left out rather than announced.
     expect(document.querySelector('[data-report-category="combats"]')).toBeNull()
-    expect(document.querySelector('[data-report-category="orders"]')).toBeNull()
+    expect(document.querySelector('[data-report-category="houses"]')).toBeNull()
   })
 
   it('renders the same report in English with translated reason labels', () => {
@@ -976,17 +1212,17 @@ describe('ReportPanel event cards', () => {
       </LanguageProvider>,
     )
 
-    const summaries = Array.from(container.querySelectorAll('[data-summary-card] summary')).map(
-      (summary) => summary.textContent,
-    )
+    const summaries = Array.from(
+      container.querySelectorAll('[data-summary-card] summary'),
+    ).map((summary) => summary.textContent)
     expect(summaries.some((summary) => summary?.startsWith('Economy:'))).toBe(true)
     expect(container.querySelector('[data-summary-card]')).not.toHaveAttribute('open')
     // The kept stock is listed in the winter block of its house, not in the economy.
     const conservation = container.querySelector('[data-winter-group="conservation"]')
     expect(conservation).toHaveTextContent('Rosemont (ROS): 40 → 20 R')
-    expect(container.querySelector('[data-report-category="economy"]')).not.toHaveTextContent(
-      'Rosemont (ROS): 40 → 20 R',
-    )
+    expect(
+      container.querySelector('[data-report-category="economy"]'),
+    ).not.toHaveTextContent('Rosemont (ROS): 40 → 20 R')
     expect(container).not.toHaveTextContent('0 → 0')
   })
 
@@ -999,9 +1235,29 @@ describe('ReportPanel event cards', () => {
       ...report,
       winter: {
         investments: [
-          { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS', type: 'mill' },
-          { kind: 'fief_assigned', player: 'P2', outcome: 'success', cost: 0, territory: 'ROS', nobleCode: 'ROB' },
-          { kind: 'marriage_refused', player: 'P2', outcome: 'failure', cost: 0, nobleCode: 'JEA' },
+          {
+            kind: 'build',
+            player: 'P1',
+            outcome: 'success',
+            cost: 3,
+            territory: 'ROS',
+            type: 'mill',
+          },
+          {
+            kind: 'fief_assigned',
+            player: 'P2',
+            outcome: 'success',
+            cost: 0,
+            territory: 'ROS',
+            nobleCode: 'ROB',
+          },
+          {
+            kind: 'marriage_refused',
+            player: 'P2',
+            outcome: 'failure',
+            cost: 0,
+            nobleCode: 'JEA',
+          },
         ],
         stocks: [{ territory: 'ROS', owner: 'P2', stockBefore: 40, stockAfter: 20 }],
         cards: [],
@@ -1017,10 +1273,13 @@ describe('ReportPanel event cards', () => {
       )
     }
 
-    it('gives each house a block, the viewer\'s first and open, the others folded', () => {
+    it("gives each house a block, the viewer's first and open, the others folded", () => {
       renderWinter('P2')
       const blocks = Array.from(document.querySelectorAll('[data-winter-house]'))
-      expect(blocks.map((block) => block.getAttribute('data-winter-house'))).toEqual(['P2', 'P1'])
+      expect(blocks.map((block) => block.getAttribute('data-winter-house'))).toEqual([
+        'P2',
+        'P1',
+      ])
       expect(blocks[0]).toHaveAttribute('open')
       expect(blocks[1]).not.toHaveAttribute('open')
       expect(blocks[0].querySelector('summary')).toHaveTextContent(
@@ -1032,8 +1291,8 @@ describe('ReportPanel event cards', () => {
     it('ranges the orders of a house by nature and keeps its kept stocks there', () => {
       renderWinter('P2')
       const house = document.querySelector('[data-winter-house="P2"]') as HTMLElement
-      const groups = Array.from(house.querySelectorAll('[data-winter-group]')).map((group) =>
-        group.getAttribute('data-winter-group'),
+      const groups = Array.from(house.querySelectorAll('[data-winter-group]')).map(
+        (group) => group.getAttribute('data-winter-group'),
       )
       expect(groups).toEqual(['titles', 'court', 'conservation'])
       expect(house.querySelector('[data-winter-group="conservation"]')).toHaveTextContent(
@@ -1041,7 +1300,7 @@ describe('ReportPanel event cards', () => {
       )
     })
 
-    it('describes each order in the viewer\'s language', () => {
+    it("describes each order in the viewer's language", () => {
       renderWinter('P2')
       const house = document.querySelector('[data-winter-house="P2"]') as HTMLElement
       expect(house).toHaveTextContent('Gives the fief of Rosemont (ROS) to ROB.')
@@ -1057,8 +1316,22 @@ describe('ReportPanel event cards', () => {
         winter: {
           ...winterReport.winter,
           investments: [
-            { kind: 'transfer', player: 'P1', outcome: 'success', cost: 3, source: 'ROS', target: 'BRU', amount: 3 },
-            { kind: 'recruit', player: 'P2', outcome: 'success', cost: 0, territory: 'BRU' },
+            {
+              kind: 'transfer',
+              player: 'P1',
+              outcome: 'success',
+              cost: 3,
+              source: 'ROS',
+              target: 'BRU',
+              amount: 3,
+            },
+            {
+              kind: 'recruit',
+              player: 'P2',
+              outcome: 'success',
+              cost: 0,
+              territory: 'BRU',
+            },
           ],
           stocks: [
             { territory: 'ROS', owner: 'P1', stockBefore: 5, stockAfter: 1 },
@@ -1069,7 +1342,9 @@ describe('ReportPanel event cards', () => {
       const sender = document.querySelector('[data-winter-house="P1"]') as HTMLElement
       const receiver = document.querySelector('[data-winter-house="P2"]') as HTMLElement
       expect(sender).toHaveTextContent('Stocks 5 R − costs 3 R = 2 R → kept 1 R')
-      expect(receiver).toHaveTextContent('Stocks 0 R − costs 0 R + received 3 R = 3 R → kept 2 R')
+      expect(receiver).toHaveTextContent(
+        'Stocks 0 R − costs 0 R + received 3 R = 3 R → kept 2 R',
+      )
     })
 
     it('ignores a transfer that failed', () => {
@@ -1078,7 +1353,16 @@ describe('ReportPanel event cards', () => {
         winter: {
           ...winterReport.winter,
           investments: [
-            { kind: 'transfer', player: 'P1', outcome: 'failure', cost: 0, source: 'ROS', target: 'BRU', amount: 3, reason: 'insufficient_resources' },
+            {
+              kind: 'transfer',
+              player: 'P1',
+              outcome: 'failure',
+              cost: 0,
+              source: 'ROS',
+              target: 'BRU',
+              amount: 3,
+              reason: 'insufficient_resources',
+            },
           ],
           stocks: [
             { territory: 'ROS', owner: 'P1', stockBefore: 4, stockAfter: 2 },
@@ -1097,7 +1381,13 @@ describe('ReportPanel event cards', () => {
         winter: {
           ...winterReport.winter,
           investments: [
-            { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS' },
+            {
+              kind: 'build',
+              player: 'P1',
+              outcome: 'success',
+              cost: 3,
+              territory: 'ROS',
+            },
           ],
         },
       } as TurnReport)
@@ -1112,8 +1402,23 @@ describe('ReportPanel event cards', () => {
         winter: {
           ...winterReport.winter,
           investments: [
-            { kind: 'build', player: 'P1', outcome: 'success', cost: 3, territory: 'ROS', type: 'mill' },
-            { kind: 'fief_founded', player: 'P1', outcome: 'success', cost: 6, territory: 'ROS', nobleCode: 'ROB', territories: ['ROS'] },
+            {
+              kind: 'build',
+              player: 'P1',
+              outcome: 'success',
+              cost: 3,
+              territory: 'ROS',
+              type: 'mill',
+            },
+            {
+              kind: 'fief_founded',
+              player: 'P1',
+              outcome: 'success',
+              cost: 6,
+              territory: 'ROS',
+              nobleCode: 'ROB',
+              territories: ['ROS'],
+            },
           ],
           stocks: [
             { territory: 'ROS', owner: 'P1', stockBefore: 40, stockAfter: 16 },
@@ -1133,12 +1438,26 @@ describe('ReportPanel event cards', () => {
       renderWinter('P1', {
         ...winterReport,
         marriages: [
-          { outcome: 'success', noble: 'n1', nobleCode: 'ROB', nobleName: 'Robert', owner: 'P1', spouse: 'n2', spouseCode: 'JEA', spouseName: 'Jean', spouseOwner: 'P2' },
+          {
+            outcome: 'success',
+            noble: 'n1',
+            nobleCode: 'ROB',
+            nobleName: 'Robert',
+            owner: 'P1',
+            spouse: 'n2',
+            spouseCode: 'JEA',
+            spouseName: 'Jean',
+            spouseOwner: 'P2',
+          },
         ],
       } as TurnReport)
       const rumors = document.querySelector('[data-report-rumors]') as HTMLElement
-      const events = document.querySelector('[data-report-category="events"]') as HTMLElement
-      const winter = document.querySelector('[data-report-category="winter"]') as HTMLElement
+      const events = document.querySelector(
+        '[data-report-category="events"]',
+      ) as HTMLElement
+      const winter = document.querySelector(
+        '[data-report-category="winter"]',
+      ) as HTMLElement
       const before = (a: HTMLElement, b: HTMLElement) =>
         Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
       expect(before(rumors, events)).toBe(true)
@@ -1152,12 +1471,23 @@ describe('ReportPanel event cards', () => {
           ...winterReport.winter,
           investments: [
             ...winterReport.winter!.investments,
-            { kind: 'prosperity_founded', player: '', outcome: 'success', cost: 0, source: 'ROS', target: 'BRU' },
+            {
+              kind: 'prosperity_founded',
+              player: '',
+              outcome: 'success',
+              cost: 0,
+              source: 'ROS',
+              target: 'BRU',
+            },
           ],
         },
       } as TurnReport)
       const blocks = Array.from(document.querySelectorAll('[data-winter-house]'))
-      expect(blocks.map((block) => block.getAttribute('data-winter-house'))).toEqual(['P1', 'P2', ''])
+      expect(blocks.map((block) => block.getAttribute('data-winter-house'))).toEqual([
+        'P1',
+        'P2',
+        '',
+      ])
       expect(blocks[2]).toHaveAttribute('open')
       expect(blocks[2].querySelector('summary')).toHaveTextContent('Realm')
     })
@@ -1171,9 +1501,188 @@ describe('ReportPanel event cards', () => {
         },
       } as TurnReport)
       expect(
-        document.querySelector('[data-winter-house="NEUTRAL"] [data-winter-group="conservation"]'),
+        document.querySelector(
+          '[data-winter-house="NEUTRAL"] [data-winter-group="conservation"]',
+        ),
       ).toHaveTextContent('Rosemont (ROS): 40 → 20 R')
     })
+  })
+
+  it('groups armies into conquests, moves and failures, and ends on the houses', () => {
+    const moving: TurnReport = {
+      ...report,
+      rumors: [{ kind: 'famine', key: 'rumor.famine.1' }],
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'victory',
+          army: 'A1',
+          owner: 'P1',
+          legs: [{ from: 'ROS', to: 'BRU' }],
+          combat: 'BRU',
+        },
+        {
+          visibility: 'exact',
+          kind: 'move',
+          army: 'A3',
+          owner: 'P1',
+          legs: [{ from: 'ROS', to: 'CHA' }],
+        },
+        {
+          visibility: 'exact',
+          kind: 'failure',
+          army: 'A4',
+          owner: 'P1',
+          legs: [{ from: 'BRU', to: 'ROS' }],
+          reason: 'dislodged',
+        },
+      ],
+      receptions: [
+        { player: 'P1', noble: 'JEA', nobleName: 'Jean de Rosemont', received: true },
+        { player: 'P2', noble: 'ROB', nobleName: 'Robert de Rosemont', received: false },
+      ],
+      combats: [
+        {
+          visibility: 'exact',
+          territory: 'BRU',
+          contested: true,
+          contenders: [
+            { army: 'A1', owner: 'P1', force: 3, defender: false },
+            { army: 'A2', owner: 'P2', force: 2, defender: true },
+          ],
+          winner: 'A1',
+          reason: 'attack_wins',
+        },
+        {
+          visibility: 'exact',
+          territory: 'CHA',
+          contested: false,
+          contenders: [{ army: 'A3', owner: 'P1', force: 1, defender: false }],
+          winner: 'A3',
+          reason: 'attack_wins',
+        },
+      ],
+      orders: [
+        {
+          visibility: 'known',
+          army: 'A1',
+          owner: 'P1',
+          type: 'attack',
+          source: 'ROS',
+          targets: ['BRU'],
+          outcome: 'success',
+        },
+        {
+          visibility: 'known',
+          army: 'A3',
+          owner: 'P1',
+          type: 'attack',
+          source: 'ROS',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
+        {
+          visibility: 'known',
+          army: 'A4',
+          owner: 'P1',
+          type: 'maneuver',
+          source: 'BRU',
+          targets: ['ROS'],
+          outcome: 'failure',
+          reason: 'dislodged',
+        },
+        {
+          visibility: 'known',
+          army: 'A2',
+          owner: 'P2',
+          type: 'hold',
+          source: 'BRU',
+          outcome: 'failure',
+        },
+        { visibility: 'hidden', outcome: 'success' },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={moving} map={map} players={players} viewerId="P1" />
+      </LanguageProvider>,
+    )
+
+    const kinds = Array.from(document.querySelectorAll('[data-movement-group]')).map(
+      (group) => group.getAttribute('data-movement-group'),
+    )
+    expect(kinds).toEqual(['victory', 'move', 'failure'])
+    const group = (kind: string) =>
+      document.querySelector(`[data-movement-group="${kind}"]`) as HTMLElement
+    expect(group('victory')).toHaveTextContent('Army of P1 takes Bruyères (BRU)')
+    expect(group('move')).toHaveTextContent('Army of P1 moves to Chavaux (CHA)')
+    expect(group('failure')).toHaveTextContent('Army of P1 fails to reach Rosemont (ROS)')
+    // An unopposed move is not a fight: only the conquest unfolds.
+    expect(
+      within(group('move')).queryByRole('button', { name: /combat details/ }),
+    ).toBeNull()
+    expect(
+      within(group('victory')).getByRole('button', { name: /combat details/ }),
+    ).toBeInTheDocument()
+
+    // The closing blocks: receptions of every house, orders of the viewer's only.
+    const houses = document.querySelector(
+      '[data-report-category="houses"]',
+    ) as HTMLElement
+    expect(houses).toHaveTextContent('Jean de Rosemont (JEA)')
+    expect(houses).toHaveTextContent('Robert de Rosemont (ROB)')
+    expect(houses).toHaveTextContent('The army at Rosemont (ROS) attacks Bruyères (BRU).')
+    expect(houses).toHaveTextContent(
+      'The army at Bruyères (BRU) sends troops to Rosemont (ROS).',
+    )
+    expect(houses).not.toHaveTextContent('holds its position')
+    const last = Array.from(document.querySelectorAll('[data-report-category]')).at(-1)
+    expect(last).toBe(houses)
+    const rumors = document.querySelector('[data-report-rumors]') as HTMLElement
+    const movementsSection = document.querySelector(
+      '[data-report-category="movements"]',
+    ) as HTMLElement
+    expect(
+      rumors.compareDocumentPosition(movementsSection) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('rebuilds the movements of a report stored before the engine listed them', () => {
+    const stored: TurnReport = {
+      ...report,
+      combats: [
+        {
+          visibility: 'exact',
+          territory: 'BRU',
+          contenders: [
+            { army: 'A1', owner: 'P1', force: 3, defender: false },
+            { army: 'A2', owner: 'P2', force: 2, defender: true },
+          ],
+          winner: 'A1',
+        },
+      ],
+      orders: [
+        {
+          visibility: 'known',
+          army: 'A1',
+          owner: 'P1',
+          type: 'attack',
+          source: 'ROS',
+          targets: ['BRU'],
+          outcome: 'success',
+        },
+      ],
+    }
+    render(
+      <LanguageProvider initialLanguage="en">
+        <ReportPanel report={stored} map={map} players={players} viewerId="P1" />
+      </LanguageProvider>,
+    )
+    const group = document.querySelector('[data-movement-group="victory"]') as HTMLElement
+    expect(group).toHaveTextContent('Army of P1 takes Bruyères (BRU)')
+    expect(
+      within(group).getByRole('button', { name: /combat details/ }),
+    ).toBeInTheDocument()
   })
 
   it('draws a support toward the destination it backs', () => {
@@ -1185,7 +1694,9 @@ describe('ReportPanel event cards', () => {
       </LanguageProvider>,
     )
 
-    const orders = document.querySelector('[data-report-category="orders"]') as HTMLElement
+    const orders = document.querySelector(
+      '[data-report-category="houses"]',
+    ) as HTMLElement
     fireEvent.click(within(orders).getAllByRole('button', { name: 'Show' })[0])
     expect(links.showEvent).toHaveBeenCalledWith({
       territories: ['ROS', 'BRU', 'CHA'],
@@ -1206,10 +1717,12 @@ describe('ReportPanel event cards', () => {
       </LanguageProvider>,
     )
 
-    const orders = document.querySelector('[data-report-category="orders"]') as HTMLElement
-    const card = within(orders).getAllByRole('button', { name: 'Show' })[0].closest(
-      '[data-event-card]',
+    const orders = document.querySelector(
+      '[data-report-category="houses"]',
     ) as HTMLElement
+    const card = within(orders)
+      .getAllByRole('button', { name: 'Show' })[0]
+      .closest('[data-event-card]') as HTMLElement
     links.highlight.mockClear()
     fireEvent.mouseOver(card)
     expect(links.highlight).toHaveBeenLastCalledWith({
@@ -1244,12 +1757,16 @@ describe('ReportPanel event cards', () => {
       </LanguageProvider>,
     )
 
-    const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+    const events = document.querySelector(
+      '[data-report-category="events"]',
+    ) as HTMLElement
     const plague = within(events).getAllByRole('button', { name: 'Show' })[0]
     links.highlight.mockClear()
     fireEvent.focus(plague)
     expect(links.highlight).toHaveBeenLastCalledWith(
-      expect.objectContaining({ territories: expect.arrayContaining(['ROS', 'BRU', 'CHA']) }),
+      expect.objectContaining({
+        territories: expect.arrayContaining(['ROS', 'BRU', 'CHA']),
+      }),
     )
 
     const supplied = Array.from(
@@ -1266,6 +1783,16 @@ describe('ReportPanel event cards', () => {
   it('lights the attackers and supporters of a combat with arrows to the fight', () => {
     const fight: TurnReport = {
       ...report,
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'failure',
+          army: 'A2',
+          owner: 'P2',
+          legs: [{ from: 'BRU', to: 'CHA' }],
+          combat: 'CHA',
+        },
+      ],
       combats: [
         {
           territory: 'CHA',
@@ -1279,9 +1806,27 @@ describe('ReportPanel event cards', () => {
         },
       ],
       orders: [
-        { army: 'A1', type: 'support', source: 'ROS', targets: ['BRU', 'CHA'], outcome: 'success' },
-        { army: 'A2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
-        { army: 'A4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+        {
+          army: 'A1',
+          type: 'support',
+          source: 'ROS',
+          targets: ['BRU', 'CHA'],
+          outcome: 'success',
+        },
+        {
+          army: 'A2',
+          type: 'attack',
+          source: 'BRU',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
+        {
+          army: 'A4',
+          type: 'support',
+          source: 'VAL',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
       ],
     }
     render(
@@ -1293,12 +1838,12 @@ describe('ReportPanel event cards', () => {
     )
 
     const card = document.querySelector(
-      '[data-report-category="combats"] [data-event-card]',
+      '[data-report-category="movements"] [data-event-card]',
     ) as HTMLElement
     links.highlight.mockClear()
     fireEvent.mouseOver(card)
     expect(links.highlight).toHaveBeenLastCalledWith({
-      territories: ['CHA', 'BRU', 'ROS', 'VAL'],
+      territories: ['BRU', 'CHA', 'ROS', 'VAL'],
       arrows: [
         ['BRU', 'CHA'],
         ['ROS', 'CHA'],
@@ -1310,6 +1855,16 @@ describe('ReportPanel event cards', () => {
   it('unfolds a combat card into its forces, supports and result', () => {
     const fight: TurnReport = {
       ...report,
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'victory',
+          army: 'A2',
+          owner: 'P2',
+          legs: [{ from: 'BRU', to: 'CHA' }],
+          combat: 'CHA',
+        },
+      ],
       combats: [
         {
           territory: 'CHA',
@@ -1327,9 +1882,30 @@ describe('ReportPanel event cards', () => {
         },
       ],
       orders: [
-        { army: 'A1', owner: 'P1', type: 'support', source: 'ROS', targets: ['BRU', 'CHA'], outcome: 'success' },
-        { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
-        { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+        {
+          army: 'A1',
+          owner: 'P1',
+          type: 'support',
+          source: 'ROS',
+          targets: ['BRU', 'CHA'],
+          outcome: 'success',
+        },
+        {
+          army: 'A2',
+          owner: 'P2',
+          type: 'attack',
+          source: 'BRU',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
+        {
+          army: 'A4',
+          owner: 'P4',
+          type: 'support',
+          source: 'VAL',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
       ],
     }
     render(
@@ -1341,14 +1917,20 @@ describe('ReportPanel event cards', () => {
     )
 
     const card = document.querySelector(
-      '[data-report-category="combats"] [data-event-card]',
+      '[data-report-category="movements"] [data-event-card]',
     ) as HTMLElement
     expect(card.querySelector('[data-event-more]')).toBeNull()
     const toggle = within(card).getByRole('button', { name: 'Show the combat details' })
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
     const more = card.querySelector('[data-event-more]') as HTMLElement
-    for (const heading of ['Attackers', 'Defender', 'Attack support', 'Defense support', 'Result']) {
+    for (const heading of [
+      'Attackers',
+      'Defender',
+      'Attack support',
+      'Defense support',
+      'Result',
+    ]) {
       expect(within(more).getByRole('heading', { name: heading })).toBeInTheDocument()
     }
     expect(more).toHaveTextContent('P2')
@@ -1367,6 +1949,16 @@ describe('ReportPanel event cards', () => {
   it('lists a cut support once, and a castle defending alone without an owner', () => {
     const fight: TurnReport = {
       ...report,
+      movements: [
+        {
+          visibility: 'exact',
+          kind: 'failure',
+          army: 'A2',
+          owner: 'P2',
+          legs: [{ from: 'BRU', to: 'CHA' }],
+          combat: 'CHA',
+        },
+      ],
       combats: [
         {
           territory: 'CHA',
@@ -1383,8 +1975,22 @@ describe('ReportPanel event cards', () => {
       ],
       orders: [
         { type: 'hold', source: 'ROS', outcome: 'success', visibility: 'hidden' },
-        { army: 'A2', owner: 'P2', type: 'attack', source: 'BRU', targets: ['CHA'], outcome: 'success' },
-        { army: 'A4', owner: 'P4', type: 'support', source: 'VAL', targets: ['CHA'], outcome: 'success' },
+        {
+          army: 'A2',
+          owner: 'P2',
+          type: 'attack',
+          source: 'BRU',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
+        {
+          army: 'A4',
+          owner: 'P4',
+          type: 'support',
+          source: 'VAL',
+          targets: ['CHA'],
+          outcome: 'success',
+        },
       ],
     }
     render(
@@ -1396,7 +2002,7 @@ describe('ReportPanel event cards', () => {
     )
 
     const card = document.querySelector(
-      '[data-report-category="combats"] [data-event-card]',
+      '[data-report-category="movements"] [data-event-card]',
     ) as HTMLElement
     fireEvent.click(within(card).getByRole('button', { name: 'Show the combat details' }))
     const more = card.querySelector('[data-event-more]') as HTMLElement
@@ -1425,8 +2031,19 @@ describe('ReportPanel event cards', () => {
             report={{
               ...report,
               seasonEffects: [
-                { kind: 'calamity_canceled', cardKind: 'fair_weather', region: 'ROS', season: 'spring' },
-                { kind: 'famine_loss', cardKind: 'famine', region: 'ROS', territory: 'BRU', productionLost: 1 },
+                {
+                  kind: 'calamity_canceled',
+                  cardKind: 'fair_weather',
+                  region: 'ROS',
+                  season: 'spring',
+                },
+                {
+                  kind: 'famine_loss',
+                  cardKind: 'famine',
+                  region: 'ROS',
+                  territory: 'BRU',
+                  productionLost: 1,
+                },
               ],
             }}
             map={regional}
@@ -1436,7 +2053,9 @@ describe('ReportPanel event cards', () => {
       </LanguageProvider>,
     )
 
-    const events = document.querySelector('[data-report-category="events"]') as HTMLElement
+    const events = document.querySelector(
+      '[data-report-category="events"]',
+    ) as HTMLElement
     const [regionCard, territoryCard] = Array.from(
       events.querySelectorAll<HTMLElement>('[data-event-card]'),
     )
@@ -1502,7 +2121,8 @@ describe('ReportPanel event cards', () => {
     fireEvent.focus(name)
     const territory = name.getAttribute('data-map-link')
     expect(links.highlight.mock.calls.length).toBeGreaterThan(0)
-    for (const [lit] of links.highlight.mock.calls) expect([lit].flat()).toEqual([territory])
+    for (const [lit] of links.highlight.mock.calls)
+      expect([lit].flat()).toEqual([territory])
     links.highlight.mockClear()
     fireEvent.mouseOver(card)
     expect(links.highlight).toHaveBeenCalledTimes(1)
@@ -1765,9 +2385,26 @@ describe('ReportPanel event cards', () => {
             production: [],
             consumption: [],
             income: [
-              { owner: 'P1', region: 'ROS', territories: 2, villages: 0, base: 2, credited: 2, lost: true },
+              {
+                owner: 'P1',
+                region: 'ROS',
+                territories: 2,
+                villages: 0,
+                base: 2,
+                credited: 2,
+                lost: true,
+              },
             ],
-            mills: [{ owner: 'P1', territory: 'BRU', level: 2, region: 'ROS', destination: 'BRU', production: 2 }],
+            mills: [
+              {
+                owner: 'P1',
+                territory: 'BRU',
+                level: 2,
+                region: 'ROS',
+                destination: 'BRU',
+                production: 2,
+              },
+            ],
           }}
           map={map}
           players={players}
@@ -1790,10 +2427,34 @@ describe('ReportPanel event cards', () => {
             production: [],
             consumption: [],
             income: [
-              { owner: 'P1', destination: 'ROS', fief: 'ROS', title: 'barony', territories: 3, villages: 1, base: 6, credited: 6 },
-              { owner: 'P1', destination: 'ROS', territories: 1, villages: 0, base: 1, credited: 1 },
+              {
+                owner: 'P1',
+                destination: 'ROS',
+                fief: 'ROS',
+                title: 'barony',
+                territories: 3,
+                villages: 1,
+                base: 6,
+                credited: 6,
+              },
+              {
+                owner: 'P1',
+                destination: 'ROS',
+                territories: 1,
+                villages: 0,
+                base: 1,
+                credited: 1,
+              },
             ],
-            mills: [{ owner: 'P1', territory: 'BRU', level: 2, destination: 'ROS', production: 2 }],
+            mills: [
+              {
+                owner: 'P1',
+                territory: 'BRU',
+                level: 2,
+                destination: 'ROS',
+                production: 2,
+              },
+            ],
           }}
           map={map}
           players={players}

@@ -563,10 +563,11 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 	for index, submission := range parsedChains {
 		if submission.receptionError != nil {
 			reception := ReceptionReport{
-				Player:   submission.input.Player,
-				Noble:    models.NobleCode(submission.noble.Code),
-				Received: false,
-				Reason:   submission.receptionError.Error(),
+				Player:    submission.input.Player,
+				Noble:     models.NobleCode(submission.noble.Code),
+				NobleName: game.NobleDisplayName(submission.noble),
+				Received:  false,
+				Reason:    submission.receptionError.Error(),
 			}
 			if message, ok := orders.CatalogMessage(submission.receptionError); ok {
 				reception.ReasonKey = message.Key
@@ -579,9 +580,10 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 			position := territoryByID(working.Territories, army.TerritoryID)
 			positionReference := string(position.ID)
 			receptions = append(receptions, ReceptionReport{
-				Player:   submission.input.Player,
-				Noble:    models.NobleCode(submission.noble.Code),
-				Received: false,
+				Player:    submission.input.Player,
+				Noble:     models.NobleCode(submission.noble.Code),
+				NobleName: game.NobleDisplayName(submission.noble),
+				Received:  false,
 				Reason: fmt.Sprintf(
 					"concurrent_reception: army at %q was targeted by %d chains in turn %d",
 					positionReference,
@@ -595,10 +597,11 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 		if err := orders.AssignChain(working, submission.chain); err != nil {
 			reception := ReceptionReport{
-				Player:   submission.input.Player,
-				Noble:    models.NobleCode(submission.noble.Code),
-				Received: false,
-				Reason:   err.Error(),
+				Player:    submission.input.Player,
+				Noble:     models.NobleCode(submission.noble.Code),
+				NobleName: game.NobleDisplayName(submission.noble),
+				Received:  false,
+				Reason:    err.Error(),
 			}
 			if message, ok := orders.CatalogMessage(err); ok {
 				reception.ReasonKey = message.Key
@@ -609,9 +612,10 @@ func ResolveTurn(game *models.GameState, balance assetgen.Balance, input OrdersI
 		}
 		received = append(received, receivedChain{player: submission.input.Player, noble: models.NobleCode(submission.noble.Code), chain: submission.chain})
 		receptions = append(receptions, ReceptionReport{
-			Player:   submission.input.Player,
-			Noble:    models.NobleCode(submission.noble.Code),
-			Received: true,
+			Player:    submission.input.Player,
+			Noble:     models.NobleCode(submission.noble.Code),
+			NobleName: game.NobleDisplayName(submission.noble),
+			Received:  true,
 		})
 	}
 
