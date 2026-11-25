@@ -1579,7 +1579,7 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
       {houseLogs.length > 0 && (
         <EventCategory
           id="houses"
-          title={t('reports.ordersExecuted')}
+          title={t('reports.category.houses')}
           icon={<IconScript />}
         >
           {houseLogs.map((house) => (
