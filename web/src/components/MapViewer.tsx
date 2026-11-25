@@ -293,6 +293,7 @@ export function MapViewer({
 
   // Intentions leave the foot of the flag of the army's pack.
   const anchoredIntentions = useMemo(() => {
+    if (!showIntentions || intentions.length === 0) return intentions
     const anchors = new Map<string, [number, number]>()
     const territoriesById = new Map(
       map.territories.map((territory) => [territory.id, territory]),
@@ -322,6 +323,7 @@ export function MapViewer({
     intentions,
     labelLayouts,
     map,
+    showIntentions,
     showOrdinaryNames,
     state.territories,
   ])

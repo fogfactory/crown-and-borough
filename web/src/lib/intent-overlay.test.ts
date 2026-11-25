@@ -993,10 +993,24 @@ describe('buildIntentions', () => {
       expect(intentions[1].segments[0].from).toEqual([75, 25])
     })
 
+    it('keeps the support geometry of a later chain order on its own territory', () => {
+      const intentions = anchorIntentions(
+        supportMap,
+        buildIntentions(supportMap, supportState(), 'P1', {
+          HUG: 'HUG\nART A BOR\nBOR S ART',
+        }),
+        new Map([['ART', [10, 10]]]),
+      )
+      const later = intentions.find((intention) => intention.position === 'BOR')
+      expect(later?.segments[0].from).toEqual([75, 25])
+      expect(later?.segments[0].defensive).toBeDefined()
+    })
+
     it('puts supports of the same territory side by side, colors alternating', () => {
       const base = defensive()
       const mk = (color: string) => ({
         armyTerritory: 'ART',
+        position: 'ART',
         from: [25, 25] as [number, number],
         symbol: 'S',
         type: 'support' as const,

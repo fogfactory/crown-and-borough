@@ -266,6 +266,7 @@ describe('MapViewer winter overlay', () => {
     const actionIntentions: Intention[] = [
       {
         armyTerritory: 'ROS',
+        position: 'ROS',
         from: [25, 25],
         symbol: 'A',
         type: 'attack',
