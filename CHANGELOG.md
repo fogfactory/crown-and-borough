@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.9.0](https://github.com/fogfactory/crown-and-borough/compare/v1.8.2...v1.9.0) (2026-11-25)
+
+
+### Features
+
+* **front:** distinguish offensive and defensive supports in the intentions overlay ([08c794f](https://github.com/fogfactory/crown-and-borough/commit/08c794fc378616c3f59d392b3142ebcf49a56857))
+
+
+### Bug Fixes
+
+* **chat:** make Enter insert a newline and Shift+Enter send ([d3519ad](https://github.com/fogfactory/crown-and-borough/commit/d3519ad4c501f1b56c37b1d1f52b163983c17429)), closes [#771](https://github.com/fogfactory/crown-and-borough/issues/771)
+* **engine:** a looping offensive support waits on its order while the attack it ([08c794f](https://github.com/fogfactory/crown-and-borough/commit/08c794fc378616c3f59d392b3142ebcf49a56857))
+
 ## [1.8.2](https://github.com/fogfactory/crown-and-borough/compare/v1.8.1...v1.8.2) (2026-11-25)
 
 
