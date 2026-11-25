@@ -207,7 +207,7 @@ function sharedBorders(map: MapData, id: string, other: string): BorderEdge[] {
   }))
 }
 
-function middleOf(edge: BorderEdge): Point {
+export function middleOf(edge: BorderEdge): Point {
   return midpointOf(edge.from, edge.to)
 }
 
@@ -225,11 +225,7 @@ function nearestBorder(borders: BorderEdge[], origin: Point): BorderEdge | null 
 
 /** The point of a border for slot `slot` out of `slots` side by side. */
 export function borderSlotPoint(edge: BorderEdge, slot: number, slots: number): Point {
-  const t = (slot + 0.5) / Math.max(1, slots)
-  return [
-    edge.from[0] + (edge.to[0] - edge.from[0]) * t,
-    edge.from[1] + (edge.to[1] - edge.from[1]) * t,
-  ]
+  return lerp(edge.from, edge.to, (slot + 0.5) / Math.max(1, slots))
 }
 
 function distanceSquared(a: Point, b: Point): number {
@@ -275,8 +271,8 @@ function offensiveSupportGeometry(
   supportedFrom: Point,
 ): OffensiveSupport | null {
   const target = map.territories.find((candidate) => candidate.id === destination)
-  const arrowEnd = territoryCentroid(map, destination)
-  if (!target || !arrowEnd) return null
+  if (!target) return null
+  const arrowEnd = centroid(polygonPoints(target))
   const shared = sharedBorders(map, destination, position)
   const nearest = nearestBorder(shared, origin)
   const start: Point = nearest
@@ -312,8 +308,12 @@ function defensiveSupportGeometry(
   place: { slot: number; slots: number } = { slot: 0, slots: 1 },
 ): DefensiveSupport | null {
   const borders = passableBorders(map, supported)
+  const supportedArea = map.territories.find((candidate) => candidate.id === supported)
+  const supporterArea = map.territories.find((candidate) => candidate.id === position)
   const touching = new Set(
-    sharedBorders(map, supported, position).map((edge) => edgeKey(edge.from, edge.to)),
+    supportedArea && supporterArea
+      ? sharedEdges(supportedArea, supporterArea).map(([from, to]) => edgeKey(from, to))
+      : [],
   )
   const facing = borders.filter((border) => touching.has(edgeKey(border.from, border.to)))
   const link = nearestBorder(facing.length > 0 ? facing : borders, origin)
