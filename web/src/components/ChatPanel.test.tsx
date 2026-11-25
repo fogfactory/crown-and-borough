@@ -247,7 +247,7 @@ describe('ChatPanel', () => {
     expect(onUnreadChange).toHaveBeenLastCalledWith(3)
     openSelect(CHANNELS)
     expect(
-      screen.getByRole('option', { name: /^Public room\s*1 unread from Maison Brieuc/ }),
+      screen.getByRole('option', { name: /^Public room\s*1 unread messages/ }),
     ).toBeInTheDocument()
   })
 
@@ -291,7 +291,9 @@ describe('ChatPanel', () => {
     )
     renderPanel({ visible: true })
     expect(trigger(CHANNELS)).toHaveTextContent('Public room')
-    expect(trigger(CHANNELS).querySelector('[data-chat-unread-elsewhere]')).not.toBeNull()
+    expect(
+      trigger(CHANNELS).querySelector('[data-chat-attention-elsewhere]'),
+    ).not.toBeNull()
   })
 
   it('keeps the channel the reader picked while the first one was pending', () => {
@@ -372,11 +374,10 @@ describe('ChatPanel', () => {
     renderPanel()
     openSelect(CHANNELS)
     const option = screen.getByRole('option', { name: /^Public room/ })
-    const pills = option.querySelectorAll<HTMLElement>('[data-chat-unread-house]')
-    expect([...pills].map((pill) => pill.dataset.chatUnreadHouse)).toEqual(['P2', 'P3'])
-    expect(pills[0]).toHaveStyle({ backgroundColor: '#33a' })
-    expect(pills[1]).toHaveStyle({ backgroundColor: '#3a3' })
-    expect(pills[1]).toHaveAttribute('aria-label', '2 unread from Maison Cérès')
+    // One eye for the whole channel, whoever wrote.
+    const pills = option.querySelectorAll<HTMLElement>('[data-chat-unread]')
+    expect(pills).toHaveLength(1)
+    expect(pills[0]).toHaveAttribute('aria-label', '3 unread messages')
   })
 
   it('signals on the trigger the unread messages of the other channels', () => {
@@ -397,7 +398,7 @@ describe('ChatPanel', () => {
     expect(
       [...chips].map((chip) => chip.getAttribute('data-chat-unread-channel')),
     ).toEqual(['P1_P2', 'P1_P3'])
-    expect(trigger(CHANNELS).querySelectorAll('[data-chat-unread-house]')).toHaveLength(2)
+    expect(trigger(CHANNELS).querySelectorAll('[data-chat-unread]')).toHaveLength(2)
   })
 
   it('marks the open channel read when the chat is on screen', () => {

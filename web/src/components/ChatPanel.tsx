@@ -11,6 +11,7 @@ import {
 } from 'react'
 import {
   IconCheck,
+  IconEye,
   IconLock,
   IconMessageReply,
   IconSend,
@@ -57,7 +58,7 @@ import {
   type MentionIndex,
 } from '@/lib/chat-mentions'
 import { acknowledgeChat, markChatRead, postChatMessage } from '@/lib/chat-api'
-import { luminance, playerArms } from '@/lib/heraldry'
+import { playerArms } from '@/lib/heraldry'
 import { playerDisplayName } from '@/lib/player-label'
 import { SEASON_LABEL_KEYS } from '@/lib/season'
 import { useChat, type ChatSubscriptionSpec } from '@/lib/use-chat'
@@ -96,62 +97,51 @@ export function ChatUnreadBadge({ count }: { count: number }) {
   )
 }
 
-// Above this luminance (0–255) a house color takes dark text.
-const LIGHT_COLOR_LUMINANCE = 150
-
-/** Marker of a channel whose last message waits for an answer from the reader's house. */
-function ChannelUnanswered({ className }: { className?: string }) {
+/**
+ * State pastille of a channel: an eye when it holds unread messages (`count`),
+ * a reply bubble when its last message awaits an answer.
+ */
+function ChannelBadge({
+  kind,
+  count = 0,
+  className,
+}: {
+  kind: 'unread' | 'unanswered'
+  count?: number
+  className?: string
+}) {
   const { t } = useLanguage()
+  const label = kind === 'unread' ? t('chat.unreadMany', { count }) : t('chat.unanswered')
+  const Icon = kind === 'unread' ? IconEye : IconMessageReply
   return (
     <span
-      data-chat-unanswered
+      {...(kind === 'unread'
+        ? { 'data-chat-unread': count }
+        : { 'data-chat-unanswered': '' })}
       role="img"
-      aria-label={t('chat.unanswered')}
-      title={t('chat.unanswered')}
-      className={cn('inline-flex shrink-0 text-vermilion-700', className)}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'inline-flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-ink-900/40',
+        kind === 'unread' ? 'bg-paper-50 text-ink-900' : 'bg-vermilion-700 text-paper-50',
+        className,
+      )}
     >
-      <IconMessageReply aria-hidden="true" className="size-4" />
+      <Icon aria-hidden="true" className="size-3" />
     </span>
   )
 }
 
-/** Unread pills of a channel: one per author house, in the house color. */
-function ChannelUnread({
-  authors,
-  houseName,
-  playerOf,
-}: {
-  authors?: Record<string, number>
-  houseName: (id: string) => string
-  playerOf: (id: string) => Player | undefined
-}) {
-  const { t } = useLanguage()
-  const entries = Object.entries(authors ?? {})
-  if (entries.length === 0) return null
+/** A channel's pastille in the list, followed by the count when several messages are unread. */
+function OptionBadge({ kind, count }: { kind: 'unread' | 'unanswered'; count: number }) {
   return (
-    <span className="flex shrink-0 items-center gap-0.5">
-      {entries.map(([author, count]) => {
-        const color = playerOf(author)?.color
-        return (
-          <span
-            key={author}
-            data-chat-unread={count}
-            data-chat-unread-house={author}
-            role="img"
-            aria-label={t('chat.unreadFromHouse', { count, house: houseName(author) })}
-            style={color ? { backgroundColor: color } : undefined}
-            className={cn(
-              'inline-flex min-w-4 items-center justify-center rounded-full px-1 text-2xs font-semibold leading-4 ring-1 ring-ink-900/30',
-              (luminance(color ?? '') ?? 0) > LIGHT_COLOR_LUMINANCE
-                ? 'text-ink-900'
-                : 'text-paper-50',
-              !color && 'bg-vermilion-700',
-            )}
-          >
-            {count > 99 ? '99+' : count}
-          </span>
-        )
-      })}
+    <span className="flex shrink-0 items-center gap-1">
+      <ChannelBadge kind={kind} count={count} />
+      {kind === 'unread' && count > 1 && (
+        <span aria-hidden="true" className="text-2xs font-semibold text-ink-700">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
     </span>
   )
 }
@@ -399,12 +389,6 @@ export function ChatPanel({
     visible,
   ])
 
-  // The unanswered channels other than the open one, for the trigger.
-  const otherUnansweredChannels = useMemo(
-    () => unansweredKeys.filter((key) => key !== open),
-    [open, unansweredKeys],
-  )
-  const openUnanswered = unansweredKeys.includes(open)
   const [acknowledging, setAcknowledging] = useState(false)
   const acknowledge = async () => {
     if (!house || acknowledging) return
@@ -446,17 +430,28 @@ export function ChatPanel({
     [channelHouses, houseName, t],
   )
 
-  // The channels other than the open one that hold unread messages, with their
-  // authors: what the trigger shows without opening the list.
-  const otherUnreadChannels = useMemo(
-    () =>
-      Object.entries(unreadAuthors).filter(
-        ([key, authors]) => key !== open && totalUnread(authors) > 0,
-      ),
-    [open, unreadAuthors],
+  // What each channel asks of the reader: unread first, else unanswered; a
+  // channel read and answered (or acknowledged) has no entry.
+  const attention = useMemo(() => {
+    const result: Record<string, 'unread' | 'unanswered'> = {}
+    for (const key of unansweredKeys) result[key] = 'unanswered'
+    for (const [key, authors] of Object.entries(unreadAuthors)) {
+      if (totalUnread(authors) > 0) result[key] = 'unread'
+    }
+    return result
+  }, [unansweredKeys, unreadAuthors])
+  // The channels other than the open one that need the reader: what the
+  // trigger shows without opening the list.
+  const otherAttention = useMemo(
+    () => Object.entries(attention).filter(([key]) => key !== open),
+    [attention, open],
   )
+  const otherUnreadChannels = otherAttention.filter(([, kind]) => kind === 'unread')
+  const otherUnansweredChannels = otherAttention
+    .filter(([, kind]) => kind === 'unanswered')
+    .map(([key]) => key)
   const otherUnread = otherUnreadChannels.reduce(
-    (sum, [, authors]) => sum + totalUnread(authors),
+    (sum, [key]) => sum + totalUnread(unreadAuthors[key]),
     0,
   )
 
@@ -496,14 +491,12 @@ export function ChatPanel({
               houses={channelHouses(key)}
               label={channelLabel(key)}
               trailing={
-                <>
-                  <ChannelUnread
-                    authors={shown ? unreadAuthors[key] : undefined}
-                    houseName={houseName}
-                    playerOf={playerOf}
+                shown && attention[key] ? (
+                  <OptionBadge
+                    kind={attention[key]}
+                    count={totalUnread(unreadAuthors[key])}
                   />
-                  {unansweredKeys.includes(key) && <ChannelUnanswered />}
-                </>
+                ) : null
               }
               playerOf={playerOf}
             />
@@ -513,11 +506,10 @@ export function ChatPanel({
     [
       channelHouses,
       channelLabel,
-      houseName,
       open,
       playerOf,
       privateChannels,
-      unansweredKeys,
+      attention,
       unreadAuthors,
       visible,
     ],
@@ -613,8 +605,8 @@ export function ChatPanel({
                     count: otherUnread,
                     rooms: otherUnreadChannels
                       .map(
-                        ([key, authors]) =>
-                          `${channelLabel(key)} (${totalUnread(authors)})`,
+                        ([key]) =>
+                          `${channelLabel(key)} (${totalUnread(unreadAuthors[key])})`,
                       )
                       .join(', '),
                   })}`
@@ -629,64 +621,35 @@ export function ChatPanel({
             className={SELECT_TRIGGER_CLASS}
           >
             <SelectValue />
-            {otherUnansweredChannels.length > 0 && (
+            {otherAttention.length > 0 && (
               <span
-                data-chat-unanswered-elsewhere={otherUnansweredChannels.length}
+                data-chat-attention-elsewhere={otherAttention.length}
                 aria-hidden="true"
-                className={cn(
-                  'flex shrink-0 items-center gap-1',
-                  otherUnread > 0 ? 'ml-auto' : 'mr-1 ml-auto',
-                )}
+                className="mr-1 ml-auto flex min-w-0 items-center gap-2 overflow-hidden"
               >
-                {otherUnansweredChannels.map((key) => (
+                {otherAttention.map(([key, kind]) => (
                   <span
                     key={key}
-                    data-chat-unanswered-channel={key}
-                    className="flex shrink-0 items-center gap-0.5"
+                    {...(kind === 'unread'
+                      ? { 'data-chat-unread-channel': key }
+                      : { 'data-chat-unanswered-channel': key })}
+                    className="relative flex shrink-0 items-center gap-0.5 pr-1.5 pb-1"
                   >
                     {key === PUBLIC_CHANNEL ? (
-                      <IconUsers className="size-4 text-ink-500" />
+                      <IconUsers className="size-5 text-ink-500" />
                     ) : (
                       channelHouses(key).map((houseId) => (
                         <HouseMark
                           key={houseId}
                           player={playerOf(houseId)}
-                          className="size-4 shrink-0"
+                          className="size-5 shrink-0"
                         />
                       ))
                     )}
-                    <IconMessageReply className="size-4 text-vermilion-700" />
-                  </span>
-                ))}
-              </span>
-            )}
-            {otherUnread > 0 && (
-              <span
-                data-chat-unread-elsewhere={otherUnread}
-                aria-hidden="true"
-                className="mr-1 ml-auto flex min-w-0 items-center gap-1.5 overflow-hidden"
-              >
-                {otherUnreadChannels.map(([key, authors]) => (
-                  <span
-                    key={key}
-                    data-chat-unread-channel={key}
-                    className="flex shrink-0 items-center gap-0.5"
-                  >
-                    {key === PUBLIC_CHANNEL ? (
-                      <IconUsers className="size-4 text-ink-500" />
-                    ) : (
-                      channelHouses(key).map((houseId) => (
-                        <HouseMark
-                          key={houseId}
-                          player={playerOf(houseId)}
-                          className="size-4 shrink-0"
-                        />
-                      ))
-                    )}
-                    <ChannelUnread
-                      authors={authors}
-                      houseName={houseName}
-                      playerOf={playerOf}
+                    <ChannelBadge
+                      kind={kind}
+                      count={totalUnread(unreadAuthors[key])}
+                      className="absolute right-0 bottom-0 size-3.5 [&_svg]:size-2.5"
                     />
                   </span>
                 ))}
@@ -770,7 +733,7 @@ export function ChatPanel({
         </Alert>
       )}
 
-      {house && openUnanswered && (
+      {house && attention[open] === 'unanswered' && (
         <Alert
           tone="info"
           className="flex items-center justify-between gap-2"
