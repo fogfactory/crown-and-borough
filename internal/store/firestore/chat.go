@@ -159,6 +159,7 @@ func (s *FirestoreStore) SetChatReadCursor(ctx context.Context, id store.GameID,
 	ref := gameRef(s.client, id).Collection(chatReadsCollection).Doc(uid)
 	s.recordTransaction()
 	err := s.client.RunTransaction(operationContext, func(_ context.Context, transaction *cloudfirestore.Transaction) error {
+		cursor.AcknowledgedAt = time.Time{}
 		snapshot, err := transaction.Get(ref)
 		switch {
 		case err == nil:
@@ -169,6 +170,7 @@ func (s *FirestoreStore) SetChatReadCursor(ctx context.Context, id store.GameID,
 			if previous, ok := current.Channels[cursor.Channel]; ok && previous.After(cursor.LastReadAt) {
 				cursor.LastReadAt = previous
 			}
+			cursor.AcknowledgedAt = current.Acknowledged[cursor.Channel]
 		case !isCode(err, codes.NotFound):
 			return err
 		}
