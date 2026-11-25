@@ -704,12 +704,3 @@ func TestProjectMovementsRedactsByWhatTheViewerMayKnow(t *testing.T) {
 		t.Fatalf("spectator view = %+v, want every move in full", spectator)
 	}
 }
-
-func TestProjectMovementsKeepsAStoredReportWithoutMovementsAbsent(t *testing.T) {
-	if got := projectMovements(nil, "P1", nil); got != nil {
-		t.Fatalf("movements of a report stored before the field = %+v, want nil", got)
-	}
-	if got := projectMovements([]engine.ArmyMovement{}, "P1", nil); got == nil || len(got) != 0 {
-		t.Fatalf("movements of a turn with none = %+v, want an empty, non-nil list", got)
-	}
-}

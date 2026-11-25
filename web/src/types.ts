@@ -1365,8 +1365,7 @@ export interface TurnReport {
   consumption: ConsumptionReport[]
   combats: CombatReport[]
   orders: OrderReport[]
-  /** Absent or null on a report stored before the engine listed movements. */
-  movements?: ArmyMovement[] | null
+  movements?: ArmyMovement[]
   moves: MoveReport[]
   nobles: ReportNoble[]
   seasonEffects?: SeasonEffectReport[]

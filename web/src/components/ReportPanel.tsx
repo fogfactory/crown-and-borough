@@ -43,7 +43,6 @@ import {
   useMapLinks,
 } from '@/components/MapLinks'
 import type { EventMarks } from '@/lib/map-frame'
-import { legacyMovements } from '@/lib/legacy-movements'
 import { formatOrderLabel, orderTargets } from '@/lib/order-label'
 import { joinNodes, richTranslate } from '@/lib/rich-text'
 import { formatCardLabel } from '@/lib/card-hand'
@@ -1240,9 +1239,7 @@ export function ReportPanel({ report, map, players, viewerId }: ReportPanelProps
   )
   const famines = consumption.filter((line) => line.famine)
   const stockLines = winterStocks.filter(isHalved)
-  // Reports stored before the engine listed movements are rebuilt from
-  // their combats and orders (temporary).
-  const movements = report.movements ?? legacyMovements(report)
+  const movements = report.movements ?? []
   const houseLogs = groupHouseLogs(report, players, viewerId)
 
   const hasEvents =
