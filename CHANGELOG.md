@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.2](https://github.com/fogfactory/crown-and-borough/compare/v1.8.1...v1.8.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **deploy:** pass flagged firebase values as buildkit secrets ([335e8e0](https://github.com/fogfactory/crown-and-borough/commit/335e8e03706e4b7ead88a69b62520f14496b6b79))
+* **deps:** update module google.golang.org/api to v0.317.0 ([#768](https://github.com/fogfactory/crown-and-borough/issues/768)) ([64f8332](https://github.com/fogfactory/crown-and-borough/commit/64f833200177c790a3455909f8a7610eb9a51bf8))
+* **report:** group turn report movements by army and close on per-house logs ([ecbf3b7](https://github.com/fogfactory/crown-and-borough/commit/ecbf3b7c36315a70c6221da2e84513de11610bfc))
+* **report:** group turn report movements by army and close on per-house logs ([03b6352](https://github.com/fogfactory/crown-and-borough/commit/03b635250e28751ff6877852f1676590c4e8547b))
+* **report:** keep stored reports readable and derive contested fights from contenders ([745ac33](https://github.com/fogfactory/crown-and-borough/commit/745ac33c612f0d314dc8df44482edd09c44006b4))
+* **report:** title the closing house blocks receptions and orders ([8162849](https://github.com/fogfactory/crown-and-borough/commit/8162849a8679fd1249c9ee42db7b0f3e45d8ef7b))
+
 ## [1.8.1](https://github.com/fogfactory/crown-and-borough/compare/v1.8.0...v1.8.1) (2026-11-24)
 
 
