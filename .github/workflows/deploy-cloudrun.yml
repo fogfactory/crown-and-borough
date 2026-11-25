@@ -46,7 +46,7 @@ env:
 jobs:
   build-and-push:
     name: Build and push immutable image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       image: ${{ steps.image.outputs.name }}
       digest: ${{ steps.build.outputs.digest }}
@@ -118,10 +118,11 @@ jobs:
           build-args: |
             APP_VERSION=${{ env.APP_VERSION }}
             VITE_APP_VERSION=${{ env.APP_VERSION }}
-            VITE_FIREBASE_API_KEY=${{ vars.VITE_FIREBASE_API_KEY }}
-            VITE_FIREBASE_AUTH_DOMAIN=${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
             VITE_FIREBASE_PROJECT_ID=${{ vars.VITE_FIREBASE_PROJECT_ID }}
             VITE_FIREBASE_APP_ID=${{ vars.VITE_FIREBASE_APP_ID }}
+          secrets: |
+            firebase_api_key=${{ vars.VITE_FIREBASE_API_KEY }}
+            firebase_auth_domain=${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
 
       - name: Verify the pushed image contains no credentials
         shell: bash
@@ -151,7 +152,7 @@ jobs:
   scan-image:
     name: Scan the pushed image for vulnerabilities
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Authenticate to Google Cloud with Workload Identity Federation
         uses: google-github-actions/auth@v3
@@ -177,7 +178,7 @@ jobs:
   deploy-rules:
     name: Deploy Firestore rules and indexes
     needs: build-and-push
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -205,7 +206,7 @@ jobs:
       - build-and-push
       - deploy-rules
       - scan-image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       revision: ${{ steps.deploy.outputs.revision }}
       candidate_url: ${{ steps.deploy.outputs.candidate_url }}
@@ -362,7 +363,7 @@ jobs:
   post-deploy-smoke:
     name: Smoke-test the Cloud Run candidate
     needs: deploy-cloudrun
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       CANDIDATE_URL: ${{ needs.deploy-cloudrun.outputs.candidate_url }}
     steps:
@@ -418,7 +419,7 @@ jobs:
     needs:
       - deploy-cloudrun
       - post-deploy-smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -444,7 +445,7 @@ jobs:
   deploy-hosting:
     name: Deploy Firebase Hosting frontend
     needs: promote-cloudrun
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
@@ -488,7 +489,7 @@ jobs:
   post-deploy-hosting-smoke:
     name: Smoke-test the Firebase Hosting URL
     needs: deploy-hosting
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Check the public Hosting contract
         shell: bash

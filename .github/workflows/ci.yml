@@ -8,7 +8,7 @@ on:
 
 jobs:
   go:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -28,7 +28,7 @@ jobs:
       - run: go build ./...
 
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Build image with public Firebase configuration
@@ -51,7 +51,7 @@ jobs:
           exit-code: "1"
 
   container-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: docker
     steps:
       - uses: actions/checkout@v7
@@ -137,7 +137,7 @@ jobs:
           docker compose -p crown-borough-ci down --remove-orphans
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: web
@@ -154,7 +154,7 @@ jobs:
       - run: npm run lint
 
   firestore:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -170,7 +170,7 @@ jobs:
       - run: npx --yes firebase-tools@13.35.1 emulators:exec --only firestore --project crown-and-borough-integration 'make test-firestore'
 
   workflows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Validate GitHub Actions workflows
