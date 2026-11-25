@@ -123,6 +123,10 @@ var demoScenarios = map[string]struct {
 		description: "spring (see the action scenario), plus up to two mills (levels 2 and 1) under the armies of each house, a six-territory duchy for P1 with villages of several levels, and two six-troop armies next to it that the supply cannot feed: end the turn to read the Economy card with several houses, fiefs, regions and a famine",
 		apply:       forgeProduction,
 	},
+	"conquest": {
+		description: "spring, P1's army on PYL has four troops: order `PYL A GRA` then `GRA A FRM` to take FRM from a one-troop P2 army and read a conquest in the Movements section of the turn report",
+		apply:       forgeConquest,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -1613,4 +1617,17 @@ func forgeUsurpation(state *models.GameState) error {
 	}
 	fmt.Printf("demo usurpation: barony %v of P2, usurper %s, exile %s (P1)\n", members, state.Nobles[p2[0]].Code, state.Nobles[p1[0]].Code)
 	return nil
+}
+
+// forgeConquest strengthens P1's army on PYL (two steps from a one-troop P2
+// army on FRM) so that its attack wins a contested territory.
+func forgeConquest(state *models.GameState) error {
+	for index := range state.Armies {
+		army := &state.Armies[index]
+		if army.OwnerID == "P1" && army.TerritoryID == "PYL" {
+			army.Size = 4
+			return nil
+		}
+	}
+	return fmt.Errorf("the base game lacks a P1 army on PYL")
 }
