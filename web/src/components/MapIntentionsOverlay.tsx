@@ -3,11 +3,12 @@ import { useLanguage } from '@/i18n/LanguageContext'
 import {
   affluentCurve,
   borderSlotPoint,
+  middleOf,
   type AffluentPath,
   type DefensiveSupport,
   type Intention,
 } from '@/lib/intent-overlay'
-import { distanceBetween } from '@/lib/map-gestures'
+import { distanceBetween, midpointOf } from '@/lib/map-gestures'
 import { NoblePawnSilhouette } from '@/components/MapHeraldry'
 import { IntentBadge } from '@/components/MapMarkers'
 import {
@@ -195,7 +196,6 @@ function SupportValueDisc({
       </text>
       {turnLabel && (
         <text
-          x={0}
           y={-16 * scale}
           textAnchor="middle"
           dominantBaseline="central"
@@ -433,6 +433,7 @@ export function IntentionsOverlay({
                 )
               }
               if (segment.defensive) {
+                const badgeAt = midpointOf(segment.from, middleOf(segment.defensive.link))
                 return (
                   <g key={segmentIndex}>
                     <Palisade
@@ -444,18 +445,8 @@ export function IntentionsOverlay({
                       label={intention.label}
                     />
                     <IntentBadge
-                      x={
-                        (segment.from[0] +
-                          segment.defensive.link.from[0] / 2 +
-                          segment.defensive.link.to[0] / 2) /
-                        2
-                      }
-                      y={
-                        (segment.from[1] +
-                          segment.defensive.link.from[1] / 2 +
-                          segment.defensive.link.to[1] / 2) /
-                        2
-                      }
+                      x={badgeAt[0]}
+                      y={badgeAt[1]}
                       symbol={intention.symbol}
                       turnLabel={intention.turnLabel}
                       color={intentionColor}
