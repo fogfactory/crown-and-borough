@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   policy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Validate target branch, title, and release label
         uses: actions/github-script@v9
