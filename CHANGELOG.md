@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.9.1](https://github.com/fogfactory/crown-and-borough/compare/v1.9.0...v1.9.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **front:** keep the later orders of a chain on the territory they start from ([585913f](https://github.com/fogfactory/crown-and-borough/commit/585913fc2a801b7135b7c46e06ca395e3f66b4bf))
+* **front:** keep the later orders of a chain on the territory they start from ([55463da](https://github.com/fogfactory/crown-and-borough/commit/55463dab7856ce1b64c23ccd36707977c2e15383))
+
+
+### Refactoring
+
+* **front:** carry the order position on intentions and skip anchoring when hidden ([b39be3a](https://github.com/fogfactory/crown-and-borough/commit/b39be3a000e1e3dea0d84b172e1cb0b6e0b45656))
+* **front:** reuse lerp and midpoint helpers and trim geometry lookups ([81dd3a8](https://github.com/fogfactory/crown-and-borough/commit/81dd3a8c76314736292ce42b7c8fc56bbff004e2))
+
 ## [1.9.0](https://github.com/fogfactory/crown-and-borough/compare/v1.8.2...v1.9.0) (2026-11-25)
 
 
