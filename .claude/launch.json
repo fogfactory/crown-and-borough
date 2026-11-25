@@ -24,6 +24,12 @@
       "runtimeExecutable": "scripts/demo.sh",
       "runtimeArgs": ["action", "--fg"],
       "port": 8080
+    },
+    {
+      "name": "demo-support",
+      "runtimeExecutable": "scripts/demo.sh",
+      "runtimeArgs": ["support", "--fg"],
+      "port": 8080
     }
   ]
 }

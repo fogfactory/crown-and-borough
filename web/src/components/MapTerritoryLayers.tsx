@@ -290,6 +290,37 @@ export function OwnershipLayer({
   )
 }
 
+/**
+ * Where an army stands on its territory: the horizontal centre of its pack and
+ * the baseline its feet rest on, in map units.
+ */
+export function armyAnchor(
+  territory: Territory,
+  labelLayout: TerritoryLabelLayout | undefined,
+  annotationScale: number,
+): [number, number] {
+  const [centerX, centerY] = centroid(territory.points)
+  const labelLeft = labelLayout?.shieldAnchor ?? { x: 0, y: 0 }
+  const label = labelLayout ? labelExtent(labelLayout) : { top: 0, bottom: 0 }
+  return placeMarker(
+    [
+      centerX + (-labelLeft.x + ARMY_REACH) * annotationScale,
+      centerY + (labelLeft.y + ARMY_BELOW_BASELINE) * annotationScale,
+    ],
+    // Too small a cell: the pack stands above the label, else below it.
+    [
+      [centerX, centerY + (label.top - ARMY_LABEL_GAP) * annotationScale],
+      [
+        centerX,
+        centerY + (label.bottom + ARMY_HEIGHT + ARMY_LABEL_GAP) * annotationScale,
+      ],
+    ],
+    territory.points,
+    [centerX, centerY],
+    scaled(ARMY_FOOTPRINT, annotationScale),
+  )
+}
+
 /** Per-territory live state: resources, infrastructures, army and nobles. */
 export function LiveLayer({
   territories,
@@ -343,30 +374,13 @@ export function LiveLayer({
     // The label's left edge is where the shield stands: its right edge
     // mirrors it, so the pack stands beyond it, feet on the baseline.
     const labelLayout = labelLayouts.get(territory.id)
-    const labelLeft = labelLayout?.shieldAnchor ?? { x: 0, y: 0 }
     const label = labelLayout ? labelExtent(labelLayout) : { top: 0, bottom: 0 }
     const center: [number, number] = [centerX, centerY]
     const territoryPawns: Array<{ key: string; feet: number; node: ReactNode }> = []
 
     if (territoryState.army) {
       const army = territoryState.army
-      const [armyX, armyFeet] = placeMarker(
-        [
-          centerX + (-labelLeft.x + ARMY_REACH) * annotationScale,
-          centerY + (labelLeft.y + ARMY_BELOW_BASELINE) * annotationScale,
-        ],
-        // Too small a cell: the pack stands above the label, else below it.
-        [
-          [centerX, centerY + (label.top - ARMY_LABEL_GAP) * annotationScale],
-          [
-            centerX,
-            centerY + (label.bottom + ARMY_HEIGHT + ARMY_LABEL_GAP) * annotationScale,
-          ],
-        ],
-        territory.points,
-        center,
-        scaled(ARMY_FOOTPRINT, annotationScale),
-      )
+      const [armyX, armyFeet] = armyAnchor(territory, labelLayout, annotationScale)
       territoryPawns.push({
         key: `${territory.id}-army`,
         feet: armyFeet,

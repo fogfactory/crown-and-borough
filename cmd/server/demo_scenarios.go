@@ -127,6 +127,10 @@ var demoScenarios = map[string]struct {
 		description: "spring, P1's army on PYL has four troops: order `PYL A GRA` then `GRA A FRM` to take FRM from a one-troop P2 army and read a conquest in the Movements section of the turn report",
 		apply:       forgeConquest,
 	},
+	"support": {
+		description: "spring; P1's armies on PCT and PYL (noble RAI on PCT, HUO on PYL) and on VAR, commanded by HUO, who leaves PYL. VAR touches MOU and VAG, which touch each other: `VAR S MOU - VAG` draws an offensive support (a tributary joining the MOU to VAG arrow); `PCT S PYL` draws a defensive one (a palisade on PYL)",
+		apply:       forgeSupport,
+	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
 		apply:       forgeAction,
@@ -1630,4 +1634,27 @@ func forgeConquest(state *models.GameState) error {
 		}
 	}
 	return fmt.Errorf("the base game lacks a P1 army on PYL")
+}
+
+func forgeSupport(state *models.GameState) error {
+	// The P1 noble who is not on PCT moves from PYL to VAR.
+	mover := -1
+	for _, index := range ownedNobles(state, "P1") {
+		if state.Nobles[index].LocationID != "PCT" {
+			mover = index
+			break
+		}
+	}
+	if mover < 0 {
+		return fmt.Errorf("the base game lacks a P1 noble outside PCT")
+	}
+	for index := range state.Armies {
+		army := &state.Armies[index]
+		if army.OwnerID == "P1" && army.TerritoryID == "VAR" {
+			army.Size = 2
+			state.Nobles[mover].LocationID = "VAR"
+			return nil
+		}
+	}
+	return fmt.Errorf("the base game lacks a P1 army on VAR")
 }
