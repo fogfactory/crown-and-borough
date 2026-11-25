@@ -430,7 +430,17 @@ export function anchorIntentions(
 ): Intention[] {
   return intentions.map((intention) => {
     const anchor = anchors.get(intention.armyTerritory)
-    if (!anchor) return intention
+    const home = territoryCentroid(map, intention.armyTerritory)
+    // Only the orders that start where the army stands leave its flag: the
+    // next orders of a chain start from territories the army has yet to reach.
+    if (
+      !anchor ||
+      !home ||
+      intention.from[0] !== home[0] ||
+      intention.from[1] !== home[1]
+    ) {
+      return intention
+    }
     return {
       ...intention,
       from: anchor,

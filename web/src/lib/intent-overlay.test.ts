@@ -979,6 +979,20 @@ describe('buildIntentions', () => {
       expect([link.from[1], link.to[1]].sort((a, b) => a - b)).toEqual([0, 50])
     })
 
+    it('leaves the later orders of a chain where they start', () => {
+      const intentions = anchorIntentions(
+        supportMap,
+        buildIntentions(supportMap, supportState(), 'P1', {
+          HUG: 'HUG\nART A BOR\nBOR A ART',
+        }),
+        new Map([['ART', [10, 10]]]),
+      )
+      expect(intentions).toHaveLength(2)
+      expect(intentions[0].segments[0].from).toEqual([10, 10])
+      // The second order starts from BOR, the centre of a territory the army has yet to reach.
+      expect(intentions[1].segments[0].from).toEqual([75, 25])
+    })
+
     it('puts supports of the same territory side by side, colors alternating', () => {
       const base = defensive()
       const mk = (color: string) => ({
