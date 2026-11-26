@@ -1004,7 +1004,10 @@ the order of your sheet.
 - The attacker's starting territory is always excluded. An anchored castle,
   of any player, blocks a retreat; an inert castle does not.
 - Two armies with no other way out than the same empty territory are
-  destroyed.
+  destroyed if they have different owners. Otherwise the first (origin
+  territory with the lowest trigram) occupies the territory and the others
+  merge into it with the friendly merge rule: `N − 1` troops (or 1 if
+  `N = 1`).
 
 ### Supply
 
