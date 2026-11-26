@@ -530,14 +530,9 @@ according to the repository's normal credential policy.
 Create these repository labels before the first release workflow run:
 
 ```bash
-gh label create "release:patch" --repo "$GITHUB_REPOSITORY" --color "1D76DB"
-gh label create "release:minor" --repo "$GITHUB_REPOSITORY" --color "0E8A16"
-gh label create "release:major" --repo "$GITHUB_REPOSITORY" --color "B60205"
 gh label create "autorelease: pending" --repo "$GITHUB_REPOSITORY" --color "FBCA04"
 gh label create "autorelease: tagged" --repo "$GITHUB_REPOSITORY" --color "5319E7"
 ```
-
-The labeler can create the `type:*` labels when it first runs.
 
 ## GitHub Actions Variables
 
