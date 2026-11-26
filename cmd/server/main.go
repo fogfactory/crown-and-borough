@@ -77,14 +77,15 @@ func main() {
 	}
 
 	options := serverOptions{
-		Rules:       rules,
-		Balance:     balance,
-		Store:       gameStore,
-		Development: onlineDevMode,
-		CreatorGate: creatorGateForEnvironment(onlineDevMode),
-		Readiness:   readinessChecks,
-		SeedAssets:  &assets,
-		BugIssues:   bugIssueClient(),
+		Rules:            rules,
+		Balance:          balance,
+		Store:            gameStore,
+		Development:      onlineDevMode,
+		CreatorGate:      creatorGateForEnvironment(onlineDevMode),
+		Readiness:        readinessChecks,
+		SeedAssets:       &assets,
+		BugIssues:        bugIssueClient(),
+		BugWebhookSecret: os.Getenv("GITHUB_BUG_WEBHOOK_SECRET"),
 	}
 	if !onlineDevMode {
 		projectID := os.Getenv("FIREBASE_PROJECT_ID")
@@ -191,17 +192,19 @@ func envCount(name string) (int, bool) {
 	return value, true
 }
 
+// bugRepository receives the bug report issues.
+const bugRepository = "fogfactory/crown-and-borough"
+
 // bugIssueClient authenticates as the GitHub App described by
 // GITHUB_BUG_APP_ID, GITHUB_BUG_APP_INSTALLATION_ID and
 // GITHUB_BUG_APP_PRIVATE_KEY, or else with the GITHUB_BUG_TOKEN bot token
 // (local development). Without either the route is disabled.
 func bugIssueClient() api.IssueCreator {
-	const repository = "fogfactory/crown-and-borough"
 	app, err := api.NewGitHubAppIssueClient(
 		os.Getenv("GITHUB_BUG_APP_ID"),
 		os.Getenv("GITHUB_BUG_APP_INSTALLATION_ID"),
 		os.Getenv("GITHUB_BUG_APP_PRIVATE_KEY"),
-		repository,
+		bugRepository,
 	)
 	if err != nil {
 		log.Printf("bug reports: GitHub App disabled: %v", err)
@@ -209,7 +212,7 @@ func bugIssueClient() api.IssueCreator {
 	if app != nil {
 		return app
 	}
-	if token := api.NewGitHubIssueClient(os.Getenv("GITHUB_BUG_TOKEN"), repository); token != nil {
+	if token := api.NewGitHubIssueClient(os.Getenv("GITHUB_BUG_TOKEN"), bugRepository); token != nil {
 		return token
 	}
 	return nil
@@ -280,6 +283,9 @@ type serverOptions struct {
 	SeedAssets  *assetgen.Assets
 	// BugIssues files the issues of POST /api/bugs; nil disables the route.
 	BugIssues api.IssueCreator
+	// BugWebhookSecret signs the GitHub webhook that deletes the report of a
+	// closed bug issue; empty leaves POST /api/github/webhook off.
+	BugWebhookSecret string
 }
 
 func newApplicationServer(options serverOptions) *http.ServeMux {
@@ -347,7 +353,14 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 	// Firestore keeps bug reports in their own collection; without it the
 	// handler keeps them in memory.
 	bugReports, _ := options.Store.(store.BugReportStore)
+	if bugReports == nil {
+		bugReports = store.NewMemoryBugReportStore()
+	}
 	mux.Handle("/api/bugs", api.NewBugsHandler(api.BugHandlerOptions{Actor: resolveActor, Issues: options.BugIssues, State: games.PlayerState, Reports: bugReports}))
+	// GitHub tells the server when a bug issue is closed, to purge its report.
+	if webhook := api.NewBugWebhookHandler(options.BugWebhookSecret, bugRepository, bugReports); webhook != nil {
+		mux.Handle("/api/github/webhook", webhook)
+	}
 	if options.SeedAssets != nil {
 		mux.Handle("GET /api/seed", api.SeedHandler(*options.SeedAssets))
 	}

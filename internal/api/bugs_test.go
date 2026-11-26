@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -44,15 +43,12 @@ func (f *fakeReports) CreateBugReport(_ context.Context, report store.BugReport)
 	return nil
 }
 
-func (f *fakeReports) SetBugReportIssue(_ context.Context, id, issueURL string) error {
-	report := f.reports[id]
-	report.IssueURL = issueURL
-	f.reports[id] = report
-	return nil
-}
-
-func (f *fakeReports) DeleteBugReport(_ context.Context, id string) error {
-	delete(f.reports, id)
+func (f *fakeReports) DeleteBugReportsByIssue(_ context.Context, issueURL string) error {
+	for id, report := range f.reports {
+		if report.IssueURL == issueURL {
+			delete(f.reports, id)
+		}
+	}
 	return nil
 }
 
@@ -313,16 +309,12 @@ func TestBugsStoreGameViewPrivately(t *testing.T) {
 	if strings.Contains(issues.body, "SECRET") || strings.Contains(issues.body, `"viewer"`) {
 		t.Fatalf("game view reached the public issue: %s", issues.body)
 	}
-	// The public issue cites only the opaque ref, never the game or player name.
+	// The public issue never names the game or player name.
 	if strings.Contains(issues.body, "partie") || strings.Contains(issues.body, "heloise") {
 		t.Fatalf("names reached the public issue: %s", issues.body)
 	}
-	ref := regexp.MustCompile("ref `([0-9a-f]{12})`").FindStringSubmatch(issues.body)
-	if ref == nil {
-		t.Fatalf("missing report ref in %s", issues.body)
-	}
-	report, ok := reports.reports["partie-du-mardi-t12-heloise-"+ref[1]]
-	if !ok || report.Ref != ref[1] || report.GameID != "g1" || report.Turn != 12 || report.PlayerID != "p1" || report.UID != "alice" {
+	report, ok := reports.reports["partie-du-mardi-t12-heloise-issue-7"]
+	if !ok || report.GameID != "g1" || report.Turn != 12 || report.PlayerID != "p1" || report.UID != "alice" {
 		t.Fatalf("report = %+v", report)
 	}
 	if !strings.Contains(report.GameView, "SECRET-ARMY") || strings.Contains(report.GameView, "SECRET1") {
@@ -352,7 +344,7 @@ func gameViewHandler(issues IssueCreator, reports store.BugReportStore) http.Han
 	})
 }
 
-func TestBugsDeleteTheReportWhenTheIssueFails(t *testing.T) {
+func TestBugsStoreNothingWhenTheIssueFails(t *testing.T) {
 	reports := newFakeReports()
 	handler := gameViewHandler(&fakeIssues{err: errors.New("down")}, reports)
 	for i := 0; i < bugActorLimit+1; i++ {
@@ -362,5 +354,18 @@ func TestBugsDeleteTheReportWhenTheIssueFails(t *testing.T) {
 	}
 	if len(reports.reports) != 0 {
 		t.Fatalf("%d orphan reports left", len(reports.reports))
+	}
+}
+
+func TestIssueNumber(t *testing.T) {
+	for url, want := range map[string]string{
+		"https://github.com/o/r/issues/42": "42",
+		"https://github.com/o/r/issues/":   "",
+		"https://github.com/o/r/issues/0":  "",
+		"42x":                              "",
+	} {
+		if got, ok := issueNumber(url); got != want || ok != (want != "") {
+			t.Errorf("issueNumber(%q) = %q, %v", url, got, ok)
+		}
 	}
 }

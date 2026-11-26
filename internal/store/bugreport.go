@@ -28,19 +28,13 @@ func (s *MemoryBugReportStore) CreateBugReport(_ context.Context, report BugRepo
 	return nil
 }
 
-func (s *MemoryBugReportStore) SetBugReportIssue(_ context.Context, id, issueURL string) error {
+func (s *MemoryBugReportStore) DeleteBugReportsByIssue(_ context.Context, issueURL string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if report, ok := s.reports[id]; ok {
-		report.IssueURL = issueURL
-		s.reports[id] = report
+	for id, report := range s.reports {
+		if report.IssueURL == issueURL {
+			delete(s.reports, id)
+		}
 	}
-	return nil
-}
-
-func (s *MemoryBugReportStore) DeleteBugReport(_ context.Context, id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.reports, id)
 	return nil
 }

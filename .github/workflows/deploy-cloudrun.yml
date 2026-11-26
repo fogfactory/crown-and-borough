@@ -28,6 +28,7 @@ env:
   BUG_APP_ID: ${{ vars.BUG_APP_ID }}
   BUG_APP_INSTALLATION_ID: ${{ vars.BUG_APP_INSTALLATION_ID }}
   BUG_APP_KEY_SECRET: ${{ vars.GCP_BUG_APP_KEY_SECRET }}
+  BUG_WEBHOOK_SECRET: ${{ vars.GCP_BUG_WEBHOOK_SECRET }}
   # Optional SMTP server for the email notifications; the password is a Secret
   # Manager secret, the rest is not secret. Without SMTP_HOST and SMTP_FROM the
   # server logs and skips the emails.
@@ -243,6 +244,9 @@ jobs:
             if [[ -n "$BUG_APP_ID" && -n "$BUG_APP_INSTALLATION_ID" && -n "$BUG_APP_KEY_SECRET" ]]; then
               secrets="GITHUB_BUG_APP_PRIVATE_KEY=$BUG_APP_KEY_SECRET:latest"
               bug_env=",GITHUB_BUG_APP_ID=$BUG_APP_ID,GITHUB_BUG_APP_INSTALLATION_ID=$BUG_APP_INSTALLATION_ID"
+            fi
+            if [[ -n "$BUG_WEBHOOK_SECRET" ]]; then
+              secrets="${secrets:+$secrets,}GITHUB_BUG_WEBHOOK_SECRET=$BUG_WEBHOOK_SECRET:latest"
             fi
             if [[ -n "$SMTP_HOST" && -n "$SMTP_FROM" ]]; then
               # Values are comma-separated by gcloud: use a custom delimiter so a
