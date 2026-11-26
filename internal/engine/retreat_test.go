@@ -670,3 +670,162 @@ func TestResolveRetreatFriendlyArmyMergeAfterEmptyRetreatAppend(t *testing.T) {
 		t.Errorf("A5 size = %d, want 3 (2 + 1 merged)", a5.Size)
 	}
 }
+
+// retreatCollisionState dislodges A1 (AAA) and A3 (CCC), whose only way out is
+// the empty territory EEE.
+func retreatCollisionState(t *testing.T, a3Owner models.PlayerID) *models.GameState {
+	t.Helper()
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB", "EEE"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "DDD", "EEE"),
+			territory("DDD", "DDD", "CCC"),
+			territory("EEE", "EEE", "AAA", "CCC"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 3},
+			{ID: "A3", OwnerID: a3Owner, TerritoryID: "CCC", Size: 3},
+			{ID: "A4", OwnerID: "P2", TerritoryID: "DDD", Size: 4},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	addNoble(state, "N3", "THR", a3Owner, "CCC")
+	addNoble(state, "N4", "FOU", "P2", "DDD")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "CCC"})
+	addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "DDD", TargetIDs: []models.TerritoryID{"CCC"}})
+	validateTestState(t, state)
+	return state
+}
+
+func TestResolveRetreatSameOwnerSharedEmptyTerritoryMerges(t *testing.T) {
+	resolution, err := Resolve(retreatCollisionState(t, "P1"), testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	// A1 (AAA, first trigram) takes EEE; A3 (size 3) merges with N-1 = 2 troops.
+	a1 := armyByID(t, resolution.State, "A1")
+	if a1.TerritoryID != "EEE" || a1.Size != 4 {
+		t.Errorf("A1 = %s size %d, want EEE size 4", a1.TerritoryID, a1.Size)
+	}
+	if hasArmy(resolution.State, "A3") {
+		t.Error("A3 should be merged into A1")
+	}
+	if got := nobleByID(t, resolution.State, "N3").LocationID; got != "EEE" {
+		t.Errorf("N3 location = %q, want EEE", got)
+	}
+	for _, e := range resolution.Events {
+		if e.Type == EventTypeArmyDestroyed && (e.ArmyID == "A1" || e.ArmyID == "A3") {
+			t.Errorf("unexpected destruction: %#v", e)
+		}
+		if e.Type == EventTypeRetreat && e.ArmyID == "A3" &&
+			(e.DestinationKind != RetreatDestinationFriendlyArmy || e.HostArmyID != "A1" || e.TroopsMerged != 2 || e.TroopsLost != 1) {
+			t.Errorf("A3 retreat event = %#v", e)
+		}
+	}
+}
+
+func TestResolveRetreatDifferentOwnersSharedEmptyTerritoryDestroyed(t *testing.T) {
+	resolution, err := Resolve(retreatCollisionState(t, "P3"), testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if hasArmy(resolution.State, "A1") || hasArmy(resolution.State, "A3") {
+		t.Error("A1 and A3 should both be destroyed")
+	}
+	destroyed := 0
+	for _, e := range resolution.Events {
+		if e.Type == EventTypeArmyDestroyed && e.Reason == "retreat_collision" {
+			destroyed++
+		}
+	}
+	if destroyed != 2 {
+		t.Errorf("retreat_collision destructions = %d, want 2", destroyed)
+	}
+}
+
+// retreatTripleCollisionState dislodges A1 (AAA, size 2), A3 (CCC, size 3) and
+// A5 (FFF, size 2), whose only way out is the empty territory EEE.
+func retreatTripleCollisionState(t *testing.T, a5Owner models.PlayerID) *models.GameState {
+	t.Helper()
+	state := testState(t,
+		[]models.Territory{
+			territory("AAA", "AAA", "BBB", "EEE"),
+			territory("BBB", "BBB", "AAA"),
+			territory("CCC", "CCC", "DDD", "EEE"),
+			territory("DDD", "DDD", "CCC"),
+			territory("FFF", "FFF", "GGG", "EEE"),
+			territory("GGG", "GGG", "FFF"),
+			territory("EEE", "EEE", "AAA", "CCC", "FFF"),
+		},
+		[]models.Army{
+			{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 2},
+			{ID: "A2", OwnerID: "P2", TerritoryID: "BBB", Size: 4},
+			{ID: "A3", OwnerID: "P1", TerritoryID: "CCC", Size: 3},
+			{ID: "A4", OwnerID: "P2", TerritoryID: "DDD", Size: 4},
+			{ID: "A5", OwnerID: a5Owner, TerritoryID: "FFF", Size: 2},
+			{ID: "A6", OwnerID: "P2", TerritoryID: "GGG", Size: 4},
+		},
+	)
+	addNoble(state, "N1", "ONE", "P1", "AAA")
+	addNoble(state, "N2", "TWO", "P2", "BBB")
+	addNoble(state, "N3", "THR", "P1", "CCC")
+	addNoble(state, "N4", "FOU", "P2", "DDD")
+	addNoble(state, "N5", "FIV", a5Owner, "FFF")
+	addNoble(state, "N6", "SIX", "P2", "GGG")
+	addChain(t, state, "A1", "N1", models.Order{Type: models.OrderTypeHold, PositionID: "AAA"})
+	addChain(t, state, "A2", "N2", models.Order{Type: models.OrderTypeAttack, PositionID: "BBB", TargetIDs: []models.TerritoryID{"AAA"}})
+	addChain(t, state, "A3", "N3", models.Order{Type: models.OrderTypeHold, PositionID: "CCC"})
+	addChain(t, state, "A4", "N4", models.Order{Type: models.OrderTypeAttack, PositionID: "DDD", TargetIDs: []models.TerritoryID{"CCC"}})
+	addChain(t, state, "A5", "N5", models.Order{Type: models.OrderTypeHold, PositionID: "FFF"})
+	addChain(t, state, "A6", "N6", models.Order{Type: models.OrderTypeAttack, PositionID: "GGG", TargetIDs: []models.TerritoryID{"FFF"}})
+	validateTestState(t, state)
+	return state
+}
+
+func TestResolveRetreatThreeSameOwnerArmiesStackOnSharedTerritory(t *testing.T) {
+	resolution, err := Resolve(retreatTripleCollisionState(t, "P1"), testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	// A1 (AAA) takes EEE: 2 + (3-1) from A3 + (2-1) from A5 = 5.
+	a1 := armyByID(t, resolution.State, "A1")
+	if a1.TerritoryID != "EEE" || a1.Size != 5 {
+		t.Errorf("A1 = %s size %d, want EEE size 5", a1.TerritoryID, a1.Size)
+	}
+	for _, id := range []models.ArmyID{"A3", "A5"} {
+		if hasArmy(resolution.State, id) {
+			t.Errorf("%s should be merged into A1", id)
+		}
+	}
+	for _, id := range []models.NobleID{"N1", "N3", "N5"} {
+		if got := nobleByID(t, resolution.State, id).LocationID; got != "EEE" {
+			t.Errorf("%s location = %q, want EEE", id, got)
+		}
+	}
+}
+
+func TestResolveRetreatMixedOwnersSharedTerritoryDestroysEveryone(t *testing.T) {
+	resolution, err := Resolve(retreatTripleCollisionState(t, "P3"), testBalance())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for _, id := range []models.ArmyID{"A1", "A3", "A5"} {
+		if hasArmy(resolution.State, id) {
+			t.Errorf("%s should be destroyed", id)
+		}
+	}
+	destroyed := 0
+	for _, e := range resolution.Events {
+		if e.Type == EventTypeArmyDestroyed && e.Reason == "retreat_collision" {
+			destroyed++
+		}
+	}
+	if destroyed != 3 {
+		t.Errorf("retreat_collision destructions = %d, want 3", destroyed)
+	}
+}
