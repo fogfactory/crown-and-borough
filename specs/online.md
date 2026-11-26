@@ -66,7 +66,8 @@ Les décisions structurantes sont communes à toutes les sous-issues online :
 - `net/http` et `http.ServeMux` sont utilisés, tandis que les endpoints hotseat
   restent dev-only ;
 - la route `GET /api/games/{id}/my-submission` expose au joueur membre sa
-  dernière soumission du tour courant (chaînes et hiver) pour réhydrater les
+  dernière soumission (chaînes et hiver, avec son statut `pending`, `draft` ou
+  `submitted`) du tour courant pour réhydrater les
   zones de saisie après refresh ou reconnexion, sans exposer les ordres des tiers.
 
 ## Persistance Firestore
@@ -79,7 +80,7 @@ Firebase Authentication.
 Les documents lisibles par le navigateur sont des projections dédiées :
 
 - `games/{gameId}` contient uniquement les métadonnées publiques, les slots et
-  les statuts de soumission, jamais l'état canonique ni le code d'invitation ;
+  les statuts des ordres (`pending`, `draft`, `submitted`), jamais l'état canonique ni le code d'invitation ;
 - `games/{gameId}/views/{uid}` contient l'état projeté pour le joueur dont le
   `uid` est dans le chemin ;
 - `games/{gameId}/reports/{uid}/turns/{turn}` contient les rapports filtrés de

@@ -323,9 +323,9 @@ func (s *FirestoreStore) MySubmission(ctx context.Context, actor store.Actor, id
 	s.recordReads(1)
 	if isCode(err, codes.NotFound) {
 		return store.PlayerSubmission{
-			Turn:      game.Turn,
-			Season:    game.Season,
-			Submitted: false,
+			Turn:   game.Turn,
+			Season: game.Season,
+			Status: store.OrdersPending,
 		}, nil
 	}
 	if err != nil {
@@ -339,11 +339,15 @@ func (s *FirestoreStore) MySubmission(ctx context.Context, actor store.Actor, id
 	if err != nil {
 		return store.PlayerSubmission{}, fmt.Errorf("decode submission %s: %w", submissionSnapshot.Ref.Path, err)
 	}
+	status := store.OrdersSubmitted
+	if subDoc.Status == store.OrdersDraft {
+		status = store.OrdersDraft
+	}
 	return store.PlayerSubmission{
-		Turn:      game.Turn,
-		Season:    game.Season,
-		Submitted: true,
-		Orders:    input,
+		Turn:   game.Turn,
+		Season: game.Season,
+		Status: status,
+		Orders: input,
 	}, nil
 }
 
@@ -396,7 +400,7 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if err := decodeJSONString(canonical.MapJSON, &mapData); err != nil {
 		return store.GameSnapshot{}, fmt.Errorf("decode map for %s: %w", game.ID, err)
 	}
-	submissions, err := s.readSubmissions(ctx, game.ID, game.Turn)
+	submissions, drafts, err := s.readSubmissions(ctx, game.ID, game.Turn)
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
@@ -404,7 +408,13 @@ func (s *FirestoreStore) loadSnapshotWithDocument(ctx context.Context, actor sto
 	if err != nil {
 		return store.GameSnapshot{}, err
 	}
-	return gameSnapshot(s.balance, game, state, mapData, submissions, reports), nil
+	snapshot := gameSnapshot(s.balance, game, state, mapData, submissions, reports)
+	// Only who holds a draft goes into the snapshot, never its content.
+	snapshot.Drafted = make(map[models.PlayerID]bool, len(drafts))
+	for playerID := range drafts {
+		snapshot.Drafted[playerID] = true
+	}
+	return snapshot, nil
 }
 
 // lobbySnapshot is the snapshot of a game whose lobby is open: its slots and
@@ -469,27 +479,34 @@ func decodeSeedRanking(document *cloudfirestore.DocumentSnapshot, err error) ([]
 	return entry.SeedRanking, nil
 }
 
-func (s *FirestoreStore) readSubmissions(ctx context.Context, id store.GameID, turn int) (map[models.PlayerID]engine.OrdersInput, error) {
-	result := make(map[models.PlayerID]engine.OrdersInput)
+// readSubmissions reads the orders of a turn: the sealed ones and the drafts.
+func (s *FirestoreStore) readSubmissions(ctx context.Context, id store.GameID, turn int) (sealed, drafts map[models.PlayerID]engine.OrdersInput, err error) {
+	sealed = make(map[models.PlayerID]engine.OrdersInput)
+	drafts = make(map[models.PlayerID]engine.OrdersInput)
 	documents := submissionCollection(s.client, id, turn).Documents(ctx)
+	defer documents.Stop()
 	for {
 		snapshot, err := documents.Next()
 		if err == iterator.Done {
-			return result, nil
+			return sealed, drafts, nil
 		}
 		if err != nil {
-			return nil, wrapOperation("read submissions", err)
+			return nil, nil, wrapOperation("read submissions", err)
 		}
 		s.recordReads(1)
 		document, err := decodeSubmissionDocument(snapshot)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		input, err := decodeOrdersJSON(document.OrdersJSON)
 		if err != nil {
-			return nil, fmt.Errorf("decode submission %s: %w", snapshot.Ref.Path, err)
+			return nil, nil, fmt.Errorf("decode submission %s: %w", snapshot.Ref.Path, err)
 		}
-		result[models.PlayerID(document.PlayerID)] = input
+		if document.Status == store.OrdersDraft {
+			drafts[models.PlayerID(document.PlayerID)] = input
+			continue
+		}
+		sealed[models.PlayerID(document.PlayerID)] = input
 	}
 }
 

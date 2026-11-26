@@ -28,14 +28,42 @@ ravitaillement.
 Une année comprend quatre tours : printemps, été, automne et hiver. Le compteur
 `turn` progresse d'une unité à chaque saison, hiver compris.
 
+### Statuts des ordres d'un tour
+
+Les ordres d'une maison pour le tour courant ont un statut, visible de tous
+les participants maison par maison (le contenu d'une esquisse n'est visible que
+de son auteur ; celui d'ordres scellés suit les règles de visibilité des
+ordres) :
+
+| Statut | Libellé FR | Sens |
+|---|---|---|
+| `pending` | En attente | rien d'enregistré ni de scellé |
+| `draft` | Esquissé | une esquisse est enregistrée sur le serveur, non scellée |
+| `submitted` | Scellé | les ordres sont scellés et lus par la résolution |
+
+- Seuls les ordres scellés sont lus par `Resolve` et comptent pour savoir si
+  une maison a joué ; le tour se résout automatiquement quand toutes les
+  maisons attendues ont scellé.
+- Une esquisse est enregistrée telle quelle, sans validation : elle peut être
+  incomplète ou invalide. La validation a lieu au scellement.
+- Transitions : En attente → Esquissé (enregistrer l'esquisse) ; En attente ou
+  Esquissé → Scellé (sceller, avec validation, y compris par-dessus des ordres
+  déjà scellés) ; Scellé → Esquissé (rompre le sceau : mêmes ordres, plus lus
+  par la résolution tant qu'ils ne sont pas rescellés), jusqu'à la résolution.
+- Les esquisses sont écartées à la fin du tour.
+- Quand l'hôte résout le tour, l'esquisse de chaque maison qui n'a pas scellé
+  est scellée à sa place, avec validation ; une esquisse invalide est écartée
+  et la maison joue sans ordres. Une maison En attente joue sans ordres.
+
 ### Tours d'action
 
 Au printemps, en été et en automne :
 
-1. Chaque joueur prépare et soumet ses chaînes d'ordres pour ses nobles libres
-   et ses armées, ainsi que sa soumission `special` indépendante.
-2. Le moteur vérifie les soumissions. Une erreur de syntaxe ou de réception
-   empêche la résolution de la soumission concernée sans modifier l'état.
+1. Chaque joueur prépare ses chaînes d'ordres pour ses nobles libres et ses
+   armées, ainsi que sa feuille `special` indépendante, puis les scelle (voir
+   « Statuts des ordres d'un tour »).
+2. Le moteur vérifie les ordres au scellement. Une erreur de syntaxe ou de
+   réception empêche le scellement des ordres concernés sans modifier l'état.
 3. Le moteur consomme et agrège les cartes valides, puis applique leurs effets
    avant l'énumération des intentions d'armée.
 4. Le moteur résout simultanément les intentions, les soutiens, les combats,
@@ -872,13 +900,13 @@ l'armée locale les consomme en priorité.
 
 Une armée sans chaîne est Sans Ordre : elle n'exécute aucune action
 automatique et tient sa case.
-Toute erreur statique d'une chaîne est contrôlée à la soumission : syntaxe,
+Toute erreur statique d'une chaîne est contrôlée au scellement : syntaxe,
 forme d'un ordre, codes inconnus, non-adjacence, jonction qui n'est pas le
 dernier ordre, soutien défensif de sa propre case, transfert vers sa propre
 position, affectation de nobles invalide dans une dispersion ou manœuvre mal
 formée (plusieurs `+`, `+` hors de la dernière destination, `N = 0`, noble
-inconnu). La soumission
-est alors refusée avec la ligne fautive à corriger, et aucune partie de la
+inconnu). Le scellement
+est alors refusé avec la ligne fautive à corriger, et aucune partie de la
 chaîne n'est reçue. À l'exécution, seules les conditions du monde (position de
 l'armée, infrastructure, contrôle, route, nobles présents) peuvent casser une
 chaîne, quel que soit son mode de liaison.

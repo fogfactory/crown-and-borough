@@ -99,6 +99,32 @@ describe('Firestore game subscriptions', () => {
     expect(normalized?.specialHand).toEqual([])
   })
 
+  it('reads the public orders status of every house, without any content', () => {
+    const summary = normalizeGameSummary(
+      {
+        id: 'game-1',
+        ownerUid: 'alice-uid',
+        players: [
+          { id: 'P1', name: 'Alice', color: '#a84632', actorId: 'alice-uid' },
+          { id: 'P2', name: 'Bob', color: '#2d5f9e', actorId: 'bob-uid' },
+          { id: 'P3', name: 'Cid', color: '#376341', actorId: 'cid-uid' },
+        ],
+        submittedUids: ['alice-uid'],
+        draftUids: ['bob-uid'],
+      },
+      'game-1',
+      'alice-uid',
+    )
+
+    expect(
+      summary.players.map(({ id, submitted, ordersStatus }) => [id, submitted, ordersStatus]),
+    ).toEqual([
+      ['P1', true, 'submitted'],
+      ['P2', false, 'draft'],
+      ['P3', false, 'pending'],
+    ])
+  })
+
   it('normalizes the public summary without exposing raw document concerns to the UI', () => {
     expect(
       normalizeGameSummary(
@@ -131,6 +157,7 @@ describe('Firestore game subscriptions', () => {
           color: '#a84632',
           actorId: 'alice-uid',
           submitted: true,
+          ordersStatus: 'submitted',
           required: true,
         },
       ],

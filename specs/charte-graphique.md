@@ -532,8 +532,17 @@ du bâtiment, et la légende rappelle que R désigne les ressources ; aucun
   de 2,5 px.
 - **Ravitaillement :** zone en hachures `ink-900` à 35 % ; ligne en tirets
   à la teinture du joueur.
-- **Intentions :** flèches à la teinture du joueur, cernées d'`ink-900` ; un
-  brouillon garde la même flèche à 45 % d'opacité, en tirets. L'attaque a le
+- **Intentions :** flèches à la teinture du joueur, cernées d'`ink-900`. Le
+  rendu dit l'état des ordres : des ordres **scellés** sont dessinés en
+  opacité pleine ; des ordres **en brouillon** gardent la même flèche à 60 %
+  d'opacité, en tirets, qu'ils soient enregistrés sur le serveur (« Esquissé »)
+  ou seulement saisis (modifications non enregistrées, y compris par-dessus des
+  ordres scellés) : le calque ne distingue pas ces deux cas. Les marqueurs de
+  la feuille d'hiver (bâtiments fantômes, badges, flèches de transfert) suivent
+  la même règle. Lisibilité : le cerne `ink-900` à 60 % sur `paper-map` reste à
+  3,7:1, au-dessus du seuil de 3:1 des éléments graphiques (à 45 %, il tombait à
+  2,5:1) ; les tirets s'ajoutent à la transparence, de sorte que l'état ne
+  repose pas sur l'opacité seule. L'attaque a le
   trait le plus épais ; les soutiens, plus fins, se distinguent par leur forme
   et non par la seule couleur :
   - **Soutien défensif : palissade.** Sur chaque frontière franchissable de la
@@ -555,6 +564,8 @@ du bâtiment, et la légende rappelle que R désigne les ressources ; aucun
     de la frontière.
   - Un soutien en brouillon prend la même transparence et les mêmes tirets que
     les autres brouillons.
+  - La légende de la carte reprend la règle sous l'entrée « Calque
+    d'intentions » : « Atténué = esquisse, pas encore scellée ».
 - **Calamités et cartes :** pictogrammes à l'encre et au papier ; une
   calamité annulée est barrée d'un trait `ink-900`, pas de rouge.
 
@@ -675,7 +686,7 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
 
 - **Barre du haut, fine et sur une ligne :** sceau et « Crown & Borough » en
   Cinzel ; saison, année et tour en texte (« Automne 1002 · tour 7 sur 40 ») ;
-  scores (voir [Scores et victoire](#scores-et-victoire)) ; lignée ; pastilles de soumission ; joueur actif en hotseat ; navigation
+  scores (voir [Scores et victoire](#scores-et-victoire)) ; lignée ; pastilles de statut des ordres (« En attente » : cercle en tirets ; « Esquissé » : cercle à moitié plein ; « Scellé » : cercle plein, à la teinture de la maison ; la même information, en toutes lettres, dans l'infobulle et la liste des joueurs) ; joueur actif en hotseat ; navigation
   Règles et FAQ ; un menu « Partie » qui regroupe la création d'une partie
   (joueurs, graine, années), la résolution forcée et la langue, et porte en
   pied la version et l'icône du dépôt GitHub (`GithubLink`, lien externe). En
@@ -686,8 +697,21 @@ La carte occupe toute la largeur ; les panneaux passent dans un tiroir :
   pour rendre toute la carte ; le marque-page actif est en `brass-400`. Les
   onglets tiennent lieu de titre : aucun titre ne répète l'onglet actif
   (`GamePanelCard.tsx`).
-- **Action principale :** le bouton d'envoi des ordres vit dans un pied de
-  tiroir collant, toujours visible. Libellé proposé : « Sceller les ordres ».
+- **Action principale :** les boutons d'ordres vivent dans un pied de tiroir
+  collant, toujours visible. Le vocabulaire est médiéval, jamais « soumettre » ni
+  « envoyer » : statuts « En attente », « Esquissé » (brouillon enregistré sur le
+  serveur) et « Scellé » ; boutons « Enregistrer l'esquisse » (secondaire, actif
+  seulement si les ordres locaux diffèrent de la version du serveur), « Sceller
+  les ordres » (principal ; « Sceller à nouveau » quand des ordres scellés
+  diffèrent de ceux affichés, inactif sinon) et « Rompre le sceau » (secondaire,
+  seulement sous des ordres scellés). Le pied écrit le statut de la maison et,
+  dès que les ordres locaux diffèrent de la version du serveur (« En attente »
+  comprise, comparée à « vide »), l'indicateur « Modifications non
+  enregistrées » en `brass-700` ; chaque feuille modifiée porte en outre la note
+  « Différent de la version du serveur » et son lien « Restaurer depuis le
+  serveur » dès que le serveur détient quelque chose. Quitter la page, ou suivre
+  un lien vers une autre partie, avec des modifications non enregistrées
+  demande confirmation.
 
 **Précision.** Le tiroir mesure 384 à 416 px ; la
 carte se recadre quand il s'ouvre ou se replie. Un bouton sous les
@@ -696,8 +720,8 @@ publique · vue commune » n'est posé sur la carte ; l'aide aux gestes
 est dans la légende, dont le bouton se trouve en haut à gauche de la carte pour
 laisser le bord droit aux marque-pages. Le bouton de navigation qui ramène à
 la partie depuis les Règles ou la FAQ s'appelle « Carte », pour ne pas se
-confondre avec le menu « Partie ». Une erreur d'envoi s'affiche dans le pied
-collant, au-dessus de « Sceller les ordres ». En ligne, la résolution forcée
+confondre avec le menu « Partie ». Une erreur d'enregistrement ou de scellement s'affiche dans le pied
+collant, au-dessus du statut. En ligne, la résolution forcée
 figure aussi dans le menu « Partie », avec sa confirmation.
 
 ### Téléphone

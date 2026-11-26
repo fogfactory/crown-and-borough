@@ -125,7 +125,11 @@ function GameCard({ game }: { game: GameSummary }) {
                 {game.scores?.[player.id]?.total ?? 0}
               </span>
               <span className="label-caps shrink-0 text-2xs text-ink-500">
-                {player.submitted ? t('home.submitted') : t('home.notSubmitted')}
+                {player.submitted
+                  ? t('home.submitted')
+                  : player.ordersStatus === 'draft'
+                    ? t('home.sketched')
+                    : t('home.notSubmitted')}
               </span>
             </li>
           ))}

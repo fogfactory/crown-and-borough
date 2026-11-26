@@ -407,6 +407,18 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		writeAPIError(w, http.StatusBadRequest, "invalid_orders_request", err.Error())
 		return
 	}
+	switch request.Status {
+	case "":
+		request.Status = store.OrdersSubmitted
+	case store.OrdersDraft, store.OrdersSubmitted:
+	default:
+		writeAPIError(w, http.StatusBadRequest, "invalid_orders_status", "status must be \"draft\" or \"submitted\"")
+		return
+	}
+	if request.Force && request.Status == store.OrdersDraft {
+		writeAPIError(w, http.StatusBadRequest, "invalid_orders_status", "a draft cannot be forced")
+		return
+	}
 	expectedRevision := request.Revision
 	if request.Force && expectedRevision == 0 {
 		snapshot, err := h.store.Get(r.Context(), actor, id)
@@ -420,6 +432,7 @@ func (h *GamesHandler) submit(w http.ResponseWriter, r *http.Request, actor stor
 		Chains:           toChainSubmissions(request.Chains),
 		Winter:           toWinterSubmissions(request.Winter),
 		Special:          toDeckSubmissions(request.Special),
+		Status:           request.Status,
 		Force:            request.Force,
 		ExpectedRevision: expectedRevision,
 	})
@@ -475,12 +488,12 @@ func (h *GamesHandler) mySubmission(w http.ResponseWriter, r *http.Request, acto
 		special = append(special, specialSubmissionView{Text: deck.Text})
 	}
 	writeJSON(w, http.StatusOK, mySubmissionView{
-		Turn:      submission.Turn,
-		Season:    submission.Season,
-		Submitted: submission.Submitted,
-		Chains:    chains,
-		Winter:    winter,
-		Special:   special,
+		Turn:    submission.Turn,
+		Season:  submission.Season,
+		Status:  submission.Status,
+		Chains:  chains,
+		Winter:  winter,
+		Special: special,
 	})
 }
 
@@ -994,6 +1007,9 @@ type gameOrdersRequest struct {
 	Special  []deckOrderRequest   `json:"special"`
 	Force    bool                 `json:"force,omitempty"`
 	Revision store.Revision       `json:"revision,omitempty"`
+	// Status is "draft" (saved unsealed, no engine validation) or "submitted"
+	// (sealed, validated); empty means "submitted".
+	Status store.OrdersStatus `json:"status,omitempty"`
 }
 
 type deckOrderRequest struct {
@@ -1022,12 +1038,13 @@ type joinGameRequest struct {
 }
 
 type mySubmissionView struct {
-	Turn      int                     `json:"turn"`
-	Season    models.Season           `json:"season"`
-	Submitted bool                    `json:"submitted"`
-	Chains    []chainSubmissionView   `json:"chains"`
-	Winter    *winterSubmissionView   `json:"winter,omitempty"`
-	Special   []specialSubmissionView `json:"special,omitempty"`
+	Turn   int           `json:"turn"`
+	Season models.Season `json:"season"`
+	// Status is "pending" (nothing recorded), "draft" or "submitted".
+	Status  store.OrdersStatus      `json:"status"`
+	Chains  []chainSubmissionView   `json:"chains"`
+	Winter  *winterSubmissionView   `json:"winter,omitempty"`
+	Special []specialSubmissionView `json:"special,omitempty"`
 }
 
 type submittedOrdersView struct {
@@ -1115,11 +1132,15 @@ type gameDetailView struct {
 }
 
 type PlayerSlotView struct {
-	ID        models.PlayerID `json:"id"`
-	Name      string          `json:"name"`
-	Color     string          `json:"color"`
-	Submitted bool            `json:"submitted"`
-	Required  bool            `json:"required"`
+	ID    models.PlayerID `json:"id"`
+	Name  string          `json:"name"`
+	Color string          `json:"color"`
+	// Submitted is true when the house sealed its orders.
+	Submitted bool `json:"submitted"`
+	// OrdersStatus is "pending", "draft" or "submitted", public to every
+	// participant; a draft's content never is.
+	OrdersStatus store.OrdersStatus `json:"ordersStatus"`
+	Required     bool               `json:"required"`
 	// AccountName is the account behind the house, shown beside the house
 	// name; absent in incognito games.
 	AccountName string `json:"accountName,omitempty"`
@@ -1258,13 +1279,14 @@ func makePlayerSlotViews(snapshot store.GameSnapshot) []PlayerSlotView {
 func makePlayerSlotView(player store.PlayerSlot, snapshot store.GameSnapshot) PlayerSlotView {
 	_, submitted := snapshot.Submissions[player.ID]
 	return PlayerSlotView{
-		ID:          player.ID,
-		Name:        player.Name,
-		Color:       player.Color,
-		Submitted:   submitted,
-		Required:    snapshot.Started() && engine.PlayerMustSubmit(snapshot.State, player.ID),
-		AccountName: player.AccountName,
-		NameLocked:  player.NameLocked,
+		ID:           player.ID,
+		Name:         player.Name,
+		Color:        player.Color,
+		Submitted:    submitted,
+		OrdersStatus: snapshot.OrdersStatusOf(player.ID),
+		Required:     snapshot.Started() && engine.PlayerMustSubmit(snapshot.State, player.ID),
+		AccountName:  player.AccountName,
+		NameLocked:   player.NameLocked,
 	}
 }
 
