@@ -985,9 +985,13 @@ retraité — défend contre une retraite et n'est jamais une destination valide
 un château vide **inerte** (ni fief, ni capitale, ni armée) redevient en
 revanche une destination valide de deuxième priorité, comme l'absence de
 château. Un château en ruine ne défend contre une retraite que s'il est la
-capitale d'un fief ; sinon il est inerte. Deux armées qui doivent reculer sur la même case vide sont détruites si
-aucune alternative ne subsiste. L'ordre de traitement des armées en retraite suit
-le trigramme croissant de leur case d'origine.
+capitale d'un fief ; sinon il est inerte. Deux armées qui doivent reculer sur
+la même case vide, faute d'alternative, sont détruites si elles appartiennent à
+des propriétaires différents ; si elles appartiennent au même propriétaire, la
+première (trigramme de la case d'origine le plus petit) occupe la case et les
+suivantes la fusionnent comme avec une armée amie (`N − 1` troupes ajoutées si
+`N ≥ 2`, sinon `1`). L'ordre de traitement des armées en retraite suit le
+trigramme croissant de leur case d'origine.
 
 ## 7. Infrastructures et contrôle
 
