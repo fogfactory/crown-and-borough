@@ -3,15 +3,7 @@ name: Pull Request Policy
 on:
   pull_request_target:
     branches: [main, develop]
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - edited
-      - labeled
-      - unlabeled
-      - converted_to_draft
-      - ready_for_review
+    types: [opened, reopened, synchronize, edited, ready_for_review]
 
 permissions:
   contents: read
@@ -21,108 +13,40 @@ jobs:
   policy:
     runs-on: ubuntu-26.04
     steps:
-      - name: Validate target branch, title, and release label
+      # Two rules, nothing else (branch names and labels are free):
+      #   1. the title is a Conventional Commit, because release-please reads it;
+      #   2. a breaking change targets develop, never main, because main is
+      #      deployed to live games.
+      - name: Validate title and target branch
         uses: actions/github-script@v9
         with:
           script: |
-            const pullRequest = context.payload.pull_request;
-            const base = pullRequest.base.ref;
-            const head = pullRequest.head.ref;
-            const errors = [];
-            const labels = new Set(pullRequest.labels.map((label) => label.name));
-            const releaseLabels = [
-              "release:patch",
-              "release:minor",
-              "release:major",
-            ].filter((label) => labels.has(label));
-            const titleMatch = pullRequest.title.match(
+            const pr = context.payload.pull_request;
+            const base = pr.base.ref;
+            const head = pr.head.ref;
+
+            // Promotion (develop -> main) and synchronization (main -> develop)
+            // carry already-reviewed history, so there is nothing to check.
+            const sameRepo = pr.head.repo?.full_name === pr.base.repo.full_name;
+            if (sameRepo && (head === "develop" || head === "main")) return;
+
+            const match = pr.title.match(
               /^(feat|fix|docs|chore|test|refactor|ci|build|perf|revert)(\([^)]+\))?(!)?:\s+\S.+$/,
             );
-            const commitType = titleMatch?.[1];
-            const breaking = Boolean(titleMatch?.[3]) ||
-              /BREAKING CHANGE\s*:/i.test(pullRequest.body || "");
+            const errors = [];
 
-            if (!titleMatch) {
+            if (!match) {
               errors.push(
-                "The pull request title must use Conventional Commits, for example `fix(api): handle invalid orders`.",
+                "The title must use Conventional Commits, for example `fix(api): handle invalid orders`.",
               );
             }
 
-            if (releaseLabels.length > 1) {
-              errors.push("Select at most one of release:patch, release:minor, and release:major.");
-            }
-
-            const hasLabel = (label) => releaseLabels.includes(label);
-            const requireBase = (expected, description) => {
-              if (base !== expected) {
-                errors.push(`${description} must target ${expected}, not ${base}.`);
-              }
-            };
-
-            if (/^(feat|feature)\//.test(head)) {
-              requireBase("develop", "Feature branches");
-              if (!hasLabel("release:minor") && !hasLabel("release:major")) {
-                errors.push("Feature pull requests need release:minor or release:major.");
-              }
-            } else if (/^(fix|bugfix|hotfix)\//.test(head)) {
-              requireBase("main", "Bugfix branches");
-              if (!hasLabel("release:patch")) {
-                errors.push("Bugfix pull requests need the release:patch label.");
-              }
-            } else if (/^ux\//.test(head)) {
-              requireBase("main", "UX branches");
-              if (!hasLabel("release:patch") && !hasLabel("release:minor")) {
-                errors.push("UX pull requests need release:patch or release:minor.");
-              }
-            } else if (/^(chore|docs|refactor|test|ci|build)\//.test(head)) {
-              requireBase("develop", "Maintenance branches");
-            } else if (head === "develop") {
-              requireBase("main", "Promotion pull requests");
-            } else if (head === "main") {
-              requireBase("develop", "Synchronization pull requests");
-            } else if (/^release-please--/.test(head)) {
-              requireBase("main", "Release Please pull requests");
-            } else if (/^(dependabot|renovate)\//.test(head)) {
-              // Dependency updates go straight to main; main is synced back into
-              // develop by automation.
-              requireBase("main", "Dependency update branches");
-            } else if (/^claude\//.test(head)) {
-              // Branches created by Claude Code worktrees carry no change-type
-              // prefix: the Conventional Commit title decides the target.
-              if (commitType === "feat") {
-                // Features may also go straight to main while it is pushed to directly.
-                if (base !== "main") requireBase("develop", "Feature pull requests");
-                if (!hasLabel("release:minor") && !hasLabel("release:major")) {
-                  errors.push("Feature pull requests need release:minor or release:major.");
-                }
-              } else if (commitType === "fix") {
-                requireBase("main", "Bugfix pull requests");
-                if (!hasLabel("release:patch")) {
-                  errors.push("Bugfix pull requests need the release:patch label.");
-                }
-              } else {
-                requireBase("develop", "Maintenance pull requests");
-              }
-            } else {
+            const breaking = Boolean(match?.[3]) ||
+              /BREAKING CHANGE\s*:/i.test(pr.body || "");
+            if (breaking && base === "main" && !(sameRepo && head.startsWith("release-please--"))) {
               errors.push(
-                "Use a branch prefix that describes the change: feat/, fix/, ux/, chore/, docs/, refactor/, test/, ci/, build/, or claude/.",
+                "A breaking change must target develop: main is deployed to live games.",
               );
             }
 
-            if (releaseLabels.length === 1 && !head.startsWith("release-please--") &&
-                head !== "develop" && head !== "main") {
-              const selectedLabel = releaseLabels[0];
-              if (selectedLabel === "release:major" && !breaking) {
-                errors.push("release:major requires `!` in the title or a BREAKING CHANGE footer.");
-              }
-              if (selectedLabel === "release:minor" && (commitType !== "feat" || breaking)) {
-                errors.push("release:minor requires a non-breaking feat commit title.");
-              }
-              if (selectedLabel === "release:patch" && (commitType === "feat" || breaking)) {
-                errors.push("release:patch requires a non-feature, non-breaking commit title.");
-              }
-            }
-
-            if (errors.length > 0) {
-              core.setFailed(errors.join("\n"));
-            }
+            if (errors.length > 0) core.setFailed(errors.join("\n"));

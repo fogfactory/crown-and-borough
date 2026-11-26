@@ -30,30 +30,25 @@ The repository uses two long-lived branches:
 | `main` | Protected release branch | A `v*` tag is deployed automatically |
 | `develop` | Protected integration branch for work in progress | Never deployed directly |
 
-Short-lived branches must use a prefix that describes their change:
+Short-lived branches may have any name. The pull request target decides:
 
-| Branch | Pull request target | Release label |
-| --- | --- | --- |
-| `fix/*` or `bugfix/*` | `main` | `release:patch` |
-| `ux/*` | `main` | `release:patch` or `release:minor` |
-| `feat/*` or `feature/*` | `develop` | `release:minor` or `release:major` |
-| `chore/*`, `docs/*`, `refactor/*`, `test/*`, `ci/*`, `build/*` | `develop` | No release label unless the change is intentionally released |
+| Change | Target |
+| --- | --- |
+| Any non-breaking change (feature, fix, UX, docs, maintenance) | `main` |
+| A breaking change that existing games cannot absorb | `develop` |
 
-Every pull request title follows Conventional Commits, for example
-`fix(api): reject an expired invitation`. The final SemVer bump is determined
-by that title and its breaking-change marker: `fix` and other non-feature
-changes that are included in the changelog produce a patch, `feat` produces a
-minor version, and `!` or a `BREAKING CHANGE` footer produces a major version.
-Maintenance-only commits such as hidden `chore`, `test`, `ci`, or `build`
-changes do not create a release by themselves. The `release:*` label is an
-explicit declaration checked by the pull request policy; it does not replace
-the Conventional Commit title.
+The target is chosen when the issue is triaged (an issue label says `main` or
+`develop`). The pull request policy enforces two rules only: the title follows
+Conventional Commits, for example `fix(api): reject an expired invitation`, and
+a breaking change (`!` in the title or a `BREAKING CHANGE` footer) never
+targets `main`. There are no release labels: release-please derives the SemVer
+bump from the titles (`fix` patch, `feat` minor, `!` major).
 
 The normal flows are:
 
-1. Start `feat/*` work from `develop` and merge it back into `develop`.
-2. Start `fix/*` and `ux/*` work from `main` and merge it into `main`.
-3. When the features in `develop` are ready, open a promotion pull request from
+1. Start non-breaking work from `main` and squash-merge it into `main`.
+2. Start breaking work from `develop` and squash-merge it into `develop`.
+3. When the work in `develop` is ready, open a promotion pull request from
    `develop` to `main` and merge it with a merge commit. This preserves the
    individual Conventional Commit messages for release-please.
 4. release-please opens or updates a release pull request on `main`. Merge it
@@ -82,10 +77,8 @@ setup details are in [`docs/deploy-cloudrun.md`](docs/deploy-cloudrun.md). If
 automatic merge cannot be queued, the synchronization workflow fails visibly
 so the repository settings or the pull request can be corrected.
 
-Create the `release:patch`, `release:minor`, `release:major`,
-`autorelease: pending`, and `autorelease: tagged` labels in the repository. The
-labeler adds a type label from the source branch. The two `autorelease:*`
-labels are used by release-please to track its release pull request.
+Create the `autorelease: pending` and `autorelease: tagged` labels in the
+repository; release-please uses them to track its release pull request.
 
 For the initial setup, create `develop` from the current release branch and
 push it once before enabling branch protection:
