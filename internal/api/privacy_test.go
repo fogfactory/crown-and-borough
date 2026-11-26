@@ -704,3 +704,55 @@ func TestProjectMovementsRedactsByWhatTheViewerMayKnow(t *testing.T) {
 		t.Fatalf("spectator view = %+v, want every move in full", spectator)
 	}
 }
+
+// A maneuver can carry a chain to another army: the owner must keep seeing it.
+func TestChainKnowledgeFollowsChainCarriedToAnotherArmy(t *testing.T) {
+	state := projectTestState()
+	putChainSnapshot(ensurePrivacy(state), "P1", makeChainSnapshot(state.Chains[0], state.Turn))
+
+	carrier := state.Armies[0]
+	carrier.ID = "A9"
+	state.Armies = []models.Army{carrier}
+	carriedID := state.Chains[0].ID
+	state.Armies[0].ChainID = &carriedID
+	state.Chains[0].ArmyID = "A9"
+
+	reconcileChainKnowledge(state)
+	snapshot, exists := state.Privacy.ChainKnowledge["P1"][carriedID]
+	if !exists {
+		t.Fatal("owner lost the chain carried to another army")
+	}
+	if snapshot.ArmyID != "A9" {
+		t.Errorf("snapshot army = %s, want A9", snapshot.ArmyID)
+	}
+}
+
+// The house of the noble who emitted a chain always reads it, even when the
+// recorded knowledge was lost, and when the noble died since.
+func TestEmitterHouseAlwaysKnowsItsChain(t *testing.T) {
+	state := projectTestState()
+	chain := state.Chains[0]
+	var owner models.PlayerID
+	for _, noble := range state.Nobles {
+		if noble.ID == chain.NobleID {
+			owner = noble.OwnerID
+		}
+	}
+	if !viewerKnowsChain(state, owner, chain) {
+		t.Fatal("emitter house does not know its chain")
+	}
+	other := models.PlayerID("P9")
+	if viewerKnowsChain(state, other, chain) {
+		t.Fatal("unrelated house knows the chain")
+	}
+	for index, noble := range state.Nobles {
+		if noble.ID == chain.NobleID {
+			state.RemovedNobles = append(state.RemovedNobles, models.RemovedNoble{ID: noble.ID, OwnerID: noble.OwnerID})
+			state.Nobles = append(state.Nobles[:index], state.Nobles[index+1:]...)
+			break
+		}
+	}
+	if !viewerKnowsChain(state, owner, chain) {
+		t.Fatal("emitter house lost its chain after the noble died")
+	}
+}
