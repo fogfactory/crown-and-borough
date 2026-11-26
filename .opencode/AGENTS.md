@@ -27,16 +27,17 @@ doit être reportée dans les specs correspondantes.
 
 ## Workflow Git
 
-- `main` est la branche de release protégée. Les correctifs, améliorations UX,
-  promotions depuis `develop` et PRs release-please y sont intégrés après revue.
-- `develop` est la branche d'intégration protégée. Les features et changements
-  de maintenance y sont intégrés et elle n'est jamais déployée directement.
-- Utiliser `fix/*` ou `bugfix/*` pour un correctif vers `main`, `ux/*` pour une
-  amélioration UX vers `main`, et `feat/*` ou `feature/*` pour une feature vers
-  `develop`.
-- Les branches créées par Claude Code (`claude/*`) sont acceptées par la policy
-  de PR : le titre Conventional Commit détermine la cible (`feat` vers
-  `develop` ou `main`, `fix` vers `main`, le reste vers `develop`).
+- `main` est la branche de release protégée et la cible par défaut : tout
+  changement non cassant (feature, correctif, UX, docs, maintenance) y va et
+  est déployé rapidement sans casser les parties en cours.
+- `develop` est la branche d'intégration protégée pour les changements cassants
+  que les parties existantes ne peuvent pas absorber ; jamais déployée
+  directement. Le label de l'issue GitHub (`main` ou `develop`) indique la
+  cible ; sans label, viser `main`.
+- Les noms de branche sont libres. Ne jamais renommer une branche ni modifier
+  un titre pour contourner la policy de PR : elle vérifie seulement que le
+  titre est un Conventional Commit et qu'un changement cassant (`!` ou footer
+  `BREAKING CHANGE:`) ne vise pas `main`.
 - Ne jamais pousser directement sur `main` ou `develop`. Toujours passer par
   une PR avec revue et CI verte.
 - Les titres de PR suivent `type(scope): description`. `fix` produit un patch,
@@ -47,10 +48,6 @@ doit être reportée dans les specs correspondantes.
   comme sujet du commit; les promotions de `develop` vers `main` et la
   synchronisation font exception avec des merge commits pour que
   release-please voie les Conventional Commits individuels.
-- Ajouter exactement un label `release:patch`, `release:minor` ou
-  `release:major` aux changements destinés à une release. La policy vérifie la
-  cohérence du label avec le titre Conventional Commit; release-please calcule
-  le bump effectif.
 - Ne jamais créer de tag de production manuellement. release-please crée le
   tag SemVer et la GitHub Release après fusion de sa PR.
 - La synchronisation de `main` vers `develop` est automatisée. Ne pas créer de
