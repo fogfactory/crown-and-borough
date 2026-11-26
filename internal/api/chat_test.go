@@ -193,6 +193,20 @@ func TestChatMarkReadRoute(t *testing.T) {
 	}
 }
 
+func TestChatAcknowledgeRoute(t *testing.T) {
+	env := newChatTestEnv(t, true)
+	status, body := env.call(t, http.MethodPost, "/api/games/"+string(env.gameID)+"/messages/acknowledge?player=cleo", `{"channel":"P2"}`)
+	if status != http.StatusOK || body["channel"] != "P2_P3" || body["acknowledgedAt"] == nil {
+		t.Fatalf("acknowledge = %d %v", status, body)
+	}
+	if status, body := env.call(t, http.MethodPost, "/api/games/"+string(env.gameID)+"/messages/acknowledge?player=cleo", `{"channel":"P3"}`); status != http.StatusBadRequest || body["error"] != "invalid_recipient" {
+		t.Fatalf("own house = %d %v", status, body)
+	}
+	if status, _ := env.call(t, http.MethodPost, "/api/games/"+string(env.gameID)+"/messages/acknowledge?player=mallory", `{"channel":"public"}`); status != http.StatusForbidden {
+		t.Fatalf("outsider = %d", status)
+	}
+}
+
 func TestChatHistoryRouteIsolatesPrivateConversations(t *testing.T) {
 	env := newChatTestEnv(t, true)
 	env.post(t, "alice", `{"channel":"P2","body":"for bob only"}`)
@@ -230,6 +244,7 @@ func TestChatIsAbsentWithoutAChatService(t *testing.T) {
 	for _, call := range []struct{ method, path, body string }{
 		{http.MethodPost, "/messages", `{"channel":"public","body":"hi"}`},
 		{http.MethodPost, "/messages/read", `{"channel":"public"}`},
+		{http.MethodPost, "/messages/acknowledge", `{"channel":"public"}`},
 		{http.MethodGet, "/messages?channel=public", ""},
 	} {
 		status, body := env.call(t, call.method, "/api/games/"+string(env.gameID)+call.path, call.body)

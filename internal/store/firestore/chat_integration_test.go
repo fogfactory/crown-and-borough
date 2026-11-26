@@ -88,6 +88,23 @@ func TestFirestoreChatBackend(t *testing.T) {
 	if err := snapshot.DataTo(&reads); err != nil || len(reads.Channels) != 2 {
 		t.Fatalf("cursors = %#v, %v (a second channel must not erase the first)", reads, err)
 	}
+
+	acked, err := backend.SetChatAcknowledged(ctx, gameID, "alice", "P1_P2", base.Add(time.Minute))
+	if err != nil || !acked.AcknowledgedAt.Equal(base.Add(time.Minute)) || !acked.LastReadAt.Equal(base) {
+		t.Fatalf("acknowledge = %#v, %v", acked, err)
+	}
+	earlier, err := backend.SetChatAcknowledged(ctx, gameID, "alice", "P1_P2", base)
+	if err != nil || !earlier.AcknowledgedAt.Equal(acked.AcknowledgedAt) {
+		t.Fatalf("acknowledgement moved back: %#v, %v", earlier, err)
+	}
+	snapshot, err = client.Collection("games").Doc(string(gameID)).Collection(chatReadsCollection).Doc("alice").Get(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reads = chatReadsDocument{}
+	if err := snapshot.DataTo(&reads); err != nil || len(reads.Channels) != 2 || len(reads.Acknowledged) != 1 {
+		t.Fatalf("after acknowledge = %#v, %v (read cursors must survive)", reads, err)
+	}
 }
 
 func TestFirestoreNotificationState(t *testing.T) {

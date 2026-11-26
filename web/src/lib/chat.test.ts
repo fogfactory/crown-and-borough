@@ -14,6 +14,7 @@ import {
   unreadCount,
   unreadByAuthor,
   initialChannel,
+  channelStatus,
   type ChatMessage,
   type ChatPostBody,
 } from '@/lib/chat'
@@ -374,5 +375,64 @@ describe('unread by author and initial channel', () => {
     expect(initialChannel({ public: 0, P1_P2: 2, P1_P3: 0 })).toBe('P1_P2')
     expect(initialChannel({ P1_P2: 2, P1_P3: 1 })).toBe('public')
     expect(initialChannel({})).toBe('public')
+  })
+})
+
+describe('channelStatus', () => {
+  const other = message('a', '2026-01-01T10:00:00Z', 1, { authorHouseId: 'P2' })
+  const mine = message('b', '2026-01-01T10:00:10Z', 1, { authorHouseId: 'P1' })
+  const read = toChatTimestamp('2026-01-01T10:00:05Z')
+  const readAll = toChatTimestamp('2026-01-01T11:00:00Z')
+
+  it('is unread while another house wrote after the read cursor', () => {
+    expect(channelStatus([other], {}, 'P1')).toBe('unread')
+    expect(
+      channelStatus(
+        [other],
+        { lastReadAt: toChatTimestamp('2026-01-01T09:00:00Z') },
+        'P1',
+      ),
+    ).toBe('unread')
+  })
+
+  it('is unanswered when everything is read and the last message is from another house', () => {
+    expect(channelStatus([other], { lastReadAt: read }, 'P1')).toBe('unanswered')
+  })
+
+  it('is answered when the last message is the own house, or the channel is empty', () => {
+    expect(channelStatus([other, mine], { lastReadAt: readAll }, 'P1')).toBe('answered')
+    expect(channelStatus([], {}, 'P1')).toBe('answered')
+  })
+
+  it('is answered once acknowledged, and unread then unanswered again after a new message', () => {
+    const acknowledgedAt = toChatTimestamp('2026-01-01T10:30:00Z')
+    expect(channelStatus([other], { lastReadAt: read, acknowledgedAt }, 'P1')).toBe(
+      'answered',
+    )
+    const again = message('c', '2026-01-01T10:40:00Z', 1, { authorHouseId: 'P2' })
+    expect(
+      channelStatus([other, again], { lastReadAt: read, acknowledgedAt }, 'P1'),
+    ).toBe('unread')
+    expect(
+      channelStatus([other, again], { lastReadAt: readAll, acknowledgedAt }, 'P1'),
+    ).toBe('unanswered')
+  })
+
+  it('ignores system events for the last message', () => {
+    const renamed = message('d', '2026-01-01T10:50:00Z', 1, {
+      authorHouseId: 'P2',
+      kind: 'house_renamed',
+    })
+    expect(channelStatus([other, mine, renamed], { lastReadAt: readAll }, 'P1')).toBe(
+      'answered',
+    )
+  })
+})
+
+describe('initialChannel with unanswered channels', () => {
+  it('falls back to unanswered channels when nothing is unread', () => {
+    expect(initialChannel({ public: 0, P1_P2: 0 }, ['P1_P2'])).toBe('P1_P2')
+    expect(initialChannel({ public: 0, P1_P2: 0 }, ['P1_P2', 'public'])).toBe('public')
+    expect(initialChannel({ public: 0, P1_P2: 1 }, ['P1_P3'])).toBe('P1_P2')
   })
 })

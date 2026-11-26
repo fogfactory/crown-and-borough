@@ -185,6 +185,7 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/games/{id}/messages", h.withActor(h.listMessages))
 	mux.HandleFunc("POST /api/games/{id}/messages", h.withActor(h.postMessage))
 	mux.HandleFunc("POST /api/games/{id}/messages/read", h.withActor(h.markChannelRead))
+	mux.HandleFunc("POST /api/games/{id}/messages/acknowledge", h.withActor(h.acknowledgeChannel))
 	return mux
 }
 
