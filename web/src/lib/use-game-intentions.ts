@@ -27,6 +27,12 @@ export interface UseGameIntentionsOptions {
   spectator: boolean
   /** Online spectator only: other players' submitted orders and their preview. */
   submittedOrders?: SubmittedOrdersResponse | null
+  /**
+   * The active player's orders are sealed and the drafts shown are exactly the
+   * sealed ones: they are drawn at full opacity. A sketch, saved or not, or
+   * unsaved changes over sealed orders stay translucent.
+   */
+  ownOrdersSealed?: boolean
 }
 
 export interface GameIntentions {
@@ -50,6 +56,7 @@ export function useGameIntentions({
   winterText,
   spectator,
   submittedOrders = null,
+  ownOrdersSealed = false,
 }: UseGameIntentionsOptions): GameIntentions {
   const playerColor = (player: PlayerId) =>
     state?.players.find((candidate) => candidate.id === player)?.color
@@ -100,10 +107,20 @@ export function useGameIntentions({
               {
                 includeInstalledInWinter: state.season === 'winter',
                 color: state.players.find((player) => player.id === playerID)?.color,
+                source: ownOrdersSealed ? 'submitted' : 'draft',
               },
             )
           : [],
-    [installedIntentions, map, playerID, preview, spectator, state, submittedIntentions],
+    [
+      installedIntentions,
+      map,
+      ownOrdersSealed,
+      playerID,
+      preview,
+      spectator,
+      state,
+      submittedIntentions,
+    ],
   )
 
   const winterIntentions = useMemo(() => {
@@ -125,8 +142,9 @@ export function useGameIntentions({
     return buildWinterIntentions(preview?.winter ?? [], winterText, {
       color: state.players.find((player) => player.id === playerID)?.color,
       player: playerID,
+      source: ownOrdersSealed ? 'submitted' : 'draft',
     })
-  }, [playerID, preview, spectator, state, submittedOrders, winterText])
+  }, [ownOrdersSealed, playerID, preview, spectator, state, submittedOrders, winterText])
 
   const intentionsColor =
     (playerID ? playerColor(playerID) : undefined) ?? DEFAULT_INTENTIONS_COLOR

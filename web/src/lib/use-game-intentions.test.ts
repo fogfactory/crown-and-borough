@@ -86,6 +86,15 @@ function buildHook(overrides: Partial<Parameters<typeof useGameIntentions>[0]> =
 }
 
 describe('useGameIntentions', () => {
+  it('draws the own orders as drafts, or as sealed ones once sealed and unchanged', () => {
+    expect(buildHook({ ownOrdersSealed: false }).result.current.intentions[0].source).toBe(
+      'draft',
+    )
+    expect(buildHook({ ownOrdersSealed: true }).result.current.intentions[0].source).toBe(
+      'submitted',
+    )
+  })
+
   it('builds the active player drafts and color', () => {
     const { result } = buildHook()
 

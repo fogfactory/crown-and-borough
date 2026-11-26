@@ -169,14 +169,14 @@ func TestFirestoreStorePersistsAndRestoresATurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("alice MySubmission after restart: %v", err)
 	}
-	if !aliceSub.Submitted || aliceSub.Turn != 1 {
+	if aliceSub.Status != store.OrdersSubmitted || aliceSub.Turn != 1 {
 		t.Fatalf("alice MySubmission after restart = %#v, want submitted:true turn 1", aliceSub)
 	}
 	bobSub, err := restarted.MySubmission(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID)
 	if err != nil {
 		t.Fatalf("bob MySubmission before submitting: %v", err)
 	}
-	if bobSub.Submitted {
+	if bobSub.Status != store.OrdersPending {
 		t.Fatalf("bob MySubmission before submitting = %#v, want submitted:false", bobSub)
 	}
 	resolved, err := restarted.Submit(ctx, store.Actor{ID: "bob"}, created.Snapshot.ID, store.SubmitRequest{ExpectedRevision: restored.Revision})

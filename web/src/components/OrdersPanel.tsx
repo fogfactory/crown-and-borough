@@ -44,6 +44,7 @@ import type { MessageKey, Translate } from '@/i18n/messages'
 import { DEFAULT_HAND_LIMIT } from '@/types'
 import type {
   CardKind,
+  OrdersStatus,
   Dignity,
   Noble,
   NobleCard,
@@ -1543,45 +1544,111 @@ interface SealOrdersProps {
   player: PlayerId
   winterDraft: string
   specialDraft: string
-  submitted: boolean
-  submitting: boolean
+  /** What the server holds: nothing (pending), a sketch (draft) or sealed orders (submitted). */
+  status: OrdersStatus
+  /**
+   * The local orders differ from the server version. Left out by a screen
+   * that does not track it (hotseat): the seal is then always available.
+   */
+  hasUnsavedChanges?: boolean
+  /** The action in progress, if any. */
+  submitting: 'resolve' | 'seal' | 'sketch' | 'unseal' | null
   error: string | null
-  onSubmit: () => void
+  /** Without it (hotseat keeps no sketch) the button is not offered. */
+  onSketch?: () => void
+  onSeal: () => void
+  onBreakSeal?: () => void
 }
 
 /**
- * Sticky drawer footer that seals the orders (charte-graphique.md
- * § Disposition sur ordinateur): always visible, whatever the bookmark.
+ * Sticky drawer footer (charte-graphique.md § Disposition sur ordinateur):
+ * always visible, whatever the bookmark. It saves the sketch, seals the orders
+ * and breaks the seal, and tells whether the local orders are unsaved.
  */
 export function SealOrders({
   state,
   player,
   winterDraft,
   specialDraft,
-  submitted,
+  status,
+  hasUnsavedChanges: unsaved,
   submitting,
   error,
-  onSubmit,
+  onSketch,
+  onSeal,
+  onBreakSeal,
 }: SealOrdersProps) {
   const { t } = useLanguage()
   const winter = state.season === 'winter'
+  const sealed = status === 'submitted'
+  const hasUnsavedChanges = unsaved === true
+  const sealedAsShown = sealed && unsaved === false
+  const busy = submitting !== null
   const nothingToSeal =
     !winter &&
     !hasEmittingNobleOf(state, player) &&
     specialDraft.trim() === '' &&
     winterDraft.trim() === ''
-  const label = submitting
-    ? t('orders.sending')
-    : winter
-      ? t(submitted ? 'orders.editWinter' : 'orders.submitWinter')
-      : t(submitted ? 'orders.edit' : 'orders.submit')
+  const sealLabel =
+    submitting === 'seal'
+      ? t('orders.sending')
+      : winter
+        ? t(sealed ? 'orders.editWinter' : 'orders.submitWinter')
+        : t(sealed ? 'orders.edit' : 'orders.submit')
 
   return (
     <>
       <OrderError error={error} />
-      {submitted && (
+      <p
+        role="status"
+        data-orders-status={status}
+        className="flex flex-wrap items-center gap-x-2 text-xs text-ink-500"
+      >
+        <span className="font-semibold">
+          {t(
+            sealed
+              ? 'online.submitted'
+              : status === 'draft'
+                ? 'online.sketched'
+                : 'online.waiting',
+          )}
+        </span>
+        {hasUnsavedChanges && (
+          <span data-unsaved-changes className="font-semibold text-brass-700">
+            · {t('orders.unsavedChanges')}
+          </span>
+        )}
+      </p>
+      {sealed && onBreakSeal && !hasUnsavedChanges && (
         <p className="text-xs text-success-700">{t('orders.submittedEditable')}</p>
       )}
+      {status === 'draft' && !hasUnsavedChanges && (
+        <p className="text-xs text-ink-500">{t('orders.sketchSaved')}</p>
+      )}
+      <div className="flex flex-wrap gap-2 empty:hidden">
+        {onSketch && (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-w-0 flex-1"
+            disabled={busy || !hasUnsavedChanges}
+            onClick={onSketch}
+          >
+            {submitting === 'sketch' ? t('orders.savingSketch') : t('orders.saveSketch')}
+          </Button>
+        )}
+        {sealed && onBreakSeal && (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-w-0 flex-1"
+            disabled={busy}
+            onClick={onBreakSeal}
+          >
+            {submitting === 'unseal' ? t('orders.breakingSeal') : t('orders.breakSeal')}
+          </Button>
+        )}
+      </div>
       <Button
         type="button"
         variant={winter ? 'outline' : 'default'}
@@ -1590,10 +1657,10 @@ export function SealOrders({
             ? 'w-full border-winter-700 bg-winter-100 text-winter-700 hover:bg-winter-100 hover:text-winter-700'
             : 'w-full'
         }
-        disabled={submitting || nothingToSeal}
-        onClick={onSubmit}
+        disabled={busy || nothingToSeal || sealedAsShown}
+        onClick={onSeal}
       >
-        {label}
+        {sealLabel}
       </Button>
     </>
   )

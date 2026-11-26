@@ -210,7 +210,7 @@ func TestGamesHandlerMySubmission(t *testing.T) {
 	if err := json.Unmarshal(aliceInit.Body.Bytes(), &aliceView); err != nil {
 		t.Fatalf("decode alice view: %v", err)
 	}
-	if aliceView.Submitted || aliceView.Turn != 1 || aliceView.Season != models.SeasonSpring {
+	if aliceView.Status != store.OrdersPending || aliceView.Turn != 1 || aliceView.Season != models.SeasonSpring {
 		t.Fatalf("alice initial = %#v, want submitted:false, turn:1, spring", aliceView)
 	}
 	if len(aliceView.Chains) != 0 {
@@ -247,7 +247,7 @@ func TestGamesHandlerMySubmission(t *testing.T) {
 	if err := json.Unmarshal(aliceSub.Body.Bytes(), &aliceView); err != nil {
 		t.Fatalf("decode alice submitted view: %v", err)
 	}
-	if !aliceView.Submitted || aliceView.Turn != 1 || len(aliceView.Chains) != 1 {
+	if aliceView.Status != store.OrdersSubmitted || aliceView.Turn != 1 || len(aliceView.Chains) != 1 {
 		t.Fatalf("alice submitted view = %#v, want submitted:true with 1 chain", aliceView)
 	}
 	if aliceView.Chains[0].Noble != noble.Code || aliceView.Chains[0].Text != chainText {
@@ -263,7 +263,7 @@ func TestGamesHandlerMySubmission(t *testing.T) {
 	if err := json.Unmarshal(p2Sub.Body.Bytes(), &p2View); err != nil {
 		t.Fatalf("decode p2 view: %v", err)
 	}
-	if p2View.Submitted || len(p2View.Chains) != 0 {
+	if p2View.Status != store.OrdersPending || len(p2View.Chains) != 0 {
 		t.Fatalf("p2 sub = %#v, want submitted:false and empty chains", p2View)
 	}
 
@@ -560,9 +560,9 @@ func TestGamesHandlerMySubmissionReturnsTheSpecialSheet(t *testing.T) {
 	handler := NewGamesHandler(savedSubmissionStore{
 		GameStore: gameStore,
 		submission: store.PlayerSubmission{
-			Turn:      2,
-			Season:    models.SeasonSummer,
-			Submitted: true,
+			Turn:   2,
+			Season: models.SeasonSummer,
+			Status: store.OrdersSubmitted,
 			Orders: engine.OrdersInput{
 				Special: []engine.DeckSubmission{{Player: "P1", Text: "P RA ROS"}},
 			},

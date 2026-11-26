@@ -150,11 +150,17 @@ export interface ReleaseNotesUpdate {
   hideReleaseNotes?: boolean
 }
 
+/** Where a house stands for the current turn: nothing recorded, a draft, sealed orders. */
+export type OrdersStatus = 'pending' | 'draft' | 'submitted'
+
 export interface GameSlot {
   id: PlayerId
   name: string
   color: string
+  /** The house sealed its orders (a draft does not count). */
   submitted: boolean
+  /** Pending (En attente), draft (Esquissé) or sealed (Scellé): public, without the content. */
+  ordersStatus: OrdersStatus
   /** Whether the current turn is still awaiting this player, per the server
    * (an eliminated player, or one with nothing left to submit this turn, is
    * never required even before they act). */
@@ -813,7 +819,7 @@ export interface SubmittedWinter {
 export interface MySubmissionResponse {
   turn: number
   season: Season
-  submitted: boolean
+  status: OrdersStatus
   chains: SubmittedChain[]
   winter?: SubmittedWinter
   /** The special-card sheet, outside winter (in winter it is part of `winter`). */
@@ -895,7 +901,7 @@ export interface SubmittedOrdersResponse {
 }
 
 export interface OrdersResponse {
-  status: 'pending' | 'resolved'
+  status: 'draft' | 'pending' | 'resolved'
   player?: PlayerId
   submitted: PlayerId[]
   remaining: PlayerId[]
