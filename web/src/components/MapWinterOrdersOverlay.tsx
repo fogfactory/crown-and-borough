@@ -13,9 +13,19 @@ import type { WinterIntention } from '@/lib/winter-overlay'
 import { NEUTRAL_PLAYER_ID, type Territory } from '@/types'
 import {
   DEFAULT_PLAYER_COLOR,
+  DRAFT_INTENTION_OPACITY,
   WINTER_ERROR_COLOR,
   WINTER_WARNING_COLOR,
 } from '@/lib/map-palette'
+
+/** Drafts (sketched or unsaved) are drawn lighter than sealed orders. */
+function draftProps(intention: WinterIntention) {
+  const draft = intention.source === 'draft'
+  return {
+    opacity: draft ? DRAFT_INTENTION_OPACITY : 1,
+    'data-intent-draft': draft || undefined,
+  }
+}
 
 /**
  * Winter order drafts on the map: ghost builds, recruit/noble badges,
@@ -61,7 +71,7 @@ export function WinterOrdersOverlay({
               const buildX = centerX + (-10 + index * 40) * annotationScale
               const buildY = centerY - 38 * annotationScale
               return (
-                <g key={`build-${intention.line}`}>
+                <g key={`build-${intention.line}`} {...draftProps(intention)}>
                   <InfrastructureMarker
                     infrastructure={{
                       type: intention.infrastructure ?? 'mill',
@@ -121,7 +131,7 @@ export function WinterOrdersOverlay({
                     : intention.noble
               const badgeY = centerY + (-18 + index * 20) * annotationScale
               return (
-                <g key={`${intention.kind}-${intention.line}`}>
+                <g key={`${intention.kind}-${intention.line}`} {...draftProps(intention)}>
                   <WinterBadge
                     x={centerX + 14 * annotationScale}
                     y={badgeY}
@@ -189,6 +199,7 @@ export function WinterOrdersOverlay({
           return (
             <g
               key={`transfer-${intention.line}-${intention.sourceTerritory}-${intention.targetTerritory}`}
+              {...draftProps(intention)}
             >
               <WinterTransferArrow
                 from={centroid(source.points)}

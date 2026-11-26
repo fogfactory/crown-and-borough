@@ -168,7 +168,30 @@ type CreateRequest struct {
 	Incognito bool `json:"incognito,omitempty"`
 }
 
+// OrdersStatus is where a house stands for the current turn: nothing recorded
+// (OrdersPending), a draft saved on the server and unsealed (OrdersDraft), or
+// sealed orders read by the resolution (OrdersSubmitted).
+type OrdersStatus string
+
+const (
+	OrdersPending   OrdersStatus = "pending"
+	OrdersDraft     OrdersStatus = "draft"
+	OrdersSubmitted OrdersStatus = "submitted"
+)
+
+// Valid reports whether status is one of the three statuses.
+func (status OrdersStatus) Valid() bool {
+	switch status {
+	case OrdersPending, OrdersDraft, OrdersSubmitted:
+		return true
+	}
+	return false
+}
+
 type SubmitRequest struct {
+	// Status is OrdersDraft to save the orders unsealed, without engine
+	// validation, or OrdersSubmitted (the default when empty) to seal them.
+	Status           OrdersStatus              `json:"status,omitempty"`
 	Chains           []engine.ChainSubmission  `json:"chains"`
 	Winter           []engine.WinterSubmission `json:"winter"`
 	Special          []engine.DeckSubmission   `json:"special"`
@@ -193,23 +216,26 @@ const (
 )
 
 type GameSnapshot struct {
-	ID           GameID                                    `json:"id"`
-	Name         string                                    `json:"name"`
-	Seed         string                                    `json:"seed"`
-	YearCount    int                                       `json:"yearCount"`
-	Status       Status                                    `json:"status"`
-	Phase        Phase                                     `json:"phase"`
-	Winner       *models.PlayerID                          `json:"winner,omitempty"`
-	Scores       map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
-	Players      []PlayerSlot                              `json:"players"`
-	Map          mapgen.MapData                            `json:"map"`
-	State        *models.GameState                         `json:"state"`
-	Submissions  map[models.PlayerID]engine.OrdersInput    `json:"submissions"`
-	Reports      []ReportRecord                            `json:"reports"`
-	Revision     Revision                                  `json:"revision"`
-	CreatedBy    string                                    `json:"createdBy,omitempty"`
-	SpectatorUID string                                    `json:"spectatorUid,omitempty"`
-	Incognito    bool                                      `json:"incognito,omitempty"`
+	ID          GameID                                    `json:"id"`
+	Name        string                                    `json:"name"`
+	Seed        string                                    `json:"seed"`
+	YearCount   int                                       `json:"yearCount"`
+	Status      Status                                    `json:"status"`
+	Phase       Phase                                     `json:"phase"`
+	Winner      *models.PlayerID                          `json:"winner,omitempty"`
+	Scores      map[models.PlayerID]engine.ScoreBreakdown `json:"scores"`
+	Players     []PlayerSlot                              `json:"players"`
+	Map         mapgen.MapData                            `json:"map"`
+	State       *models.GameState                         `json:"state"`
+	Submissions map[models.PlayerID]engine.OrdersInput    `json:"submissions"`
+	// Drafted lists the houses holding a draft this turn. It carries no
+	// content: a draft is read through MySubmission by its author only.
+	Drafted      map[models.PlayerID]bool `json:"-"`
+	Reports      []ReportRecord           `json:"reports"`
+	Revision     Revision                 `json:"revision"`
+	CreatedBy    string                   `json:"createdBy,omitempty"`
+	SpectatorUID string                   `json:"spectatorUid,omitempty"`
+	Incognito    bool                     `json:"incognito,omitempty"`
 	// Lobby is the caller's own part of a game whose lobby is still open; nil
 	// once the game has started.
 	Lobby *LobbyView `json:"-"`
@@ -222,6 +248,8 @@ type GameSnapshot struct {
 }
 
 type SubmitResult struct {
+	// Status is "pending" (sealed, turn still open), "draft" (saved unsealed)
+	// or "resolved".
 	Status    string            `json:"status"`
 	Player    models.PlayerID   `json:"player"`
 	Submitted []models.PlayerID `json:"submitted"`
@@ -281,10 +309,21 @@ type GameCreation struct {
 }
 
 type PlayerSubmission struct {
-	Turn      int                `json:"turn"`
-	Season    models.Season      `json:"season"`
-	Submitted bool               `json:"submitted"`
-	Orders    engine.OrdersInput `json:"orders"`
+	Turn   int                `json:"turn"`
+	Season models.Season      `json:"season"`
+	Status OrdersStatus       `json:"status"`
+	Orders engine.OrdersInput `json:"orders"`
+}
+
+// OrdersStatusOf is the status of player in snapshot.
+func (snapshot GameSnapshot) OrdersStatusOf(player models.PlayerID) OrdersStatus {
+	if _, ok := snapshot.Submissions[player]; ok {
+		return OrdersSubmitted
+	}
+	if snapshot.Drafted[player] {
+		return OrdersDraft
+	}
+	return OrdersPending
 }
 
 // PrivacyTracker is called while a game is exclusively locked. See

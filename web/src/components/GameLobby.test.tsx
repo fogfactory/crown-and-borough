@@ -149,6 +149,6 @@ describe('GameLobby', () => {
   it('offers the house name field with its note', () => {
     renderLobby()
     expect(screen.getByLabelText('Your house name')).toBeInTheDocument()
-    expect(screen.getByText(/until you submit your first orders/)).toBeInTheDocument()
+    expect(screen.getByText(/until you seal your first orders/)).toBeInTheDocument()
   })
 })

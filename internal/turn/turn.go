@@ -11,6 +11,7 @@ package turn
 import (
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
@@ -175,4 +176,34 @@ func CloneOrders(input engine.OrdersInput) engine.OrdersInput {
 		Winter:  append([]engine.WinterSubmission(nil), input.Winter...),
 		Special: append([]engine.DeckSubmission(nil), input.Special...),
 	}
+}
+
+// SealDrafts returns the submissions the resolution reads once the drafts are
+// sealed: the sealed orders plus every draft that passes ValidateSubmission.
+// An invalid draft is ignored, so its house plays with no orders; a house that
+// already sealed orders keeps them. Neither input map is modified; without
+// drafts, submissions itself is returned and must be treated as read-only.
+func SealDrafts(state *models.GameState, balance assetgen.Balance, submissions, drafts map[models.PlayerID]engine.OrdersInput) map[models.PlayerID]engine.OrdersInput {
+	if len(drafts) == 0 {
+		return submissions
+	}
+	sealed := make(map[models.PlayerID]engine.OrdersInput, len(submissions)+len(drafts))
+	maps.Copy(sealed, submissions)
+	for playerID, input := range drafts {
+		if _, ok := sealed[playerID]; ok {
+			continue
+		}
+		if ValidateSubmission(state, balance, input) != nil {
+			continue
+		}
+		sealed[playerID] = input
+	}
+	return sealed
+}
+
+// NameUnlockedOnSealBreak reports whether breaking a seal in turnNumber gives
+// the house name back: the first sealing locks it, and only the first turn
+// has resolved nothing with that name yet.
+func NameUnlockedOnSealBreak(turnNumber int) bool {
+	return turnNumber <= 1
 }

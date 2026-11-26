@@ -48,6 +48,8 @@ import { ApiError, apiRequest, type TokenProvider } from '@/lib/api'
 import { errorText } from '@/lib/api-error'
 import { stripNobleHeader } from '@/lib/order-text'
 import { buildOrdersBody } from '@/lib/orders-body'
+import { compareOrders, normalizeOrders, submissionBody } from '@/lib/orders-sync'
+import { useUnsavedGuard } from '@/lib/use-unsaved-guard'
 import { draftOrdersByNoble } from '@/lib/transfer-preview'
 import {
   SimulationRejectedError,
@@ -71,6 +73,7 @@ import type {
   GameViewDocument,
   MapData,
   MySubmissionResponse,
+  OrdersStatus,
   OrdersResponse,
   PlayerId,
   StateData,
@@ -211,7 +214,11 @@ function Lobby({
                 )}
               </div>
               <p className="mt-1 label-caps text-2xs font-medium text-ink-500">
-                {player.submitted ? t('online.submitted') : t('online.waiting')}
+                {player.submitted
+                  ? t('online.submitted')
+                  : player.ordersStatus === 'draft'
+                    ? t('online.sketched')
+                    : t('online.waiting')}
               </p>
             </li>
           ))}
@@ -250,7 +257,9 @@ export function GamePage() {
   )
   const [specialDraft, setSpecialDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState<
+    'resolve' | 'seal' | 'sketch' | 'unseal' | null
+  >(null)
   const [lineageOpen, setLineageOpen] = useState(false)
   const [chatUnread, setChatUnread] = useState(0)
   const desktop = useIsDesktop()
@@ -285,6 +294,14 @@ export function GamePage() {
   const lastTurn = useRef<number | null>(null)
   const hydratedTurnRef = useRef<number | null>(null)
   const submittedOrdersContextRef = useRef<string | null>(null)
+  // Game revision at which `serverSubmission` was last read or written.
+  const submissionRevisionRef = useRef(0)
+  // Latest render values the asynchronous reload of the submission reads.
+  const stateTurnRef = useRef<number | null>(null)
+  const hasUnsavedChangesRef = useRef(false)
+  const applyServerOrdersRef = useRef<(submission: MySubmissionResponse) => void>(
+    () => undefined,
+  )
   const tokenProvider: TokenProvider = { getIdToken }
 
   const subscription = useGameSubscription(gameId, user?.uid, restView?.revision ?? 0)
@@ -342,6 +359,7 @@ export function GamePage() {
         setSummaryFromAPI(summary)
         setMap(mapData)
         setRestView(createView(gameId, user.uid, state, stateResponse.revision))
+        submissionRevisionRef.current = stateResponse.revision
         if (mySubmission) {
           setServerSubmission(mySubmission)
         }
@@ -456,22 +474,70 @@ export function GamePage() {
     summaryRevision,
   ])
 
-  const serverChains = useMemo(() => {
-    const result: Record<string, string> = {}
-    for (const chain of serverSubmission?.chains ?? []) {
-      result[chain.noble] = stripNobleHeader(chain.noble, chain.text)
+  // A newer revision of the game may carry orders saved from another device:
+  // read them again. The editors follow them only when nothing local is unsaved.
+  const reloadSubmission = Boolean(gameId && playerID && !spectator && map)
+  useEffect(() => {
+    if (!gameId || !reloadSubmission || summaryRevision === undefined) return
+    if (summaryRevision <= submissionRevisionRef.current) return
+    const requestedRevision = summaryRevision
+    let active = true
+    void apiRequest<MySubmissionResponse>(
+      { getIdToken },
+      `/api/games/${encodeURIComponent(gameId)}/my-submission`,
+    )
+      .then((fresh) => {
+        if (!active || stateTurnRef.current !== fresh.turn) return
+        submissionRevisionRef.current = Math.max(
+          submissionRevisionRef.current,
+          requestedRevision,
+        )
+        const unsaved = hasUnsavedChangesRef.current
+        setServerSubmission(fresh)
+        if (!unsaved) applyServerOrdersRef.current(fresh)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
     }
-    return result
-  }, [serverSubmission])
+  }, [gameId, getIdToken, reloadSubmission, summaryRevision])
+
+  // The server version of the player's orders for this turn: empty while pending.
+  const serverOrders = useMemo(
+    () =>
+      normalizeOrders(
+        serverSubmission && state && serverSubmission.turn === state.turn
+          ? submissionBody(serverSubmission)
+          : {},
+      ),
+    [serverSubmission, state],
+  )
+  const serverStatus: OrdersStatus =
+    serverSubmission && state && serverSubmission.turn === state.turn
+      ? serverSubmission.status
+      : 'pending'
+
+  // Fills the editors with the server version: the saved sketch or the sealed orders.
+  const applyServerOrders = useCallback((submission: MySubmissionResponse) => {
+    // Outside winter the winter sheet only carries the card orders
+    // (R N / C N / D N); restore it in every season.
+    setWinterDraft(submission.winter?.lines ?? '')
+    if (submission.season !== 'winter') {
+      setSpecialDraft(serverSpecial(submission))
+      const chains: Record<string, string> = {}
+      for (const chain of submission.chains) {
+        chains[chain.noble] = stripNobleHeader(chain.noble, chain.text)
+      }
+      setChainDrafts(chains)
+    }
+  }, [])
 
   useEffect(() => {
     if (!serverSubmission || !state || serverSubmission.turn !== state.turn) return
     if (hydratedTurnRef.current === state.turn) return
     hydratedTurnRef.current = state.turn
 
-    if (serverSubmission.submitted) {
-      // Outside winter the winter sheet only carries the card orders
-      // (R N / C N / D N); restore it in every season.
+    if (serverSubmission.status !== 'pending') {
       setWinterDraft((current) =>
         current.trim() === '' ? (serverSubmission.winter?.lines ?? '') : current,
       )
@@ -492,62 +558,59 @@ export function GamePage() {
     }
   }, [serverSubmission, state])
 
+  // What the local drafts would send, compared with the server version.
+  const localOrders = useMemo(
+    () =>
+      state && playerID
+        ? normalizeOrders(buildOrdersBody(state, playerID, { chainDrafts, winterDraft, specialDraft }))
+        : null,
+    [chainDrafts, playerID, specialDraft, state, winterDraft],
+  )
+  const ordersDifference = useMemo(
+    () => (localOrders ? compareOrders(localOrders, serverOrders) : null),
+    [localOrders, serverOrders],
+  )
+  const hasUnsavedChanges = ordersDifference?.any === true
+  hasUnsavedChangesRef.current = hasUnsavedChanges
+  stateTurnRef.current = state?.turn ?? null
+  applyServerOrdersRef.current = applyServerOrders
+  useUnsavedGuard(hasUnsavedChanges && !spectator, t('orders.unsavedLeave'))
+
+  // Per-sheet notes only make sense once the server holds something to go back to.
   const draftDiffers = useMemo(() => {
-    if (
-      !serverSubmission ||
-      !serverSubmission.submitted ||
-      !state ||
-      serverSubmission.turn !== state.turn
-    ) {
-      return undefined
-    }
-    if (state.season === 'winter') {
-      const serverWinter = (serverSubmission.winter?.lines ?? '').trim()
-      const localWinter = winterDraft.trim()
-      return {
-        winter: localWinter !== serverWinter,
-      }
-    }
-    const chainsDiff: Record<string, boolean> = {}
-    let anyChainDiff = false
-    for (const noble of state.nobles) {
-      if (noble.owner !== playerID || noble.status === 'dungeon') continue
-      const serverChain = (serverChains[noble.code] ?? '').trim()
-      const localChain = (chainDrafts[noble.code] ?? '').trim()
-      if (localChain !== serverChain) {
-        chainsDiff[noble.code] = true
-        anyChainDiff = true
-      }
-    }
-    const serverCards = (serverSubmission.winter?.lines ?? '').trim()
+    if (!ordersDifference || !state || serverStatus === 'pending') return undefined
     return {
-      chains: anyChainDiff ? chainsDiff : undefined,
-      winter: winterDraft.trim() !== serverCards,
-      special: specialDraft.trim() !== serverSpecial(serverSubmission).trim(),
+      chains:
+        state.season !== 'winter' && Object.keys(ordersDifference.chains).length > 0
+          ? ordersDifference.chains
+          : undefined,
+      winter: ordersDifference.winter,
+      special: state.season !== 'winter' ? ordersDifference.special : undefined,
     }
-  }, [chainDrafts, playerID, serverChains, serverSubmission, specialDraft, state, winterDraft])
+  }, [ordersDifference, serverStatus, state])
 
   const restoreFromServer = (target?: string) => {
-    if (!serverSubmission || !state) return
+    if (!state) return
+    const submission = serverSubmission
+    if (!submission) return
     if (target === 'winter' || state.season === 'winter') {
-      setWinterDraft(serverSubmission.winter?.lines ?? '')
+      setWinterDraft(submission.winter?.lines ?? '')
       return
     }
     if (target === 'special') {
-      setSpecialDraft(serverSpecial(serverSubmission))
+      setSpecialDraft(serverSpecial(submission))
       return
     }
     if (target) {
-      const serverText = serverChains[target] ?? ''
+      const serverChain = submission.chains.find((chain) => chain.noble === target)
+      const serverText = serverChain ? stripNobleHeader(serverChain.noble, serverChain.text) : ''
       setChainDrafts((current) => ({
         ...current,
         [target]: serverText,
       }))
       return
     }
-    setChainDrafts(serverChains)
-    setWinterDraft(serverSubmission.winter?.lines ?? '')
-    setSpecialDraft(serverSpecial(serverSubmission))
+    applyServerOrders(submission)
   }
 
   useEffect(() => {
@@ -656,6 +719,7 @@ export function GamePage() {
     winterText: ordersBody?.winter[0]?.lines ?? '',
     spectator,
     submittedOrders,
+    ownOrdersSealed: serverStatus === 'submitted' && !hasUnsavedChanges,
   })
 
   useEffect(() => {
@@ -724,6 +788,7 @@ export function GamePage() {
     if (!gameId || !user) return
     const nextState = normalizeStateData(response.state)
     if (!nextState) throw new Error('the server returned an invalid private state')
+    submissionRevisionRef.current = response.revision ?? submissionRevisionRef.current
     setRestView(
       createView(gameId, user.uid, nextState, response.revision ?? view?.revision ?? 0),
     )
@@ -742,6 +807,15 @@ export function GamePage() {
         players: current.players.map((player) => ({
           ...player,
           submitted: submitted.has(player.id),
+          ordersStatus: submitted.has(player.id)
+            ? ('submitted' as const)
+            : response.status === 'resolved' || response.resolved
+              ? ('pending' as const)
+              : player.id === playerID && response.status === 'draft'
+                ? ('draft' as const)
+                : player.ordersStatus === 'submitted'
+                  ? ('pending' as const)
+                  : player.ordersStatus,
           // A player absent from both lists has nothing left to submit this
           // turn (see turn.Progress on the server).
           required: submitted.has(player.id) || remaining.has(player.id),
@@ -764,7 +838,13 @@ export function GamePage() {
     }
   }
 
-  const submitOrders = async (force = false) => {
+  /**
+   * Sends the player's orders (`seal`, `sketch`), takes the sealed ones back
+   * to a sketch (`unseal`, same content, nothing local is sent) or resolves
+   * the turn at the host's request (`resolve`).
+   */
+  const submitOrders = async (mode: 'resolve' | 'seal' | 'sketch' | 'unseal') => {
+    const force = mode === 'resolve'
     if (
       !gameId ||
       !state ||
@@ -773,7 +853,7 @@ export function GamePage() {
       summary?.status === 'finished'
     )
       return
-    setSubmitting(true)
+    setSubmitting(mode)
     setActionError(null)
     try {
       let response: OrdersResponse
@@ -784,11 +864,15 @@ export function GamePage() {
           { method: 'POST' },
         )
       } else {
-        const body = buildOrdersBody(state, playerID!, {
-          chainDrafts,
-          winterDraft,
-          specialDraft,
-        })
+        const body =
+          mode === 'unseal'
+            ? submissionBody(serverSubmission)
+            : buildOrdersBody(state, playerID!, {
+                chainDrafts,
+                winterDraft,
+                specialDraft,
+              })
+        const status = mode === 'seal' ? 'submitted' : 'draft'
         response = await apiRequest<OrdersResponse>(
           { getIdToken },
           `/api/games/${encodeURIComponent(gameId)}/orders?lang=${language}`,
@@ -796,14 +880,16 @@ export function GamePage() {
             method: 'POST',
             body: JSON.stringify({
               ...body,
+              status,
               revision: summary?.revision ?? view?.revision ?? 0,
             }),
           },
         )
+        // The server version is now what was just sent: nothing differs from it.
         setServerSubmission({
           turn: state.turn,
           season: state.season,
-          submitted: true,
+          status: status === 'draft' ? 'draft' : 'submitted',
           chains: body.chains,
           winter: body.winter[0],
           special: body.special,
@@ -819,7 +905,7 @@ export function GamePage() {
         setActionError(errorText(submitFailure, t, t('error.resolutionFailed')))
       }
     } finally {
-      setSubmitting(false)
+      setSubmitting(null)
     }
   }
 
@@ -1150,6 +1236,7 @@ export function GamePage() {
                 name: player.name || player.id,
                 color: player.color,
                 submitted: player.submitted,
+                ordersStatus: player.ordersStatus,
                 required: player.required,
                 isYou: player.id === playerID,
               }))}
@@ -1181,9 +1268,9 @@ export function GamePage() {
               resolution={
                 summary.status !== 'finished' && summary.canInvite
                   ? {
-                      disabled: submitting,
+                      disabled: submitting !== null,
                       confirm: true,
-                      onResolve: () => submitOrders(true),
+                      onResolve: () => submitOrders('resolve'),
                     }
                   : undefined
               }
@@ -1297,10 +1384,13 @@ export function GamePage() {
                     player={playerID}
                     winterDraft={winterDraft}
                     specialDraft={specialDraft}
-                    submitted={Boolean(currentSlot?.submitted)}
+                    status={serverStatus}
+                    hasUnsavedChanges={hasUnsavedChanges}
                     submitting={submitting}
                     error={actionError}
-                    onSubmit={() => void submitOrders()}
+                    onSketch={() => void submitOrders('sketch')}
+                    onSeal={() => void submitOrders('seal')}
+                    onBreakSeal={() => void submitOrders('unseal')}
                   />
                 ) : null
               }

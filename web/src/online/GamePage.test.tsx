@@ -271,7 +271,7 @@ describe('GamePage submission rehydration and divergence', () => {
           jsonResponse({
             turn: 1,
             season: 'spring',
-            submitted: true,
+            status: 'submitted',
             chains: [{ noble: 'JEA', text: 'JEA\nROS A BRU' }],
           }),
         )
@@ -287,18 +287,18 @@ describe('GamePage submission rehydration and divergence', () => {
     await waitFor(() => {
       expect(textarea).toHaveValue('ROS A BRU')
     })
-    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+    expect(screen.queryByText('Differs from the server version')).not.toBeInTheDocument()
 
     // Modify local draft -> divergence note appears
     fireEvent.change(textarea, { target: { value: 'ROS H' } })
-    expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
+    expect(await screen.findByText('Differs from the server version')).toBeInTheDocument()
     const restoreBtn = screen.getByRole('button', { name: 'Restore from server' })
     expect(restoreBtn).toBeInTheDocument()
 
     // Restore from server -> textarea returns to server version and warning disappears
     fireEvent.click(restoreBtn)
     expect(textarea).toHaveValue('ROS A BRU')
-    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+    expect(screen.queryByText('Differs from the server version')).not.toBeInTheDocument()
   })
 
   it('rehydrates saved card orders outside winter and shows divergence', async () => {
@@ -318,9 +318,9 @@ describe('GamePage submission rehydration and divergence', () => {
           jsonResponse({
             turn: 1,
             season: 'spring',
-            submitted: true,
+            status: 'submitted',
             chains: [],
-            winter: { lines: 'R 1 ROS JEA' },
+            winter: { lines: 'R N TST ROS' },
           }),
         )
       }
@@ -336,14 +336,14 @@ describe('GamePage submission rehydration and divergence', () => {
     await screen.findByText('Online game')
     const textarea = await screen.findByLabelText('Noble card orders of P1')
     await waitFor(() => {
-      expect(textarea).toHaveValue('R 1 ROS JEA')
+      expect(textarea).toHaveValue('R N TST ROS')
     })
-    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+    expect(screen.queryByText('Differs from the server version')).not.toBeInTheDocument()
 
     fireEvent.change(textarea, { target: { value: '' } })
-    expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
+    expect(await screen.findByText('Differs from the server version')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Restore from server' }))
-    expect(textarea).toHaveValue('R 1 ROS JEA')
+    expect(textarea).toHaveValue('R N TST ROS')
   })
 
   it('rehydrates the saved special orders outside winter and shows divergence', async () => {
@@ -359,7 +359,7 @@ describe('GamePage submission rehydration and divergence', () => {
           jsonResponse({
             turn: 1,
             season: 'spring',
-            submitted: true,
+            status: 'submitted',
             chains: [],
             special: [{ text: 'P RA ROS' }],
           }),
@@ -379,12 +379,185 @@ describe('GamePage submission rehydration and divergence', () => {
     await waitFor(() => {
       expect(textarea).toHaveValue('P RA ROS')
     })
-    expect(screen.queryByText('Local draft differs from server')).not.toBeInTheDocument()
+    expect(screen.queryByText('Differs from the server version')).not.toBeInTheDocument()
 
     fireEvent.change(textarea, { target: { value: '' } })
-    expect(await screen.findByText('Local draft differs from server')).toBeInTheDocument()
+    expect(await screen.findByText('Differs from the server version')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Restore from server' }))
     expect(textarea).toHaveValue('P RA ROS')
+  })
+
+  describe('orders status', () => {
+    interface Posted {
+      url: string
+      body: Record<string, unknown>
+    }
+
+    function stubOrdersApi(
+      submission: Record<string, unknown>,
+      posted: Posted[],
+      responseStatus: 'draft' | 'pending' = 'draft',
+    ) {
+      const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/games/GAME1')) return Promise.resolve(jsonResponse({}))
+        if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+        if (url.endsWith('/api/games/GAME1/state')) {
+          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+        }
+        if (url.endsWith('/api/games/GAME1/my-submission')) {
+          return Promise.resolve(
+            jsonResponse({ turn: 1, season: 'spring', chains: [], ...submission }),
+          )
+        }
+        if (url.includes('/orders/preview')) {
+          return Promise.resolve(jsonResponse({ errors: [], chains: [], winter: [] }))
+        }
+        if (url.includes('/api/games/GAME1/orders?')) {
+          posted.push({ url, body: JSON.parse(String(init?.body)) })
+          return Promise.resolve(
+            jsonResponse({
+              status: responseStatus,
+              submitted: responseStatus === 'pending' ? ['P1'] : [],
+              remaining: responseStatus === 'pending' ? ['P2'] : ['P1', 'P2'],
+              state,
+              revision: 2,
+            }),
+          )
+        }
+        throw new Error(`unexpected request: ${url}`)
+      })
+      vi.stubGlobal('fetch', fetchMock)
+    }
+
+    const statusLine = () => document.querySelector('[data-orders-status]')
+
+    it('shows pending and tells apart a local edit from the empty server version', async () => {
+      stubOrdersApi({ status: 'pending' }, [])
+      renderGame()
+
+      const textarea = await screen.findByLabelText('Chain for JEA')
+      expect(statusLine()).toHaveAttribute('data-orders-status', 'pending')
+      expect(statusLine()).toHaveTextContent('Pending')
+      expect(screen.queryByText(/Unsaved changes/)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save sketch' })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Break the seal' })).not.toBeInTheDocument()
+
+      fireEvent.change(textarea, { target: { value: 'ROS H' } })
+      expect(await screen.findByText(/Unsaved changes/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save sketch' })).toBeEnabled()
+
+      // Back to the (empty) server version: nothing differs any more.
+      fireEvent.change(textarea, { target: { value: '  ' } })
+      await waitFor(() => {
+        expect(screen.queryByText(/Unsaved changes/)).not.toBeInTheDocument()
+      })
+    })
+
+    it('saves a sketch without sealing, then shows it as sketched and saved', async () => {
+      const posted: Posted[] = []
+      stubOrdersApi({ status: 'pending' }, posted)
+      renderGame()
+
+      const textarea = await screen.findByLabelText('Chain for JEA')
+      fireEvent.change(textarea, { target: { value: 'ROS H' } })
+      fireEvent.click(await screen.findByRole('button', { name: 'Save sketch' }))
+
+      await waitFor(() => {
+        expect(statusLine()).toHaveAttribute('data-orders-status', 'draft')
+      })
+      expect(posted).toHaveLength(1)
+      expect(posted[0].body).toMatchObject({ status: 'draft', revision: 1 })
+      expect(statusLine()).toHaveTextContent('Sketched')
+      expect(screen.queryByText(/Unsaved changes/)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save sketch' })).toBeDisabled()
+
+      // A change after the save differs from the saved sketch again.
+      fireEvent.change(textarea, { target: { value: 'ROS A BRU' } })
+      expect(await screen.findByText(/Unsaved changes/)).toBeInTheDocument()
+      expect(screen.getByText('Differs from the server version')).toBeInTheDocument()
+    })
+
+    it('reloads a saved sketch on opening the game and compares against it', async () => {
+      stubOrdersApi(
+        { status: 'draft', chains: [{ noble: 'JEA', text: 'JEA\nROS H' }] },
+        [],
+      )
+      renderGame()
+
+      const textarea = await screen.findByLabelText('Chain for JEA')
+      await waitFor(() => expect(textarea).toHaveValue('ROS H'))
+      expect(statusLine()).toHaveAttribute('data-orders-status', 'draft')
+      expect(screen.queryByText(/Unsaved changes/)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Break the seal' })).not.toBeInTheDocument()
+
+      fireEvent.change(textarea, { target: { value: 'ROS A BRU' } })
+      expect(await screen.findByText(/Unsaved changes/)).toBeInTheDocument()
+    })
+
+    it('seals the orders, then breaks the seal back to a sketch with the same content', async () => {
+      const posted: Posted[] = []
+      stubOrdersApi(
+        { status: 'submitted', chains: [{ noble: 'JEA', text: 'JEA\nROS H' }] },
+        posted,
+      )
+      renderGame()
+
+      const textarea = await screen.findByLabelText('Chain for JEA')
+      await waitFor(() => expect(textarea).toHaveValue('ROS H'))
+      expect(statusLine()).toHaveAttribute('data-orders-status', 'submitted')
+      expect(statusLine()).toHaveTextContent('Sealed')
+      // Nothing to reseal while the sealed orders are what is shown.
+      expect(screen.getByRole('button', { name: 'Reseal orders' })).toBeDisabled()
+
+      fireEvent.change(textarea, { target: { value: 'ROS A BRU' } })
+      expect(await screen.findByText(/Unsaved changes/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Reseal orders' })).toBeEnabled()
+
+      // Breaking the seal sends the sealed content, not the local edit.
+      fireEvent.click(screen.getByRole('button', { name: 'Break the seal' }))
+      await waitFor(() => {
+        expect(statusLine()).toHaveAttribute('data-orders-status', 'draft')
+      })
+      expect(posted).toHaveLength(1)
+      expect(posted[0].body).toMatchObject({
+        status: 'draft',
+        chains: [{ noble: 'JEA', text: 'JEA\nROS H' }],
+      })
+      expect(screen.queryByRole('button', { name: 'Break the seal' })).not.toBeInTheDocument()
+    })
+
+    it('seals with the submitted status', async () => {
+      const posted: Posted[] = []
+      stubOrdersApi({ status: 'draft', chains: [{ noble: 'JEA', text: 'JEA\nROS H' }] }, posted, 'pending')
+      renderGame()
+
+      const textarea = await screen.findByLabelText('Chain for JEA')
+      await waitFor(() => expect(textarea).toHaveValue('ROS H'))
+      fireEvent.click(screen.getByRole('button', { name: 'Seal orders' }))
+
+      await waitFor(() => {
+        expect(statusLine()).toHaveAttribute('data-orders-status', 'submitted')
+      })
+      expect(posted[0].body).toMatchObject({ status: 'submitted' })
+      expect(await screen.findByRole('button', { name: 'Break the seal' })).toBeInTheDocument()
+    })
+
+    it('warns before leaving the page while orders are unsaved', async () => {
+      stubOrdersApi({ status: 'pending' }, [])
+      renderGame()
+
+      const textarea = await screen.findByLabelText('Chain for JEA')
+      const clean = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(clean)
+      expect(clean.defaultPrevented).toBe(false)
+
+      fireEvent.change(textarea, { target: { value: 'ROS H' } })
+      await screen.findByText(/Unsaved changes/)
+      const dirty = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(dirty)
+      expect(dirty.defaultPrevented).toBe(true)
+    })
   })
 
   it('sends its build version with the orders and asks for a reload when refused', async () => {
@@ -399,7 +572,7 @@ describe('GamePage submission rehydration and divergence', () => {
       }
       if (url.endsWith('/api/games/GAME1/my-submission')) {
         return Promise.resolve(
-          jsonResponse({ turn: 1, season: 'spring', submitted: false, chains: [] }),
+          jsonResponse({ turn: 1, season: 'spring', status: 'pending', chains: [] }),
         )
       }
       if (url.includes('/orders/preview')) {
@@ -450,7 +623,7 @@ describe('GamePage submission rehydration and divergence', () => {
           jsonResponse({
             turn: 4,
             season: 'winter',
-            submitted: true,
+            status: 'submitted',
             chains: [],
             winter: { lines: 'R T ROS' },
           }),
@@ -467,15 +640,15 @@ describe('GamePage submission rehydration and divergence', () => {
     await waitFor(() => {
       expect(textarea).toHaveValue('R T ROS')
     })
-    expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+    expect(screen.queryByText('Différent de la version du serveur')).not.toBeInTheDocument()
 
     // Edit winter draft -> divergence note in French appears
     fireEvent.change(textarea, { target: { value: 'R T BRU' } })
-    expect(await screen.findByText('Brouillon différent du serveur')).toBeInTheDocument()
+    expect(await screen.findByText('Différent de la version du serveur')).toBeInTheDocument()
     const restoreBtn = screen.getByRole('button', { name: 'Restaurer depuis le serveur' })
     fireEvent.click(restoreBtn)
     expect(textarea).toHaveValue('R T ROS')
-    expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+    expect(screen.queryByText('Différent de la version du serveur')).not.toBeInTheDocument()
   })
 
   it('renders submitted winter orders for an observer host', async () => {
@@ -633,7 +806,7 @@ describe('GamePage submission rehydration and divergence', () => {
           jsonResponse({
             turn: 4,
             season: 'winter',
-            submitted: true,
+            status: 'submitted',
             chains: [],
             winter: { lines: 'C C ROS' },
           }),

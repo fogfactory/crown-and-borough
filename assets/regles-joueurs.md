@@ -55,6 +55,29 @@ L'interface affiche l'année historique `1000 + année`.
    production, rations et famine ;
 5. chacun reçoit son rapport de tour.
 
+**Les ordres de ta maison** ont trois états, visibles de tous les joueurs
+maison par maison :
+
+| État | Sens |
+|---|---|
+| **En attente** | tu n'as rien enregistré ni scellé ce tour-ci |
+| **Esquissé** | une esquisse est enregistrée sur le serveur ; tu la retrouves après un rafraîchissement ou depuis un autre appareil |
+| **Scellé** | tes ordres sont scellés : seuls des ordres scellés sont lus par la résolution et comptent pour dire que ta maison a joué |
+
+- **Enregistrer l'esquisse** garde tes ordres tels quels, même incomplets ou
+  invalides, sans rien vérifier. Rien n'est enregistré automatiquement.
+- **Sceller les ordres** les vérifie : une erreur les fait refuser en entier
+  (voir plus bas). Tu peux resceller par-dessus des ordres déjà scellés.
+- **Rompre le sceau** rend tes ordres scellés à l'état d'esquisse, intacts, tant
+  que le tour n'est pas résolu : ils ne sont plus lus par la résolution tant
+  que tu ne les as pas rescellés.
+- Seul toi lis le contenu de ton esquisse ; les autres joueurs voient
+  uniquement l'état de ta maison.
+- Quand le tour est résolu, les esquisses non scellées sont écartées. Si
+  l'hôte déclenche la résolution avant que tout le monde ait scellé, il scelle
+  à ta place ton esquisse si elle est valide ; une esquisse invalide est
+  écartée et ta maison joue sans ordres ce tour-ci.
+
 **L'hiver** est une trêve : pas de chaîne, pas de mouvement, pas de combat.
 Tu y investis, tu y gères tes nobles et tes titres (section 5).
 
@@ -90,9 +113,10 @@ par ligne, sous la forme `POSITION SYMBOLE [cibles]`.
   même armée la même saison, aucune des deux chaînes n'est reçue.
 - **Sans chaîne, l'armée est « Sans Ordre ».** Elle reste sur place et se
   défend normalement.
-- **Les erreurs sont refusées d'emblée.** Une soumission erronée (syntaxe,
-  cases non adjacentes, etc.) est rejetée en entier, avec la ligne à
-  corriger. L'interface les signale pendant la saisie.
+- **Les erreurs sont refusées d'emblée.** Des ordres erronés (syntaxe,
+  cases non adjacentes, etc.) ne peuvent pas être scellés : ils sont rejetés
+  en entier, avec la ligne à corriger. L'interface les signale pendant la
+  saisie.
 - **Les avertissements ne bloquent rien.** L'interface signale aussi un ordre
   accepté qui ne s'exécutera pas comme écrit : armée affamée qui attaque,
   soutient ou transfère, pillage sans cible, transfert sans destinataire,
@@ -727,8 +751,9 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
 - **Limites.** Un message compte 500 caractères au plus, et tu peux en
   envoyer un par seconde. Un texte plus long, jusqu'à 4 000 caractères, est
   découpé et envoyé morceau par morceau ; tu peux l'annuler en cours d'envoi.
-- **Indépendance vis-à-vis des ordres.** Envoyer un message ne soumet rien et
-  ne change pas ta soumission : tes ordres restent à soumettre séparément.
+- **Indépendance vis-à-vis des ordres.** Envoyer un message ne scelle rien et
+  ne change pas l'état de tes ordres : tes ordres restent à sceller
+  séparément.
 - **Notifications par email.** Dans ton profil, tu peux demander un email à
   chaque nouveau tour, pour les messages privés et pour le salon public. Ces
   emails ne contiennent jamais le message : ils te renvoient vers la partie, et
@@ -757,7 +782,7 @@ vote.
   de vote.
 - **Avant de rejoindre.** Sur l'écran d'invitation, tu vois les cartes candidates et tu peux déjà classer les cartes et choisir le nom de ta maison : ces choix comptent même si tu es le dernier à arriver. Tu ne votes pas si tu laisses les cartes dans l'ordre proposé.
 - **Le nom de ta maison.** Tu choisis le nom de famille de ta maison dans le
-  salon. Il est libre jusqu'à la première soumission d'ordres de ta maison
+  salon. Il est libre jusqu'au premier scellement d'ordres de ta maison
   dans la partie, y compris après le début de la partie, puis il est
   verrouillé. Sans nom choisi, ta maison prend le nom de ton profil (ou son
   nom provisoire `P1`, `P2`, etc. dans une partie incognito). Il doit

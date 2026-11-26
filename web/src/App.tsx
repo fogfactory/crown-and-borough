@@ -898,10 +898,12 @@ function AppContent() {
                         player={selectedPlayer}
                         winterDraft={winterDrafts[selectedPlayer] ?? ''}
                         specialDraft={specialDrafts[selectedPlayer] ?? ''}
-                        submitted={submittedPlayers.includes(selectedPlayer)}
-                        submitting={resolving}
+                        status={
+                          submittedPlayers.includes(selectedPlayer) ? 'submitted' : 'pending'
+                        }
+                        submitting={resolving ? 'seal' : null}
                         error={actionError}
-                        onSubmit={() => void submitOrders()}
+                        onSeal={() => void submitOrders()}
                       />
                     ) : null
                   }

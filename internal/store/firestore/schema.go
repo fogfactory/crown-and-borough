@@ -57,10 +57,13 @@ type gameDocument struct {
 	Scores        map[string]engine.ScoreBreakdown `firestore:"scores"`
 	WinnerUID     string                           `firestore:"winnerUid,omitempty"`
 	SubmittedUIDs []string                         `firestore:"submittedUids"`
-	RequiredUIDs  []string                         `firestore:"requiredUids"`
-	Revision      int64                            `firestore:"revision"`
-	CreatedAt     time.Time                        `firestore:"createdAt"`
-	UpdatedAt     time.Time                        `firestore:"updatedAt"`
+	// DraftUIDs are the members holding an unsealed draft this turn: the
+	// status is public, the content (in the submission documents) is not.
+	DraftUIDs    []string  `firestore:"draftUids,omitempty"`
+	RequiredUIDs []string  `firestore:"requiredUids"`
+	Revision     int64     `firestore:"revision"`
+	CreatedAt    time.Time `firestore:"createdAt"`
+	UpdatedAt    time.Time `firestore:"updatedAt"`
 }
 
 // lobbyDocument holds a member's seed ranking in the lobby of games/{id}. It
@@ -94,12 +97,15 @@ type resolutionClaim struct {
 }
 
 type submissionDocument struct {
-	SchemaVersion int       `firestore:"schemaVersion"`
-	UID           string    `firestore:"uid"`
-	PlayerID      string    `firestore:"playerId"`
-	Turn          int       `firestore:"turn"`
-	OrdersJSON    string    `firestore:"ordersJson"`
-	SubmittedAt   time.Time `firestore:"submittedAt"`
+	SchemaVersion int    `firestore:"schemaVersion"`
+	UID           string `firestore:"uid"`
+	PlayerID      string `firestore:"playerId"`
+	Turn          int    `firestore:"turn"`
+	OrdersJSON    string `firestore:"ordersJson"`
+	// Status is store.OrdersDraft for an unsealed draft; empty means sealed
+	// orders (documents written before drafts existed).
+	Status      store.OrdersStatus `firestore:"status,omitempty"`
+	SubmittedAt time.Time          `firestore:"submittedAt"`
 }
 
 type reportDocument struct {

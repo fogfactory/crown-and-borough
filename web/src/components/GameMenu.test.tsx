@@ -40,10 +40,10 @@ describe('GameMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Partie' }))
     fireEvent.click(screen.getByRole('button', { name: 'Résoudre' }))
     expect(onResolve).not.toHaveBeenCalled()
-    expect(screen.getByText(/avant que tout le monde ait soumis/)).toBeInTheDocument()
+    expect(screen.getByText(/avant que tout le monde ait scellé/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
-    expect(screen.queryByText(/avant que tout le monde ait soumis/)).toBeNull()
+    expect(screen.queryByText(/avant que tout le monde ait scellé/)).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Résoudre' }))
     fireEvent.click(screen.getByRole('button', { name: 'Résoudre maintenant' }))
