@@ -589,7 +589,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 					StarvingStrength: army.StarvingStrength,
 				}
 				if chain, exists := chainsByArmyID[army.ID]; exists {
-					if viewer != nil && !viewerKnowsChain(state, *viewer, chain.ID) {
+					if viewer != nil && !viewerKnowsChain(state, *viewer, chain) {
 						armyView.Chain = &ChainView{Visibility: "hidden"}
 					} else {
 						armyView.Chain = projectChain(chain, nobleCodesByID, engine.PlanChainManeuvers(state, army, chain.Orders, chain.CurrentIndex))
@@ -806,15 +806,29 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	return view
 }
 
-func viewerKnowsChain(state *models.GameState, viewer models.PlayerID, chainID models.ChainID) bool {
+// viewerKnowsChain reports whether the viewer may read the chain: always for
+// the house of the noble who emitted it (a noble never changes house, and its
+// chains stay known when it is captured or dies), otherwise through the
+// knowledge recorded in the privacy metadata.
+func viewerKnowsChain(state *models.GameState, viewer models.PlayerID, chain models.Chain) bool {
 	if viewer == models.SpectatorViewer {
 		return true
 	}
-	if state == nil || state.Privacy == nil {
+	if state == nil {
 		return false
 	}
-	snapshots := state.Privacy.ChainKnowledge[viewer]
-	_, known := snapshots[chainID]
+	if noble, exists := nobleByID(state, chain.NobleID); exists && noble.OwnerID == viewer {
+		return true
+	}
+	for _, removed := range state.RemovedNobles {
+		if removed.ID == chain.NobleID && removed.OwnerID == viewer {
+			return true
+		}
+	}
+	if state.Privacy == nil {
+		return false
+	}
+	_, known := state.Privacy.ChainKnowledge[viewer][chain.ID]
 	return known
 }
 
