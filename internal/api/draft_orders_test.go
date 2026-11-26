@@ -135,6 +135,9 @@ func TestSealAndBreakTheSeal(t *testing.T) {
 	if view.Players[0].OrdersStatus != store.OrdersSubmitted || !view.Players[0].Submitted {
 		t.Fatalf("P2 sees %#v, want P1 sealed", view.Players[0])
 	}
+	if !view.Players[0].NameLocked {
+		t.Fatal("sealing must lock the house name")
+	}
 
 	// Breaking the seal: same content as a draft, with the expected revision.
 	stale := strings.Replace(g.withStatus("draft"), `{"status"`, `{"revision":999,"status"`, 1)
@@ -163,6 +166,8 @@ func TestSealAndBreakTheSeal(t *testing.T) {
 	}
 	if view, _ = g.detail(t, "P2"); view.Players[0].OrdersStatus != store.OrdersDraft || view.Players[0].Submitted {
 		t.Fatalf("P2 sees %#v, want P1 back to draft", view.Players[0])
+	} else if view.Players[0].NameLocked {
+		t.Fatal("breaking the first seal must give the house name back")
 	}
 
 	// A broken seal no longer counts as played: P2 sealing does not resolve.

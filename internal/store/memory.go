@@ -1027,6 +1027,13 @@ func (s *MemoryStore) saveDraftLocked(game *memoryGame, actor Actor, playerID mo
 		game.drafts = make(map[models.PlayerID]engine.OrdersInput)
 	}
 	game.drafts[playerID] = input
+	if _, wasSealed := game.submissions[playerID]; wasSealed && game.state.Turn <= 1 {
+		// The first sealing of a house locks its name; breaking that seal in
+		// the first turn gives it back (no turn resolved with the name yet).
+		if slot := slotIndex(game.players, playerID); slot >= 0 {
+			game.players[slot].NameLocked = false
+		}
+	}
 	delete(game.submissions, playerID)
 	game.revision++
 	snapshot, err := s.snapshotLocked(game, actor)

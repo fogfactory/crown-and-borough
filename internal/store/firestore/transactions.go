@@ -1287,6 +1287,7 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 		if err != nil {
 			return err
 		}
+		wasSealed := slices.Contains(canonical.SubmittedUIDs, actor.ID)
 		now := s.now().UTC()
 		submission := submissionDocument{
 			SchemaVersion: schemaVersion,
@@ -1309,6 +1310,14 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 			game.SubmittedUIDs = slices.DeleteFunc(game.SubmittedUIDs, func(uid string) bool { return uid == actor.ID })
 			game.DraftUIDs = appendUnique(game.DraftUIDs, actor.ID)
 			sort.Strings(game.DraftUIDs)
+			if wasSealed && game.Turn <= 1 {
+				// Breaking the first seal of the game gives the house name back.
+				for index := range game.Players {
+					if game.Players[index].ID == playerID {
+						game.Players[index].NameLocked = false
+					}
+				}
+			}
 		} else {
 			canonical.SubmittedUIDs = appendUnique(canonical.SubmittedUIDs, actor.ID)
 			sort.Strings(canonical.SubmittedUIDs)
