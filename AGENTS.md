@@ -10,7 +10,8 @@
   targeting `main`, and `feat/*` or `feature/*` for features targeting `develop`.
 - Branches created by Claude Code (`claude/*`) are accepted by the pull request
   policy: the Conventional Commit title decides the target (`feat` targets
-  `develop` or `main`, `fix` targets `main`, anything else targets `develop`).
+  `develop` or `main`, `fix` targets `main`, anything else targets `develop`
+  or `main`).
 - Never push directly to `main` or `develop`. Use a pull request and preserve
   the repository's required review and CI checks.
 - Pull request titles must use `type(scope): description`. Use `fix` for

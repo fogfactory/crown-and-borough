@@ -100,7 +100,9 @@ jobs:
                 if (!hasLabel("release:patch")) {
                   errors.push("Bugfix pull requests need the release:patch label.");
                 }
-              } else {
+              } else if (base !== "main" && base !== "develop") {
+                // Maintenance changes (docs, test, ops, ...) may target either
+                // protected branch.
                 requireBase("develop", "Maintenance pull requests");
               }
             } else {
