@@ -393,6 +393,41 @@ func TestGamesHandlerCreatorGateAllowsOnlyAuthorizedAccounts(t *testing.T) {
 	}
 }
 
+func TestGamesHandlerRevokedCreatorClaimDeniedAfterTokenRefresh(t *testing.T) {
+	gameStore, rules := newGamesTestStore(t)
+	// Firebase ID tokens carry the claims present when they were minted: the
+	// token issued before the revocation keeps the claim until it is refreshed.
+	actors := map[string]store.Actor{
+		"token-before-revocation": {ID: "creator-uid", Email: "creator@example.com", GameCreator: true},
+	}
+	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{
+		Actor: BearerActorResolver(func(token string) (store.Actor, error) {
+			actor, ok := actors[token]
+			if !ok {
+				return store.Actor{}, ErrUnauthorized
+			}
+			return actor, nil
+		}),
+		CreatorGate: NewAnyCreatorGate(FirebaseCreatorGate{}),
+	})
+	create := func(token string) *httptest.ResponseRecorder {
+		return requestGamesWithHeaders(t, handler, http.MethodPost, "/api/games", `{"name":"Claimed","players":2}`, map[string]string{
+			"Authorization": "Bearer " + token,
+		})
+	}
+
+	if granted := create("token-before-revocation"); granted.Code != http.StatusCreated {
+		t.Fatalf("create with claim = %d: %s", granted.Code, granted.Body.String())
+	}
+
+	// The claim is revoked and the browser refreshes its ID token.
+	actors["token-after-refresh"] = store.Actor{ID: "creator-uid", Email: "creator@example.com"}
+	denied := create("token-after-refresh")
+	if denied.Code != http.StatusForbidden || !strings.Contains(denied.Body.String(), `"creator_not_allowed"`) {
+		t.Fatalf("create after revocation = %d: %s", denied.Code, denied.Body.String())
+	}
+}
+
 func TestDevelopmentResolverKeepsLegacySlotAccessWhenStrictSlotsAreEnabled(t *testing.T) {
 	gameStore, rules := newGamesTestStore(t)
 	handler := NewGamesHandlerWithOptions(gameStore, rules, GamesHandlerOptions{
