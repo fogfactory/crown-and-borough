@@ -502,14 +502,6 @@ export function GamePage() {
     }
   }, [gameId, getIdToken, reloadSubmission, summaryRevision])
 
-  const serverChains = useMemo(() => {
-    const result: Record<string, string> = {}
-    for (const chain of serverSubmission?.chains ?? []) {
-      result[chain.noble] = stripNobleHeader(chain.noble, chain.text)
-    }
-    return result
-  }, [serverSubmission])
-
   // The server version of the player's orders for this turn: empty while pending.
   const serverOrders = useMemo(
     () =>
@@ -610,7 +602,8 @@ export function GamePage() {
       return
     }
     if (target) {
-      const serverText = serverChains[target] ?? ''
+      const serverChain = submission.chains.find((chain) => chain.noble === target)
+      const serverText = serverChain ? stripNobleHeader(serverChain.noble, serverChain.text) : ''
       setChainDrafts((current) => ({
         ...current,
         [target]: serverText,

@@ -908,29 +908,13 @@ func (s *MemoryStore) MySubmission(_ context.Context, actor Actor, id GameID) (P
 	if err := game.requireStartedLocked(); err != nil {
 		return PlayerSubmission{}, err
 	}
-	currentTurn := game.state.Turn
-	season := game.state.Season
+	submission := PlayerSubmission{Turn: game.state.Turn, Season: game.state.Season, Status: OrdersPending}
 	if input, sealed := game.submissions[playerID]; sealed {
-		return PlayerSubmission{
-			Turn:   currentTurn,
-			Season: season,
-			Status: OrdersSubmitted,
-			Orders: turn.CloneOrders(input),
-		}, nil
+		submission.Status, submission.Orders = OrdersSubmitted, turn.CloneOrders(input)
+	} else if input, drafted := game.drafts[playerID]; drafted {
+		submission.Status, submission.Orders = OrdersDraft, turn.CloneOrders(input)
 	}
-	if input, drafted := game.drafts[playerID]; drafted {
-		return PlayerSubmission{
-			Turn:   currentTurn,
-			Season: season,
-			Status: OrdersDraft,
-			Orders: turn.CloneOrders(input),
-		}, nil
-	}
-	return PlayerSubmission{
-		Turn:   currentTurn,
-		Season: season,
-		Status: OrdersPending,
-	}, nil
+	return submission, nil
 }
 
 func (s *MemoryStore) game(id GameID) (*memoryGame, error) {
@@ -1027,7 +1011,7 @@ func (s *MemoryStore) saveDraftLocked(game *memoryGame, actor Actor, playerID mo
 		game.drafts = make(map[models.PlayerID]engine.OrdersInput)
 	}
 	game.drafts[playerID] = input
-	if _, wasSealed := game.submissions[playerID]; wasSealed && game.state.Turn <= 1 {
+	if _, wasSealed := game.submissions[playerID]; wasSealed && turn.NameUnlockedOnSealBreak(game.state.Turn) {
 		// The first sealing of a house locks its name; breaking that seal in
 		// the first turn gives it back (no turn resolved with the name yet).
 		if slot := slotIndex(game.players, playerID); slot >= 0 {
@@ -1042,7 +1026,7 @@ func (s *MemoryStore) saveDraftLocked(game *memoryGame, actor Actor, playerID mo
 	}
 	submitted, remaining := game.submissionStatusLocked()
 	return SubmitResult{
-		Status:    "draft",
+		Status:    string(OrdersDraft),
 		Player:    playerID,
 		Submitted: submitted,
 		Remaining: remaining,
@@ -1267,6 +1251,9 @@ func cloneMap(source mapgen.MapData) mapgen.MapData {
 }
 
 func draftedPlayers(drafts map[models.PlayerID]engine.OrdersInput) map[models.PlayerID]bool {
+	if len(drafts) == 0 {
+		return nil
+	}
 	drafted := make(map[models.PlayerID]bool, len(drafts))
 	for playerID := range drafts {
 		drafted[playerID] = true

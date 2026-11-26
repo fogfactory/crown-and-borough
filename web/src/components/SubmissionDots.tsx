@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +41,22 @@ const STATUS_LABEL_KEY: Record<
   notRequired: 'online.notRequired',
 }
 
+function dotStyle(status: DotStatus, color: string): CSSProperties | undefined {
+  switch (status) {
+    case 'submitted':
+      return { backgroundColor: color }
+    case 'sketched':
+      return {
+        borderColor: color,
+        background: `linear-gradient(90deg, ${color} 50%, transparent 50%)`,
+      }
+    case 'waiting':
+      return { borderColor: color }
+    default:
+      return undefined
+  }
+}
+
 /**
  * Compact per-player orders status: one dot per player, filled when the
  * orders are sealed, half-filled for a sketch, hollow while the turn still waits for them, and
@@ -75,18 +92,7 @@ export function SubmissionDots({ players }: { players: SubmissionDotPlayer[] }) 
                     status === 'waiting' && 'border-dashed opacity-80',
                     status === 'notRequired' && 'border-ink-500/30 opacity-40',
                   )}
-                  style={
-                    status === 'submitted'
-                      ? { backgroundColor: player.color }
-                      : status === 'sketched'
-                        ? {
-                            borderColor: player.color,
-                            background: `linear-gradient(90deg, ${player.color} 50%, transparent 50%)`,
-                          }
-                        : status === 'waiting'
-                          ? { borderColor: player.color }
-                          : undefined
-                  }
+                  style={dotStyle(status, player.color)}
                 />
               </TooltipTrigger>
               <TooltipContent>

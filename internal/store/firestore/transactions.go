@@ -723,7 +723,7 @@ func (s *FirestoreStore) Submit(ctx context.Context, actor store.Actor, id store
 			return store.SubmitResult{}, err
 		}
 		return store.SubmitResult{
-			Status:    "draft",
+			Status:    string(store.OrdersDraft),
 			Player:    playerID,
 			Submitted: write.Submitted,
 			Remaining: write.Remaining,
@@ -1316,7 +1316,7 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 			game.SubmittedUIDs = slices.DeleteFunc(game.SubmittedUIDs, func(uid string) bool { return uid == actor.ID })
 			game.DraftUIDs = appendUnique(game.DraftUIDs, actor.ID)
 			sort.Strings(game.DraftUIDs)
-			if wasSealed && game.Turn <= 1 {
+			if wasSealed && turn.NameUnlockedOnSealBreak(game.Turn) {
 				// Breaking the first seal of the game gives the house name back.
 				for index := range game.Players {
 					if game.Players[index].ID == playerID {
