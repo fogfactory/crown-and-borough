@@ -2,15 +2,16 @@
 
 ## Branch workflow
 
-- `main` is the protected release branch. Only reviewed bugfixes, UX changes,
-  promotion pull requests, and release-please pull requests target it.
-- `develop` is the protected integration branch. Feature and maintenance pull
-  requests target it; it is never deployed directly.
-- Use `fix/*` or `bugfix/*` for bugfixes targeting `main`, `ux/*` for UX changes
-  targeting `main`, and `feat/*` or `feature/*` for features targeting `develop`.
-- Branches created by Claude Code (`claude/*`) are accepted by the pull request
-  policy: the Conventional Commit title decides the target (`feat` targets
-  `develop` or `main`, `fix` targets `main`, anything else targets `develop`).
+- `main` is the protected release branch and the default target: every
+  non-breaking change (feature, fix, UX, docs, maintenance) goes there and is
+  deployed quickly without breaking running games.
+- `develop` is the protected integration branch for breaking changes that
+  existing games cannot absorb; it is never deployed directly. The GitHub issue
+  label (`main` or `develop`) tells which one to target; without it, use `main`.
+- Branch names are free. Never rename a branch or alter a title to satisfy the
+  pull request policy: it only checks that the title is a Conventional Commit
+  and that a breaking change (`!` or `BREAKING CHANGE:` footer) does not target
+  `main`.
 - Never push directly to `main` or `develop`. Use a pull request and preserve
   the repository's required review and CI checks.
 - Pull request titles must use `type(scope): description`. Use `fix` for
@@ -21,9 +22,6 @@
   as the commit subject; promotions from `develop` to `main` and the
   synchronization exception use merge commits so release-please can see the
   individual Conventional Commits.
-- Apply exactly one `release:patch`, `release:minor`, or `release:major` label
-  to release-bearing work. The pull request policy checks that the label agrees
-  with the Conventional Commit title; release-please performs the actual bump.
 - Do not create production tags manually. release-please creates the SemVer
   tag and GitHub release after its release pull request is merged.
 - `main` is synchronized back into `develop` by automation. Do not create a
