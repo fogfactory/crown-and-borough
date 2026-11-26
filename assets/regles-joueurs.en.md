@@ -342,7 +342,10 @@ cards (a first name, a sex) and dignity cards.
 - **Draw**: `T N`, once per winter.
 - **Recruit**: `R N CCC XXX` brings the noble of card `CCC` onto `XXX`, which
   must be a castle or village of yours, with one of your armies. The noble
-  acts from the next season on.
+  can give orders from the next season on. He arrives with the army: if that
+  army is ordered to move (a maneuver included) the same season, the noble
+  follows it, according to his noble markers if he has any, otherwise to the
+  last territory of the maneuver.
 - **Cap**: you own at most {{noble_limit}} living nobles. Each bastard raises
   this cap by 1, up to {{noble_limit_max}}.
 - **Hand**: {{special_orders.hand_limit}} cards at most, all decks combined.

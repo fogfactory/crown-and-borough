@@ -345,7 +345,10 @@ des cartes de noble (un prénom, un sexe) et des cartes de dignité.
 - **Piocher** : `T N`, une fois par hiver.
 - **Recruter** : `R N CCC XXX` fait apparaître le noble de la carte `CCC` sur
   `XXX`, qui doit être un château ou un village à toi, avec une de tes armées.
-  Le noble agit à partir de la saison suivante.
+  Le noble peut donner des ordres à partir de la saison suivante. Il arrive
+  avec l'armée : si cette armée reçoit un ordre de déplacement (manœuvre
+  comprise) la même saison, le noble la suit, selon ses marqueurs de noble
+  s'il en a, sinon jusqu'au dernier territoire de la manœuvre.
 - **Plafond** : tu possèdes au plus {{noble_limit}} nobles vivants. Chaque
   bâtard relève ce plafond de 1, jusqu'à {{noble_limit_max}}.
 - **Main** : {{special_orders.hand_limit}} cartes au plus, tous decks

@@ -128,7 +128,10 @@ carte de noble de la main : le noble apparaît sur `XXX`, qui exige une
 infrastructure de peuplement (château ou village) et une armée du joueur, et
 le joueur ne doit pas déjà posséder 4 nobles vivants (libres, otages ou au
 cachot). Le recrutement ne coûte aucune ressource. Une carte absente de la
-main est rejetée (`card_not_in_hand`). Les ordres suivants de la même feuille
+main est rejetée (`card_not_in_hand`). Le noble recruté suit l'armée sur laquelle il apparaît : si elle se déplace la
+même saison (manœuvre comprise), il l'accompagne selon ses marqueurs de noble,
+sinon jusqu'au dernier territoire de la feuille d'ordres. Il ne peut donner
+ses propres ordres qu'à partir de la saison suivante. Les ordres suivants de la même feuille
 (`D N`, `C N`, `M N`) peuvent viser le noble que `R N` vient de recruter. Chaque noble porteur de la dignité de
 **bâtard** relève ce plafond de 1 (6 au plus), quel que soit son statut ;
 ce noble est toujours le dernier de la ligne de succession, ne reçoit un
