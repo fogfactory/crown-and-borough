@@ -712,9 +712,14 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
   canaux, chaque canal qui contient des messages non lus porte une pastille
   aux couleurs de la maison qui les a écrits, une par maison quand ils
   viennent de plusieurs ; le canal affiché signale aussi les non-lus des
-  autres canaux. À l'ouverture du chat, si un seul canal (salon public
-  compris) contient des messages non lus, il s'affiche directement ; sinon,
-  c'est le salon public. Des séparateurs (« Printemps 1011 ») marquent les
+  autres canaux. Un canal dont le dernier message vient d'une autre maison,
+  sans réponse de la tienne, est marqué « en attente de ta réponse » d'un
+  indicateur distinct ; le bouton « Pris en compte » retire ce marqueur sans
+  répondre, et un nouveau message d'une autre maison le fait revenir. À
+  l'ouverture du chat, les canaux non lus passent d'abord, puis les canaux en
+  attente de réponse : si un seul canal (salon public compris) est concerné au
+  premier niveau non vide, il s'affiche directement ; sinon, c'est le salon
+  public. Des séparateurs (« Printemps 1011 ») marquent les
   tours.
 - **Limites.** Un message compte 500 caractères au plus, et tu peux en
   envoyer un par seconde. Un texte plus long, jusqu'à 4 000 caractères, est

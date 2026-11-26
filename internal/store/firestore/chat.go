@@ -69,6 +69,9 @@ type chatReadsDocument struct {
 	SchemaVersion int                  `firestore:"schemaVersion"`
 	UID           string               `firestore:"uid"`
 	Channels      map[string]time.Time `firestore:"channels"`
+	// Acknowledged holds, per channel, when the "unanswered" marker was
+	// dismissed without a reply.
+	Acknowledged map[string]time.Time `firestore:"acknowledged"`
 }
 
 type chatStateDocument struct {
@@ -156,6 +159,7 @@ func (s *FirestoreStore) SetChatReadCursor(ctx context.Context, id store.GameID,
 	ref := gameRef(s.client, id).Collection(chatReadsCollection).Doc(uid)
 	s.recordTransaction()
 	err := s.client.RunTransaction(operationContext, func(_ context.Context, transaction *cloudfirestore.Transaction) error {
+		cursor.AcknowledgedAt = time.Time{}
 		snapshot, err := transaction.Get(ref)
 		switch {
 		case err == nil:
@@ -166,6 +170,7 @@ func (s *FirestoreStore) SetChatReadCursor(ctx context.Context, id store.GameID,
 			if previous, ok := current.Channels[cursor.Channel]; ok && previous.After(cursor.LastReadAt) {
 				cursor.LastReadAt = previous
 			}
+			cursor.AcknowledgedAt = current.Acknowledged[cursor.Channel]
 		case !isCode(err, codes.NotFound):
 			return err
 		}
@@ -181,6 +186,45 @@ func (s *FirestoreStore) SetChatReadCursor(ctx context.Context, id store.GameID,
 	}
 	s.recordWrites(1)
 	return cursor, nil
+}
+
+func (s *FirestoreStore) SetChatAcknowledged(ctx context.Context, id store.GameID, uid string, channel string, at time.Time) (store.ChatReadCursor, error) {
+	if err := s.requireClient(); err != nil {
+		return store.ChatReadCursor{}, err
+	}
+	operationContext, cancel := s.operationContext(ctx)
+	defer cancel()
+	ref := gameRef(s.client, id).Collection(chatReadsCollection).Doc(uid)
+	var result store.ChatReadCursor
+	s.recordTransaction()
+	err := s.client.RunTransaction(operationContext, func(_ context.Context, transaction *cloudfirestore.Transaction) error {
+		result = store.ChatReadCursor{Channel: channel}
+		snapshot, err := transaction.Get(ref)
+		switch {
+		case err == nil:
+			var current chatReadsDocument
+			if err := snapshot.DataTo(&current); err != nil {
+				return err
+			}
+			result.LastReadAt = current.Channels[channel]
+			if previous, ok := current.Acknowledged[channel]; ok && previous.After(at) {
+				at = previous
+			}
+		case !isCode(err, codes.NotFound):
+			return err
+		}
+		result.AcknowledgedAt = at
+		return transaction.Set(ref, map[string]any{
+			"schemaVersion": schemaVersion,
+			"uid":           uid,
+			"acknowledged":  map[string]any{channel: at.UTC()},
+		}, cloudfirestore.MergeAll)
+	})
+	if err != nil {
+		return store.ChatReadCursor{}, wrapOperation("acknowledge chat channel", err)
+	}
+	s.recordWrites(1)
+	return result, nil
 }
 
 func (s *FirestoreStore) ListChatMessages(ctx context.Context, id store.GameID, channel string, before store.ChatCursor, limit int) ([]store.ChatMessage, error) {

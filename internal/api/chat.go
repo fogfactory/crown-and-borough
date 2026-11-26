@@ -55,6 +55,16 @@ func (h *GamesHandler) postMessage(w http.ResponseWriter, r *http.Request, actor
 }
 
 func (h *GamesHandler) markChannelRead(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	h.updateChannelCursor(w, r, actor, id, h.chat.MarkRead)
+}
+
+func (h *GamesHandler) acknowledgeChannel(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	h.updateChannelCursor(w, r, actor, id, h.chat.Acknowledge)
+}
+
+// updateChannelCursor decodes a channel request and applies one of the
+// per-channel cursor updates of the chat service.
+func (h *GamesHandler) updateChannelCursor(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID, update func(context.Context, store.Actor, store.GameID, string) (store.ChatReadCursor, error)) {
 	if !h.chatEnabled(w) {
 		return
 	}
@@ -63,7 +73,7 @@ func (h *GamesHandler) markChannelRead(w http.ResponseWriter, r *http.Request, a
 		writeAPIError(w, http.StatusBadRequest, "invalid_message_request", err.Error())
 		return
 	}
-	cursor, err := h.chat.MarkRead(r.Context(), actor, id, request.Channel)
+	cursor, err := update(r.Context(), actor, id, request.Channel)
 	if err != nil {
 		h.writeChatError(w, err)
 		return

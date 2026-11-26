@@ -185,8 +185,9 @@ jamais par le client, et lus par `onSnapshot` sous `games/{gameId}/` :
   conversation avec `where("participantUids", "array-contains", uid)` et
   `orderBy("createdAt", "desc")` (index composite dans
   `firestore.indexes.json`) ;
-- `chat_reads/{uid}` : curseurs de lecture `channels.{canal}` (`lastReadAt`),
-  lisibles par leur propriétaire ;
+- `chat_reads/{uid}` : curseurs de lecture `channels.{canal}` (`lastReadAt`) et
+  acquittements `acknowledged.{canal}` (`acknowledgedAt`, marqueur « non
+  répondu » retiré sans réponse), lisibles par leur propriétaire ;
 - `chat_state/{uid}` : état de la limite d'un message par seconde, réservé au
   backend (vérifié dans la même transaction que l'écriture du message).
 
@@ -205,7 +206,9 @@ Règles de fonctionnement, détaillées dans [`chat.md`](chat.md) :
 - **Historique.** Conservé sans purge ; le client lit les 50 derniers messages
   de chaque canal et pagine vers le passé.
 - **Non-lus.** Comptés par canal à partir de `chat_reads/{uid}`, mis à jour
-  par `POST /api/games/{id}/messages/read`.
+  par `POST /api/games/{id}/messages/read`. Le « non répondu » se déduit des
+  messages, de `lastReadAt` et de `acknowledgedAt` (acquitté par
+  `POST /api/games/{id}/messages/acknowledge`).
 - **Hotseat.** Aucune route de chat n'est montée : `404 chat_disabled`.
 - **Ordres.** Écrire un message ne soumet rien et ne modifie pas la partie.
 

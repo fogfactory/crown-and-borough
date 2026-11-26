@@ -55,6 +55,8 @@ export interface UseChatResult {
   channels: Record<string, ChatChannelState>
   /** `lastReadAt` per channel; undefined until the cursors are loaded. */
   lastRead: Record<string, string> | undefined
+  /** `acknowledgedAt` per channel (the "unanswered" marker dismissed). */
+  acknowledged: Record<string, string> | undefined
   loadMore: (channel: string) => Promise<void>
 }
 
@@ -116,6 +118,9 @@ function readMessages(
 export function useChat({ gameId, uid, specs }: UseChatOptions): UseChatResult {
   const [channels, setChannels] = useState<Record<string, ChatChannelState>>({})
   const [lastRead, setLastRead] = useState<Record<string, string> | undefined>(undefined)
+  const [acknowledged, setAcknowledged] = useState<Record<string, string> | undefined>(
+    undefined,
+  )
   const unsubscribers = useRef(new Map<string, () => void>())
   const cursors = useRef(new Map<string, QueryDocumentSnapshot<DocumentData>>())
   const paged = useRef(new Set<string>())
@@ -155,6 +160,16 @@ export function useChat({ gameId, uid, specs }: UseChatOptions): UseChatResult {
             if (at) cursorsRead[channel] = at
           }
           setLastRead(cursorsRead)
+          const acknowledgedData = (snapshot.data()?.acknowledged ?? {}) as Record<
+            string,
+            unknown
+          >
+          const acknowledgedRead: Record<string, string> = {}
+          for (const [channel, value] of Object.entries(acknowledgedData)) {
+            const at = toChatTimestamp(value)
+            if (at) acknowledgedRead[channel] = at
+          }
+          setAcknowledged(acknowledgedRead)
         },
         // Without cursors nothing is counted unread, rather than everything.
         () => undefined,
@@ -168,6 +183,7 @@ export function useChat({ gameId, uid, specs }: UseChatOptions): UseChatResult {
       pagedChannels.clear()
       setChannels({})
       setLastRead(undefined)
+      setAcknowledged(undefined)
     }
   }, [gameId, uid])
 
@@ -252,5 +268,5 @@ export function useChat({ gameId, uid, specs }: UseChatOptions): UseChatResult {
     [gameId, uid, update],
   )
 
-  return { channels, lastRead, loadMore }
+  return { channels, lastRead, acknowledged, loadMore }
 }

@@ -13,6 +13,7 @@ type MemoryChatBackend struct {
 	messages map[GameID][]ChatMessage
 	lastSent map[chatSenderKey]time.Time
 	cursors  map[chatCursorKey]time.Time
+	acked    map[chatCursorKey]time.Time
 	// activity and messageEmails back NotificationStateStore.
 	activity      map[string]time.Time
 	messageEmails map[chatSenderKey]time.Time
@@ -39,6 +40,7 @@ func NewMemoryChatBackend() *MemoryChatBackend {
 		messages: make(map[GameID][]ChatMessage),
 		lastSent: make(map[chatSenderKey]time.Time),
 		cursors:  make(map[chatCursorKey]time.Time),
+		acked:    make(map[chatCursorKey]time.Time),
 
 		activity:      make(map[string]time.Time),
 		messageEmails: make(map[chatSenderKey]time.Time),
@@ -115,7 +117,19 @@ func (b *MemoryChatBackend) SetChatReadCursor(_ context.Context, id GameID, uid 
 		cursor.LastReadAt = current
 	}
 	b.cursors[key] = cursor.LastReadAt
+	cursor.AcknowledgedAt = b.acked[key]
 	return cursor, nil
+}
+
+func (b *MemoryChatBackend) SetChatAcknowledged(_ context.Context, id GameID, uid string, channel string, at time.Time) (ChatReadCursor, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	key := chatCursorKey{game: id, uid: uid, channel: channel}
+	if current := b.acked[key]; current.After(at) {
+		at = current
+	}
+	b.acked[key] = at
+	return ChatReadCursor{Channel: channel, LastReadAt: b.cursors[key], AcknowledgedAt: at}, nil
 }
 
 func (b *MemoryChatBackend) ListChatMessages(_ context.Context, id GameID, channel string, before ChatCursor, limit int) ([]ChatMessage, error) {
