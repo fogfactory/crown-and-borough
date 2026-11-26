@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.10.0](https://github.com/fogfactory/crown-and-borough/compare/v1.9.1...v1.10.0) (2026-11-26)
+
+
+### Features
+
+* **chat:** distinguish unread, unanswered and acknowledged channels ([42a5bed](https://github.com/fogfactory/crown-and-borough/commit/42a5bedf1f6ad74cddbbbcda2534da15e4c25a5d))
+* **chat:** distinguish unread, unanswered and acknowledged channels ([d7634ee](https://github.com/fogfactory/crown-and-borough/commit/d7634ee2c48f02fc7565279d0d91cecf055130df))
+* **chat:** show unread and unanswered channels as state badges on a house shield ([bcec206](https://github.com/fogfactory/crown-and-borough/commit/bcec2067a0578ffc4d16238a9b635b77ad96bd2e))
+* **orders:** add sketched draft status for order submissions ([46b9f9f](https://github.com/fogfactory/crown-and-borough/commit/46b9f9fe361f5eace69ad541251c43c7ac1a4b06))
+* **orders:** add sketched draft status for order submissions ([a4ad31f](https://github.com/fogfactory/crown-and-borough/commit/a4ad31fce9af6e623ebe132db0d201fc73d5824f))
+
+
+### Bug Fixes
+
+* **api:** keep chain visible to its emitter after a maneuver ([b352041](https://github.com/fogfactory/crown-and-borough/commit/b3520417d17e1b30de32fa67a99efbcc9794abb1))
+* **api:** keep chain visible to its emitter after a maneuver ([2e2eef5](https://github.com/fogfactory/crown-and-borough/commit/2e2eef518da2bc007173760d0626749ff9ad7eaf)), closes [#806](https://github.com/fogfactory/crown-and-borough/issues/806)
+* **chat:** return acknowledgedAt from firestore read cursor and share cursor handler ([5289c0d](https://github.com/fogfactory/crown-and-borough/commit/5289c0d258678fb2d7361a9386c86518c64e0aa6))
+* **orders:** breaking the first seal gives the house name back ([994ce5c](https://github.com/fogfactory/crown-and-borough/commit/994ce5ca9fefee496fe23a7dbc402325239a7e0d))
+* **orders:** lock house names sealed by the host resolve and test Firestore drafts ([f3ce975](https://github.com/fogfactory/crown-and-borough/commit/f3ce975f4deec72fc0dab103595cd230fc63d56b))
+
+
+### Documentation
+
+* **auth:** document game_creator review cadence and test revocation ([b341b52](https://github.com/fogfactory/crown-and-borough/commit/b341b52a3ecc27383350145ad1c730479629ea20))
+* **auth:** document game_creator review cadence and test revocation ([cc268fe](https://github.com/fogfactory/crown-and-borough/commit/cc268fed03e01673a124a6ff5190e21a6065587c))
+* **rules:** clarify that a recruited noble follows his army ([d3d9ff1](https://github.com/fogfactory/crown-and-borough/commit/d3d9ff121dea42599a24d3aa21a5799629ce1f94))
+* **rules:** clarify that a recruited noble follows his army ([5424743](https://github.com/fogfactory/crown-and-borough/commit/542474360840057432f3216b698bf55e51850918))
+
+
+### Refactoring
+
+* **orders:** simplify draft handling in stores and dots ([415dcee](https://github.com/fogfactory/crown-and-borough/commit/415dceef01f50d1786db1584318f8383536b7a8b))
+
 ## [1.9.1](https://github.com/fogfactory/crown-and-borough/compare/v1.9.0...v1.9.1) (2026-11-25)
 
 
