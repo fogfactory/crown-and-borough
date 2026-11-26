@@ -425,6 +425,48 @@ FIREBASE_PROJECT_ID=crown-and-borough npm run grant -- <email> revoke
 The inline Node snippet above remains available as an alternative. The helper
 preserves all existing custom claims and changes only `game_creator`.
 
+### Periodic Review
+
+Review the accounts holding `game_creator` every quarter (January, April,
+July, October). List the accounts that hold the claim, then revoke every
+account that no longer needs it with the `revoke` command above:
+
+```bash
+node - <<'NODE'
+const admin = require('firebase-admin');
+const app = admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  projectId: process.env.FIREBASE_PROJECT_ID,
+});
+(async () => {
+  let pageToken;
+  do {
+    const page = await app.auth().listUsers(1000, pageToken);
+    for (const user of page.users) {
+      if (user.customClaims?.game_creator === true) console.log(user.email);
+    }
+    pageToken = page.pageToken;
+  } while (pageToken);
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+NODE
+```
+
+Trace each review in a private GitHub issue titled `ops(auth): game_creator
+review YYYY-Qn`, recording only the review date, the number of accounts
+reviewed, and the number revoked. Do not record email addresses or UIDs in the
+issue. An account revoked by the review loses the ability to create games as
+soon as its ID token is refreshed (at most one hour later, or at the next
+sign-in); this behavior is covered by
+`TestGamesHandlerRevokedCreatorClaimDeniedAfterTokenRefresh`.
+
+The identity that administers claims (the operator's Application Default
+Credentials, or the Firebase Auth Admin role) is distinct from the Cloud Run
+runtime service account and is never exposed to the browser; keep the two
+sets of permissions separate when granting roles.
+
 ### Emulator Creator
 
 The emulator intentionally uses a local-only email allowlist so the flow can
