@@ -481,7 +481,7 @@ func TestMemoryStoreMySubmission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial MySubmission: %v", err)
 	}
-	if initial.Submitted || initial.Turn != 1 || initial.Season != models.SeasonSpring {
+	if initial.Status != OrdersPending || initial.Turn != 1 || initial.Season != models.SeasonSpring {
 		t.Fatalf("initial MySubmission = %#v, want submitted:false, turn:1, spring", initial)
 	}
 
@@ -500,7 +500,7 @@ func TestMemoryStoreMySubmission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("p1 MySubmission: %v", err)
 	}
-	if !p1Sub.Submitted || p1Sub.Turn != 1 || len(p1Sub.Orders.Chains) != 1 {
+	if p1Sub.Status != OrdersSubmitted || p1Sub.Turn != 1 || len(p1Sub.Orders.Chains) != 1 {
 		t.Fatalf("p1 MySubmission = %#v, want submitted:true with 1 chain", p1Sub)
 	}
 	if p1Sub.Orders.Chains[0].Noble != models.NobleCode(noble.Code) || p1Sub.Orders.Chains[0].Text != chainText {
@@ -512,7 +512,7 @@ func TestMemoryStoreMySubmission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("p2 MySubmission: %v", err)
 	}
-	if p2Sub.Submitted || len(p2Sub.Orders.Chains) != 0 {
+	if p2Sub.Status != OrdersPending || len(p2Sub.Orders.Chains) != 0 {
 		t.Fatalf("p2 MySubmission = %#v, want submitted:false and empty chains", p2Sub)
 	}
 
@@ -537,7 +537,7 @@ func TestMemoryStoreMySubmission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("next turn MySubmission: %v", err)
 	}
-	if nextTurnSub.Submitted || nextTurnSub.Turn != 2 || nextTurnSub.Season != models.SeasonSummer {
+	if nextTurnSub.Status != OrdersPending || nextTurnSub.Turn != 2 || nextTurnSub.Season != models.SeasonSummer {
 		t.Fatalf("next turn MySubmission = %#v, want submitted:false, turn:2, summer", nextTurnSub)
 	}
 }
@@ -657,5 +657,63 @@ func TestMemoryStoreSupplyProjectsDraftedSpecialOrders(t *testing.T) {
 	}
 	if otherPlayer.FamineRations == 0 {
 		t.Fatalf("supply for P2 = %#v, want P1's card not playable by P2", otherPlayer)
+	}
+}
+
+func TestMemoryStoreDraftsAreNotSubmissions(t *testing.T) {
+	ctx := context.Background()
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(ctx, Actor{ID: "P1"}, CreateRequest{
+		Seed:    "drafts",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	noble := created.State.Nobles[0]
+	chain := []engine.ChainSubmission{{Noble: models.NobleCode(noble.Code), Text: string(noble.Code) + "\nH " + string(noble.LocationID)}}
+
+	// An unparsable draft is saved as it is; it is not a submission.
+	bad := []engine.ChainSubmission{{Noble: "ZZZ", Text: "nonsense"}}
+	result, err := gameStore.Submit(ctx, Actor{ID: "P1"}, created.ID, SubmitRequest{Status: OrdersDraft, Chains: bad})
+	if err != nil || result.Status != "draft" || len(result.Submitted) != 0 {
+		t.Fatalf("draft = %#v, %v", result, err)
+	}
+	if result.Snapshot.OrdersStatusOf("P1") != OrdersDraft || len(result.Snapshot.Submissions) != 0 {
+		t.Fatalf("snapshot statuses = %v / %v, want P1 draft and no submission", result.Snapshot.Drafted, result.Snapshot.Submissions)
+	}
+	if _, err := gameStore.Submit(ctx, Actor{ID: "P1"}, created.ID, SubmitRequest{Chains: bad}); err == nil {
+		t.Fatal("sealing the unparsable draft succeeded")
+	}
+	if sub, _ := gameStore.MySubmission(ctx, Actor{ID: "P1"}, created.ID); sub.Status != OrdersDraft {
+		t.Fatalf("status after refused sealing = %q, want draft", sub.Status)
+	}
+
+	// Seal, then break the seal on a stale revision, then with the right one.
+	sealed, err := gameStore.Submit(ctx, Actor{ID: "P1"}, created.ID, SubmitRequest{Chains: chain})
+	if err != nil || sealed.Snapshot.OrdersStatusOf("P1") != OrdersSubmitted {
+		t.Fatalf("seal = %#v, %v", sealed.Snapshot.OrdersStatusOf("P1"), err)
+	}
+	if _, err := gameStore.Submit(ctx, Actor{ID: "P1"}, created.ID, SubmitRequest{Status: OrdersDraft, Chains: chain, ExpectedRevision: sealed.Snapshot.Revision - 1}); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale seal break error = %v, want ErrRevisionConflict", err)
+	}
+	broken, err := gameStore.Submit(ctx, Actor{ID: "P1"}, created.ID, SubmitRequest{Status: OrdersDraft, Chains: chain, ExpectedRevision: sealed.Snapshot.Revision})
+	if err != nil || broken.Snapshot.OrdersStatusOf("P1") != OrdersDraft || len(broken.Submitted) != 0 {
+		t.Fatalf("seal break = %#v, %v", broken, err)
+	}
+	if sub, _ := gameStore.MySubmission(ctx, Actor{ID: "P1"}, created.ID); sub.Status != OrdersDraft || len(sub.Orders.Chains) != 1 {
+		t.Fatalf("my-submission = %#v, want the intact draft", sub)
+	}
+	if sub, _ := gameStore.MySubmission(ctx, Actor{ID: "P2"}, created.ID); sub.Status != OrdersPending || len(sub.Orders.Chains) != 0 {
+		t.Fatalf("other player my-submission = %#v, want pending and empty", sub)
+	}
+
+	// The host's resolution seals the valid draft and drops it afterwards.
+	resolved, err := gameStore.Resolve(ctx, Actor{ID: "P1"}, created.ID)
+	if err != nil || !resolved.Resolved || len(resolved.Submitted) != 1 {
+		t.Fatalf("resolve = %#v, %v", resolved, err)
+	}
+	if sub, _ := gameStore.MySubmission(ctx, Actor{ID: "P1"}, created.ID); sub.Status != OrdersPending {
+		t.Fatalf("draft survived the turn: %#v", sub)
 	}
 }

@@ -109,8 +109,11 @@ export const WINTER_WARNING_COLOR = '#e07a30'
 
 /** Outline color shared by every intention/order annotation on the map. */
 export const INTENT_OUTLINE_COLOR = MAP_INK
-/** Opacity of a drafted (not yet submitted) order's arrows and badges. */
-export const DRAFT_INTENTION_OPACITY = 0.45
+/**
+ * Opacity of a drafted (sketched or unsaved, not sealed) order's arrows and
+ * badges; sealed orders are drawn at full opacity.
+ */
+export const DRAFT_INTENTION_OPACITY = 0.6
 export const FORTIFICATION_WALL_FILL = '#b8b8b4'
 /** Neutral fill for infrastructure without a controlling player (`paper-50`). */
 export const NEUTRAL_MARKER_FILL = '#fbf7ee'

@@ -17,6 +17,7 @@ import type {
   GameSlot,
   GameSummary,
   GameViewDocument,
+  OrdersStatus,
   ScoreBreakdown,
   Season,
   StateData,
@@ -96,6 +97,11 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
       ? data.submittedUids.filter((value): value is string => typeof value === 'string')
       : [],
   )
+  const draftUIDs = new Set(
+    Array.isArray(data.draftUids)
+      ? data.draftUids.filter((value): value is string => typeof value === 'string')
+      : [],
+  )
   const submittedPlayerIDs = new Set(
     Array.isArray(data.submitted)
       ? data.submitted.filter((value): value is string => typeof value === 'string')
@@ -118,16 +124,23 @@ function slotsFromData(data: DocumentData, currentUID?: string): GameSlot[] {
     if (!id) return []
     const actorId = stringValue(player.actorId) || undefined
     const currentActorId = actorId && actorId === currentUID ? actorId : undefined
+    const submitted =
+      player.submitted === true ||
+      submittedUIDs.has(actorId ?? '') ||
+      submittedPlayerIDs.has(id)
+    const ordersStatus: OrdersStatus = submitted
+      ? 'submitted'
+      : player.ordersStatus === 'draft' || draftUIDs.has(actorId ?? '')
+        ? 'draft'
+        : 'pending'
     return [
       {
         id,
         name: stringValue(player.name, id),
         color: stringValue(player.color, DEFAULT_PLAYER_COLOR),
         actorId: currentActorId,
-        submitted:
-          player.submitted === true ||
-          submittedUIDs.has(actorId ?? '') ||
-          submittedPlayerIDs.has(id),
+        submitted,
+        ordersStatus,
         ...(player.nameLocked === true ? { nameLocked: true } : {}),
         ...(stringValue(player.accountName)
           ? { accountName: stringValue(player.accountName) }

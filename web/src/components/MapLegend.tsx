@@ -387,6 +387,9 @@ export function MapLegend({
                       <span className="text-2xs text-ink-500">
                         {t('legend.intentionsHint')}
                       </span>
+                      <span className="text-2xs text-ink-500">
+                        {t('legend.intentionsDraft')}
+                      </span>
                     </span>
                   </label>
                 )}

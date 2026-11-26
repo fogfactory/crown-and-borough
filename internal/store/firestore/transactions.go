@@ -704,14 +704,31 @@ func (s *FirestoreStore) Submit(ctx context.Context, actor store.Actor, id store
 	if err != nil {
 		return store.SubmitResult{}, err
 	}
-	// Validate before writing. The transaction below still checks the revision
-	// and turn, so this read cannot make an obsolete mutation succeed.
-	if err := turn.ValidateSubmission(snapshot.State, s.balance, input); err != nil {
-		return store.SubmitResult{}, err
+	draft := request.Status == store.OrdersDraft
+	// Validate before writing; a draft is stored as it is. The transaction
+	// below still checks the revision and turn, so this read cannot make an
+	// obsolete mutation succeed.
+	if !draft {
+		if err := turn.ValidateSubmission(snapshot.State, s.balance, input); err != nil {
+			return store.SubmitResult{}, err
+		}
 	}
-	write, err := s.writeSubmissionForGame(ctx, actor, id, input, request.ExpectedRevision)
+	write, err := s.writeSubmissionForGame(ctx, actor, id, input, request.ExpectedRevision, draft)
 	if err != nil {
 		return store.SubmitResult{}, err
+	}
+	if draft {
+		current, err := s.Get(ctx, actor, id)
+		if err != nil {
+			return store.SubmitResult{}, err
+		}
+		return store.SubmitResult{
+			Status:    "draft",
+			Player:    playerID,
+			Submitted: write.Submitted,
+			Remaining: write.Remaining,
+			Snapshot:  current,
+		}, nil
 	}
 	if request.Force || len(write.Remaining) == 0 {
 		result, resolveErr := s.resolveInternal(ctx, actor, id, write.Revision, request.Force)
@@ -768,11 +785,21 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 		s.releaseFailedResolution(ctx, id, claim.Claim)
 		return store.SubmitResult{}, store.ErrRevisionConflict
 	}
+	// The resolution seals the drafts that pass validation.
+	sealed := snapshot.Submissions
+	if len(snapshot.Drafted) > 0 {
+		_, drafts, readErr := s.readSubmissions(operationContext, id, snapshot.State.Turn)
+		if readErr != nil {
+			s.releaseFailedResolution(ctx, id, claim.Claim)
+			return store.SubmitResult{}, readErr
+		}
+		sealed = turn.SealDrafts(snapshot.State, s.balance, snapshot.Submissions, drafts)
+	}
 	submitted, remaining := turn.Progress(snapshot.State, func(playerID models.PlayerID) bool {
-		_, ok := snapshot.Submissions[playerID]
+		_, ok := sealed[playerID]
 		return ok
 	})
-	resolution, err := turn.Resolve(snapshot.State, s.balance, snapshot.Submissions, s.privacyTracker)
+	resolution, err := turn.Resolve(snapshot.State, s.balance, sealed, s.privacyTracker)
 	if err != nil {
 		s.releaseFailedResolution(ctx, id, claim.Claim)
 		return store.SubmitResult{}, err
@@ -946,6 +973,7 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		game.Scores = scoreDocuments(engine.ComputeScores(report.State, s.balance))
 		game.Revision = canonical.Revision
 		game.SubmittedUIDs = []string{}
+		game.DraftUIDs = nil
 		game.RequiredUIDs = sortedRequiredUIDs(report.State, playerSlots(game.Players))
 		game.UpdatedAt = updatedAt
 		game.Status, game.WinnerUID = statusForState(report.State, s.balance)
@@ -1204,7 +1232,7 @@ func resolvedResultFromSnapshot(snapshot store.GameSnapshot, playerID models.Pla
 	}
 }
 
-func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store.Actor, id store.GameID, input engine.OrdersInput, expected store.Revision) (submissionWriteResult, error) {
+func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store.Actor, id store.GameID, input engine.OrdersInput, expected store.Revision, draft bool) (submissionWriteResult, error) {
 	var result submissionWriteResult
 	s.recordTransaction()
 	err := s.client.RunTransaction(ctx, func(tx context.Context, transaction *cloudfirestore.Transaction) error {
@@ -1268,20 +1296,33 @@ func (s *FirestoreStore) writeSubmissionForGame(ctx context.Context, actor store
 			OrdersJSON:    orders,
 			SubmittedAt:   now,
 		}
+		if draft {
+			submission.Status = store.OrdersDraft
+		}
 		if err := transaction.Set(submissionCollection(s.client, id, game.Turn).Doc(actor.ID), submission); err != nil {
 			return err
 		}
-		canonical.SubmittedUIDs = appendUnique(canonical.SubmittedUIDs, actor.ID)
-		sort.Strings(canonical.SubmittedUIDs)
-		canonical.Revision++
-		canonical.UpdatedAt = now
-		game.SubmittedUIDs = appendUnique(game.SubmittedUIDs, actor.ID)
-		sort.Strings(game.SubmittedUIDs)
-		for index := range game.Players {
-			if game.Players[index].ID == playerID {
-				game.Players[index].NameLocked = true
+		if draft {
+			// A draft is not a sealing: saving one over sealed orders breaks
+			// the seal.
+			canonical.SubmittedUIDs = slices.DeleteFunc(canonical.SubmittedUIDs, func(uid string) bool { return uid == actor.ID })
+			game.SubmittedUIDs = slices.DeleteFunc(game.SubmittedUIDs, func(uid string) bool { return uid == actor.ID })
+			game.DraftUIDs = appendUnique(game.DraftUIDs, actor.ID)
+			sort.Strings(game.DraftUIDs)
+		} else {
+			canonical.SubmittedUIDs = appendUnique(canonical.SubmittedUIDs, actor.ID)
+			sort.Strings(canonical.SubmittedUIDs)
+			game.SubmittedUIDs = appendUnique(game.SubmittedUIDs, actor.ID)
+			sort.Strings(game.SubmittedUIDs)
+			game.DraftUIDs = slices.DeleteFunc(game.DraftUIDs, func(uid string) bool { return uid == actor.ID })
+			for index := range game.Players {
+				if game.Players[index].ID == playerID {
+					game.Players[index].NameLocked = true
+				}
 			}
 		}
+		canonical.Revision++
+		canonical.UpdatedAt = now
 		game.Revision = canonical.Revision
 		game.UpdatedAt = now
 		if err := transaction.Set(canonicalRef(s.client, id), canonical); err != nil {

@@ -17,20 +17,34 @@ describe('SubmissionDots', () => {
   it('renders one dot per player with an accessible status label', () => {
     render(<SubmissionDots players={players} />)
 
-    expect(screen.getByLabelText('One · Submitted')).toBeInTheDocument()
-    expect(screen.getByLabelText('Two · Waiting')).toBeInTheDocument()
+    expect(screen.getByLabelText('One · Sealed')).toBeInTheDocument()
+    expect(screen.getByLabelText('Two · Pending')).toBeInTheDocument()
     expect(
-      screen.getByRole('group', { name: 'Order submission status' }),
+      screen.getByRole('group', { name: 'Orders status' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows a sketch as half-filled, between pending and sealed', () => {
+    render(
+      <SubmissionDots
+        players={[
+          { id: 'P1', name: 'One', color: '#a84632', submitted: false, ordersStatus: 'draft' },
+        ]}
+      />,
+    )
+
+    const sketched = screen.getByLabelText('One · Sketched')
+    expect(sketched.className).toContain('border-dotted')
+    expect(sketched.getAttribute('style')).toContain('linear-gradient')
   })
 
   it('marks the submitted dot with the player color and the waiting dot as hollow', () => {
     render(<SubmissionDots players={players} />)
 
-    const submitted = screen.getByLabelText('One · Submitted')
+    const submitted = screen.getByLabelText('One · Sealed')
     expect(submitted).toHaveStyle({ backgroundColor: '#a84632' })
 
-    const waiting = screen.getByLabelText('Two · Waiting')
+    const waiting = screen.getByLabelText('Two · Pending')
     expect(waiting).toHaveStyle({ borderColor: '#2d5f9e' })
     expect(waiting.className).toContain('border-dashed')
   })
@@ -38,11 +52,11 @@ describe('SubmissionDots', () => {
   it('marks a player not required this turn as such instead of waiting', () => {
     render(<SubmissionDots players={playersWithNotRequired} />)
 
-    const notRequired = screen.getByLabelText('Three · Nothing to submit')
+    const notRequired = screen.getByLabelText('Three · Nothing to seal')
     expect(notRequired).toBeInTheDocument()
     expect(notRequired.className).toContain('opacity-40')
     expect(notRequired.className).not.toContain('border-dashed')
-    expect(screen.queryByLabelText('Three · Waiting')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Three · Pending')).not.toBeInTheDocument()
   })
 
   it('renders nothing without players', () => {

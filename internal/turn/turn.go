@@ -176,3 +176,24 @@ func CloneOrders(input engine.OrdersInput) engine.OrdersInput {
 		Special: append([]engine.DeckSubmission(nil), input.Special...),
 	}
 }
+
+// SealDrafts returns the submissions the resolution reads once the drafts are
+// sealed: the sealed orders plus every draft that passes ValidateSubmission.
+// An invalid draft is ignored, so its house plays with no orders; a house that
+// already sealed orders keeps them. Neither input map is modified.
+func SealDrafts(state *models.GameState, balance assetgen.Balance, submissions, drafts map[models.PlayerID]engine.OrdersInput) map[models.PlayerID]engine.OrdersInput {
+	sealed := make(map[models.PlayerID]engine.OrdersInput, len(submissions)+len(drafts))
+	for playerID, input := range submissions {
+		sealed[playerID] = input
+	}
+	for playerID, input := range drafts {
+		if _, ok := sealed[playerID]; ok {
+			continue
+		}
+		if ValidateSubmission(state, balance, input) != nil {
+			continue
+		}
+		sealed[playerID] = input
+	}
+	return sealed
+}

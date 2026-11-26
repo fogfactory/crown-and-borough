@@ -54,6 +54,29 @@ shows the historical year `1000 + year`.
    and famine;
 5. everyone receives their turn report.
 
+**Your house's orders** have three states, visible to every player, house by
+house:
+
+| State | Meaning |
+|---|---|
+| **Pending** | you have recorded and sealed nothing this turn |
+| **Sketched** | a sketch is saved on the server; you find it again after a refresh or from another device |
+| **Sealed** | your orders are sealed: only sealed orders are read by the resolution and count to say your house has played |
+
+- **Save the sketch** keeps your orders as they are, even incomplete or
+  invalid, without checking anything. Nothing is saved automatically.
+- **Seal the orders** checks them: an error gets them refused whole (see
+  below). You can seal again over orders that are already sealed.
+- **Break the seal** turns your sealed orders back into an intact sketch
+  until the turn is resolved: the resolution does not read them until you seal
+  them again.
+- Only you read the content of your sketch; the other players see only the
+  state of your house.
+- When the turn is resolved, unsealed sketches are discarded. If the host
+  triggers the resolution before everyone has sealed, they seal your sketch for
+  you if it is valid; an invalid sketch is discarded and your house plays with
+  no orders this turn.
+
 **Winter** is a truce: no chains, no moves, no combat. You invest, and
 manage your nobles and titles (section 5).
 
@@ -87,9 +110,9 @@ for you: you only write the order lines, one per line, in the form
   same army in the same season, neither chain is received.
 - **Without a chain, the army has "No Orders".** It stays put and defends
   normally.
-- **Errors are refused up front.** A faulty submission (syntax, territories
-  that are not adjacent, and so on) is rejected whole, with the line to fix.
-  The interface flags these while you type.
+- **Errors are refused up front.** Faulty orders (syntax, territories
+  that are not adjacent, and so on) cannot be sealed: they are rejected whole,
+  with the line to fix. The interface flags these while you type.
 - **Warnings block nothing.** The interface also flags an accepted order that
   will not run as written: a starving army that attacks, supports or
   transfers, a pillage with nothing to pillage, a transfer without a
@@ -717,8 +740,8 @@ It exists in online games only: it is absent in hotseat.
 - **Limits.** A message holds 500 characters at most, and you can send one per
   second. A longer text, up to 4,000 characters, is split and sent piece by
   piece; you can cancel it while it is being sent.
-- **Independent of orders.** Sending a message submits nothing and does not
-  change your submission: your orders remain to be submitted separately.
+- **Independent of orders.** Sending a message seals nothing and does not
+  change the state of your orders: your orders remain to be sealed separately.
 - **Email notifications.** In your profile, you can ask for an email at every
   new turn, for private messages and for the public room. These emails never
   contain the message: they point you to the game, and only one is sent per
@@ -744,7 +767,7 @@ creator has confirmed.
   starts. If the creator imposes a seed, there is no vote.
 - **Before you join.** On the invitation screen you see the candidate maps and can already rank them and choose the name of your house: these choices count even if you are the last to arrive. You do not vote if you leave the maps in the order shown.
 - **Your house name.** You choose the family name of your house in the lobby.
-  It is free until your house submits its first orders in the game, including
+  It is free until your house seals its first orders in the game, including
   after the game has started, then it is locked. Without a chosen name, your
   house takes the name of your profile (or its placeholder name `P1`, `P2`,
   and so on in an incognito game). It must differ from every other house's

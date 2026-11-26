@@ -48,10 +48,10 @@ function renderOrdersPanel(
         player="P1"
         winterDraft=""
         specialDraft={specialDraft}
-        submitted={false}
-        submitting={false}
+        status="pending"
+        submitting={null}
         error={null}
-        onSubmit={vi.fn()}
+        onSeal={vi.fn()}
       />
     </LanguageProvider>,
   )
@@ -461,7 +461,7 @@ describe('OrdersPanel seasonal presentation', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Brouillon différent du serveur')).toBeInTheDocument()
+    expect(screen.getByText('Différent de la version du serveur')).toBeInTheDocument()
     const restoreBtn = screen.getByRole('button', { name: 'Restaurer depuis le serveur' })
     expect(restoreBtn).toBeInTheDocument()
     fireEvent.click(restoreBtn)
@@ -501,7 +501,7 @@ describe('OrdersPanel seasonal presentation', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Local draft differs from server')).toBeInTheDocument()
+    expect(screen.getByText('Differs from the server version')).toBeInTheDocument()
     const restoreBtn = screen.getByRole('button', { name: 'Restore from server' })
     expect(restoreBtn).toBeInTheDocument()
     fireEvent.click(restoreBtn)
@@ -539,7 +539,7 @@ describe('OrdersPanel seasonal presentation', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.queryByText('Brouillon différent du serveur')).not.toBeInTheDocument()
+    expect(screen.queryByText('Différent de la version du serveur')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Restaurer depuis le serveur' }),
     ).not.toBeInTheDocument()

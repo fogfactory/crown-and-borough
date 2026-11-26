@@ -6,12 +6,15 @@ import {
 } from '@/components/ui/tooltip'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { cn } from '@/lib/utils'
+import type { OrdersStatus } from '@/types'
 
 export interface SubmissionDotPlayer {
   id: string
   name: string
   color: string
   submitted: boolean
+  /** Public orders status; a draft (sketch) shows as half-filled. Derived from `submitted` when absent. */
+  ordersStatus?: OrdersStatus
   /** Whether the current turn is still awaiting this player. Defaults to
    * true: a caller that hasn't fetched this yet should still show a player
    * as waiting rather than falsely as having nothing to submit. */
@@ -19,25 +22,27 @@ export interface SubmissionDotPlayer {
   isYou?: boolean
 }
 
-type DotStatus = 'submitted' | 'waiting' | 'notRequired'
+type DotStatus = 'submitted' | 'sketched' | 'waiting' | 'notRequired'
 
 function statusOf(player: SubmissionDotPlayer): DotStatus {
-  if (player.submitted) return 'submitted'
+  if (player.submitted || player.ordersStatus === 'submitted') return 'submitted'
+  if (player.ordersStatus === 'draft') return 'sketched'
   return (player.required ?? true) ? 'waiting' : 'notRequired'
 }
 
 const STATUS_LABEL_KEY: Record<
   DotStatus,
-  'online.submitted' | 'online.waiting' | 'online.notRequired'
+  'online.submitted' | 'online.sketched' | 'online.waiting' | 'online.notRequired'
 > = {
   submitted: 'online.submitted',
+  sketched: 'online.sketched',
   waiting: 'online.waiting',
   notRequired: 'online.notRequired',
 }
 
 /**
- * Compact per-player order submission status: one dot per player, filled
- * when the player submitted, hollow while the turn still waits for them, and
+ * Compact per-player orders status: one dot per player, filled when the
+ * orders are sealed, half-filled for a sketch, hollow while the turn still waits for them, and
  * muted when they have nothing to submit this turn (eliminated, no free or
  * hostage noble, no playable card outside winter).
  */
@@ -66,15 +71,21 @@ export function SubmissionDots({ players }: { players: SubmissionDotPlayer[] }) 
                   className={cn(
                     'size-2.5 rounded-full border',
                     status === 'submitted' && 'border-ink-900/30',
+                    status === 'sketched' && 'border-dotted',
                     status === 'waiting' && 'border-dashed opacity-80',
                     status === 'notRequired' && 'border-ink-500/30 opacity-40',
                   )}
                   style={
                     status === 'submitted'
                       ? { backgroundColor: player.color }
-                      : status === 'waiting'
-                        ? { borderColor: player.color }
-                        : undefined
+                      : status === 'sketched'
+                        ? {
+                            borderColor: player.color,
+                            background: `linear-gradient(90deg, ${player.color} 50%, transparent 50%)`,
+                          }
+                        : status === 'waiting'
+                          ? { borderColor: player.color }
+                          : undefined
                   }
                 />
               </TooltipTrigger>
