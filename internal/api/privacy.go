@@ -188,21 +188,28 @@ func reconcileChainKnowledge(state *models.GameState) {
 		return
 	}
 	armies := make(map[models.ArmyID]models.Army, len(state.Armies))
-	activeChains := make(map[models.ChainID]bool, len(state.Chains))
+	activeChains := make(map[models.ChainID]models.Chain, len(state.Chains))
 	for _, army := range state.Armies {
 		armies[army.ID] = army
 	}
 	for _, chain := range state.Chains {
-		activeChains[chain.ID] = true
+		activeChains[chain.ID] = chain
 	}
 	for viewer, snapshots := range state.Privacy.ChainKnowledge {
 		for chainID, snapshot := range snapshots {
+			// A chain keeps its identity when a maneuver carries it to another
+			// army: follow it, or the snapshot would point at a vanished army and
+			// be dropped, hiding the chain even from its own house.
+			if chain, active := activeChains[snapshot.ID]; active && chain.ArmyID != snapshot.ArmyID {
+				snapshot.ArmyID = chain.ArmyID
+				snapshots[chainID] = snapshot
+			}
 			army, exists := armies[snapshot.ArmyID]
 			if !exists {
 				delete(snapshots, chainID)
 				continue
 			}
-			if activeChains[snapshot.ID] || army.OwnerID == viewer {
+			if _, active := activeChains[snapshot.ID]; active || army.OwnerID == viewer {
 				continue
 			}
 			if !trajectoryContains(snapshot, army.TerritoryID) {
