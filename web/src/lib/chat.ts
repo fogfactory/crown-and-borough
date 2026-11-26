@@ -373,13 +373,46 @@ export function unreadByAuthor(
   return counts
 }
 
+/** What a channel asks of the reader, from their house's point of view. */
+export type ChannelStatus = 'unread' | 'unanswered' | 'answered'
+
 /**
- * The channel to show when the chat opens: the only channel (public room
- * included) with unread messages, otherwise the public room.
+ * State of a channel for `ownHouse`: `unread` when another house wrote after
+ * `lastReadAt`; else `unanswered` when the last message (system events
+ * aside) comes from another house, is newer than `acknowledgedAt` and has no
+ * reply of the own house after it; else `answered` (own last message, empty
+ * channel, or acknowledged).
  */
-export function initialChannel(channelUnread: Record<string, number>): string {
+export function channelStatus(
+  messages: readonly ChatMessage[],
+  cursor: { lastReadAt?: string; acknowledgedAt?: string },
+  ownHouse: PlayerId | null,
+): ChannelStatus {
+  if (unreadCount(messages, cursor.lastReadAt, ownHouse) > 0) return 'unread'
+  let last: ChatMessage | undefined
+  for (const message of messages) {
+    if (message.kind) continue
+    if (!last || compareMessages(last, message) < 0) last = message
+  }
+  if (!last || last.authorHouseId === ownHouse) return 'answered'
+  if (cursor.acknowledgedAt && last.createdAt <= cursor.acknowledgedAt) return 'answered'
+  return 'unanswered'
+}
+
+/**
+ * The channel to show when the chat opens. Channels with unread messages come
+ * first, then unanswered ones; at the first non-empty level, the only channel
+ * (public room included) is chosen, else the public room.
+ */
+export function initialChannel(
+  channelUnread: Record<string, number>,
+  unanswered: readonly string[] = [],
+): string {
   const withUnread = Object.entries(channelUnread).filter(([, count]) => count > 0)
-  return withUnread.length === 1 ? withUnread[0][0] : PUBLIC_CHANNEL
+  if (withUnread.length > 0) {
+    return withUnread.length === 1 ? withUnread[0][0] : PUBLIC_CHANNEL
+  }
+  return unanswered.length === 1 ? unanswered[0] : PUBLIC_CHANNEL
 }
 
 export function totalUnread(counts: Record<string, number>): number {

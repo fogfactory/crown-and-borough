@@ -105,7 +105,10 @@ suite('Firestore security rules', () => {
         turn: 1,
       })
       await setDoc(doc(db, 'games/game-1/canonical/current'), { state: {} })
-      await setDoc(doc(db, 'games/game-1/lobby/bob'), { uid: 'bob', seedRanking: [1, 0, 2] })
+      await setDoc(doc(db, 'games/game-1/lobby/bob'), {
+        uid: 'bob',
+        seedRanking: [1, 0, 2],
+      })
       await setDoc(doc(db, 'games/game-1/turns/1/submissions/alice'), { uid: 'alice' })
       await setDoc(doc(db, 'games/game-1/reports/1'), { turn: 1 })
       await setDoc(doc(db, 'invitations/hash'), { gameId: 'game-1' })
@@ -265,6 +268,11 @@ suite('Firestore security rules', () => {
     )
     await assertFails(
       setDoc(doc(alice, 'games/game-1/chat_reads/alice'), { channels: {} }),
+    )
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/chat_reads/alice'), {
+        acknowledged: { public: new Date() },
+      }),
     )
     await assertFails(getDoc(doc(alice, 'games/game-1/chat_state/alice')))
     await assertFails(

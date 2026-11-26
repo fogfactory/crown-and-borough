@@ -97,7 +97,27 @@ voit sont lues sans filtre, et ne chargent que leur dernier message tant
 qu'elles ne sont pas ouvertes. « Charger les messages plus anciens » lit la
 page suivante après le plus ancien message reçu, par curseur de document.
 
-### Non-lus
+### Non-lus, non répondus, lus
+
+Chaque canal (salon public compris) est dans l'un de trois états, du point de
+vue de la maison du joueur :
+
+| État | Définition |
+|---|---|
+| Non lu | au moins un message d'une autre maison postérieur à `lastReadAt` |
+| Non répondu | tout est lu, mais le dernier message du canal vient d'une autre maison, postérieur à `acknowledgedAt`, et la maison du joueur n'a rien écrit depuis |
+| Lu (et répondu) | le dernier message est de la maison du joueur, ou le canal est vide, ou le marqueur « non répondu » a été acquitté |
+
+Les messages système (`kind: house_renamed`) sont ignorés pour déterminer le
+dernier message. L'élimination d'une maison n'entre pas en compte. Le bouton
+« Pris en compte » (« Acknowledged »), visible seulement dans l'état non
+répondu, retire le marqueur sans répondre par
+`POST /api/games/{id}/messages/acknowledge` (qui avance `acknowledgedAt`, jamais
+en arrière) ; un nouveau message d'une autre maison rend le canal non lu, puis
+non répondu. Répondre retire le marqueur sans autre action. Le non-répondu
+porte un indicateur distinct de la pastille de non-lu, dans le sélecteur de
+canal et sur son déclencheur (pour les autres canaux) ; il ne compte pas dans
+la pastille de l'onglet.
 
 Le nombre de non-lus d'un canal est celui des messages d'autres maisons
 postérieurs à `lastReadAt` (tous, si le canal n'a jamais été lu). Sur l'onglet,
@@ -105,9 +125,10 @@ une pastille affiche la somme. Dans le sélecteur de canal, chaque entrée avec
 du non-lu porte une pastille par maison auteure, à la couleur de cette maison ;
 le déclencheur du sélecteur affiche de même le non-lu des autres canaux.
 À la première ouverture du panneau, une fois le salon public et les
-conversations de la maison chargés, le seul canal (salon public compris) avec
-du non-lu est ouvert directement ; sinon (aucun ou plusieurs) le salon public
-l'est. Ce choix n'est fait qu'une fois, et un canal choisi par le joueur
+conversations de la maison chargés, l'ordre de priorité est : d'abord les
+canaux non lus, puis les canaux non répondus. Au premier niveau non vide, le
+seul canal concerné (salon public compris) est ouvert directement ; s'il y en a
+plusieurs, ou aucun à aucun niveau, le salon public l'est. Ce choix n'est fait qu'une fois, et un canal choisi par le joueur
 entre-temps est conservé ; aucun curseur n'avance avant ce choix. Un canal
 ouvert dans un panneau visible compte pour zéro ; son curseur avance par
 `POST /api/games/{id}/messages/read` dès que des messages d'autres maisons

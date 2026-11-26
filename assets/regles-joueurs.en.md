@@ -702,9 +702,14 @@ It exists in online games only: it is absent in hotseat.
   and you can load older ones. In the channel list, each channel with unread
   messages carries a badge in the colours of the house that wrote them, one
   per house when they come from several; the channel on display also signals
-  the unread messages of the other channels. When you open the chat, if only
-  one channel (the public room included) holds unread messages, it is shown
-  straight away; otherwise the public room is. Separators ("Spring 1011") mark
+  the unread messages of the other channels. A channel whose last message
+  comes from another house, with no reply from yours, is marked "awaiting your
+  reply" with a distinct indicator; the "Acknowledged" button removes that
+  marker without replying, and a new message from another house brings it
+  back. When you open the chat, unread channels come first, then channels
+  awaiting your reply: if only one channel (the public room included) is
+  concerned at the first non-empty level, it is shown straight away; otherwise
+  the public room is. Separators ("Spring 1011") mark
   the turns.
 - **Limits.** A message holds 500 characters at most, and you can send one per
   second. A longer text, up to 4,000 characters, is split and sent piece by
