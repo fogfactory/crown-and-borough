@@ -805,7 +805,7 @@ func (s *FirestoreStore) resolveInternal(ctx context.Context, actor store.Actor,
 		return store.SubmitResult{}, err
 	}
 	report := resolution.Report
-	if err := s.commitResolution(operationContext, claim, snapshot, report); err != nil {
+	if err := s.commitResolution(operationContext, claim, snapshot, report, sealed); err != nil {
 		// Without a release the game would stay locked, every order and
 		// resolution answering a revision conflict, until the lease expires.
 		s.releaseFailedResolution(ctx, id, claim.Claim)
@@ -902,7 +902,7 @@ func (s *FirestoreStore) claimResolution(ctx context.Context, actor store.Actor,
 	return result, nil
 }
 
-func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionClaimResult, snapshot store.GameSnapshot, report engine.TurnReport) error {
+func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionClaimResult, snapshot store.GameSnapshot, report engine.TurnReport, sealed map[models.PlayerID]engine.OrdersInput) error {
 	gameRefValue := gameRef(s.client, snapshot.ID)
 	canonicalRefValue := canonicalRef(s.client, snapshot.ID)
 	s.recordTransaction()
@@ -974,6 +974,12 @@ func (s *FirestoreStore) commitResolution(ctx context.Context, claim resolutionC
 		game.Revision = canonical.Revision
 		game.SubmittedUIDs = []string{}
 		game.DraftUIDs = nil
+		// Sealing, by the house or by the host's resolution, locks the house name.
+		for index := range game.Players {
+			if _, ok := sealed[models.PlayerID(game.Players[index].ID)]; ok {
+				game.Players[index].NameLocked = true
+			}
+		}
 		game.RequiredUIDs = sortedRequiredUIDs(report.State, playerSlots(game.Players))
 		game.UpdatedAt = updatedAt
 		game.Status, game.WinnerUID = statusForState(report.State, s.balance)

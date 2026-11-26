@@ -1591,7 +1591,7 @@ const englishMessages = {
 
   'online.houseName': 'Your house name',
   'online.houseNameNote':
-    'You can change this name until you seal your first orders in this game, then it is locked. Everyone in the game sees it; a change made once the game has started is announced in the public chat.',
+    'You can change this name until you seal your first orders in this game, then it is locked (breaking the seal during the first turn unlocks it). Everyone in the game sees it; a change made once the game has started is announced in the public chat.',
   'online.houseNameSave': 'Rename',
   'online.houseNameSaving': 'Renaming…',
   'online.submitted': 'Sealed',
@@ -3421,7 +3421,7 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'lobby.fixedSeed': 'La graine de cette partie a été choisie par son créateur.',
   'online.houseName': 'Nom de votre maison',
   'online.houseNameNote':
-    'Vous pouvez changer ce nom jusqu’à votre premier scellement d’ordres dans cette partie, puis il est verrouillé. Tous les joueurs de la partie le voient ; un changement fait une fois la partie lancée est annoncé dans le chat public.',
+    'Vous pouvez changer ce nom jusqu’à votre premier scellement d’ordres dans cette partie, puis il est verrouillé (rompre le sceau pendant le premier tour le déverrouille). Tous les joueurs de la partie le voient ; un changement fait une fois la partie lancée est annoncé dans le chat public.',
   'online.houseNameSave': 'Renommer',
   'online.houseNameSaving': 'Changement…',
   'online.submitted': 'Scellé',

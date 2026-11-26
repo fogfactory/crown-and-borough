@@ -717,3 +717,36 @@ func TestMemoryStoreDraftsAreNotSubmissions(t *testing.T) {
 		t.Fatalf("draft survived the turn: %#v", sub)
 	}
 }
+
+func TestMemoryStoreHostResolveLocksTheNamesOfDraftHouses(t *testing.T) {
+	ctx := context.Background()
+	gameStore := newTestStore(t)
+	created, err := gameStore.Create(ctx, Actor{ID: "P1"}, CreateRequest{
+		Seed:    "draft-name-lock",
+		Players: []engine.PlayerInit{{Name: "One"}, {Name: "Two"}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	draft, err := gameStore.Submit(ctx, Actor{ID: "P1"}, created.ID, SubmitRequest{Status: OrdersDraft})
+	if err != nil {
+		t.Fatalf("draft: %v", err)
+	}
+	for _, slot := range draft.Snapshot.Players {
+		if slot.NameLocked {
+			t.Fatalf("a draft locked the name of %s", slot.ID)
+		}
+	}
+	resolved, err := gameStore.Resolve(ctx, Actor{ID: "P1"}, created.ID)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	for _, slot := range resolved.Snapshot.Players {
+		if slot.ID == "P1" && !slot.NameLocked {
+			t.Fatal("the house sealed by the host's resolution must have its name locked")
+		}
+		if slot.ID == "P2" && slot.NameLocked {
+			t.Fatal("a house that sent nothing must not have its name locked")
+		}
+	}
+}

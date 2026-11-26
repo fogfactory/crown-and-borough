@@ -1088,6 +1088,12 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, actor Actor, playerID mode
 		incognito:        game.incognito,
 		joinedAt:         cloneJoinedAt(game.joinedAt),
 	}
+	// Sealing, by the house or by the host's resolution, locks the house name.
+	for playerID := range sealed {
+		if slot := slotIndex(nextGame.players, playerID); slot >= 0 {
+			nextGame.players[slot].NameLocked = true
+		}
+	}
 	nextGame.updateStatusLocked(s.balance)
 	snapshot, err := s.snapshotLocked(nextGame, actor)
 	if err != nil {
@@ -1097,6 +1103,7 @@ func (s *MemoryStore) resolveLocked(game *memoryGame, actor Actor, playerID mode
 	game.reports = nextReports
 	game.submissions = nextGame.submissions
 	game.drafts = nil
+	game.players = nextGame.players
 	game.revision = nextGame.revision
 	game.status = nextGame.status
 	game.winner = nextGame.winner
