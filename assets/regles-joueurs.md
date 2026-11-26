@@ -1020,7 +1020,10 @@ ordres dans l'ordre de ta feuille.
 - La case d'où vient l'attaquant est toujours exclue. Un château ancré, à
   n'importe quel joueur, bloque une retraite ; un château inerte ne la bloque
   pas.
-- Deux armées sans autre issue que la même case vide sont détruites.
+- Deux armées sans autre issue que la même case vide sont détruites si elles
+  n'ont pas le même propriétaire. Sinon, la première (case d'origine au
+  trigramme le plus petit) occupe la case et les autres la fusionnent, avec la
+  règle de fusion amie : `N − 1` troupes (ou 1 si `N = 1`).
 
 ### Ravitaillement
 

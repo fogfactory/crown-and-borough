@@ -33,6 +33,9 @@ type retreatPlan struct {
 	hostArmyID      models.ArmyID
 	destinationKind string
 	destroyReason   string
+	// mergedInto is set when the plan joins another army of the same owner
+	// that retreats to the same empty territory.
+	mergedInto *retreatPlan
 }
 
 func executeMovementsAndRetreats(ctx *resolutionContext) error {
@@ -1544,6 +1547,15 @@ func (ctx *resolutionContext) sortFriendlyHosts(owner models.PlayerID, hostIDs [
 	})
 }
 
+// friendlyMergeTroops is what an army of size n adds to a friendly army it
+// merges into: n − 1 troops (one is lost), or 1 when n is 1.
+func friendlyMergeTroops(n int) (merged, lost int) {
+	if n > 1 {
+		return n - 1, 1
+	}
+	return 1, 0
+}
+
 func executeRetreats(ctx *resolutionContext) error {
 	type dislodgedEntry struct {
 		armyID   models.ArmyID
@@ -1619,11 +1631,32 @@ func executeRetreats(ctx *resolutionContext) error {
 	}
 
 	for _, territoryID := range sortedTerritoryMap(claims) {
-		if len(claims[territoryID]) < 2 {
+		group := claims[territoryID]
+		if len(group) < 2 {
 			continue
 		}
-		for _, plan := range claims[territoryID] {
-			plan.destroyReason = "retreat_collision"
+		sameOwner := true
+		for _, plan := range group[1:] {
+			if plan.dislodged.army.OwnerID != group[0].dislodged.army.OwnerID {
+				sameOwner = false
+				break
+			}
+		}
+		if !sameOwner {
+			for _, plan := range group {
+				plan.destroyReason = "retreat_collision"
+			}
+			continue
+		}
+		// Same owner: the first army (ascending origin trigram) takes the
+		// territory and the others merge into it like into a friendly army.
+		host := group[0]
+		for _, plan := range group[1:] {
+			merged, _ := friendlyMergeTroops(plan.dislodged.army.Size)
+			host.dislodged.army.Size += merged
+			plan.mergedInto = host
+			plan.hostArmyID = host.dislodged.army.ID
+			plan.destinationKind = RetreatDestinationFriendlyArmy
 		}
 	}
 
@@ -1641,23 +1674,20 @@ func executeRetreats(ctx *resolutionContext) error {
 		displacedArmy := plan.dislodged.army
 
 		if plan.destinationKind == RetreatDestinationFriendlyArmy {
-			host := ctx.armiesByID[plan.hostArmyID]
-			if host == nil {
-				plan.destroyReason = "host_disappeared"
-				ctx.destroyDislodgedArmy(plan)
-				continue
+			hostID, hostTerritory := plan.hostArmyID, plan.destinationID
+			troopsMerged, troopsLost := friendlyMergeTroops(displacedArmy.Size)
+			if plan.mergedInto == nil {
+				host := ctx.armiesByID[plan.hostArmyID]
+				if host == nil {
+					plan.destroyReason = "host_disappeared"
+					ctx.destroyDislodgedArmy(plan)
+					continue
+				}
+				host.Size += troopsMerged
+				hostTerritory = host.TerritoryID
 			}
 
-			n := displacedArmy.Size
-			troopsMerged := 1
-			troopsLost := 0
-			if n > 1 {
-				troopsMerged = n - 1
-				troopsLost = 1
-			}
-			host.Size += troopsMerged
-
-			ctx.moveNobles(plan.dislodged.nobleIDs, host.TerritoryID, host.ID)
+			ctx.moveNobles(plan.dislodged.nobleIDs, hostTerritory, hostID)
 			if record := ctx.records[displacedArmy.ID]; record != nil {
 				record.fused = true
 			}
@@ -1666,10 +1696,10 @@ func executeRetreats(ctx *resolutionContext) error {
 				Phase:            4,
 				ArmyID:           displacedArmy.ID,
 				SourceID:         plan.dislodged.originID,
-				DestinationID:    host.TerritoryID,
+				DestinationID:    hostTerritory,
 				AttackerOriginID: plan.dislodged.attackerOriginID,
 				DestinationKind:  RetreatDestinationFriendlyArmy,
-				HostArmyID:       host.ID,
+				HostArmyID:       hostID,
 				TroopsMerged:     troopsMerged,
 				TroopsLost:       troopsLost,
 				Outcome:          OutcomeSuccess,
