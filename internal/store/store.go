@@ -102,13 +102,10 @@ type MembershipStore interface {
 const BugReportCollection = "bugReports"
 
 // BugReport is the private part of a player's bug report: their own game view,
-// kept out of the public GitHub issue, which only cites Ref.
+// kept out of the public GitHub issue, which only says where it lives.
 type BugReport struct {
-	// ID is human readable: <game>-t<turn>-<player>-<ref>.
-	ID string
-	// Ref is the opaque random suffix of ID, the only part the public issue
-	// shows (the rest names the game and the player).
-	Ref      string
+	// ID is human readable: <game>-t<turn>-<player>-issue-<number>.
+	ID       string
 	GameID   GameID
 	Turn     int
 	PlayerID models.PlayerID
@@ -125,8 +122,9 @@ type BugReport struct {
 type BugReportStore interface {
 	// CreateBugReport fails if the ID is taken; it never overwrites a report.
 	CreateBugReport(context.Context, BugReport) error
-	SetBugReportIssue(ctx context.Context, id, issueURL string) error
-	DeleteBugReport(ctx context.Context, id string) error
+	// DeleteBugReportsByIssue removes the reports linked to the issue URL;
+	// finding none is not an error.
+	DeleteBugReportsByIssue(ctx context.Context, issueURL string) error
 }
 
 type Status string

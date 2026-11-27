@@ -124,11 +124,13 @@ token or clear invitation code is stored by the backend.
 `POST /api/bugs` (authenticated, 256 KiB body limit, 3 reports per 10 minutes
 per player) creates a public GitHub issue from the in-game bug report dialog.
 The player's game view never goes to GitHub: it is stored in the private
-Firestore collection `bugReports` (in memory without Firestore), under a
-readable ID such as `partie-du-mardi-t12-heloise-3f9a2c41b07e`
-(`<game>-t<turn>-<player>-<ref>`). The public issue only cites the random
-`ref`, since the full ID names the game and the player; find the report in
-the console by filtering on `ref` or `issueUrl`.
+Firestore collection `bugReports` (in memory without Firestore), in a
+document with a readable ID ending in the issue's number, such as
+`partie-du-mardi-t12-heloise-issue-42` for issue #42, whose `issueUrl` field
+links back to the issue. The report is deleted when the issue is closed:
+GitHub calls `POST /api/github/webhook` (HMAC-signed with
+`GITHUB_BUG_WEBHOOK_SECRET`; the route is off without it). The public issue
+never names the game or the player.
 It authenticates as a GitHub App installed on `fogfactory/crown-and-borough`
 with the *Issues: read and write* permission: set `GITHUB_BUG_APP_ID`,
 `GITHUB_BUG_APP_INSTALLATION_ID` and `GITHUB_BUG_APP_PRIVATE_KEY` (the PEM

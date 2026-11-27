@@ -592,9 +592,11 @@ gh variable set PUBLIC_HOSTING_URL --repo "$GITHUB_REPOSITORY" --body "https://c
 
 The player's game view attached to a report is stored in the Firestore
 collection `bugReports` (backend-only, denied to clients by `firestore.rules`),
-never on GitHub: the issue only cites the report's random `ref`. Filter the
-collection on `ref` or `issueUrl` to find it; reports are plain documents that
-can be deleted from the console once triaged.
+never on GitHub: the document has a readable ID ending in the issue's
+number (`partie-du-mardi-t12-heloise-issue-42` for issue #42) and its
+`issueUrl` field links back to the issue. The report is deleted when the issue
+is closed (see the webhook below); it can also be deleted from the console at
+any time.
 
 The in-game bug report dialog files public issues through `POST /api/bugs`,
 as a GitHub App installed on this repository with the single permission
@@ -623,6 +625,30 @@ path keeps working). Rotate the key by generating a new one on the App page and
 adding a version of the secret (`gcloud secrets versions add`), then redeploy.
 Locally, set the three `GITHUB_BUG_APP_*` variables, or `GITHUB_BUG_TOKEN` with
 a personal fine-grained token, in the shell that starts the server.
+
+#### Purge of the reports
+
+Closing a bug issue deletes its private report (the `bugReports` document
+whose `issueUrl` is the issue). GitHub tells the server through the App's
+webhook, which `POST`s every issue event to `/api/github/webhook`; the server
+checks the HMAC-SHA256 signature with a shared secret and only acts on `closed`
+events of this repository. Without `GITHUB_BUG_WEBHOOK_SECRET` the route does
+not exist and reports are kept.
+
+```bash
+# A random shared secret, kept in Secret Manager like the private key.
+openssl rand -hex 32 | gcloud secrets create github-bug-webhook-secret --project "$PROJECT_ID" --data-file=-
+gcloud secrets add-iam-policy-binding github-bug-webhook-secret --project "$PROJECT_ID" \
+  --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor
+gh variable set GCP_BUG_WEBHOOK_SECRET --repo "$GITHUB_REPOSITORY" --body github-bug-webhook-secret
+```
+
+Then, in the GitHub App settings: turn **Active** on under *Webhook*, set the
+URL to `https://<application domain>/api/github/webhook`, paste the same secret
+(`gcloud secrets versions access latest --secret github-bug-webhook-secret`),
+and under *Subscribe to events* tick **Issues** (this needs no extra
+permission: *Issues: read and write* already covers it). The delivery history
+of the App shows each call; a failed one can be redelivered.
 
 ### Email notifications
 

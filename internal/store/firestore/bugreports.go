@@ -2,9 +2,11 @@ package firestorestore
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	cloudfirestore "cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
 
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
@@ -12,16 +14,15 @@ import (
 
 var _ store.BugReportStore = (*FirestoreStore)(nil)
 
-// bugReportDocument is stored under its readable ID; Ref repeats the random
-// suffix as a field because the console filters on fields, not ID suffixes.
+// bugReportDocument is stored under its readable ID; IssueURL links it back to
+// the issue and is what the webhook finds it by when the issue is closed.
 type bugReportDocument struct {
-	Ref      string          `firestore:"ref"`
 	GameID   store.GameID    `firestore:"gameId"`
 	Turn     int             `firestore:"turn"`
 	PlayerID models.PlayerID `firestore:"playerId"`
 	UID      string          `firestore:"uid"`
 	Title    string          `firestore:"title"`
-	IssueURL string          `firestore:"issueUrl,omitempty"`
+	IssueURL string          `firestore:"issueUrl"`
 	// GameViewJSON is stored as a string, like mapJson, so it keeps the exact
 	// shape of GET /api/games/{id}/state.
 	GameViewJSON string    `firestore:"gameViewJson"`
@@ -42,7 +43,6 @@ func (s *FirestoreStore) CreateBugReport(ctx context.Context, report store.BugRe
 	defer cancel()
 	// Create, not Set: an ID collision must never overwrite another report.
 	_, err := s.bugReportRef(report.ID).Create(operationContext, bugReportDocument{
-		Ref:          report.Ref,
 		GameID:       report.GameID,
 		Turn:         report.Turn,
 		PlayerID:     report.PlayerID,
@@ -56,24 +56,26 @@ func (s *FirestoreStore) CreateBugReport(ctx context.Context, report store.BugRe
 	return wrapOperation("create bug report", err)
 }
 
-func (s *FirestoreStore) SetBugReportIssue(ctx context.Context, id, issueURL string) error {
+func (s *FirestoreStore) DeleteBugReportsByIssue(ctx context.Context, issueURL string) error {
 	if err := s.requireClient(); err != nil {
 		return err
 	}
 	operationContext, cancel := s.operationContext(ctx)
 	defer cancel()
-	_, err := s.bugReportRef(id).Update(operationContext, []cloudfirestore.Update{{Path: "issueUrl", Value: issueURL}})
-	s.recordWrites(1)
-	return wrapOperation("set bug report issue", err)
-}
-
-func (s *FirestoreStore) DeleteBugReport(ctx context.Context, id string) error {
-	if err := s.requireClient(); err != nil {
-		return err
+	iter := s.client.Collection(store.BugReportCollection).Where("issueUrl", "==", issueURL).Documents(operationContext)
+	defer iter.Stop()
+	for {
+		snapshot, err := iter.Next()
+		if errors.Is(err, iterator.Done) {
+			return nil
+		}
+		if err != nil {
+			return wrapOperation("find bug reports", err)
+		}
+		_, err = snapshot.Ref.Delete(operationContext)
+		s.recordWrites(1)
+		if err != nil {
+			return wrapOperation("delete bug report", err)
+		}
 	}
-	operationContext, cancel := s.operationContext(ctx)
-	defer cancel()
-	_, err := s.bugReportRef(id).Delete(operationContext)
-	s.recordWrites(1)
-	return wrapOperation("delete bug report", err)
 }

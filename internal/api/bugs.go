@@ -3,7 +3,6 @@ package api
 import (
 	"bytes"
 	"context"
-	cryptorand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -128,8 +128,8 @@ type BugHandlerOptions struct {
 	Actor  ActorResolver
 	Issues IssueCreator    // nil disables the route
 	State  PlayerStateFunc // nil attaches no game projection
-	// Reports keeps the game view privately; the public issue only cites the
-	// report ref. Nil keeps reports in process memory.
+	// Reports keeps the game view privately; the public issue only says where
+	// it lives. Nil keeps reports in process memory.
 	Reports store.BugReportStore
 	Now     func() time.Time
 }
@@ -227,35 +227,54 @@ func (h *BugsHandler) create(w http.ResponseWriter, r *http.Request, actor store
 		return
 	}
 	title = redactSecrets(title)
-	report, gameNote := h.saveGameView(r.Context(), actor, store.GameID(strings.TrimSpace(body.GameID)), title)
+	report, gameNote := h.prepareGameView(r.Context(), actor, store.GameID(strings.TrimSpace(body.GameID)), title)
 	issueURL, err := h.issues.CreateIssue(r.Context(), title, buildBugBody(description, body.Context, gameNote), []string{"bug"})
 	if err != nil {
-		// Nothing was filed: drop the private report and give the slot back, so
-		// an outage neither locks players out nor piles up orphan reports.
-		if report != nil {
-			if err := h.reports.DeleteBugReport(context.WithoutCancel(r.Context()), report.ID); err != nil {
-				log.Printf("bug report %s: could not delete the orphan report: %v", report.ID, err)
-			}
-		}
+		// Nothing was filed, and nothing was stored yet: just give the slot
+		// back, so an outage does not lock players out.
 		h.release(actor.ID, at)
 		writeAPIError(w, http.StatusBadGateway, "bug_report_failed", "the issue could not be created")
 		return
 	}
 	if report != nil {
-		// Link the private report back to its issue; it stays usable without.
-		if err := h.reports.SetBugReportIssue(context.WithoutCancel(r.Context()), report.ID, issueURL); err != nil {
-			log.Printf("bug report %s: could not record the issue url: %v", report.ID, err)
-		}
+		h.storeGameView(context.WithoutCancel(r.Context()), report, issueURL)
 	}
 	writeJSON(w, http.StatusCreated, struct {
 		URL string `json:"url"`
 	}{URL: issueURL})
 }
 
-// saveGameView stores the player's own projection of the game in the private
-// bug report store and returns the line the public issue shows in its place.
-// The title is already redacted.
-func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameID store.GameID, title string) (*store.BugReport, string) {
+// storeGameView completes the report's ID with the issue's number, so a
+// maintainer finds it from the issue, and stores it linked back to the issue.
+// An issue number is unique, so CreateBugReport can never overwrite another
+// report. The issue already points at the document, so a failure is only
+// logged. report.ID holds the readable prefix on entry.
+func (h *BugsHandler) storeGameView(ctx context.Context, report *store.BugReport, issueURL string) {
+	number, ok := issueNumber(issueURL)
+	if !ok {
+		log.Printf("bug report: no issue number in %q, game view not stored", issueURL)
+		return
+	}
+	report.ID += "-issue-" + number
+	report.IssueURL = issueURL
+	if err := h.reports.CreateBugReport(ctx, *report); err != nil {
+		log.Printf("bug report %s: could not store the game view: %v", report.ID, err)
+	}
+}
+
+// issueNumber returns the last path segment of an issue URL.
+func issueNumber(issueURL string) (string, bool) {
+	number := path.Base(issueURL)
+	if n, err := strconv.Atoi(number); err != nil || n <= 0 {
+		return "", false
+	}
+	return number, true
+}
+
+// prepareGameView builds the private report from the player's own projection
+// of the game and returns the line the public issue shows in its place. The
+// title is already redacted. The report is stored once the issue exists.
+func (h *BugsHandler) prepareGameView(ctx context.Context, actor store.Actor, gameID store.GameID, title string) (*store.BugReport, string) {
 	if gameID == "" || h.state == nil {
 		return nil, ""
 	}
@@ -280,10 +299,8 @@ func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameI
 		log.Printf("bug report: view of game %s is %d bytes, over the stored limit", gameID, len(view))
 		return nil, "_Game view: too large to store._"
 	}
-	ref := bugReportRef()
 	report := &store.BugReport{
-		ID:        bugReportID(game, ref),
-		Ref:       ref,
+		ID:        bugReportIDPrefix(game),
 		GameID:    gameID,
 		Turn:      game.Turn,
 		PlayerID:  game.PlayerID,
@@ -292,28 +309,18 @@ func (h *BugsHandler) saveGameView(ctx context.Context, actor store.Actor, gameI
 		GameView:  view,
 		CreatedAt: h.now(),
 	}
-	// The 48-bit ref makes a collision negligible; CreateBugReport refuses one
-	// rather than overwriting another report.
-	if err := h.reports.CreateBugReport(ctx, *report); err != nil {
-		log.Printf("bug report %s: could not store the game view: %v", report.ID, err)
-		return nil, "_Game view: could not be stored._"
-	}
-	// Only the opaque ref is public: the full ID names the game and the player.
-	return report, fmt.Sprintf("Game view (private, maintainers only): Firestore `%s`, ref `%s`", store.BugReportCollection, report.Ref)
+	// The full ID names the game and the player: the public issue only says
+	// which document to look for, by its suffix.
+	return report, fmt.Sprintf("Game view (private, maintainers only): Firestore `%s`, document ending in this issue's number (`-issue-<number>`)", store.BugReportCollection)
 }
 
-func bugReportRef() string {
-	suffix := make([]byte, 6)
-	cryptorand.Read(suffix) // never fails since Go 1.24
-	return fmt.Sprintf("%x", suffix)
-}
-
-// bugReportID reads as <game>-t<turn>-<player>-<ref>, so a maintainer can
-// tell reports apart in the Firestore console.
-func bugReportID(game PlayerGameView, ref string) string {
-	return fmt.Sprintf("%s-t%d-%s-%s",
+// bugReportIDPrefix reads as <game>-t<turn>-<player>; the issue number
+// completes it, so a maintainer can tell reports apart in the Firestore
+// console.
+func bugReportIDPrefix(game PlayerGameView) string {
+	return fmt.Sprintf("%s-t%d-%s",
 		reportIDPart(game.GameName, "game"), game.Turn,
-		reportIDPart(game.PlayerName, string(game.PlayerID)), ref)
+		reportIDPart(game.PlayerName, string(game.PlayerID)))
 }
 
 func reportIDPart(value, fallback string) string {
