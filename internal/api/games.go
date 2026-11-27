@@ -16,6 +16,7 @@ import (
 	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
+	"github.com/fogfactory/crown-and-borough/internal/notify"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
 
@@ -34,6 +35,7 @@ type GamesHandler struct {
 	creatorGate      CreatorGate
 	chat             *store.ChatService
 	notifier         Notifier
+	discord          *notify.DiscordService
 	candidateMaps    *candidateMapCache
 	mux              *http.ServeMux
 }
@@ -51,6 +53,9 @@ type GamesHandlerOptions struct {
 	// Notifier sends the email notifications once a response is written; nil
 	// (hotseat) sends none.
 	Notifier Notifier
+	// Discord serves the host's Discord webhook routes and the game view flag;
+	// nil (hotseat) answers the routes with 404.
+	Discord *notify.DiscordService
 }
 
 // Notifier is the email notification hook of the handlers. Its methods run
@@ -117,6 +122,7 @@ func NewGamesHandlerWithOptions(gameStore store.GameStore, rules assetgen.Rules,
 		creatorGate:      creatorGate,
 		chat:             options.Chat,
 		notifier:         options.Notifier,
+		discord:          options.Discord,
 		candidateMaps:    newCandidateMapCache(),
 	}
 	h.mux = h.routes()
@@ -186,6 +192,11 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/games/{id}/messages", h.withActor(h.postMessage))
 	mux.HandleFunc("POST /api/games/{id}/messages/read", h.withActor(h.markChannelRead))
 	mux.HandleFunc("POST /api/games/{id}/messages/acknowledge", h.withActor(h.acknowledgeChannel))
+	mux.HandleFunc("GET /api/games/{id}/discord-webhook", h.withActor(h.getDiscordWebhook))
+	mux.HandleFunc("PUT /api/games/{id}/discord-webhook", h.withActor(h.putDiscordWebhook))
+	mux.HandleFunc("DELETE /api/games/{id}/discord-webhook", h.withActor(h.deleteDiscordWebhook))
+	mux.HandleFunc("POST /api/games/{id}/discord-webhook/test", h.withActor(h.testDiscordWebhook))
+	mux.HandleFunc("POST /api/games/{id}/discord-webhook/preview", h.withActor(h.previewDiscordWebhook))
 	return mux
 }
 
@@ -280,7 +291,10 @@ func (h *GamesHandler) detail(w http.ResponseWriter, r *http.Request, actor stor
 		h.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, makeAuthenticatedGameDetailView(snapshot, actor))
+	view := makeAuthenticatedGameDetailView(snapshot, actor)
+	// Every player learns that the game name and turn leave for a third party.
+	view.DiscordWebhook = h.discordWebhookActive(r.Context(), id)
+	writeJSON(w, http.StatusOK, view)
 }
 
 func (h *GamesHandler) getMap(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
@@ -1127,6 +1141,9 @@ type gameDetailView struct {
 	Incognito       bool                                      `json:"incognito"`
 	Started         bool                                      `json:"started"`
 	Seated          int                                       `json:"seated"`
+	// DiscordWebhook is true while the game announces to a Discord webhook.
+	// Only the boolean is ever exposed.
+	DiscordWebhook bool `json:"discordWebhook"`
 	// Lobby is present while the lobby is open.
 	Lobby *lobbyView `json:"lobby,omitempty"`
 }

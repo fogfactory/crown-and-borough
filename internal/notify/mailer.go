@@ -1,6 +1,6 @@
-// Package notify sends the opt-in email notifications (new turn, chat
-// messages). It knows nothing of the persistence: the stores it reads are
-// small interfaces and the transport hides behind Mailer, so either can be
+// Package notify sends the notifications (new turn, chat messages) by email and
+// to the Discord webhook of a game. It knows nothing of the persistence: the stores it reads are
+// small interfaces and each transport hides behind a Sender, so either can be
 // swapped without touching the rest.
 package notify
 
@@ -19,9 +19,16 @@ type Email struct {
 	Reference string
 }
 
-// Mailer delivers an email. Implementations must honour the context deadline.
+// Sender delivers one message of a delivery channel (email, Discord webhook,
+// later direct messages). Implementations must honour the context deadline and
+// must not put secrets (addresses, webhook URLs) in the errors they return.
+type Sender[M any] interface {
+	Send(ctx context.Context, message M) error
+}
+
+// Mailer is the email channel.
 type Mailer interface {
-	Send(ctx context.Context, email Email) error
+	Sender[Email]
 }
 
 // LogMailer is the mailer used when SMTP is not configured: it logs one line

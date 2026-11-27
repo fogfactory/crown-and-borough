@@ -43,6 +43,13 @@ The chat only exists online: `scripts/chat-demo.sh` starts the local online
 stack (Firebase emulators and server), creates a two-house game where one
 house writes to the other, and prints a sign-in link for the reader.
 
+The Discord webhook of a game is demonstrated by `scripts/discord-demo.sh`: it
+starts the same stack with a `-tags demo` server that hands the announcements to
+a local receiver instead of discord.com (the URL validation stays the
+production one), configures a webhook, triggers a test, a public room message
+and a new turn, prints what the receiver got, and prints a sign-in link for the
+host.
+
 ## Commits and pushes
 
 When the user asks to commit and push:

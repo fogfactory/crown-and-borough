@@ -228,6 +228,8 @@ func (c *ChatService) Post(ctx context.Context, actor Actor, id GameID, request 
 		GameID:        id,
 		GameName:      snapshot.Name,
 		RecipientUIDs: chatRecipientUIDs(snapshot, house, channel, participants, actor.ID),
+		Turn:          snapshot.State.Turn,
+		Season:        snapshot.State.Season,
 	}, nil
 }
 
