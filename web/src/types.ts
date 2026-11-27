@@ -328,6 +328,23 @@ export interface Noble {
 export type ReligiousTitle = 'bishop' | 'cardinal' | 'pope'
 
 /** A bishopric is a region of the map; `bishop` is a noble code, absent when vacant. */
+export type ForecastEffectKind =
+  | 'famine'
+  | 'famine_canceled'
+  | 'abundant_harvest'
+  | 'bad_weather'
+  | 'bad_weather_canceled'
+  | 'fair_weather'
+
+export interface ForecastEffect {
+  kind: ForecastEffectKind
+  region: string
+  /** R of territory, village and mill income the effect adds (+) or costs (−) the viewer. */
+  income?: number
+  /** Terrain rations the effect adds (+) or costs (−) the viewer. */
+  rations?: number
+}
+
 export interface Bishopric {
   region: string
   name: string
@@ -731,6 +748,11 @@ export interface StateData {
   /** Shared hand limit (special + noble cards); the client falls back to DEFAULT_HAND_LIMIT when absent. */
   handLimit?: number
   activeRegionEffects?: ActiveRegionEffect[]
+  /**
+   * Weather effects behind the income, mill and ration forecast (the
+   * calamity of the season, what the drafted bonus cards cancel or add).
+   */
+  forecastEffects?: ForecastEffect[]
   announcements?: AnnouncementReport[]
 }
 

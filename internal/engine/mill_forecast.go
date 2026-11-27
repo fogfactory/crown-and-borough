@@ -6,9 +6,9 @@ import (
 )
 
 // ForecastMillIncome computes, for every player, the normal mill production
-// they will receive on the next action turn, ignoring any calamity or bonus
-// card already drawn this turn (like ForecastIncome/ForecastFamineRisk): the
-// command post projection must never leak an undrawn weather card's effect.
+// they will receive on the next action turn, including the calamity already
+// scheduled for the current season (like ForecastIncome/ForecastFamineRisk)
+// but never a bonus card still to be played.
 // Each mill credits exactly one destination (its adjacent castle under the
 // same control, else its adjacent village under the same control, else
 // itself, see #195), so this sums exactly the production the player's own
@@ -19,11 +19,16 @@ import (
 // positions (#208). Ravitaillement never happens in winter, so a winter
 // state always forecasts nil.
 func ForecastMillIncome(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]int {
+	return ForecastMillIncomeWith(state, balance, nil)
+}
+
+// ForecastMillIncomeWith is ForecastMillIncome projected with the regional bonus cards the viewer
+// drafted (see newForecastContext).
+func ForecastMillIncomeWith(state *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) map[models.PlayerID]int {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil
 	}
-	clone := cloneGameState(state)
-	ctx := newResolutionContext(clone, balance)
+	ctx := newForecastContext(state, balance, deckOrders)
 	totals := make(map[models.PlayerID]int, len(ctx.state.Players))
 	for _, ownerID := range sortedPlayerIDs(ctx.state.Players) {
 		total := 0
@@ -44,18 +49,23 @@ type MillProductionForecast struct {
 }
 
 // ForecastMillProduction computes, for every mill, the normal production and
-// single destination it will credit on the next action turn, ignoring any
-// calamity or bonus card already drawn this turn (like ForecastMillIncome).
+// single destination it will credit on the next action turn, including the
+// scheduled calamity (like ForecastMillIncome).
 // An uncontrolled mill is forecast on itself (#470, see millRecipient). Like
 // every ravitaillement forecast, it assumes nothing moves before
 // resolution (#208). Ravitaillement never happens in winter, so a winter
 // state always forecasts nil.
 func ForecastMillProduction(state *models.GameState, balance assetgen.Balance) map[models.TerritoryID]MillProductionForecast {
+	return ForecastMillProductionWith(state, balance, nil)
+}
+
+// ForecastMillProductionWith is ForecastMillProduction projected with the regional bonus cards the viewer
+// drafted (see newForecastContext).
+func ForecastMillProductionWith(state *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) map[models.TerritoryID]MillProductionForecast {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil
 	}
-	clone := cloneGameState(state)
-	ctx := newResolutionContext(clone, balance)
+	ctx := newForecastContext(state, balance, deckOrders)
 	forecasts := make(map[models.TerritoryID]MillProductionForecast)
 	for _, mill := range computeMillProduction(ctx) {
 		forecasts[mill.millID] = MillProductionForecast{Production: mill.total(), Destination: mill.destinationID}

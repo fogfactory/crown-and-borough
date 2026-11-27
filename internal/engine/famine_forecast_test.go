@@ -124,11 +124,10 @@ func TestForecastFamineRiskFlagsSharedSourceContention(t *testing.T) {
 	}
 }
 
-// TestForecastFamineRiskIgnoresDrawnCalamities checks that the forecast
-// always uses the normal, unaffected ration production, even when a bad
-// harvest calamity is already scheduled for the current season and region:
-// the command post projection must never leak an undrawn card's effect.
-func TestForecastFamineRiskIgnoresDrawnCalamities(t *testing.T) {
+// TestForecastFamineRiskReflectsScheduledCalamities checks that the forecast
+// uses the ration production a bad harvest calamity already scheduled for the
+// current season and region suppresses.
+func TestForecastFamineRiskReflectsScheduledCalamities(t *testing.T) {
 	state := effectTestState()
 	army := models.Army{ID: "A1", OwnerID: "P1", TerritoryID: "AAA", Size: 1}
 	state.Armies = append(state.Armies, army)
@@ -142,10 +141,10 @@ func TestForecastFamineRiskIgnoresDrawnCalamities(t *testing.T) {
 	forecasts := ForecastFamineRisk(state, testBalance())
 	forecast := forecasts["P1"]
 	// AAA is plain terrain (rations = 3), well above the size-1 army's
-	// demand (1): a drawn but unresolved bad harvest must not suppress it,
-	// so nothing is drawn from stock or the network.
-	if forecast.NetConsumption != 0 || len(forecast.ArmiesAtRisk) != 0 {
-		t.Fatalf("forecast = %#v, want the normal unsuppressed ration production, no risk", forecast)
+	// demand (1) in a normal season: the bad harvest suppresses it, so the
+	// army's ration is drawn from stock or the network (or starves).
+	if forecast.NetConsumption == 0 && len(forecast.ArmiesAtRisk) == 0 {
+		t.Fatalf("forecast = %#v, want the suppressed ration production to show up", forecast)
 	}
 	if got := state.TerritoryStates["AAA"].Resources; got != 0 {
 		t.Errorf("input state was mutated: AAA stock = %d, want 0", got)

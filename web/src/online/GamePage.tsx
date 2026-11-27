@@ -59,6 +59,7 @@ import {
 import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
 import { internalYear, ownerName, totalTurns } from '@/lib/game-progress'
 import { useGameIntentions } from '@/lib/use-game-intentions'
+import { useDraftedProjection } from '@/lib/use-drafted-projection'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS, SEASON_TINT_BG } from '@/lib/season'
 import { useLocalStorageState } from '@/lib/storage'
@@ -711,6 +712,13 @@ export function GamePage() {
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.network'),
     onAuthError: handleAuthError,
+  })
+  const treasuryState = useDraftedProjection({
+    state,
+    playerId: playerID,
+    specialDraft,
+    basePath: gameId ? `/api/games/${encodeURIComponent(gameId)}` : '/api',
+    fetcher: supplyFetcher,
   })
   const sourceTerritory = sourceTerritoryId
     ? (map?.territories.find((territory) => territory.id === sourceTerritoryId) ?? null)
@@ -1426,7 +1434,7 @@ export function GamePage() {
                         />
                       )}
                     <TreasuryBar
-                      state={state}
+                      state={treasuryState}
                       playerId={playerID}
                       specialDraft={specialDraft}
                     />

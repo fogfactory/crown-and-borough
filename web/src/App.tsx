@@ -32,6 +32,7 @@ import { draftOrdersByNoble } from '@/lib/transfer-preview'
 import { useOrdersPreview, type OrdersPreviewRequest } from '@/lib/use-orders-preview'
 import { internalYear, ownerName, totalTurns } from '@/lib/game-progress'
 import { useGameIntentions } from '@/lib/use-game-intentions'
+import { useDraftedProjection } from '@/lib/use-drafted-projection'
 import { useSupplyAndTransfer } from '@/lib/use-supply-and-transfer'
 import { SEASON_LABEL_KEYS, SEASON_TINT_BG } from '@/lib/season'
 import { useLocalStorageState, useLocalStorageText } from '@/lib/storage'
@@ -333,7 +334,7 @@ function AppContent() {
         ) {
           throw new Error('Invalid transfer response')
         }
-      } else {
+      } else if (!path.includes('/projection?')) {
         const supply = payload as unknown as SupplyLine
         if (!Array.isArray(supply.path) || !Array.isArray(supply.reachable)) {
           throw new Error('Invalid supply response')
@@ -398,6 +399,13 @@ function AppContent() {
     basePath: gameId ? hotseatGamePath(gameId) : '/api',
     fetcher: supplyFetcher,
     networkErrorMessage: t('error.requestFailed', { status: 500 }),
+  })
+  const treasuryState = useDraftedProjection({
+    state,
+    playerId: selectedPlayer,
+    specialDraft: specialDrafts[selectedPlayer] ?? '',
+    basePath: gameId ? hotseatGamePath(gameId) : '/api',
+    fetcher: supplyFetcher,
   })
   const supplySourceTerritory = sourceTerritoryId
     ? (map?.territories.find((territory) => territory.id === sourceTerritoryId) ?? null)
@@ -911,7 +919,7 @@ function AppContent() {
                     orders: (
                       <>
                         <TreasuryBar
-                          state={state}
+                          state={treasuryState}
                           playerId={selectedPlayer}
                           specialDraft={specialDrafts[selectedPlayer]}
                         />

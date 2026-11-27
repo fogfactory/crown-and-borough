@@ -91,7 +91,9 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 			case models.CardKindFamine:
 				ctx.famineRegions[calamity.RegionSeed] = true
 			case models.CardKindPlague:
-				applyPlague(ctx, calamity.RegionSeed)
+				if !ctx.forecast {
+					applyPlague(ctx, calamity.RegionSeed)
+				}
 			}
 		}
 	}
@@ -127,6 +129,9 @@ func resolveSeasonEffects(ctx *resolutionContext) {
 				Kind: kind, RegionSeed: regionSeed, Season: ctx.state.Season, Year: ctx.state.Year(),
 			})
 		}
+	}
+	if ctx.forecast {
+		return
 	}
 	// Tax cards are applied before revolt cards: applyRevolt below must be
 	// able to see a fief taxed earlier in this very same turn
