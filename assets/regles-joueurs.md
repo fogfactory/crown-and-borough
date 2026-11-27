@@ -148,7 +148,13 @@ L'essentiel à retenir :
 - **Un soutien** renforce une armée de n'importe quel joueur. Le soutien
   défensif ne compte que si l'armée soutenue reste sur sa case et n'attaque
   pas. Une attaque contre l'armée qui soutient, venue d'ailleurs que de la
-  cible, **coupe** le soutien.
+  cible, **coupe** le soutien. Un soutien en boucle, `(XXX S YYY)`, ne
+  s'arrête pas sur un échec : un soutien défensif reste actif tant que l'armée
+  soutenue est sur `YYY`, même si le soutien est coupé ou sans effet ou si le
+  temps est mauvais, et la chaîne passe à l'ordre suivant dès que l'armée
+  soutenue a quitté `YYY` (partie, délogée ou détruite). Un soutien offensif en
+  boucle attend l'attaque soutenue jusqu'à ce qu'elle réussisse, ou que l'armée
+  soutenue ait quitté `YYY`.
 - **Une manœuvre** répartit une armée en groupes sans combattre : chaque
   destination est écrite `TER/N` (N troupes) ou `TER+` (toutes les troupes
   restantes), `TER` seul valant `TER/1`. Les troupes non affectées restent sur
