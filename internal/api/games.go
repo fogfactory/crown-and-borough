@@ -14,6 +14,7 @@ import (
 
 	"github.com/fogfactory/crown-and-borough/internal/db/assetgen"
 	"github.com/fogfactory/crown-and-borough/internal/engine"
+	"github.com/fogfactory/crown-and-borough/internal/engine/orders"
 	"github.com/fogfactory/crown-and-borough/internal/i18n"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/notify"
@@ -172,6 +173,7 @@ func (h *GamesHandler) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/games/{id}/state", h.withActor(h.getState))
 	mux.HandleFunc("GET /api/games/{id}/balance", h.withActor(h.getBalance))
 	mux.HandleFunc("GET /api/games/{id}/supply", h.withActor(h.getSupply))
+	mux.HandleFunc("GET /api/games/{id}/projection", h.withActor(h.getProjection))
 	mux.HandleFunc("POST /api/games/{id}/orders", h.withActor(h.submit))
 	mux.HandleFunc("POST /api/games/{id}/orders/preview", h.withActor(h.preview))
 	mux.HandleFunc("POST /api/games/{id}/victory/simulate", h.withActor(h.simulateVictory))
@@ -397,6 +399,49 @@ func (h *GamesHandler) getSupply(w http.ResponseWriter, r *http.Request, actor s
 		return
 	}
 	writeJSON(w, http.StatusOK, line)
+}
+
+// parseDraftedDeckOrders parses a special-orders draft line by line, keeping
+// the lines that parse: a half-typed line must not drop the cards drafted on
+// the others, as the draft is projected while it is still being written.
+func parseDraftedDeckOrders(text string, state *models.GameState) []models.DeckOrder {
+	var parsed []models.DeckOrder
+	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		lineOrders, parseErrors := orders.ParseDeckOrders(line, state)
+		if len(parseErrors) != 0 {
+			continue
+		}
+		parsed = append(parsed, lineOrders...)
+	}
+	for index := range parsed {
+		parsed[index].ID = models.OrderID(fmt.Sprintf("O%d", index+1))
+	}
+	return parsed
+}
+
+// getProjection is the viewer's state projected with the special cards they
+// drafted (the "special" query parameter): the same body as GET state, whose
+// income, mill and ration forecasts reflect the regional bonus cards they
+// intend to play. Lines that do not parse project no card.
+func (h *GamesHandler) getProjection(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {
+	snapshot, viewerID, err := h.viewerState(r.Context(), actor, id)
+	if err != nil {
+		h.writeStoreError(w, err)
+		return
+	}
+	var deckOrders map[models.PlayerID][]models.DeckOrder
+	if viewerID != models.SpectatorViewer {
+		if parsed := parseDraftedDeckOrders(r.URL.Query().Get("special"), snapshot.State); len(parsed) != 0 {
+			deckOrders = map[models.PlayerID][]models.DeckOrder{viewerID: parsed}
+		}
+	}
+	writeJSON(w, http.StatusOK, playerStateView{
+		StateView: projectStateForViewerWith(snapshot.State, &viewerID, h.balance, deckOrders),
+		Revision:  snapshot.Revision,
+	})
 }
 
 func (h *GamesHandler) getRules(w http.ResponseWriter, r *http.Request, actor store.Actor, id store.GameID) {

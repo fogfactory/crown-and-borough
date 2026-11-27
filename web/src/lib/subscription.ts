@@ -286,6 +286,7 @@ export function normalizeStateData(value: unknown): StateData | null {
     activeRegionEffects: Array.isArray(state.activeRegionEffects)
       ? state.activeRegionEffects
       : [],
+    forecastEffects: Array.isArray(state.forecastEffects) ? state.forecastEffects : [],
     announcements: Array.isArray(state.announcements) ? state.announcements : [],
   }
 }
