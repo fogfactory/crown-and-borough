@@ -144,7 +144,13 @@ What to remember:
 - **A support** strengthens an army of any player. A defensive support only
   counts if the supported army stays on its territory and does not attack.
   An attack on the supporting army, coming from anywhere but the target,
-  **cuts** the support.
+  **cuts** the support. A looping support, `(XXX S YYY)`, does not stop on a
+  failure: a defensive support stays active while the supported army is on
+  `YYY`, even if the support is cut or has no effect or the weather is bad, and
+  the chain moves on to the next order as soon as the supported army has
+  left `YYY` (moved away, dislodged or destroyed). A looping offensive support
+  waits for the supported attack until it succeeds, or until the supported army
+  has left `YYY`.
 - **A maneuver** splits an army into groups without fighting: each
   destination is written `TER/N` (N troops) or `TER+` (all remaining troops),
   a bare `TER` meaning `TER/1`. Unassigned troops stay behind. Its groups only
