@@ -27,6 +27,9 @@ type Notifier struct {
 	state    store.NotificationStateStore
 	baseURL  string
 	now      func() time.Time
+	// discord announces to the Discord webhook of a game; nil when the
+	// channel is not mounted (hotseat, store without webhooks).
+	discord *DiscordService
 	// profileCache holds the profiles read lately. claimCache holds the
 	// (game, player) pairs whose message email was just claimed or refused:
 	// neither outcome can change before the player reads the chat again.
@@ -52,6 +55,60 @@ func NewNotifier(mailer Mailer, profiles ProfileReader, state store.Notification
 	return &Notifier{mailer: mailer, profiles: profiles, state: state, baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), now: time.Now}
 }
 
+// SetDiscord mounts the Discord channel: new turns and public room messages
+// are also announced to the webhook of the game, if it has one.
+func (n *Notifier) SetDiscord(discord *DiscordService) { n.discord = discord }
+
+// announce runs the Discord announcement beside the emails, which a slow mail
+// server must not delay. The returned function waits for it.
+func (n *Notifier) announce(ctx context.Context, kind Kind, game DiscordGame) (wait func()) {
+	if n.discord == nil {
+		return func() {}
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		n.discord.Announce(ctx, kind, game)
+	}()
+	return func() { <-done }
+}
+
+// discordGameOfSnapshot and discordGameOfChat say what an announcement tells of
+// the game an event belongs to.
+func discordGameOfSnapshot(snapshot store.GameSnapshot) DiscordGame {
+	return DiscordGame{ID: snapshot.ID, Name: snapshot.Name, Turn: snapshot.State.Turn, Season: snapshot.State.Season}
+}
+
+func discordGameOfChat(result store.ChatPostResult) DiscordGame {
+	return DiscordGame{ID: result.GameID, Name: result.GameName, Turn: result.Turn, Season: result.Season}
+}
+
+// DiscordNotifier announces to the Discord webhooks only: the notifier of a
+// server that sends no emails.
+type DiscordNotifier struct{ discord *DiscordService }
+
+// NewDiscordNotifier builds a notifier that only announces to Discord.
+func NewDiscordNotifier(discord *DiscordService) *DiscordNotifier {
+	return &DiscordNotifier{discord: discord}
+}
+
+// TurnStarted announces the new turn of a game that is still being played.
+func (d *DiscordNotifier) TurnStarted(ctx context.Context, snapshot store.GameSnapshot) {
+	if snapshot.Status != store.StatusPlaying || !snapshot.Started() {
+		return
+	}
+	d.discord.Announce(ctx, KindNewTurn, discordGameOfSnapshot(snapshot))
+}
+
+// MessagePosted announces the messages of the public room; private ones never
+// reach Discord.
+func (d *DiscordNotifier) MessagePosted(ctx context.Context, result store.ChatPostResult) {
+	if result.Message.Channel != store.ChatPublicChannel {
+		return
+	}
+	d.discord.Announce(ctx, KindPublicMessage, discordGameOfChat(result))
+}
+
 // SetClock replaces the clock; for tests.
 func (n *Notifier) SetClock(now func() time.Time) { n.now = now }
 
@@ -71,17 +128,24 @@ func (n *Notifier) TurnStarted(ctx context.Context, snapshot store.GameSnapshot)
 			uids = append(uids, slot.ActorID)
 		}
 	}
+	wait := n.announce(ctx, KindNewTurn, discordGameOfSnapshot(snapshot))
 	n.notify(ctx, KindNewTurn, snapshot.ID, snapshot.Name, uids)
+	wait()
 }
 
 // MessagePosted emails the opted-in houses a chat message concerns, at most
 // one email per player until they read their chat again.
 func (n *Notifier) MessagePosted(ctx context.Context, result store.ChatPostResult) {
 	kind := KindPublicMessage
+	wait := func() {}
 	if result.Message.Channel != store.ChatPublicChannel {
 		kind = KindPrivateMessage
+	} else {
+		// Only the public room reaches Discord: private messages never do.
+		wait = n.announce(ctx, KindPublicMessage, discordGameOfChat(result))
 	}
 	n.notify(ctx, kind, result.GameID, result.GameName, result.RecipientUIDs)
+	wait()
 }
 
 func (n *Notifier) notify(ctx context.Context, kind Kind, id store.GameID, gameName string, uids []string) {

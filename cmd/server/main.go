@@ -297,6 +297,14 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 	// Email notifications and the activity they rely on are online only, like
 	// the chat: hotseat has no accounts to write to.
 	var notifier api.Notifier
+	// The Discord webhook of a game is a second delivery channel of the same
+	// events; online only, like the emails, but independent of them.
+	var discord *notify.DiscordService
+	if webhooks, ok := options.Store.(store.DiscordWebhookStore); ok && !options.Development {
+		discord = notify.NewDiscordService(webhooks, notify.NewDiscordClientWithTransport(discordTransport()), os.Getenv("PUBLIC_APP_URL"))
+	} else if !options.Development {
+		log.Print("discord webhooks: disabled, the store keeps no webhooks")
+	}
 	if state, ok := options.Store.(store.NotificationStateStore); ok && !options.Development {
 		mailer, mailerErr := notify.NewMailerFromEnv(os.Getenv)
 		if mailerErr != nil {
@@ -306,11 +314,19 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 			log.Print("email notifications: SMTP_HOST or SMTP_FROM is empty, emails are logged and skipped")
 		}
 		if profileReader, ok := options.Store.(notify.ProfileReader); ok {
-			notifier = notify.NewNotifier(mailer, profileReader, state, os.Getenv("PUBLIC_APP_URL"))
+			mailNotifier := notify.NewNotifier(mailer, profileReader, state, os.Getenv("PUBLIC_APP_URL"))
+			if discord != nil {
+				mailNotifier.SetDiscord(discord)
+			}
+			notifier = mailNotifier
 		} else {
 			log.Print("email notifications: disabled, the store has no player profiles")
 		}
 		resolveActor = api.WithActivity(resolveActor, notify.NewActivityTracker(state))
+	}
+	// Without the email notifier, the announcements still need a notifier.
+	if notifier == nil && discord != nil {
+		notifier = notify.NewDiscordNotifier(discord)
 	}
 
 	mux := http.NewServeMux()
@@ -335,6 +351,7 @@ func newApplicationServer(options serverOptions) *http.ServeMux {
 		CreatorGate:      options.CreatorGate,
 		Chat:             chat,
 		Notifier:         notifier,
+		Discord:          discord,
 	})
 	// The hotseat client does not declare a build: only the hosted server checks it.
 	var gamesRoute http.Handler = games

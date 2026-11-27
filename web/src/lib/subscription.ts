@@ -218,6 +218,8 @@ export function normalizeGameSummary(
   const canInvite = data.canInvite === true || stringValue(data.ownerUid) === currentUID
   const inviteAvailable =
     typeof data.inviteAvailable === 'boolean' ? data.inviteAvailable : undefined
+  const discordWebhook =
+    typeof data.discordWebhook === 'boolean' ? data.discordWebhook : undefined
   return {
     id: stringValue(data.id, fallbackID),
     name: stringValue(data.name, 'Crown & Borough'),
@@ -227,6 +229,7 @@ export function normalizeGameSummary(
     ...(currentPlayer ? { currentPlayer } : {}),
     ...(canInvite ? { canInvite } : {}),
     ...(inviteAvailable !== undefined ? { inviteAvailable } : {}),
+    ...(discordWebhook !== undefined ? { discordWebhook } : {}),
     ...(data.spectator === true || stringValue(data.spectatorUid) === currentUID
       ? { spectator: true }
       : {}),

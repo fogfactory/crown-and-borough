@@ -6,7 +6,8 @@
 #
 #   scripts/league-server.sh [start|stop|status]
 #
-# PORT (default 8080) is the server port. The log is tmp/league-server.log and
+# PORT (default 8080) is the server port. SERVER_TAGS adds go build tags (the
+# demo scripts use "demo"). The log is tmp/league-server.log and
 # the pid tmp/league-server.pid. Sign in as admin@mail.com (the observer host
 # of botleague.example.yaml); sign-in links are listed at
 # http://127.0.0.1:9099/emulator/v1/projects/demo-crown-and-borough/oobCodes
@@ -53,7 +54,7 @@ start) ;;
 esac
 
 stop_server
-go build -o bin/server-league ./cmd/server
+go build ${SERVER_TAGS:+-tags "$SERVER_TAGS"} -o bin/server-league ./cmd/server
 SERVER_PORT="$port" FIRESTORE_PORT="$firestore_port" AUTH_PORT="$auth_port" \
 	docker compose -p "$project" up -d --wait firestore auth >/dev/null
 

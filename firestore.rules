@@ -83,6 +83,12 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Discord webhook of the game (URL, templates, anti-spam marker): the
+      // URL is a write credential on the host's channel, backend only.
+      match /discord_webhook/{document} {
+        allow read, write: if false;
+      }
+
       // Lobby entries (pending house names and seed votes): backend only, a
       // vote is never shown to the other members.
       match /lobby/{uid} {

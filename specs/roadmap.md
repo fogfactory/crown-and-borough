@@ -45,6 +45,7 @@ online à réaliser et à suivre par issue.
 | Online v1 | Session unique en mémoire, création/réinitialisation de partie, soumission par joueur, résolution synchrone, résolution forcée, endpoint de ravitaillement, hôte observateur sans slot | Fait |
 | Chat interne | Salon public et conversations privées entre deux maisons, signés de la maison, historique paginé, non-lus par canal, séparateurs de tour, découpage des textes longs, observateur en lecture seule, absent en hotseat (voir [`chat.md`](chat.md)) | Fait |
 | Notifications par email | Opt-in dans le profil : nouveau tour, message privé, message du salon public, option « réduire » selon l'activité récente, un email de message par lecture, SMTP configurable (voir [`online.md`](online.md)) | Fait |
+| Webhook Discord | Webhook configuré par l'hôte, par partie : annonces du nouveau tour et du salon public sur un salon Discord, modèles de message configurables avec aperçu, mentions écrites par l'hôte seulement, URL secrète, limite de débit par partie, webhook invalide désactivé et signalé, avertissement à tous les joueurs ([#815](https://github.com/fogfactory/crown-and-borough/issues/815), voir [`online.md`](online.md)) | Fait |
 
 ## Contraintes et décisions v1
 

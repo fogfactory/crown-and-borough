@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"time"
+
+	"github.com/fogfactory/crown-and-borough/internal/models"
 )
 
 // Languages an email notification can be written in. French is the default
@@ -128,4 +130,7 @@ type ChatPostResult struct {
 	GameID        GameID
 	GameName      string
 	RecipientUIDs []string
+	// Turn and Season are the current turn of the game, for the announcements.
+	Turn   int
+	Season models.Season
 }

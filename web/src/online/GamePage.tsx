@@ -30,6 +30,7 @@ import { OrdersPanel, SealOrders } from '@/components/OrdersPanel'
 import { RealmPanel } from '@/components/RealmPanel'
 import { ReportPane, type ReportSummary } from '@/components/ReportPane'
 import { RulesPanel, type RulesSection } from '@/components/RulesPanel'
+import { DiscordIndicator } from '@/components/DiscordIndicator'
 import { LineageDialog } from '@/components/LineageDialog'
 import { OutOfSyncDialog } from '@/components/OutOfSyncDialog'
 import { Scoreboard } from '@/components/Scoreboard'
@@ -127,6 +128,10 @@ function newerSummary(
       : {}),
     ...(right.inviteAvailable === undefined && left.inviteAvailable !== undefined
       ? { inviteAvailable: left.inviteAvailable }
+      : {}),
+    // The Firestore summary never carries the Discord flag.
+    ...(right.discordWebhook === undefined && left.discordWebhook !== undefined
+      ? { discordWebhook: left.discordWebhook }
       : {}),
     ...(right.spectator === undefined && left.spectator !== undefined
       ? { spectator: left.spectator }
@@ -1242,6 +1247,7 @@ export function GamePage() {
               }))}
             />
           )}
+          {summary.discordWebhook && <DiscordIndicator />}
           {(desktop || offline) && (
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-semibold ${offline ? alertToneClassName.error : alertToneClassName.success}`}
@@ -1265,6 +1271,18 @@ export function GamePage() {
           {(!desktop || (summary.status !== 'finished' && summary.canInvite)) && (
             <GameMenu
               language={!desktop}
+              discord={
+                summary.status !== 'finished' && summary.canInvite && gameId
+                  ? {
+                      gameId,
+                      tokenProvider,
+                      onActiveChange: (active) =>
+                        setSummaryFromAPI((current) =>
+                          current ? { ...current, discordWebhook: active } : current,
+                        ),
+                    }
+                  : undefined
+              }
               resolution={
                 summary.status !== 'finished' && summary.canInvite
                   ? {
