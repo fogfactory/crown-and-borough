@@ -918,3 +918,34 @@ describe('GamePage notices', () => {
     expect(urls.some((url) => /\/(map|state|my-submission)$/.test(url))).toBe(false)
   })
 })
+
+describe('GamePage Discord notice', () => {
+  function renderWithDetail(detail: Record<string, unknown>) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.endsWith('/api/games/GAME1/map')) return Promise.resolve(jsonResponse(map))
+        if (url.endsWith('/api/games/GAME1/state')) {
+          return Promise.resolve(jsonResponse({ ...state, revision: 1 }))
+        }
+        return Promise.resolve(jsonResponse(detail))
+      }),
+    )
+    renderGame()
+  }
+
+  it('tells every player that a Discord webhook is active, with a discreet icon', async () => {
+    renderWithDetail({ spectator: true, discordWebhook: true })
+    expect(
+      await screen.findByRole('img', { name: /announces to a Discord webhook/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says nothing without a webhook', async () => {
+    renderWithDetail({ spectator: true, discordWebhook: false })
+    await screen.findByText('You are observing this game.')
+    expect(screen.queryByRole('img', { name: /Discord webhook/ })).not.toBeInTheDocument()
+  })
+})

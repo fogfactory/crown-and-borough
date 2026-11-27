@@ -168,7 +168,84 @@ Documents réservés au backend, refusés aux clients par `firestore.rules` :
 
 - `player_activity/{uid}` : `lastActiveAt`, heure de la dernière requête API ;
 - `games/{gameId}/notify_state/{uid}` : `messageEmailAt`, heure du dernier
-  email de message envoyé au joueur pour cette partie.
+  email de message envoyé au joueur pour cette partie ;
+- `games/{gameId}/discord_webhook/config` : le webhook Discord de la partie
+  (URL, langue, modèles, état désactivé, `lastPublicAt`), voir ci-dessus.
+
+## Webhook Discord
+
+L'hôte d'une partie en ligne peut brancher un webhook Discord sur un salon de
+son serveur : le serveur de jeu y poste les annonces de la partie, sans bot
+hébergé, sans compte Discord lié et sans OAuth. C'est un second canal de
+livraison, par partie, à côté de l'email ; il ne remplace aucun email.
+
+- **Configuration.** Réservée à l'hôte (le créateur de la partie, observateur
+  ou non) : ajout, remplacement, retrait, test d'envoi et aperçu, depuis la
+  section « Discord » du menu de la partie (une fenêtre à part), en français
+  et en anglais. L'hôte s'assure que le salon est celui des joueurs ; le jeu ne
+  le contrôle pas. Tant que la partie est dans son salon d'attente (lobby),
+  ce menu n'existe pas : le webhook se règle une fois la partie commencée. Les
+  routes sont dans [`architecture.md`](architecture.md).
+- **Événements.** Un nouveau tour (partie encore en cours après la
+  résolution) et un message du salon public. Aucun message privé n'est jamais
+  annoncé, et l'observateur n'a aucun rôle particulier.
+- **Contenu.** Un modèle de message par événement, écrit par l'hôte, dans la
+  langue qu'il choisit pour la partie (français ou anglais). Variables
+  remplacées par le serveur : `{game}` (nom de la partie), `{turn}`,
+  `{season}` (saison dans la langue choisie) et `{url}` (lien vers la partie) ;
+  aucune ne donne accès à un message, un auteur ou un ordre. Une variable
+  inconnue est refusée à l'enregistrement, comme un modèle qui pourrait
+  dépasser 2 000 caractères (limite de Discord) une fois les variables
+  remplacées. Un modèle vide utilise le modèle par défaut de la langue, qui ne
+  mentionne personne ; l'aperçu (`POST …/discord-webhook/preview`) rend un
+  modèle avec des valeurs d'exemple et indique sa longueur et ses mentions.
+- **Mentions.** Seules les mentions écrites par l'hôte dans son modèle sont
+  déclenchées : `@here`, `@everyone` et les rôles `<@&id>`. Le serveur calcule
+  `allowed_mentions` à partir du seul modèle (`parse: ["everyone"]` si le
+  modèle contient `@here` ou `@everyone`, la liste de ses rôles, jamais
+  d'utilisateur). Le texte injecté par les variables (le nom de la partie) a
+  ses `@` neutralisés et ne déclenche aucune mention. Le message de test ne
+  mentionne personne.
+- **Secret.** L'URL du webhook donne le droit d'écrire dans le salon : elle est
+  stockée côté serveur seulement (`games/{gameId}/discord_webhook/config`,
+  refusé aux clients par `firestore.rules`), jamais renvoyée après
+  enregistrement (le client sait seulement qu'un webhook est configuré),
+  jamais journalisée ni citée dans une erreur, et absente des vues de partie
+  et de `state.json`.
+- **Validation de l'URL.** Seule la forme
+  `https://discord.com/api/webhooks/{id}/{token}` (ou `discordapp.com`) est
+  acceptée ; elle est revérifiée à chaque envoi. Aucune redirection n'est
+  suivie et chaque requête a un délai de 5 secondes.
+- **Anti-spam.** Les annonces de nouveau tour ne sont pas limitées. Les
+  annonces du salon public sont limitées par partie, pas par joueur : au plus
+  une toutes les 5 minutes, décidé par une réservation atomique
+  (`lastPublicAt`) rendue si l'envoi échoue. Une réponse `429` de Discord est
+  retentée après son `Retry-After` (5 secondes au plus, trois essais au plus),
+  puis abandonnée. Le test d'envoi est limité à un toutes les 10 secondes par
+  partie et par instance du serveur.
+- **Webhook invalide.** Si Discord répond `404` ou `401` (webhook supprimé ou
+  jeton révoqué), le webhook est désactivé (`disabled`, `disabledReason:
+  "webhook_gone"`), la ligne est journalisée sans l'URL, et il n'est jamais
+  retenté : il se réactive par une nouvelle URL ou un test réussi. Le statut renvoyé à l'hôte
+  porte cet état et l'interface l'en avertit.
+- **Aucun effet sur le jeu.** L'annonce part en parallèle des emails, après
+  l'écriture de la réponse ; une défaillance de Discord est journalisée et ne
+  change jamais le résultat de la requête de jeu.
+- **Transparence.** Le nom de la partie et le numéro de tour sortent vers un
+  tiers : le détail de la partie (`GET /api/games/{id}`) porte
+  `discordWebhook` (booléen, vrai tant que le webhook est actif) et l'interface
+  l'indique à tous les joueurs par une icône Discord discrète, près des pastilles
+  de soumission de l'en-tête, dont l'infobulle dit ce qui sort. Le serveur garde
+  ce booléen une minute en mémoire, sauf après une modification faite par la même
+  instance.
+- **Hotseat et développement.** Aucun webhook en hotseat ni avec
+  `ONLINE_DEV_MODE` (les routes répondent `404 discord_disabled`) : le service
+  n'est monté que là où le notifier l'est.
+- **Architecture.** `internal/notify` envoie par un `Sender[M]` générique par
+  canal (le `Mailer` est le canal email, le client Discord le canal webhook) ;
+  il ne dépend ni de Firestore ni de Firebase, et chaque canal garde son propre
+  marqueur anti-spam.
+- **Démo.** `scripts/discord-demo.sh` (voir [`AGENTS.md`](../AGENTS.md)).
 
 ## Chat
 

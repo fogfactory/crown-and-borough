@@ -220,6 +220,9 @@ export interface GameSummary {
   seated?: number
   /** Open lobby, as the caller sees it (REST detail only). */
   lobby?: GameLobby
+  /** The game announces to a Discord webhook: its name and turn leave for a
+   * third party (REST detail only; the URL is never exposed). */
+  discordWebhook?: boolean
   players: GameSlot[]
   turn: number
   season: Season
@@ -1453,3 +1456,43 @@ export type SimulationAction =
   | { type: 'rank' | 'restore'; fief: string }
   | { type: 'conquer' | 'renounce_title'; noble: string; fief: string }
   | { type: 'marry' | 'divorce' | 'claim'; noble: string; other: string }
+
+export type DiscordEvent = 'newTurn' | 'publicMessage'
+export type DiscordLanguage = 'fr' | 'en'
+
+/** One message template per announced event; empty means the default one. */
+export interface DiscordTemplates {
+  newTurn: string
+  publicMessage: string
+}
+
+/**
+ * What the host reads of the Discord webhook of a game. The URL itself is
+ * never returned: `configured` is all the client knows of it.
+ */
+export interface DiscordWebhookStatus {
+  configured: boolean
+  language?: DiscordLanguage
+  templates: DiscordTemplates
+  /** Discord refused the webhook: it is not used until a new URL or a
+   * successful test. */
+  disabled: boolean
+  disabledReason?: 'webhook_gone'
+  /** Templates used where none is written, by language. */
+  defaults: Record<DiscordLanguage, DiscordTemplates>
+}
+
+export interface DiscordWebhookSave {
+  /** Only when adding or replacing the webhook; left out, the stored one stays. */
+  url?: string
+  language: DiscordLanguage
+  templates: DiscordTemplates
+}
+
+/** A template rendered with example values. */
+export interface DiscordPreview {
+  content: string
+  length: number
+  mentionEveryone: boolean
+  mentionRoles: string[]
+}

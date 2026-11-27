@@ -764,6 +764,12 @@ ordres. Il n'existe qu'en partie online : il est absent en hotseat.
   chaque nouveau tour, pour les messages privés et pour le salon public. Ces
   emails ne contiennent jamais le message : ils te renvoient vers la partie, et
   un seul t'est envoyé par partie tant que tu n'as pas relu tes messages.
+- **Annonces Discord.** L'hôte de la partie peut brancher un webhook Discord :
+  le jeu y annonce alors chaque nouveau tour et, au plus toutes les 5 minutes,
+  un message du salon public. Quand c'est le cas, un avis le signale à tous les
+  joueurs : le nom de la partie et le numéro du tour sont envoyés à Discord,
+  jamais un message, un auteur ni un ordre, et les messages privés ne sont
+  jamais annoncés.
 
 ---
 

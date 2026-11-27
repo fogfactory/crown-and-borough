@@ -1634,6 +1634,72 @@ const englishMessages = {
   'error.api.supply_failed': 'The supply lines are unavailable.',
   'error.api.supply_target_not_found': 'No supply line can be drawn for this territory.',
   'error.api.store_unavailable': 'The game server is unavailable.',
+  'error.api.invalid_webhook_url':
+    'This is not a Discord webhook URL (https://discord.com/api/webhooks/{id}/{token}).',
+  'error.api.invalid_language': 'The language must be French or English.',
+  'error.api.invalid_event': 'Unknown announcement.',
+  'error.api.invalid_discord_request': 'The Discord settings are invalid.',
+  'error.api.invalid_template': 'The message uses an unknown variable.',
+  'error.api.template_too_long':
+    'The message could exceed 2000 characters once its variables are replaced.',
+  'error.api.webhook_not_configured': 'No Discord webhook is configured for this game.',
+  'error.api.webhook_gone':
+    'Discord refused the webhook (deleted or invalid): it is disabled. Paste a new URL.',
+  'error.api.discord_rate_limited': 'Too many messages. Try again in a moment.',
+  'error.api.discord_unreachable': 'Discord did not accept the message. Try again later.',
+  'error.api.discord_unavailable': 'The Discord settings could not be read or saved.',
+  'error.api.discord_disabled': 'Discord webhooks are not available here.',
+  'discord.open': 'Discord',
+  'discord.title': 'Discord announcements',
+  'discord.close': 'Close',
+  'discord.intro':
+    'The game posts its announcements to a channel of your Discord server, through a webhook. Make sure the channel is the one your players read.',
+  'discord.privacy':
+    'The name of the game and the turn leave for Discord. No message, author or order is ever sent, and private messages are never announced.',
+  'discord.loading': 'Loading the Discord settings…',
+  'discord.loadFailed': 'The Discord settings could not be loaded.',
+  'discord.configured': 'A webhook is configured. Its address is kept secret.',
+  'discord.notConfigured': 'No webhook is configured.',
+  'discord.disabled':
+    'Discord refused the webhook (deleted or invalid): announcements are paused. Paste a new URL or run a test once it works again.',
+  'discord.urlLabel': 'Webhook URL',
+  'discord.urlLabelReplace': 'New webhook URL (replaces the current one)',
+  'discord.urlHint':
+    'Channel settings, Integrations, Webhooks: copy the URL. It must look like https://discord.com/api/webhooks/…',
+  'discord.languageLabel': 'Language of the announcements',
+  'discord.templatesTitle': 'Messages',
+  'discord.templatesHelp':
+    'Variables: {game}, {turn}, {season}, {url}. Mentions you write (@here, @everyone, <@&role id>) are triggered; nothing else is. Left empty, the default message is used.',
+  'discord.event.newTurn': 'New turn',
+  'discord.event.publicMessage': 'Public room message',
+  'discord.eventHelp.newTurn': 'Posted after each resolution, while the game goes on.',
+  'discord.eventHelp.publicMessage':
+    'Posted when a message is written in the public room, at most once every 5 minutes.',
+  'discord.useDefault': 'Restore the default message',
+  'discord.previewLabel': 'Preview',
+  'discord.previewLength': '{length} / 2000 characters',
+  'discord.previewEveryone': 'Mentions everyone who can see the channel.',
+  'discord.previewRoles': 'Mentions {count} role(s).',
+  'discord.previewNoMention': 'Mentions nobody.',
+  'discord.previewFailed': 'No preview: {reason}',
+  'discord.invalidTemplate':
+    'Unknown variable {variable}: use {game}, {turn}, {season} or {url}.',
+  'discord.save': 'Save',
+  'discord.saving': 'Saving…',
+  'discord.saved': 'Discord settings saved.',
+  'discord.test': 'Send a test',
+  'discord.testing': 'Sending…',
+  'discord.tested': 'Test message sent.',
+  'discord.testRefused':
+    'Discord refused this webhook (deleted or invalid). Nothing was saved.',
+  'discord.remove': 'Remove the webhook',
+  'discord.removeConfirm': 'Stop announcing to Discord and forget the webhook?',
+  'discord.removeYes': 'Remove',
+  'discord.removed': 'Webhook removed.',
+  'discord.cancel': 'Cancel',
+  'discord.urlRequired': 'Paste the webhook URL first.',
+  'discord.playerNotice':
+    'This game announces to a Discord webhook: its name and the turn number are sent to Discord. No message, author or order is.',
   'error.api.seed_unavailable': 'Could not create the map. Try again.',
   'error.api.profile_unavailable': 'Your profile could not be loaded.',
   'error.api.profile_not_found': 'Profile not found.',
@@ -3464,6 +3530,76 @@ const frenchMessages: Record<keyof typeof englishMessages, string> = {
   'error.api.supply_failed': 'Les lignes de ravitaillement sont indisponibles.',
   'error.api.supply_target_not_found': 'Aucune ligne de ravitaillement ne peut être tracée pour ce territoire.',
   'error.api.store_unavailable': 'Le serveur de jeu est indisponible.',
+  'error.api.invalid_webhook_url':
+    'Ce n’est pas une URL de webhook Discord (https://discord.com/api/webhooks/{id}/{token}).',
+  'error.api.invalid_language': 'La langue doit être le français ou l’anglais.',
+  'error.api.invalid_event': 'Annonce inconnue.',
+  'error.api.invalid_discord_request': 'Les réglages Discord sont invalides.',
+  'error.api.invalid_template': 'Le message utilise une variable inconnue.',
+  'error.api.template_too_long':
+    'Le message pourrait dépasser 2000 caractères une fois ses variables remplacées.',
+  'error.api.webhook_not_configured':
+    'Aucun webhook Discord n’est configuré pour cette partie.',
+  'error.api.webhook_gone':
+    'Discord a refusé le webhook (supprimé ou invalide) : il est désactivé. Collez une nouvelle URL.',
+  'error.api.discord_rate_limited': 'Trop de messages. Réessayez dans un instant.',
+  'error.api.discord_unreachable':
+    'Discord n’a pas accepté le message. Réessayez plus tard.',
+  'error.api.discord_unavailable':
+    'Les réglages Discord n’ont pas pu être lus ou enregistrés.',
+  'error.api.discord_disabled': 'Les webhooks Discord ne sont pas disponibles ici.',
+  'discord.open': 'Discord',
+  'discord.title': 'Annonces Discord',
+  'discord.close': 'Fermer',
+  'discord.intro':
+    'La partie publie ses annonces dans un salon de votre serveur Discord, par un webhook. Vérifiez que ce salon est celui que lisent vos joueurs.',
+  'discord.privacy':
+    'Le nom de la partie et le tour partent vers Discord. Aucun message, auteur ni ordre n’est jamais envoyé, et les messages privés ne sont jamais annoncés.',
+  'discord.loading': 'Chargement des réglages Discord…',
+  'discord.loadFailed': 'Les réglages Discord n’ont pas pu être chargés.',
+  'discord.configured': 'Un webhook est configuré. Son adresse reste secrète.',
+  'discord.notConfigured': 'Aucun webhook n’est configuré.',
+  'discord.disabled':
+    'Discord a refusé le webhook (supprimé ou invalide) : les annonces sont suspendues. Collez une nouvelle URL ou lancez un test une fois qu’il fonctionne de nouveau.',
+  'discord.urlLabel': 'URL du webhook',
+  'discord.urlLabelReplace': 'Nouvelle URL du webhook (remplace l’actuelle)',
+  'discord.urlHint':
+    'Paramètres du salon, Intégrations, Webhooks : copiez l’URL. Elle ressemble à https://discord.com/api/webhooks/…',
+  'discord.languageLabel': 'Langue des annonces',
+  'discord.templatesTitle': 'Messages',
+  'discord.templatesHelp':
+    'Variables : {game}, {turn}, {season}, {url}. Les mentions que vous écrivez (@here, @everyone, <@&id du rôle>) sont déclenchées ; rien d’autre ne l’est. Laissé vide, le message par défaut est utilisé.',
+  'discord.event.newTurn': 'Nouveau tour',
+  'discord.event.publicMessage': 'Message du salon public',
+  'discord.eventHelp.newTurn':
+    'Publié après chaque résolution, tant que la partie continue.',
+  'discord.eventHelp.publicMessage':
+    'Publié quand un message est écrit dans le salon public, au plus une fois toutes les 5 minutes.',
+  'discord.useDefault': 'Rétablir le message par défaut',
+  'discord.previewLabel': 'Aperçu',
+  'discord.previewLength': '{length} / 2000 caractères',
+  'discord.previewEveryone': 'Mentionne tous ceux qui voient le salon.',
+  'discord.previewRoles': 'Mentionne {count} rôle(s).',
+  'discord.previewNoMention': 'Ne mentionne personne.',
+  'discord.previewFailed': 'Aperçu indisponible : {reason}',
+  'discord.invalidTemplate':
+    'Variable inconnue {variable} : utilisez {game}, {turn}, {season} ou {url}.',
+  'discord.save': 'Enregistrer',
+  'discord.saving': 'Enregistrement…',
+  'discord.saved': 'Réglages Discord enregistrés.',
+  'discord.test': 'Envoyer un test',
+  'discord.testing': 'Envoi…',
+  'discord.tested': 'Message de test envoyé.',
+  'discord.testRefused':
+    'Discord a refusé ce webhook (supprimé ou invalide). Rien n\'a été enregistré.',
+  'discord.remove': 'Retirer le webhook',
+  'discord.removeConfirm': 'Arrêter les annonces Discord et oublier le webhook ?',
+  'discord.removeYes': 'Retirer',
+  'discord.removed': 'Webhook retiré.',
+  'discord.cancel': 'Annuler',
+  'discord.urlRequired': 'Collez d’abord l’URL du webhook.',
+  'discord.playerNotice':
+    'Cette partie publie ses annonces sur un webhook Discord : son nom et le numéro du tour sont envoyés à Discord. Aucun message, auteur ni ordre ne l’est.',
   'error.api.seed_unavailable': 'Impossible de créer la carte. Réessayez.',
   'error.api.profile_unavailable': 'Votre profil n’a pas pu être chargé.',
   'error.api.profile_not_found': 'Profil introuvable.',

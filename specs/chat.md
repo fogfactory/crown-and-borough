@@ -65,6 +65,24 @@ l'email d'un joueur actif au moment du message.
 - **Aucun contenu.** L'email ne contient ni le texte du message, ni sa maison
   auteure : il indique le nom de la partie, renvoie vers elle et vers le profil.
 
+## Annonce Discord du salon public
+
+Un message du salon public peut aussi être annoncé sur le webhook Discord de la
+partie, si l'hôte en a configuré un (voir [`online.md`](online.md) pour la
+configuration, les modèles, les mentions et le secret de l'URL). Les messages
+privés n'en produisent jamais.
+
+- **Une annonce par fenêtre.** La règle « un email par lecture » est propre à
+  chaque joueur ; ici la limite est par partie : au plus une annonce de salon
+  public toutes les 5 minutes, quel que soit le nombre de messages ou
+  d'auteurs, décidée par une réservation atomique (`lastPublicAt`) qui ne
+  consomme rien quand l'envoi échoue. Un texte long découpé en morceaux n'en
+  produit qu'une.
+- **Aucun contenu.** L'annonce ne contient ni le texte du message ni sa maison
+  auteure : elle dit seulement, avec le modèle de l'hôte, qu'un message a été
+  écrit dans le salon public de la partie (nom de la partie, tour, saison,
+  lien).
+
 ## Panneau de chat
 
 Le panneau est un onglet « Messages » du tiroir de la partie online (même
@@ -179,4 +197,5 @@ Le découpage, les séparateurs, le calcul des non-lus et l'envoi séquentiel
 `web/src/components/ChatPanel.test.tsx`. Les règles Firestore et le backend
 ont leurs propres tests (`firestore.rules.test.ts`, `internal/api/chat_test.go`).
 Les notifications sont testées dans `internal/notify` (décision d'envoi,
-notifier avec un mailer factice, anti-spam) et `internal/api/notifications_test.go`.
+notifier avec un mailer factice, anti-spam, webhook Discord avec un faux
+serveur `httptest`) et `internal/api/notifications_test.go`.
