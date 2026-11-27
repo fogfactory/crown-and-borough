@@ -335,10 +335,10 @@ func TestTerritoryIncomeFeedsSupplyTheSameTurn(t *testing.T) {
 	}
 }
 
-// TestForecastIncomeIgnoresDrawnCalamities checks that ForecastIncome always
-// shows the normal, unaffected income, even when a calamity is already
-// scheduled for the current season and region.
-func TestForecastIncomeIgnoresDrawnCalamities(t *testing.T) {
+// TestForecastIncomeReflectsScheduledCalamities checks that ForecastIncome
+// and ForecastTerritoryIncome show the income a calamity already scheduled
+// for the current season and region suppresses.
+func TestForecastIncomeReflectsScheduledCalamities(t *testing.T) {
 	state := effectTestState()
 	setTerritoryOwner(state, "AAA", "P1")
 	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
@@ -346,8 +346,11 @@ func TestForecastIncomeIgnoresDrawnCalamities(t *testing.T) {
 
 	events := ForecastIncome(state, testBalance())
 	event := incomeEventFor(t, events, "P1", "AAA")
-	if event.SuppressedProduction != 0 || event.Production != 1 {
-		t.Fatalf("forecast event = %#v, want the normal, unsuppressed income", event)
+	if event.SuppressedProduction != 1 || event.Production != 0 {
+		t.Fatalf("forecast event = %#v, want the income suppressed by the bad harvest", event)
+	}
+	if forecast := ForecastTerritoryIncome(state, testBalance())["AAA"]; forecast.Amount != 0 {
+		t.Errorf("AAA territory forecast = %#v, want 0 under the bad harvest", forecast)
 	}
 	if got := state.TerritoryStates["AAA"].Resources; got != 0 {
 		t.Errorf("input state was mutated: AAA stock = %d, want 0", got)
@@ -604,5 +607,151 @@ func TestIncomeReportGroupsByFiefAndRegion(t *testing.T) {
 	}
 	if got := mills["OUB"]; got.FiefCapitalID != "" || got.RegionSeed != "OUB" {
 		t.Errorf("outside mill event = %#v, want no fief in region OUB", got)
+	}
+}
+
+// TestForecastIncomeWithDraftedBonusCards checks that an abundant harvest the
+// viewer drafted cancels the scheduled bad harvest of its region, and that a
+// card they do not hold is ignored.
+func TestForecastIncomeWithDraftedBonusCards(t *testing.T) {
+	state := effectTestState()
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{{ID: "C1", Kind: models.CardKindAbundantHarvest}},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}}, Discard: []models.SpecialCardID{},
+	}
+	draft := func(kind models.CardKind) map[models.PlayerID][]models.DeckOrder {
+		return map[models.PlayerID][]models.DeckOrder{"P1": {{
+			ID: "O1", Type: models.DeckOrderTypePlay, Kind: kind, RegionSeed: "AAA",
+		}}}
+	}
+
+	got := ForecastTerritoryIncomeWith(state, testBalance(), draft(models.CardKindAbundantHarvest))["AAA"]
+	if got.Amount != 1 {
+		t.Errorf("AAA forecast with the counter card = %#v, want the normal income of 1", got)
+	}
+	got = ForecastTerritoryIncomeWith(state, testBalance(), draft(models.CardKindFairWeather))["AAA"]
+	if got.Amount != 0 {
+		t.Errorf("AAA forecast with a card not held = %#v, want 0 under the bad harvest", got)
+	}
+	if hand := state.SpecialDeck.Hands["P1"]; len(hand) != 1 {
+		t.Errorf("input state was mutated: hand = %v", hand)
+	}
+}
+
+// TestForecastIncomeWithTwoDraftedBonusCards checks that the first abundant
+// harvest cancels the bad harvest and a second one doubles the income, like at
+// resolution.
+func TestForecastIncomeWithTwoDraftedBonusCards(t *testing.T) {
+	state := effectTestState()
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{{ID: "C1", Kind: models.CardKindAbundantHarvest}, {ID: "C2", Kind: models.CardKindAbundantHarvest}},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1", "C2"}}, Discard: []models.SpecialCardID{},
+	}
+	play := func(id models.OrderID) models.DeckOrder {
+		return models.DeckOrder{ID: id, Type: models.DeckOrderTypePlay, Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}
+	}
+	drafts := map[models.PlayerID][]models.DeckOrder{"P1": {play("O1"), play("O2")}}
+	if got := ForecastTerritoryIncomeWith(state, testBalance(), drafts)["AAA"]; got.Amount != 2 {
+		t.Errorf("AAA forecast with two cards = %#v, want the income doubled (2)", got)
+	}
+}
+
+// TestForecastWeatherEffects checks that the effects explaining the forecast
+// follow the calamity and the drafted cards the way the income does.
+func TestForecastWeatherEffects(t *testing.T) {
+	state := effectTestState()
+	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{{ID: "C1", Kind: models.CardKindAbundantHarvest}, {ID: "C2", Kind: models.CardKindAbundantHarvest}},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1", "C2"}}, Discard: []models.SpecialCardID{},
+	}
+	play := func(id models.OrderID) models.DeckOrder {
+		return models.DeckOrder{ID: id, Type: models.DeckOrderTypePlay, Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}
+	}
+	kinds := func(deckOrders map[models.PlayerID][]models.DeckOrder) []ForecastEffectKind {
+		var kinds []ForecastEffectKind
+		for _, effect := range ForecastWeatherEffects(state, testBalance(), deckOrders, nil) {
+			if effect.Region != "AAA" {
+				t.Fatalf("effect %#v on the wrong region", effect)
+			}
+			kinds = append(kinds, effect.Kind)
+		}
+		return kinds
+	}
+	if got := kinds(nil); len(got) != 1 || got[0] != ForecastEffectFamine {
+		t.Errorf("no draft: %v, want the famine", got)
+	}
+	if got := kinds(map[models.PlayerID][]models.DeckOrder{"P1": {play("O1")}}); len(got) != 1 || got[0] != ForecastEffectFamineCanceled {
+		t.Errorf("one card: %v, want the famine canceled", got)
+	}
+	got := kinds(map[models.PlayerID][]models.DeckOrder{"P1": {play("O1"), play("O2")}})
+	if len(got) != 2 || got[0] != ForecastEffectFamineCanceled || got[1] != ForecastEffectAbundantHarvest {
+		t.Errorf("two cards: %v, want the famine canceled and the abundant harvest", got)
+	}
+}
+
+// TestForecastWeatherEffectsAmounts checks the income and rations each effect
+// costs or adds the viewer, and that nothing is quantified without a viewer.
+func TestForecastWeatherEffectsAmounts(t *testing.T) {
+	state := effectTestState()
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeCastle, Level: 1, TerritoryID: "AAA"})
+	setCurrentCalamity(state, models.CardKindFamine, "AAA")
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{{ID: "C1", Kind: models.CardKindAbundantHarvest}, {ID: "C2", Kind: models.CardKindAbundantHarvest}},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1", "C2"}}, Discard: []models.SpecialCardID{},
+	}
+	play := func(id models.OrderID) models.DeckOrder {
+		return models.DeckOrder{ID: id, Type: models.DeckOrderTypePlay, Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}
+	}
+	viewer := models.PlayerID("P1")
+	plainTerrain := testBalance().RationTerrain[models.TerrainPlain]
+
+	famine := ForecastWeatherEffects(state, testBalance(), nil, &viewer)
+	if len(famine) != 1 || famine[0].Income != -1 || famine[0].Rations != -plainTerrain {
+		t.Fatalf("famine = %#v, want -1 R of income and -%d rations", famine, plainTerrain)
+	}
+	if blind := ForecastWeatherEffects(state, testBalance(), nil, nil); blind[0].Income != 0 || blind[0].Rations != 0 {
+		t.Errorf("effects without a viewer = %#v, want no amounts", blind)
+	}
+	canceled := ForecastWeatherEffects(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": {play("O1")}}, &viewer)
+	if len(canceled) != 1 || canceled[0].Income != 0 || canceled[0].Rations != 0 {
+		t.Errorf("canceled = %#v, want no amounts", canceled)
+	}
+	doubled := ForecastWeatherEffects(state, testBalance(), map[models.PlayerID][]models.DeckOrder{"P1": {play("O1"), play("O2")}}, &viewer)
+	if len(doubled) != 2 || doubled[1].Kind != ForecastEffectAbundantHarvest || doubled[1].Income != 1 || doubled[1].Rations != plainTerrain {
+		t.Errorf("doubled = %#v, want +1 R and +%d rations from the abundant harvest", doubled, plainTerrain)
+	}
+}
+
+// TestForecastWeatherEffectsMillAmounts checks that bad weather costs the
+// viewer the production of their mills in the region, and fair weather
+// doubles it.
+func TestForecastWeatherEffectsMillAmounts(t *testing.T) {
+	state := effectTestState()
+	setTerritoryOwner(state, "AAA", "P1")
+	addInfrastructure(state, models.Infrastructure{ID: "I1", Type: models.InfraTypeMill, Level: 2, TerritoryID: "AAA"})
+	setCurrentCalamity(state, models.CardKindBadWeather, "AAA")
+	viewer := models.PlayerID("P1")
+
+	effects := ForecastWeatherEffects(state, testBalance(), nil, &viewer)
+	if len(effects) != 1 || effects[0].Kind != ForecastEffectBadWeather || effects[0].Income != -2 || effects[0].Rations != 0 {
+		t.Fatalf("bad weather = %#v, want -2 R of mill income and no rations", effects)
+	}
+	state.Auguries = map[int]models.YearAugury{}
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{{ID: "C1", Kind: models.CardKindFairWeather}},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}}, Discard: []models.SpecialCardID{},
+	}
+	drafted := map[models.PlayerID][]models.DeckOrder{"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindFairWeather, RegionSeed: "AAA"}}}
+	effects = ForecastWeatherEffects(state, testBalance(), drafted, &viewer)
+	if len(effects) != 1 || effects[0].Kind != ForecastEffectFairWeather || effects[0].Income != 2 {
+		t.Fatalf("fair weather = %#v, want +2 R of mill income", effects)
 	}
 }

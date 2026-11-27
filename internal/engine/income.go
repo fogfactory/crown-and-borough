@@ -286,9 +286,9 @@ func (ctx *resolutionContext) territoryIncomeDestination(ownerID models.PlayerID
 }
 
 // ForecastIncome computes the normal territory income each player would
-// receive on the next action turn, ignoring any calamity or bonus card
-// already drawn this turn: the command post projection must never leak an
-// undrawn harvest card's effect. It runs the same resolveTerritoryIncome
+// receive on the next action turn, including the calamity already scheduled
+// for the current season (announced to every player) but never a bonus card
+// still to be played. It runs the same resolveTerritoryIncome
 // computation used during resolution, on a throwaway clone, so it never
 // mutates state and always matches the actual resolution logic; it assumes
 // nothing moves before resolution, since income now credits after captures
@@ -297,23 +297,27 @@ func ForecastIncome(state *models.GameState, balance assetgen.Balance) []Event {
 	if state == nil {
 		return nil
 	}
-	clone := cloneGameState(state)
-	ctx := newResolutionContext(clone, balance)
+	ctx := newForecastContext(state, balance, nil)
 	resolveTerritoryIncome(ctx)
 	return append([]Event(nil), ctx.events...)
 }
 
 // ForecastTerritoryIncome computes each controlled territory's normal
-// projected income and destination, ignoring any calamity or bonus card
-// already drawn this turn, for the territory detail panel's "rapporte X R à
+// projected income and destination, including the scheduled calamity like
+// ForecastIncome, for the territory detail panel's "rapporte X R à
 // YYY" line. It performs no mutation, and like ForecastIncome assumes
 // nothing moves before resolution.
 func ForecastTerritoryIncome(state *models.GameState, balance assetgen.Balance) map[models.TerritoryID]TerritoryIncomeForecast {
+	return ForecastTerritoryIncomeWith(state, balance, nil)
+}
+
+// ForecastTerritoryIncomeWith is ForecastTerritoryIncome projected with the regional bonus cards the viewer
+// drafted (see newForecastContext).
+func ForecastTerritoryIncomeWith(state *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) map[models.TerritoryID]TerritoryIncomeForecast {
 	if state == nil {
 		return nil
 	}
-	clone := cloneGameState(state)
-	ctx := newResolutionContext(clone, balance)
+	ctx := newForecastContext(state, balance, deckOrders)
 	_, perTerritory := computeTerritoryIncome(ctx)
 	return perTerritory
 }

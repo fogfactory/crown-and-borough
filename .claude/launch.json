@@ -4,31 +4,54 @@
     {
       "name": "hotseat",
       "runtimeExecutable": "make",
-      "runtimeArgs": ["run-hotseat"],
+      "runtimeArgs": [
+        "run-hotseat"
+      ],
       "port": 8080
     },
     {
       "name": "demo",
       "runtimeExecutable": "scripts/demo.sh",
-      "runtimeArgs": ["winter", "--fg"],
+      "runtimeArgs": [
+        "winter",
+        "--fg"
+      ],
       "port": 8080
     },
     {
       "name": "demo-production",
       "runtimeExecutable": "scripts/demo.sh",
-      "runtimeArgs": ["production", "--fg"],
+      "runtimeArgs": [
+        "production",
+        "--fg"
+      ],
       "port": 8080
     },
     {
       "name": "demo-action",
       "runtimeExecutable": "scripts/demo.sh",
-      "runtimeArgs": ["action", "--fg"],
+      "runtimeArgs": [
+        "action",
+        "--fg"
+      ],
       "port": 8080
     },
     {
       "name": "demo-support",
       "runtimeExecutable": "scripts/demo.sh",
-      "runtimeArgs": ["support", "--fg"],
+      "runtimeArgs": [
+        "support",
+        "--fg"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "demo-harvest",
+      "runtimeExecutable": "scripts/demo.sh",
+      "runtimeArgs": [
+        "harvest",
+        "--fg"
+      ],
       "port": 8080
     }
   ]

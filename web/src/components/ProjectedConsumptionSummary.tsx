@@ -14,7 +14,7 @@ interface ProjectedConsumptionSummaryProps {
  * showing the selected player's projected ration
  * consumption for the next action turn, and the armies that would starve if
  * nothing changes before resolution (see the FAQ for the two things this
- * can't foresee: an undrawn calamity card, and any order change before
+ * can't foresee: a bonus card not drafted yet, and any order change before
  * submission). Never shown in winter, since ravitaillement does not happen
  * then.
  */

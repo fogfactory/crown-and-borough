@@ -64,6 +64,15 @@ describe('parseSpecialOrderPlacements', () => {
     ).toEqual([])
   })
 
+  it('drops the comment the order helpers append and ignores the case', () => {
+    expect(
+      parseSpecialOrderPlacements('P RA vpr # Play Abundant harvest\n  p bt BRU#x'),
+    ).toEqual([
+      { kind: 'abundant_harvest', target: 'VPR' },
+      { kind: 'fair_weather', target: 'BRU' },
+    ])
+  })
+
   it('accepts the english aliases', () => {
     expect(parseSpecialOrderPlacements('P FW ROS\nP RV BRU')).toEqual([
       { kind: 'fair_weather', target: 'ROS' },

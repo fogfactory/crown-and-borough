@@ -115,3 +115,51 @@ func TestProjectStateForPlayerProjectsOnlyOwnNobleHand(t *testing.T) {
 		t.Fatalf("P2 noble hand = %#v, deck sizes = %d/%d, want an empty hand and 1 card in the pile", p2.NobleHand, p1.NobleDeckSize, p2.NobleDeckSize)
 	}
 }
+
+func TestProjectStateForViewerWithDraftedBonusCard(t *testing.T) {
+	state := models.NewGameState()
+	state.Players = []models.Player{{ID: "P1", Name: "One"}}
+	state.Territories = []models.Territory{{ID: "AAA", Name: "AAA", Terrain: models.TerrainPlain}}
+	state.TerritoryStates = map[models.TerritoryID]models.TerritoryState{"AAA": {}}
+	state.Regions = []models.Region{{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA"}}}
+	state.Auguries = map[int]models.YearAugury{state.Year(): {
+		Year:       state.Year(),
+		Calamities: []models.Calamity{{Kind: models.CardKindFamine, Year: state.Year(), Season: state.Season, RegionSeed: "AAA"}},
+	}}
+	state.SpecialDeck = &models.SpecialDeck{
+		Cards: []models.SpecialCard{{ID: "C1", Kind: models.CardKindAbundantHarvest}},
+		Hands: map[models.PlayerID][]models.SpecialCardID{"P1": {"C1"}}, Discard: []models.SpecialCardID{},
+	}
+	viewer := models.PlayerID("P1")
+	kinds := func(view StateView) []string {
+		var kinds []string
+		for _, effect := range view.ForecastEffects {
+			kinds = append(kinds, string(effect.Kind))
+		}
+		return kinds
+	}
+
+	plain := projectStateForViewerWith(state, &viewer, assetgen.Balance{}, nil)
+	if got := kinds(plain); len(got) != 1 || got[0] != "famine" {
+		t.Fatalf("plain effects = %v, want the famine", got)
+	}
+	drafted := projectStateForViewerWith(state, &viewer, assetgen.Balance{}, map[models.PlayerID][]models.DeckOrder{
+		"P1": {{ID: "O1", Type: models.DeckOrderTypePlay, Kind: models.CardKindAbundantHarvest, RegionSeed: "AAA"}},
+	})
+	if got := kinds(drafted); len(got) != 1 || got[0] != "famine_canceled" {
+		t.Fatalf("drafted effects = %v, want the famine canceled", got)
+	}
+}
+
+func TestParseDraftedDeckOrdersKeepsValidLines(t *testing.T) {
+	state := models.NewGameState()
+	state.Territories = []models.Territory{{ID: "AAA", Name: "AAA"}, {ID: "BBB", Name: "BBB"}}
+	state.Regions = []models.Region{
+		{ID: "AAA", Seed: "AAA", Territories: []models.TerritoryID{"AAA"}},
+		{ID: "BBB", Seed: "BBB", Territories: []models.TerritoryID{"BBB"}},
+	}
+	parsed := parseDraftedDeckOrders("P RA AAA\nP R\n\nP BT BBB", state)
+	if len(parsed) != 2 || parsed[0].ID != "O1" || parsed[1].ID != "O2" {
+		t.Fatalf("parsed = %#v, want the two valid lines with distinct IDs", parsed)
+	}
+}
