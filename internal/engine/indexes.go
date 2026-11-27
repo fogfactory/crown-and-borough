@@ -77,10 +77,13 @@ type resolutionContext struct {
 	// cancelledPeaceful marks the armies whose join or dispersion is cancelled
 	// because an attack targets its origin: they keep the status quo and none
 	// of their troops leaves.
-	cancelledPeaceful   map[models.ArmyID]bool
-	dislodged           map[models.ArmyID]*dislodgedArmy
-	events              []Event
-	deckIntents         []deckOrderIntent
+	cancelledPeaceful map[models.ArmyID]bool
+	dislodged         map[models.ArmyID]*dislodgedArmy
+	events            []Event
+	deckIntents       []deckOrderIntent
+	// forecast marks a disposable projection context: resolveSeasonEffects then
+	// only sets the weather flags, without the plague, taxes or revolts.
+	forecast            bool
 	specialReshuffles   int
 	badWeatherRegions   map[models.TerritoryID]bool
 	famineRegions       map[models.TerritoryID]bool

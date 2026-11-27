@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/fogfactory/crown-and-borough/internal/engine"
 	"github.com/fogfactory/crown-and-borough/internal/models"
 	"github.com/fogfactory/crown-and-borough/internal/store"
 )
@@ -130,6 +131,10 @@ var demoScenarios = map[string]struct {
 	"support": {
 		description: "spring; P1's armies on PCT and PYL (noble RAI on PCT, HUO on PYL) and on VAR, commanded by HUO, who leaves PYL. VAR touches MOU and VAG, which touch each other: `VAR S MOU - VAG` draws an offensive support (a tributary joining the MOU to VAG arrow); `PCT S PYL` draws a defensive one (a palisade on PYL)",
 		apply:       forgeSupport,
+	},
+	"harvest": {
+		description: "spring, a bad harvest hits the region of P1's capital this very season and P1 holds Abundant harvest and Fair weather: the treasury forecast shows the lost income, and drafting `P RA <region seed>` (the seed is in the upcoming calamities) cancels it",
+		apply:       forgeHarvest,
 	},
 	"action": {
 		description: "spring, P1 holds bonus cards; a famine is active, a bad weather is announced (one bent by a ritual)",
@@ -1196,6 +1201,35 @@ func forgeLargeFief(state *models.GameState) error {
 	return nil
 }
 
+func forgeHarvest(state *models.GameState) error {
+	capital := playerCapitalTerritory(state, "P1")
+	var seed models.TerritoryID
+	for _, region := range state.Regions {
+		if containsTerritory(region.Territories, capital) {
+			seed = region.Seed
+		}
+	}
+	if seed == "" {
+		return fmt.Errorf("P1's capital %q is in no region", capital)
+	}
+	year := state.Year()
+	state.Auguries[year] = models.YearAugury{
+		Year:       year,
+		Capacities: map[models.Season]int{models.SeasonSpring: 1, models.SeasonSummer: 1, models.SeasonAutumn: 1},
+		Revealed:   true,
+		Calamities: []models.Calamity{
+			{CardID: "ZF1", Kind: models.CardKindFamine, Year: year, Season: state.Season, RegionSeed: seed},
+		},
+	}
+	if state.SpecialDeck != nil {
+		state.SpecialDeck.Cards = append(state.SpecialDeck.Cards, models.SpecialCard{ID: "ZF1", Kind: models.CardKindFamine})
+	}
+	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindAbundantHarvest)
+	engine.SeedRegionEffects(state)
+	fmt.Printf("demo harvest: bad harvest on region %s this season\n", seed)
+	return nil
+}
+
 func forgeAction(state *models.GameState) error {
 	if len(state.Regions) < 3 {
 		return fmt.Errorf("the base game lacks regions")
@@ -1221,6 +1255,7 @@ func forgeAction(state *models.GameState) error {
 		}
 	}
 	giveSpecialCards(state, "P1", models.CardKindFairWeather, models.CardKindAbundantHarvest, models.CardKindRevolt)
+	engine.SeedRegionEffects(state)
 	return nil
 }
 

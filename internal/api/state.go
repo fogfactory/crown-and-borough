@@ -89,14 +89,18 @@ type StateView struct {
 	// the player holding her hostage.
 	SpiedHands          []SpiedHandView             `json:"spiedHands,omitempty"`
 	ActiveRegionEffects []models.ActiveRegionEffect `json:"activeRegionEffects"`
-	Announcements       []engine.AnnouncementReport `json:"announcements"`
+	// ForecastEffects explains the income, mill and ration projections: the
+	// weather effects they apply, with the viewer's drafted bonus cards in a
+	// projection response (see engine.ForecastWeatherEffects).
+	ForecastEffects []engine.ForecastEffect     `json:"forecastEffects"`
+	Announcements   []engine.AnnouncementReport `json:"announcements"`
 }
 
 // PlayerView contains the public player metadata needed by the hotseat
 // selector. Player-specific filtering is a future server concern.
 // ProjectedIncome is the territory income the player would receive on the
-// next action turn if nothing changes, ignoring any calamity or bonus card
-// already drawn this turn (see engine.ForecastIncome). ProjectedMillIncome is
+// next action turn if nothing changes, including the calamity already
+// scheduled for the season (see engine.ForecastIncome). ProjectedMillIncome is
 // the separate mill production their own settlements and self-supplied mills
 // would receive over the same turn (see engine.ForecastMillIncome): it is not
 // included in ProjectedIncome since mills do not route through the capital
@@ -486,6 +490,13 @@ func ProjectStateForPlayer(state *models.GameState, playerID models.PlayerID, ba
 }
 
 func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, balance assetgen.Balance) StateView {
+	return projectStateForViewerWith(state, viewer, balance, nil)
+}
+
+// projectStateForViewerWith is projectStateForViewer whose income, mill and
+// ration projections also reflect the regional bonus cards (fair weather,
+// abundant harvest) the viewer drafted in deckOrders.
+func projectStateForViewerWith(state *models.GameState, viewer *models.PlayerID, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) StateView {
 	view := StateView{
 		Players:             []PlayerView{},
 		Territories:         []TerritoryView{},
@@ -500,6 +511,7 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 		SpecialDeckCards:    []SpecialDeckEntryView{},
 		NobleDeckCards:      []NobleDeckEntryView{},
 		ActiveRegionEffects: []models.ActiveRegionEffect{},
+		ForecastEffects:     engine.ForecastWeatherEffects(state, balance, deckOrders, viewer),
 		Announcements:       []engine.AnnouncementReport{},
 		Scores:              map[models.PlayerID]engine.ScoreBreakdown{},
 		Victory:             engine.VictoryStatus{Players: map[models.PlayerID]engine.PlayerVictory{}},
@@ -542,12 +554,12 @@ func projectStateForViewer(state *models.GameState, viewer *models.PlayerID, bal
 	for _, infrastructure := range state.Infrastructures {
 		infrastructuresByID[infrastructure.ID] = infrastructure
 	}
-	territoryIncome := engine.ForecastTerritoryIncome(state, balance)
+	territoryIncome := engine.ForecastTerritoryIncomeWith(state, balance, deckOrders)
 	projectedIncomeByPlayer := make(map[models.PlayerID]int, len(state.Players))
-	millIncomeByPlayer := engine.ForecastMillIncome(state, balance)
+	millIncomeByPlayer := engine.ForecastMillIncomeWith(state, balance, deckOrders)
 	royalRentByPlayer := engine.ForecastRoyalRent(state)
-	millProduction := engine.ForecastMillProduction(state, balance)
-	famineRiskByPlayer := engine.ForecastFamineRisk(state, balance)
+	millProduction := engine.ForecastMillProductionWith(state, balance, deckOrders)
+	famineRiskByPlayer := engine.ForecastFamineRiskWith(state, balance, deckOrders)
 
 	// Control is not stored: the projected owner is derived here from the
 	// fiefs, the capitals and the stationed armies.

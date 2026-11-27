@@ -289,8 +289,9 @@ ses titres ; le cachot se lit sur `status`, l'excommunication dans
 
 `projectedIncome` est le revenu territorial (`territory_income` +
 `village_income` éventuel) que rapporterait ce joueur ou ce territoire au
-prochain tour d'action, en ignorant les cartes calamité déjà tirées ce tour
-pour ne pas en révéler l'effet à l'avance ; il vaut `0` en hiver. Le revenu
+prochain tour d'action, calamité déjà annoncée pour la saison comprise
+(famine, mauvais temps) ; les cartes bonus du brouillon du joueur n'y figurent
+que via `GET …/projection` ; il vaut `0` en hiver. Le revenu
 réel est crédité en fin de tour, sur le contrôle territorial définitif
 ([#208](https://github.com/fogfactory/crown-and-borough/issues/208)) ; cette
 projection reste délibérément statique : elle porte sur le contrôle actuel,
@@ -308,6 +309,17 @@ passe pas par la capitale et, depuis
 crédite plus qu'une seule destination (voir la section Moulins) ; il vaut `0`
 en hiver.
 
+`forecastEffects` explique les écarts de ces projections : la liste (vide en
+hiver) des effets météo qu'elles appliquent, par région et triée par région —
+`famine` et `bad_weather` (calamité annoncée pour la saison), `famine_canceled`
+et `bad_weather_canceled` (annulée par une carte Récolte abondante ou Beau
+temps), `abundant_harvest` et `fair_weather` (bonus). `income` et `rations`
+donnent, pour le joueur qui consulte, ce que l'effet lui retire (négatif) ou lui
+ajoute (positif) dans la région : revenu des territoires, villages et moulins
+qu'il contrôle, et rations de terrain ; ils sont absents pour une calamité
+annulée. `GET /api/games/{id}/projection?special=…` renvoie le même corps avec
+les cartes bonus du brouillon.
+
 `projectedRoyalRent` est la rente ([politique.md](politique.md#rente)) que ce
 joueur recevrait en fin de tour comme joueur du roi (1 R par fief constitué)
 ou de la reine (la moitié, arrondie au supérieur), créditée à sa capitale ; le
@@ -318,7 +330,7 @@ joueur.
 
 `millProduction` et `millDestination` ne sont présents que sur la case d'un
 moulin : `millProduction` est sa production projetée (harmonisée avec la
-météo, en ignorant les cartes calamité ou bonus déjà tirées ce tour), et
+météo, calamité annoncée comprise ; cartes bonus du brouillon via `GET …/projection`), et
 `millDestination` le territoire qui la recevra (le château adjacent du même
 contrôleur, sinon le village adjacent du même contrôleur, sinon le moulin
 lui-même). `millDestination` est donc identique à `id` lorsque le moulin est
@@ -332,7 +344,7 @@ partout ailleurs.
 ou du réseau de ravitaillement sur les positions **actuelles** des armées (une
 armée pleinement nourrie localement, ou qui finirait affamée, compte pour `0`,
 pas pour son coût total), avec les mêmes garanties que `projectedIncome`
-(récolte normale, ignore les cartes calamité déjà tirées) ; il vaut `0` en
+(calamité annoncée comprise ; cartes bonus du brouillon via `GET …/projection`) ; il vaut `0` en
 hiver, saison sans ravitaillement. `armiesAtRisk` liste les armées qui
 seraient effectivement affamées si rien ne change avant la résolution : le
 calcul rejoue la même allocation que la résolution réelle
@@ -564,6 +576,7 @@ global lorsqu'une autre partie est déjà active.
 | `GET` | `/api/games/{id}/map` | Renvoie le `map.json` commun, dont `territories[].id` est le trigramme. |
 | `GET` | `/api/games/{id}/state` | Renvoie la projection privée du joueur connecté ; un hôte observateur reçoit la projection complète ; aucun `?player=` public. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&special=…` | Calcule la ligne ou la zone de ravitaillement demandée, après les calamités de la saison (peste, famine, mauvais temps) et les cartes du brouillon `special` du joueur connecté (Beau temps, Bonne récolte ; la Révolte est ignorée pour ne pas révéler son tirage). La ligne détaille `terrainProduction`, `famineRations` et `bonusRations`. |
+| `GET` | `/api/games/{id}/projection?special=…` | Même corps que `GET state`, dont les prévisions de revenu, de moulins et de ravitaillement tiennent compte des cartes bonus (Beau temps, Bonne récolte) du brouillon `special` du joueur connecté : une carte qui annule la calamité annoncée de sa région en retire l'effet. Un brouillon illisible ou une carte absente de la main sont ignorés. |
 | `GET` | `/api/games/{id}/supply?territory=ROS&target=BOI` | Estime la route d'un transfert d'action vers `BOI`. |
 | `POST` | `/api/games/{id}/orders` | Remplace les ordres du joueur courant (`chains`, `winter`, `special`) avec le statut `status` : `submitted` (défaut, scellement avec validation moteur) ou `draft` (esquisse enregistrée telle quelle, **sans validation moteur** ; seule la révision attendue est contrôlée). Une esquisse enregistrée sur des ordres scellés les descelle (« rompre le sceau » : renvoyer le même contenu avec `status: "draft"` et la `revision` attendue) ; sceller supprime l'esquisse. `status` autre que `draft`/`submitted`, ou `draft` avec `force` : `400 invalid_orders_status`. Réponse : `status` vaut `draft` (esquisse enregistrée), `pending` (scellé, tour ouvert) ou `resolved` ; `submitted` / `remaining` ne comptent que les ordres scellés. Seuls les ordres scellés sont lus par la résolution et comptent comme « a joué » ; le tour se résout automatiquement lorsque tous les joueurs attendus ont scellé : un joueur éliminé n'est jamais attendu et, en saison d'action, un joueur sans noble libre ou otage non plus. Un hôte observateur ne peut pas envoyer d'ordres. Le corps ne contient aucun identifiant joueur. Une esquisse ne verrouille pas le nom de maison (`nameLocked`) ; un scellement le verrouille (y compris celui d’un brouillon par la résolution de l’hôte) ; rompre le sceau au premier tour de la partie le déverrouille, plus tard le nom reste verrouillé. Les esquisses sont écartées à la résolution du tour. |
 | `POST` | `/api/games/{id}/orders/preview` | Résolution à blanc du brouillon du joueur courant, sans rien enregistrer : erreurs (syntaxe, adjacence, réception ; chacune porte sa `source` — `chain`, `winter` ou `special` —, son noble pour une chaîne et sa ligne dans le texte soumis), avertissements (`warnings`, même forme que les erreurs plus un `level` : `warning` pour un ordre qui ne s'exécutera pas comme écrit, `note` pour une situation peut-être voulue, comme un soutien à l'armée d'un autre joueur ; la soumission reste acceptée. Les lignes d'hiver que la simulation rejette y figurent aussi, avec la `source` `winter`, le `code` égal à la raison de rejet du moteur (que le client formule) et le niveau `error` (`warning` pour `insufficient_resources`). Les autres portent sur l'ordre courant des armées du joueur — chaînes soumises et chaînes en cours que la soumission laisse en place, sans ligne pour ces dernières — et ne lisent que l'état de début de tour et ses propres ordres, jamais la chaîne d'un autre joueur, sauf celle qu'émet un noble otage qu'il détient et qu'il peut lire), ordres parsés de chaque chaîne, issue simulée de chaque ligne d'hiver et coût d'hiver. Le client l'appelle pendant la saisie et ne réimplémente aucune règle d'ordre. |

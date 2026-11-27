@@ -128,11 +128,13 @@ export function parseSpecialOrderPlacements(
 ): SpecialOrderPlacement[] {
   const placements: SpecialOrderPlacement[] = []
   for (const rawLine of lines.split('\n')) {
-    const fields = rawLine.trim().split(/\s+/)
-    if (fields.length !== 3 || fields[0].toUpperCase() !== 'P') {
+    // Like the server: the `#` comment the order helpers append is dropped,
+    // and codes are case-insensitive.
+    const fields = rawLine.split('#')[0].trim().toUpperCase().split(/\s+/)
+    if (fields.length !== 3 || fields[0] !== 'P') {
       continue
     }
-    const kind = SPECIAL_KIND_CODES[fields[1].toUpperCase()]
+    const kind = SPECIAL_KIND_CODES[fields[1]]
     if (!kind) {
       continue
     }

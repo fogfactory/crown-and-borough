@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { IconChevronDown, IconChevronUp, IconScale } from '@tabler/icons-react'
 
 import { ProjectedConsumptionSummary } from '@/components/ProjectedConsumptionSummary'
+import { ProjectedWeatherNotes } from '@/components/ProjectedWeatherNotes'
 import { ProjectedIncomeSummary } from '@/components/ProjectedIncomeSummary'
 import { useLanguage } from '@/i18n/LanguageContext'
 import { treasuryOf } from '@/lib/treasury'
@@ -57,7 +58,9 @@ export function TreasuryBar({ state, playerId, specialDraft }: TreasuryBarProps)
               <span aria-hidden="true">·</span>
               <span
                 data-famine-risk={atRisk > 0 || undefined}
-                className={cn(atRisk > 0 ? 'text-warning-700' : 'font-normal text-ink-500')}
+                className={cn(
+                  atRisk > 0 ? 'text-warning-700' : 'font-normal text-ink-500',
+                )}
               >
                 {atRisk === 0
                   ? t('treasury.famineNone')
@@ -82,6 +85,7 @@ export function TreasuryBar({ state, playerId, specialDraft }: TreasuryBarProps)
             specialDraft={specialDraft}
             treasury={treasury}
           />
+          <ProjectedWeatherNotes state={state} playerId={playerId} />
           <ProjectedConsumptionSummary state={state} playerId={playerId} />
         </div>
       )}

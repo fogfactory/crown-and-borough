@@ -44,9 +44,9 @@ type FamineRiskForecast struct {
 // ForecastFamineRisk computes, for every player, the ravitaillement outcome
 // their armies would have on the next action turn if nothing changes before
 // then: the net ration demand drawn from stock or the supply network, and
-// which armies would starve. It ignores any calamity or bonus card already
-// drawn this turn, like ForecastIncome/ForecastTerritoryIncome (the command
-// post projection must never leak an undrawn harvest card's effect), and
+// which armies would starve. It includes the calamity already scheduled for
+// the current season, like ForecastIncome/ForecastTerritoryIncome, but not
+// a bonus card still to be played, and
 // necessarily assumes no order changes anything else before resolution — most
 // of all that every army stays exactly where it is now, since ravitaillement
 // resolves on post-movement, post-combat positions (#208) that this snapshot,
@@ -62,11 +62,16 @@ type FamineRiskForecast struct {
 // including when two armies share a single supply source that cannot feed
 // both of them.
 func ForecastFamineRisk(state *models.GameState, balance assetgen.Balance) map[models.PlayerID]FamineRiskForecast {
+	return ForecastFamineRiskWith(state, balance, nil)
+}
+
+// ForecastFamineRiskWith is ForecastFamineRisk projected with the regional bonus cards the viewer
+// drafted (see newForecastContext).
+func ForecastFamineRiskWith(state *models.GameState, balance assetgen.Balance, deckOrders map[models.PlayerID][]models.DeckOrder) map[models.PlayerID]FamineRiskForecast {
 	if state == nil || state.Season == models.SeasonWinter {
 		return nil
 	}
-	clone := cloneGameState(state)
-	ctx := newResolutionContext(clone, balance)
+	ctx := newForecastContext(state, balance, deckOrders)
 	resolveTerritoryIncome(ctx)
 	receivedRations := resolveRations(ctx)
 
