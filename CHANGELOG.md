@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/fogfactory/crown-and-borough/compare/v1.10.0...v1.10.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **engine:** merge same-owner armies retreating onto the same empty cell ([72903fa](https://github.com/fogfactory/crown-and-borough/commit/72903fa0431b4cf0ca1b59a8b3dda2644b56f681)), closes [#810](https://github.com/fogfactory/crown-and-borough/issues/810)
+
 ## [1.10.0](https://github.com/fogfactory/crown-and-borough/compare/v1.9.1...v1.10.0) (2026-11-26)
 
 
