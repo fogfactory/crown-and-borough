@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.11.0](https://github.com/fogfactory/crown-and-borough/compare/v1.10.1...v1.11.0) (2026-11-27)
+
+
+### Features
+
+* **notify:** per-game discord webhook for public announcements ([6c07019](https://github.com/fogfactory/crown-and-borough/commit/6c07019366eadf105978197eb4bba01855c45d53))
+* **notify:** per-game discord webhook for public announcements ([4a9f0b7](https://github.com/fogfactory/crown-and-borough/commit/4a9f0b7479b02e67ad86d7ac78f43e949aeec40a)), closes [#815](https://github.com/fogfactory/crown-and-borough/issues/815)
+
+
+### Documentation
+
+* **rules:** document the looping defensive support stop conditions ([1825a5d](https://github.com/fogfactory/crown-and-borough/commit/1825a5d6b8f7c7c4a93ae4716e5c2d2e1b7c151c))
+* **rules:** document the looping defensive support stop conditions ([0c1047d](https://github.com/fogfactory/crown-and-borough/commit/0c1047d4a08968e353d653bbf66392efed774ddf))
+
 ## [1.10.1](https://github.com/fogfactory/crown-and-borough/compare/v1.10.0...v1.10.1) (2026-11-26)
 
 
