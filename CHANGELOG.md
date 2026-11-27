@@ -5,7 +5,6 @@
 
 ### Bug Fixes
 
-* **forecast:** reflect weather calamities and drafted bonus cards in the treasury forecast ([2eeea6f](https://github.com/fogfactory/crown-and-borough/commit/2eeea6f2a15dea7e79a336037aa43fbf71d584c6))
 * **forecast:** reflect weather calamities and drafted bonus cards in the treasury forecast ([ef81dbe](https://github.com/fogfactory/crown-and-borough/commit/ef81dbeca15035063eab60cee49d99a9b19d142b))
 
 ## [1.11.0](https://github.com/fogfactory/crown-and-borough/compare/v1.10.1...v1.11.0) (2026-11-27)
