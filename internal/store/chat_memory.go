@@ -17,6 +17,8 @@ type MemoryChatBackend struct {
 	// activity and messageEmails back NotificationStateStore.
 	activity      map[string]time.Time
 	messageEmails map[chatSenderKey]time.Time
+	// webhooks backs DiscordWebhookStore.
+	webhooks map[GameID]DiscordWebhookConfig
 }
 
 type chatSenderKey struct {
@@ -44,6 +46,7 @@ func NewMemoryChatBackend() *MemoryChatBackend {
 
 		activity:      make(map[string]time.Time),
 		messageEmails: make(map[chatSenderKey]time.Time),
+		webhooks:      make(map[GameID]DiscordWebhookConfig),
 	}
 }
 
@@ -146,4 +149,70 @@ func (b *MemoryChatBackend) ListChatMessages(_ context.Context, id GameID, chann
 		return right.Cursor().Compare(left.Cursor())
 	})
 	return inChannel[:min(limit, len(inChannel))], nil
+}
+
+var _ DiscordWebhookStore = (*MemoryChatBackend)(nil)
+
+func (b *MemoryChatBackend) DiscordWebhook(_ context.Context, id GameID) (DiscordWebhookConfig, bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	config, ok := b.webhooks[id]
+	return config, ok, nil
+}
+
+func (b *MemoryChatBackend) SaveDiscordWebhook(_ context.Context, id GameID, config DiscordWebhookConfig) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.webhooks == nil {
+		b.webhooks = make(map[GameID]DiscordWebhookConfig)
+	}
+	config.LastPublicAt = b.webhooks[id].LastPublicAt
+	b.webhooks[id] = config
+	return nil
+}
+
+func (b *MemoryChatBackend) DeleteDiscordWebhook(_ context.Context, id GameID) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.webhooks, id)
+	return nil
+}
+
+func (b *MemoryChatBackend) DisableDiscordWebhook(_ context.Context, id GameID, url, reason string, at time.Time) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	config, ok := b.webhooks[id]
+	if !ok || config.URL != url {
+		return nil
+	}
+	config.Disabled = true
+	config.DisabledReason = reason
+	config.DisabledAt = at
+	b.webhooks[id] = config
+	return nil
+}
+
+func (b *MemoryChatBackend) ClaimDiscordPublic(_ context.Context, id GameID, at time.Time, minInterval time.Duration) (bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	config, ok := b.webhooks[id]
+	if !ok {
+		return false, nil
+	}
+	if !config.LastPublicAt.IsZero() && at.Sub(config.LastPublicAt) < minInterval {
+		return false, nil
+	}
+	config.LastPublicAt = at
+	b.webhooks[id] = config
+	return true, nil
+}
+
+func (b *MemoryChatBackend) ReleaseDiscordPublic(_ context.Context, id GameID, at time.Time) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if config, ok := b.webhooks[id]; ok && config.LastPublicAt.Equal(at) {
+		config.LastPublicAt = time.Time{}
+		b.webhooks[id] = config
+	}
+	return nil
 }

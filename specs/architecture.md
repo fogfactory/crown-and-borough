@@ -126,7 +126,7 @@ l'appartenance au jeu.
 │   │   ├── mapgen/         # génération géométrique et graphe
 │   │   └── orders/         # parsing et validation des ordres
 │   ├── models/            # modèles et invariants métier
-│   ├── notify/            # notifications par email (Mailer SMTP, décision d'envoi, notifier), sans dépendance à Firestore
+│   ├── notify/            # notifications par email (Mailer SMTP) et webhook Discord par partie (Sender par canal, décision d'envoi, notifier), sans dépendance à Firestore
 │   ├── store/             # interfaces mémoire et adaptateur Firestore online
 │   └── turn/              # cycle d'un tour partagé par le hotseat et les stores
 ├── web/
@@ -507,6 +507,21 @@ l'environnement du serveur, sans dépendance Go supplémentaire :
 | `SMTP_FROM` | Expéditeur (`adresse` ou `Nom <adresse>`) ; vide : aucun email n'est envoyé |
 | `PUBLIC_APP_URL` | Origine des liens des emails (`/games/{id}`, `/profile`) |
 
+### Webhook Discord
+
+Le webhook Discord d'une partie ([`online.md`](online.md)) n'a aucune variable
+d'environnement propre : il utilise `PUBLIC_APP_URL` pour le lien `{url}` des
+annonces. Le service n'est monté qu'en mode online, hors `ONLINE_DEV_MODE`, avec
+un store qui garde les webhooks (`store.DiscordWebhookStore`, document
+`games/{gameId}/discord_webhook/config`, mémoire ou Firestore).
+
+Les builds de démo (`-tags demo`, `scripts/discord-demo.sh`) peuvent rediriger
+les requêtes du client Discord vers un récepteur local (`DISCORD_DEMO_RECEIVER`),
+pour essayer la fonctionnalité sans webhook réel ; le client réel (validation de
+l'URL, charge utile, nouvelles tentatives) tourne tel quel et l'URL du webhook
+n'est jamais transmise au récepteur. Un binaire de production ne contient pas ce
+code.
+
 ### Limites HTTP
 
 Le serveur impose des timeouts (en-têtes 10 s, requête 30 s, réponse 60 s,
@@ -538,7 +553,7 @@ global lorsqu'une autre partie est déjà active.
 | `POST` | `/api/bugs` | Authentifié. Corps (256 Kio max) : `title` (≤ 120 car.), `description` (≤ 4000 car.), `gameId` (optionnel) et `context` (capture du navigateur : version, user agent, page, derniers appels API sans en-têtes ni corps ; aucun état de jeu). Le serveur lit lui-même la projection de `gameId` visible par le joueur (celle de `GET /api/games/{id}/state`) et la range, masquée, dans la collection Firestore privée `bugReports` (hors de `games`, lecture et écriture réservées au backend), sous un identifiant lisible `<partie>-t<tour>-<joueur>-<suffixe aléatoire>`  ; l'issue ne cite que le suffixe aléatoire `ref` (l'identifiant complet nomme la partie et le joueur), ou `Game view: unavailable` si le joueur n'est pas membre de la partie, jamais la vue elle-même. Le document est créé sans jamais écraser un rapport existant (suffixe aléatoire de 48 bits), supprimé si GitHub refuse l'issue, puis complété par `issueUrl` seul. Il porte aussi `ref`, `gameId`, `turn`, `playerId`, `uid`, `title` et `createdAt` et se retrouve dans la console par `ref` ou `issueUrl` ; il se supprime librement depuis la console. En développement sans Firestore, la collection est en mémoire. Les clés, jetons et paramètres d'URL sensibles sont masqués à toute profondeur. Crée une issue **publique** GitHub (label `bug`) au nom de la GitHub App installée sur le dépôt (JWT RS256 échangé contre un jeton d'installation d'une heure, mis en cache ; `GITHUB_BUG_TOKEN` sert de repli en local) ; le corps est tronqué sous la limite GitHub. `503 bug_reports_disabled` sans jeton, `429` au-delà de 3 signalements par 10 min et par joueur (30 par heure au total), `502` si GitHub refuse. Renvoie `201 { "url" }`. |
 | `POST` | `/api/games` | Crée une partie avec deux à douze slots ; le créateur devient automatiquement membre, sauf avec `spectate: true`, où il devient un hôte observateur sans occuper de slot. Une partie online (membership strict) démarre dans un **salon d'attente**, voir ci-dessous. `incognito: true` (faux par défaut) masque les noms de compte ; `seed` non vide impose la graine (pas de vote). |
 | `GET` | `/api/games` | Liste les parties dont le joueur courant est membre. |
-| `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. |
+| `GET` | `/api/games/{id}` | Renvoie le statut, les slots, le tour et la saison ; le code d'invitation est privé au créateur. `discordWebhook` (booléen) dit si la partie annonce sur un webhook Discord, pour que chaque joueur le sache ; l'URL n'est jamais exposée. |
 | `POST` | `/api/games/{id}/house-name` | Corps : `{ "name": "..." }`. Nomme la maison du joueur connecté (même normalisation que le nom affiché, 1 à 32 caractères). Dans le salon (`started: false`) le nom est seulement enregistré, sans message ; une fois la partie commencée il renomme la maison (slot et joueur de l'état, révision incrémentée, vues Firestore rafraîchies) et écrit dans le salon public un message système (`kind: "house_renamed"`, `body` = nouveau nom, `previousName`, auteur = la maison, sans limite de débit ni notification email). Le nom doit différer, sans tenir compte de la casse, de celui des autres maisons (`409 house_name_taken`) ; il se change tant que la maison n'a rien soumis (`PlayerSlot.NameLocked`, exposé en `nameLocked`, posé par la première soumission ; ensuite `409 house_name_locked`) ; `400 invalid_house_name`. Réponse : le détail de la partie et le slot `player` (vide dans le salon). |
 | `POST` | `/api/games/{id}/confirm` | Confirmation du créateur (voir « Confirmation du créateur »). Réponse : comme `join` ; la partie démarre si tous les slots sont pris. |
 | `PUT` | `/api/games/{id}/seed-vote` | Corps : `{ "ranking": [2, 0, 1] }`, les indices des graines candidates, de la préférée à la moins aimée ; une permutation des candidates (`400 invalid_seed_ranking`) ou une liste vide qui retire le vote. Réservé aux membres, tant que le salon est ouvert (`409 game_started` ensuite). Réponse : le détail de la partie, dont `lobby.seedRanking` (le classement du seul appelant). |
@@ -560,6 +575,11 @@ global lorsqu'une autre partie est déjà active.
 | `POST` | `/api/games/{id}/messages/acknowledge` | Corps : `channel`. Acquitte le marqueur « non répondu » du canal sans répondre (`acknowledgedAt`, jamais en arrière) et renvoie `{channel, lastReadAt, acknowledgedAt}`. |
 | `GET` | `/api/games/{id}/messages?channel=…&before=…&beforeId=…&limit=…` | Page de messages, du plus récent au plus ancien (50 par défaut, 100 au plus). Un joueur lit le salon public et ses propres conversations (`channel` = maison interlocutrice) ; l'observateur (qui ne joue aucune maison) lit aussi toute conversation par sa clé ; le créateur de la partie, s'il joue, n'a pas cet accès. Le curseur de la page suivante, `nextBefore` et `nextBeforeId`, se renvoie tel quel en `before` et `beforeId`. |
 | `POST` | `/api/games/{id}/resolve` | Résolution forcée explicite : l'esquisse de chaque maison qui n'a pas scellé est d'abord scellée à sa place, avec la validation du scellement (`turn.SealDrafts`) ; **choix par défaut** : une esquisse invalide est écartée et la maison joue avec des ordres vides, comme une maison En attente. Les ordres vides complètent les joueurs manquants. `submitted` de la réponse inclut les esquisses scellées par l'hôte. Comme `POST /api/games/{id}/orders` quand il résout le tour, la réponse est écrite et vidée (`Content-Length` explicite) avant l'envoi des emails de nouveau tour. |
+| `GET` | `/api/games/{id}/discord-webhook` | Hôte seulement (le créateur, `403 not_creator` sinon). Renvoie le statut du webhook Discord de la partie : `configured`, `language` (`fr` ou `en`), `templates` (`newTurn`, `publicMessage` ; vide = modèle par défaut), `disabled`, `disabledReason` (`webhook_gone`) et `defaults` (modèles par défaut par langue). L'URL n'est jamais renvoyée. `404 discord_disabled` hors du mode online (hotseat, `ONLINE_DEV_MODE`). |
+| `PUT` | `/api/games/{id}/discord-webhook` | Hôte seulement. Corps : `url` (facultative une fois le webhook configuré : absente, l'URL stockée est conservée ; une nouvelle URL réactive un webhook désactivé), `language` (`fr` par défaut, ou `en`), `templates`. Renvoie le statut. `400 invalid_webhook_url` (motif strict `https://discord.com/api/webhooks/{id}/{token}`, ou `discordapp.com`), `invalid_language`, `invalid_template` (avec `variable`, la variable inconnue), `template_too_long`, `invalid_discord_request` ; `409 webhook_not_configured` sans URL ni webhook stocké. |
+| `DELETE` | `/api/games/{id}/discord-webhook` | Hôte seulement. Retire le webhook (sans erreur s'il n'y en a pas) et renvoie le statut. |
+| `POST` | `/api/games/{id}/discord-webhook/test` | Hôte seulement. Envoie un message de test qui ne mentionne personne et renvoie le statut. Corps facultatif `{ url, language }` : le test part alors vers l'URL du formulaire, sans rien enregistrer ni modifier le webhook enregistré ; sans corps, il part vers le webhook enregistré, et un test réussi réactive un webhook désactivé. `400 invalid_webhook_url`, `409 webhook_not_configured`, `409 webhook_gone` (Discord a refusé le webhook ; il est désactivé s'il s'agit du webhook enregistré), `429 discord_rate_limited` (test déjà envoyé dans les 10 secondes, ou limite de Discord), `502 discord_unreachable`. |
+| `POST` | `/api/games/{id}/discord-webhook/preview` | Hôte seulement. Corps : `event` (`newTurn` ou `publicMessage`), `language`, `template` (vide : le modèle par défaut). Renvoie `{content, length, mentionEveryone, mentionRoles}` : le message rendu avec des valeurs d'exemple. Ne lit ni n'envoie rien. `400 invalid_event`, `invalid_language`, `invalid_template`, `template_too_long`. `500 discord_unavailable` quand le webhook ne peut être lu ou enregistré (toutes les routes). |
 | `GET` | `/api/games/{id}/reports` | Liste les rapports filtrés pour le joueur connecté. |
 | `GET` | `/api/games/{id}/reports/{index}` | Renvoie un rapport filtré pour le joueur connecté, ou complet pour l'hôte observateur. |
 | `GET` | `/api/rules?lang=fr` | Renvoie les règles publiques en Markdown. |

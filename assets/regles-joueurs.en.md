@@ -746,6 +746,12 @@ It exists in online games only: it is absent in hotseat.
   new turn, for private messages and for the public room. These emails never
   contain the message: they point you to the game, and only one is sent per
   game until you have read your messages again.
+- **Discord announcements.** The host of the game can plug in a Discord
+  webhook: the game then announces every new turn and, at most every 5
+  minutes, a message of the public room. When that is the case, a notice tells
+  every player: the name of the game and the turn number are sent to Discord,
+  never a message, an author or an order, and private messages are never
+  announced.
 
 ---
 

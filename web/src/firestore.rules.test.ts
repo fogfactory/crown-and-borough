@@ -294,6 +294,16 @@ suite('Firestore security rules', () => {
     )
   })
 
+  it('keeps the Discord webhook of a game backend-only', async () => {
+    const alice = environment.authenticatedContext('alice').firestore()
+    await assertFails(getDoc(doc(alice, 'games/game-1/discord_webhook/config')))
+    await assertFails(
+      setDoc(doc(alice, 'games/game-1/discord_webhook/config'), {
+        url: 'https://discord.com/api/webhooks/1/token',
+      }),
+    )
+  })
+
   it('lets a player read only their own chat read cursors', async () => {
     const alice = environment.authenticatedContext('alice').firestore()
     const carol = environment.authenticatedContext('carol').firestore()
