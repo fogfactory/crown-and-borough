@@ -863,10 +863,22 @@ l'attaque soutenue réussie, ou dès que la case soutenue est sans armée.
 Toutefois, un soutien offensif qui ouvre une chaîne reçue ce tour est rejeté à la
 soumission lorsque l'armée soutenue est au joueur lui-même et que son ordre en
 cours n'est pas l'attaque soutenue (`support_no_attack`).
+Un soutien défensif est toujours un succès (`support_applied`, `support_cut` ou
+`support_void`) : en boucle, la chaîne reste sur le même ordre tant que l'armée
+soutenue occupe la case soutenue, et avance dès qu'elle ne l'occupe plus (armée
+partie par une jonction, une dispersion complète, une manœuvre ou une attaque
+réussie, armée délogée ou détruite, case vide au début du tour), même si une
+autre armée y entre. Si aucun ordre ne suit, la chaîne est consommée. Un soutien
+défensif coupé ou sans effet n'interrompt pas la boucle, et le mauvais temps ne
+le bloque pas.
 
 Une chaîne `single` se casse au premier échec. Une chaîne `loop` retente l'ordre
-jusqu'à sa réussite. Un maintien en boucle met l'armée en veille jusqu'à la
-réception d'une nouvelle chaîne. Une dispersion traite chaque destination dans
+jusqu'à sa réussite, sauf le soutien défensif, toujours réussi, dont la boucle
+dépend de la présence de l'armée soutenue (voir ci-dessus). Une chaîne prend
+aussi fin sur un ordre invalide à l'exécution (hors mauvais temps), la
+destruction de l'armée qui porte la chaîne, son remplacement par une nouvelle
+chaîne ou son abandon lors d'une fusion de chaînes. Un maintien en boucle met
+l'armée en veille jusqu'à la réception d'une nouvelle chaîne. Une dispersion traite chaque destination dans
 son ordre d'apparition, sans introduire d'attaque : une destination occupée par
 une armée ennemie, contestée ou sans unité disponible ne consomme pas d'unité et
 les unités restantes demeurent à l'origine. Une destination occupée par une
